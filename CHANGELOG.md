@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.6.1] - 2026-04-08
+
+### Added
+
+-   **Global Proxy Safeguard (`ProxyServerWarning`)**: Created a premium, reusable warning component that indicates when the proxy engine is inactive across all features.
+-   **Unified Proxy Infrastructure Control**: Relocated the master Proxy Server switch and detailed port settings (Forward/Reverse HTTP/HTTPS) to the global Settings page for centralized infrastructure management.
+
+### Changed
+
+-   **Feature-Level Proxy Awareness**: Integrated the `ProxyServerWarning` into Dashboard, Proxy Dashboard, API Logs, API Mocking, and Server Logs.
+-   **Improved UI Masking**: Functional elements (buttons, lists, filters) in Proxy-dependent pages are now conditionally hidden when the server is OFF to prevent user confusion.
+-   **Localized Proxy Guidance**: Updated Korean and English dictionaries with clear instructions on how to reactivate the proxy engine directly from the warning component.
+
+### Fixed
+
+-   **Proxy Setup Pathing**: Corrected internal navigation links within the Setup Guide to ensure seamless flow between setup and dashboard views.
+-   **Server Logs Consistency**: Resolved a UI overlapping issue where functional controls were still visible through the proxy warning alert.
+
+---
+
 ## [v1.6.0] - 2026-04-08
 
 ### Added

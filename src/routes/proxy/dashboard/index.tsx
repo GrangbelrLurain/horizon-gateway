@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Globe, Loader2Icon, Plus, Server, Trash2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { proxyRunningAtom } from "@/domain/app-status/store";
 import { globalDomainsAtom, globalLocalRoutesAtom } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ProxySettings, ProxyStatusPayload } from "@/entities/proxy/types/local_route";
@@ -11,20 +12,14 @@ import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { SearchableInput } from "@/shared/ui/searchable-input";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { urlToHost } from "@/shared/utils/url";
 import { en } from "./en";
 import { ko } from "./ko";
-import {
-  proxyNewDomainAtom,
-  proxyNewTargetHostAtom,
-  proxyNewTargetPortAtom,
-  proxyPortInputAtom,
-  proxyReverseHttpPortInputAtom,
-  proxyReverseHttpsPortInputAtom,
-} from "./store";
+import { proxyNewDomainAtom, proxyNewTargetHostAtom, proxyNewTargetPortAtom } from "./store";
 
 export const Route = createFileRoute("/proxy/dashboard/")({
   component: ProxyPage,
@@ -35,6 +30,7 @@ function ProxyPage() {
   const t = lang === "ko" ? ko : en;
   const [routes, setRoutes] = useAtom(globalLocalRoutesAtom);
   const [domains, setDomains] = useAtom(globalDomainsAtom);
+  const isProxyRunning = useAtomValue(proxyRunningAtom);
   const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
     running: false,
     port: 0,
@@ -45,15 +41,10 @@ function ProxyPage() {
   const [loading, setLoading] = useState(true);
   const [routingToggleLoading, setRoutingToggleLoading] = useState(false);
   const [proxyError, setProxyError] = useState<string | null>(null);
-  const [manualStartLoading, setManualStartLoading] = useState(false);
   const [newDomain, setNewDomain] = useAtom(proxyNewDomainAtom);
   const [newTargetHost, setNewTargetHost] = useAtom(proxyNewTargetHostAtom);
   const [newTargetPort, setNewTargetPort] = useAtom(proxyNewTargetPortAtom);
   const [proxySettings, setProxySettings] = useState<ProxySettings | null>(null);
-  const [proxyPortInput, setProxyPortInput] = useAtom(proxyPortInputAtom);
-  const [proxyPortSaving, setProxyPortSaving] = useState(false);
-  const [reverseHttpInput, setReverseHttpInput] = useAtom(proxyReverseHttpPortInputAtom);
-  const [reverseHttpsInput, setReverseHttpsInput] = useAtom(proxyReverseHttpsPortInputAtom);
 
   const fetchRoutes = useCallback(async () => {
     try {
@@ -103,14 +94,11 @@ function ProxyPage() {
       const res = await invokeApi("get_proxy_settings");
       if (res.success && res.data) {
         setProxySettings(res.data);
-        setProxyPortInput(String(res.data.proxy_port));
-        setReverseHttpInput(res.data.reverse_http_port != null ? String(res.data.reverse_http_port) : "");
-        setReverseHttpsInput(res.data.reverse_https_port != null ? String(res.data.reverse_https_port) : "");
       }
     } catch (e) {
       console.error("get_proxy_settings:", e);
     }
-  }, [setProxyPortInput, setReverseHttpInput, setReverseHttpsInput]);
+  }, []);
 
   useEffect(() => {
     fetchRoutes();
@@ -151,57 +139,14 @@ function ProxyPage() {
   useEffect(() => {
     void fetchProxyStatusOnce();
 
-    // Query persisted auto-start error (survives even if event was missed)
-    invokeApi("get_proxy_auto_start_error")
-      .then((res) => {
-        if (res.success && res.data) {
-          setProxyError(res.data);
-        }
-      })
-      .catch(() => {});
-
     const unlistenStatus = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
-      setProxyError(null); // clear error on success
-      setProxyStatus(
-        ev.payload ?? {
-          running: false,
-          port: 0,
-          reverse_http_port: null,
-          reverse_https_port: null,
-          local_routing_enabled: true,
-        },
-      );
-    });
-    const unlistenError = listen<string>("proxy-auto-start-error", (ev) => {
-      setProxyError(ev.payload ?? "Unknown error");
+      setProxyError(null);
+      setProxyStatus(ev.payload);
     });
     return () => {
       unlistenStatus.then((fn) => fn());
-      unlistenError.then((fn) => fn());
     };
   }, [fetchProxyStatusOnce]);
-
-  const handleToggleProxy = async (enabled: boolean) => {
-    setManualStartLoading(true);
-    setProxyError(null);
-    try {
-      if (enabled) {
-        const res = await invokeApi("start_local_proxy", { payload: { port: null } });
-        if (res.success && res.data) {
-          setProxyStatus(res.data);
-        }
-      } else {
-        const res = await invokeApi("stop_local_proxy");
-        if (res.success && res.data) {
-          setProxyStatus(res.data);
-        }
-      }
-    } catch (e) {
-      setProxyError(String(e));
-    } finally {
-      setManualStartLoading(false);
-    }
-  };
 
   const handleToggleLocalRouting = async () => {
     setRoutingToggleLoading(true);
@@ -216,42 +161,6 @@ function ProxyPage() {
   };
 
   const displayPort = proxyStatus.running ? proxyStatus.port : (proxySettings?.proxy_port ?? 8888);
-
-  const handleSaveAllPorts = async () => {
-    const port = Number(proxyPortInput);
-    if (Number.isNaN(port) || port < 1 || port > 65535) {
-      return;
-    }
-    setProxyPortSaving(true);
-    try {
-      // Save proxy port
-      const portRes = await invokeApi("set_proxy_port", { payload: { port } });
-      if (portRes.success && portRes.data) {
-        setProxySettings(portRes.data);
-      }
-      // Save reverse ports
-      const http = reverseHttpInput.trim() ? Number(reverseHttpInput) : null;
-      const https = reverseHttpsInput.trim() ? Number(reverseHttpsInput) : null;
-      if (
-        (http === null || (!Number.isNaN(http) && http >= 1 && http <= 65535)) &&
-        (https === null || (!Number.isNaN(https) && https >= 1 && https <= 65535))
-      ) {
-        const revRes = await invokeApi("set_proxy_reverse_ports", {
-          payload: {
-            reverseHttpPort: http ?? undefined,
-            reverseHttpsPort: https ?? undefined,
-          },
-        });
-        if (revRes.success && revRes.data) {
-          setProxySettings(revRes.data);
-        }
-      }
-    } catch (e) {
-      console.error("save ports:", e);
-    } finally {
-      setProxyPortSaving(false);
-    }
-  };
 
   const hasReversePort = Boolean(
     (proxyStatus.running && (proxyStatus.reverse_http_port ?? proxyStatus.reverse_https_port)) ||
@@ -324,13 +233,6 @@ function ProxyPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <StatusToggle
-            label={proxyStatus.running ? t.running : t.off}
-            checked={proxyStatus.running}
-            onChange={handleToggleProxy}
-            loading={manualStartLoading}
-            icon={<Server className="w-3.5 h-3.5" />}
-          />
-          <StatusToggle
             label={t.localRouting}
             checked={proxyStatus.local_routing_enabled}
             onChange={handleToggleLocalRouting}
@@ -339,6 +241,8 @@ function ProxyPage() {
           />
         </div>
       </header>
+
+      <ProxyServerWarning />
 
       {proxyError && (
         <Card className="p-4 bg-error/10 border-error/20">
@@ -356,182 +260,135 @@ function ProxyPage() {
         </Card>
       )}
 
-      <Card className="p-4 md:p-6 flex flex-col">
-        <h2 className="font-bold text-base-content mb-4">{t.portSettings}</h2>
-        <p className="text-xs text-base-content/50 mb-3">{t.portSettingsDesc}</p>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="proxy-listen-port" className="text-xs font-medium text-base-content/50">
-              {t.forwardProxyPort}
-            </label>
-            <Input
-              id="proxy-listen-port"
-              type="number"
-              min={1}
-              max={65535}
-              className="w-24 focus:ring-primary"
-              value={proxyPortInput}
-              onChange={(e) => setProxyPortInput(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="reverse-http-port" className="text-xs font-medium text-base-content/50">
-              {t.reverseHttpPort}
-            </label>
-            <Input
-              id="reverse-http-port"
-              type="number"
-              min={1}
-              max={65535}
-              placeholder="8080"
-              className="w-24"
-              value={reverseHttpInput}
-              onChange={(e) => setReverseHttpInput(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="reverse-https-port" className="text-xs font-medium text-base-content/50">
-              {t.reverseHttpsPort}
-            </label>
-            <Input
-              id="reverse-https-port"
-              type="number"
-              min={1}
-              max={65535}
-              placeholder="8443"
-              className="w-24"
-              value={reverseHttpsInput}
-              onChange={(e) => setReverseHttpsInput(e.target.value)}
-            />
-          </div>
-          <Button variant="secondary" size="sm" onClick={handleSaveAllPorts} disabled={proxyPortSaving}>
-            {proxyPortSaving ? t.saving : t.save}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-4 bg-warning/10 border-warning/20">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-bold text-warning mb-1">{t.howToUse}</h3>
-            <p className="text-sm text-warning opacity-90">{forwardProxyHowTo}</p>
-            {hasReversePort && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <p className="text-sm text-warning opacity-90">{noSystemProxyHowTo}</p>
-                {proxyStatus.running && (
-                  <Button variant="secondary" size="sm" onClick={handleOpenSetupPage}>
-                    {t.openSetupPage}
-                  </Button>
+      {isProxyRunning && (
+        <>
+          <Card className="p-4 bg-warning/10 border-warning/20">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-warning mb-1">{t.howToUse}</h3>
+                <p className="text-sm text-warning opacity-90">{forwardProxyHowTo}</p>
+                {hasReversePort && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-warning opacity-90">{noSystemProxyHowTo}</p>
+                    {proxyStatus.running && (
+                      <Button variant="secondary" size="sm" onClick={handleOpenSetupPage}>
+                        {t.openSetupPage}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-4 md:p-6 flex flex-col">
-        <h2 className="font-bold text-base-content mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          {t.addRoute}
-        </h2>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="proxy-route-domain" className="text-xs font-medium text-base-content/50">
-              {t.domainHost}
-            </label>
-            <div className="relative">
-              <SearchableInput
-                value={newDomain}
-                onChange={setNewDomain}
-                suggestions={filteredDomainSuggestions}
-                onSelect={() => {}}
-              >
-                <SearchableInput.Input
-                  id="proxy-route-domain"
-                  placeholder="api.example.com"
-                  className="w-48 md:w-56 focus:ring-primary"
-                />
-                <SearchableInput.Dropdown />
-              </SearchableInput>
             </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="proxy-route-host" className="text-xs font-medium text-base-content/50">
-              {t.targetHost}
-            </label>
-            <Input
-              id="proxy-route-host"
-              placeholder="127.0.0.1"
-              className="w-32 focus:ring-primary"
-              value={newTargetHost}
-              onChange={(e) => setNewTargetHost(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="proxy-route-port" className="text-xs font-medium text-base-content/50">
-              {t.targetPort}
-            </label>
-            <Input
-              id="proxy-route-port"
-              placeholder="3000"
-              className="w-20 focus:ring-primary"
-              value={newTargetPort}
-              onChange={(e) => setNewTargetPort(e.target.value)}
-            />
-          </div>
-          <Button variant="primary" size="sm" className="gap-2 flex items-center" onClick={handleAddRoute}>
-            <Plus className="w-4 h-4" /> {t.add}
-          </Button>
-        </div>
-      </Card>
+          </Card>
 
-      <Card className="p-4 md:p-6 flex flex-col">
-        <h2 className="font-bold text-base-content mb-4 flex items-center gap-2">
-          <Globe className="w-4 h-4" />
-          {t.routes(routes.length)}
-        </h2>
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2Icon className="w-8 h-8 text-primary animate-spin" />
-          </div>
-        ) : routes.length === 0 ? (
-          <p className="text-base-content/40 text-sm py-6">{t.noRoutesYet}</p>
-        ) : (
-          <ul className="space-y-2">
-            {routes.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-100 hover:border-primary/30 transition-colors"
-              >
-                <span
-                  className="font-mono text-sm font-medium text-base-content truncate min-w-0 max-w-[200px] sm:max-w-xs"
-                  title={r.domain}
-                >
-                  {r.domain}
-                </span>
-                <span className="text-base-content/20">→</span>
-                <span className="text-sm text-base-content/60">
-                  {r.target_host}:{r.target_port}
-                </span>
-                <button type="button" onClick={() => handleToggleEnabled(r.id, !r.enabled)} className="ml-auto">
-                  <Badge variant={{ color: r.enabled ? "green" : "gray" }} className="cursor-pointer hover:opacity-80">
-                    {r.enabled ? t.on : t.off}
-                  </Badge>
-                </button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  className="h-8 w-8 p-0 flex items-center justify-center"
-                  onClick={() => handleRemove(r.id)}
-                >
-                  <Trash2 className="w-4 h-4 shrink-0" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+          <Card className="p-4 md:p-6 flex flex-col">
+            <h2 className="font-bold text-base-content mb-4 flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              {t.addRoute}
+            </h2>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="proxy-route-domain" className="text-xs font-medium text-base-content/50">
+                  {t.domainHost}
+                </label>
+                <div className="relative">
+                  <SearchableInput
+                    value={newDomain}
+                    onChange={setNewDomain}
+                    suggestions={filteredDomainSuggestions}
+                    onSelect={() => {}}
+                  >
+                    <SearchableInput.Input
+                      id="proxy-route-domain"
+                      placeholder="api.example.com"
+                      className="w-48 md:w-56 focus:ring-primary"
+                    />
+                    <SearchableInput.Dropdown />
+                  </SearchableInput>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="proxy-route-host" className="text-xs font-medium text-base-content/50">
+                  {t.targetHost}
+                </label>
+                <Input
+                  id="proxy-route-host"
+                  placeholder="127.0.0.1"
+                  className="w-32 focus:ring-primary"
+                  value={newTargetHost}
+                  onChange={(e) => setNewTargetHost(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="proxy-route-port" className="text-xs font-medium text-base-content/50">
+                  {t.targetPort}
+                </label>
+                <Input
+                  id="proxy-route-port"
+                  placeholder="3000"
+                  className="w-20 focus:ring-primary"
+                  value={newTargetPort}
+                  onChange={(e) => setNewTargetPort(e.target.value)}
+                />
+              </div>
+              <Button variant="primary" size="sm" className="gap-2 flex items-center" onClick={handleAddRoute}>
+                <Plus className="w-4 h-4" /> {t.add}
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-4 md:p-6 flex flex-col">
+            <h2 className="font-bold text-base-content mb-4 flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              {t.routes(routes.length)}
+            </h2>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2Icon className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            ) : routes.length === 0 ? (
+              <p className="text-base-content/40 text-sm py-6">{t.noRoutesYet}</p>
+            ) : (
+              <ul className="space-y-2">
+                {routes.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-100 hover:border-primary/30 transition-colors"
+                  >
+                    <span
+                      className="font-mono text-sm font-medium text-base-content truncate min-w-0 max-w-[200px] sm:max-w-xs"
+                      title={r.domain}
+                    >
+                      {r.domain}
+                    </span>
+                    <span className="text-base-content/20">→</span>
+                    <span className="text-sm text-base-content/60">
+                      {r.target_host}:{r.target_port}
+                    </span>
+                    <button type="button" onClick={() => handleToggleEnabled(r.id, !r.enabled)} className="ml-auto">
+                      <Badge
+                        variant={{ color: r.enabled ? "green" : "gray" }}
+                        className="cursor-pointer hover:opacity-80"
+                      >
+                        {r.enabled ? t.on : t.off}
+                      </Badge>
+                    </button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      className="h-8 w-8 p-0 flex items-center justify-center"
+                      onClick={() => handleRemove(r.id)}
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

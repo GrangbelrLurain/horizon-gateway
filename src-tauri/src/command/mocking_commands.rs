@@ -64,9 +64,21 @@ pub fn update_scenario(
     id: String,
     name: Option<String>,
     description: Option<String>,
+    enabled: Option<bool>,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<Scenario, String> {
-    service.update_scenario(id, name, description).ok_or_else(|| "Scenario not found".to_string())
+    service
+        .update_scenario(id, name, description, enabled)
+        .ok_or_else(|| "Scenario not found".to_string())
+}
+
+#[tauri::command]
+pub fn set_scenario_enabled(
+    id: String,
+    enabled: bool,
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<Vec<Scenario>, String> {
+    Ok(service.set_scenario_enabled(id, enabled))
 }
 
 #[tauri::command]

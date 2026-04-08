@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { Copy, Pause, Play, SearchIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { proxyRunningAtom } from "@/domain/app-status/store";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 
 interface ServerLog {
   timestamp: string;
@@ -34,6 +36,7 @@ function ServerLogsPage() {
   const [filterLevel, setFilterLevel] = useAtom(logFilterLevelAtom);
   const [selectedLog, setSelectedLog] = useState<ServerLog | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
+  const isProxyRunning = useAtomValue(proxyRunningAtom);
 
   // Keep track of pause state for listener
   const isPausedRef = useRef(isPaused);
@@ -96,112 +99,118 @@ function ServerLogsPage() {
     <div className="flex flex-col h-[calc(100vh-8rem)] space-y-4">
       <div className="flex items-center justify-between shrink-0">
         <h1 className="text-2xl font-bold tracking-tight text-base-content font-sans">Server Logs</h1>
-        <div className="flex items-center space-x-2 shrink-0">
-          <select
-            value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value)}
-            className="px-3 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-shadow appearance-none cursor-pointer text-base-content"
-          >
-            <option value="ALL">All Levels</option>
-            <option value="DEBUG">DEBUG</option>
-            <option value="INFO">INFO</option>
-            <option value="WARN">WARN</option>
-            <option value="ERROR">ERROR</option>
-          </select>
-          <div className="relative">
-            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-base-content/40" />
-            <input
-              type="text"
-              placeholder="Search logs..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64 transition-shadow text-base-content placeholder:text-base-content/30"
-            />
+        {isProxyRunning && (
+          <div className="flex items-center space-x-2 shrink-0">
+            <select
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+              className="px-3 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-shadow appearance-none cursor-pointer text-base-content"
+            >
+              <option value="ALL">All Levels</option>
+              <option value="DEBUG">DEBUG</option>
+              <option value="INFO">INFO</option>
+              <option value="WARN">WARN</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+            <div className="relative">
+              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-base-content/40" />
+              <input
+                type="text"
+                placeholder="Search logs..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64 transition-shadow text-base-content placeholder:text-base-content/30"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPaused((p) => !p)}
+              className="flex items-center px-3 py-2 bg-base-100 border border-base-200 rounded-md hover:bg-base-200 text-sm font-medium transition-colors text-base-content"
+            >
+              {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+              {isPaused ? "Resume" : "Pause"}
+            </button>
+            <button
+              type="button"
+              onClick={clearLogs}
+              className="flex items-center px-3 py-2 bg-base-100 border border-error/20 rounded-md hover:bg-error/10 text-sm font-medium text-error transition-colors"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsPaused((p) => !p)}
-            className="flex items-center px-3 py-2 bg-base-100 border border-base-200 rounded-md hover:bg-base-200 text-sm font-medium transition-colors text-base-content"
-          >
-            {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
-            {isPaused ? "Resume" : "Pause"}
-          </button>
-          <button
-            type="button"
-            onClick={clearLogs}
-            className="flex items-center px-3 py-2 bg-base-100 border border-error/20 rounded-md hover:bg-error/10 text-sm font-medium text-error transition-colors"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Clear
-          </button>
-        </div>
+        )}
       </div>
 
-      <div className="flex-1 bg-[#0F172A] rounded-xl p-4 shadow-inner overflow-hidden flex flex-col mt-4">
-        <div
-          ref={parentRef}
-          className="flex-1 overflow-auto rounded text-sm text-slate-300 font-mono styling-scrollbar"
-        >
+      <ProxyServerWarning />
+
+      {isProxyRunning && (
+        <div className="flex-1 bg-[#0F172A] rounded-xl p-4 shadow-inner overflow-hidden flex flex-col mt-4">
           <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
+            ref={parentRef}
+            className="flex-1 overflow-auto rounded text-sm text-slate-300 font-mono styling-scrollbar"
           >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const log = filteredLogs[virtualItem.index];
-              return (
-                <div
-                  key={virtualItem.key}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: `${virtualItem.size}px`,
-                    transform: `translateY(${virtualItem.start}px)`,
-                  }}
-                  onClick={() => setSelectedLog(log)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      setSelectedLog(log);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className="flex items-center space-x-3 px-2 hover:bg-slate-700/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
-                >
-                  <span className="text-slate-500 shrink-0 w-64 text-xs font-semibold">{log.timestamp}</span>
-                  <span
-                    className={clsx(
-                      "shrink-0 font-bold w-16 text-xs",
-                      log.level === "ERROR"
-                        ? "text-red-400"
-                        : log.level === "WARN"
-                          ? "text-amber-400"
-                          : log.level === "INFO"
-                            ? "text-blue-400"
-                            : "text-slate-500",
-                    )}
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const log = filteredLogs[virtualItem.index];
+                return (
+                  <div
+                    key={virtualItem.key}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: `${virtualItem.size}px`,
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                    onClick={() => setSelectedLog(log)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        setSelectedLog(log);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    className="flex items-center space-x-3 px-2 hover:bg-slate-700/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
                   >
-                    {log.level.padEnd(5)}
-                  </span>
-                  <span className="text-indigo-400/80 shrink-0 min-w-32 truncate max-w-64 border-r border-slate-700 pr-3 text-xs">
-                    {log.target}
-                  </span>
-                  <span className="text-slate-200 leading-none truncate">{log.message}</span>
+                    <span className="text-slate-500 shrink-0 w-64 text-xs font-semibold">{log.timestamp}</span>
+                    <span
+                      className={clsx(
+                        "shrink-0 font-bold w-16 text-xs",
+                        log.level === "ERROR"
+                          ? "text-red-400"
+                          : log.level === "WARN"
+                            ? "text-amber-400"
+                            : log.level === "INFO"
+                              ? "text-blue-400"
+                              : "text-slate-500",
+                      )}
+                    >
+                      {log.level.padEnd(5)}
+                    </span>
+                    <span className="text-indigo-400/80 shrink-0 min-w-32 truncate max-w-64 border-r border-slate-700 pr-3 text-xs">
+                      {log.target}
+                    </span>
+                    <span className="text-slate-200 leading-none truncate">{log.message}</span>
+                  </div>
+                );
+              })}
+              {filteredLogs.length === 0 && (
+                <div className="flex items-center justify-center h-full text-slate-500 w-full mt-12 text-sm">
+                  No logs generated yet. Wait for events or check terminal.
                 </div>
-              );
-            })}
-            {filteredLogs.length === 0 && (
-              <div className="flex items-center justify-center h-full text-slate-500 w-full mt-12 text-sm">
-                No logs generated yet. Wait for events or check terminal.
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)}>
         <Modal.Header title="Log Details" description={selectedLog?.target} />

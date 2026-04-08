@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { apiLoggingCountAtom, domainCountAtom } from "@/domain/app-status/store";
+import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
 import type { Scenario } from "@/entities/scenario/types/mocking";
@@ -27,6 +27,7 @@ import { Card } from "@/shared/ui/card/card";
 import { EmptyState } from "@/shared/ui/empty-state/EmptyState";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { en } from "./en";
 import { ko } from "./ko";
 import { apiLogsDateAtom, apiLogsHostFilterAtom, apiLogsMethodFilterAtom, apiLogsSearchAtom } from "./store";
@@ -49,6 +50,7 @@ function ApiLogs() {
   const [clearing, setClearing] = useState(false);
   const domainCount = useAtomValue(domainCountAtom);
   const apiLoggingCount = useAtomValue(apiLoggingCountAtom);
+  const isProxyRunning = useAtomValue(proxyRunningAtom);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [isScenarioSelectModalOpen, setIsScenarioSelectModalOpen] = useState(false);
@@ -179,237 +181,245 @@ function ApiLogs() {
           <p className="text-base-content/60 text-sm font-medium">{t.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => fetchLogs(date)}
-            disabled={loading}
-            className="flex items-center gap-2 h-10 px-4 whitespace-nowrap shrink-0"
-          >
-            <History className={clsx("w-4 h-4", loading && "animate-spin")} />
-            {t.refresh}
-          </Button>
-
-          {/* Date Navigator */}
-          <div className="flex items-center gap-2 bg-base-100 p-1 rounded-xl border border-base-300 shadow-sm h-10">
-            <Button variant="secondary" size="icon" onClick={() => changeDate(-1)} className="h-8 w-8">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2 px-3">
-              <Calendar className="w-4 h-4 text-base-content/40" />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="text-sm font-bold text-base-content outline-none bg-transparent w-[110px]"
-              />
-            </div>
+        {isProxyRunning && (
+          <div className="flex items-center gap-2">
             <Button
               variant="secondary"
-              size="icon"
-              onClick={() => changeDate(1)}
-              disabled={date === new Date().toISOString().split("T")[0]}
-              className="h-8 w-8"
+              size="sm"
+              onClick={() => fetchLogs(date)}
+              disabled={loading}
+              className="flex items-center gap-2 h-10 px-4 whitespace-nowrap shrink-0"
             >
-              <ChevronRight className="w-4 h-4" />
+              <History className={clsx("w-4 h-4", loading && "animate-spin")} />
+              {t.refresh}
             </Button>
+
+            {/* Date Navigator */}
+            <div className="flex items-center gap-2 bg-base-100 p-1 rounded-xl border border-base-300 shadow-sm h-10">
+              <Button variant="secondary" size="icon" onClick={() => changeDate(-1)} className="h-8 w-8">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center gap-2 px-3">
+                <Calendar className="w-4 h-4 text-base-content/40" />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="text-sm font-bold text-base-content outline-none bg-transparent w-[110px]"
+                />
+              </div>
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => changeDate(1)}
+                disabled={date === new Date().toISOString().split("T")[0]}
+                className="h-8 w-8"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
-      {/* Filters & Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-        <div className="flex flex-1 gap-3">
-          <Card className="p-2 bg-base-100 border-base-300 flex-1 flex items-center gap-3 px-4 shadow-sm">
-            <Search className="w-4 h-4 text-base-content/40 shrink-0" />
-            <input
-              type="text"
-              placeholder={t.filterPath}
-              className="bg-transparent border-none outline-none text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="text-base-content/40 hover:text-base-content/80 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </Card>
+      <ProxyServerWarning />
 
-          <Card className="p-2 bg-base-100 border-base-300 flex-1 flex items-center gap-3 px-4 shadow-sm">
-            <GlobeIcon className="w-4 h-4 text-base-content/40 shrink-0" />
-            <input
-              type="text"
-              placeholder={t.filterHost}
-              className="bg-transparent border-none outline-none text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
-              value={hostFilter}
-              onChange={(e) => setHostFilter(e.target.value)}
-            />
-            {hostFilter && (
-              <button
-                type="button"
-                onClick={() => setHostFilter("")}
-                className="text-base-content/40 hover:text-base-content/80 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </Card>
-        </div>
-
-        <div className="flex items-center gap-2 bg-base-100 rounded-xl border border-base-300 p-1 shadow-sm">
-          <Button
-            variant={methodFilter === "" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setMethodFilter("")}
-            className="font-black text-[10px] uppercase tracking-tighter h-8"
-          >
-            {t.allMethods}
-          </Button>
-          <div className="w-px h-4 bg-base-300 mx-1" />
-          {METHODS.map((m) => (
-            <Button
-              key={m}
-              variant={methodFilter === m ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setMethodFilter(methodFilter === m ? "" : m)}
-              className="font-black text-[10px] h-8 px-3 uppercase tracking-tighter"
-            >
-              {m}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex items-center gap-2 h-auto whitespace-nowrap shrink-0"
-            onClick={() => handleClearLogs(false)}
-            disabled={clearing || logs.length === 0}
-          >
-            <Trash2 className="w-4 h-4" />
-            {t.clearDate(date)}
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            className="flex items-center gap-2 h-auto whitespace-nowrap shrink-0"
-            onClick={() => handleClearLogs(true)}
-            disabled={clearing}
-          >
-            <Trash2 className="w-4 h-4" />
-            {t.clearAll}
-          </Button>
-        </div>
-      </div>
-
-      {/* Log List */}
-      <div className="bg-base-100 rounded-2xl border border-base-300 shadow-xl overflow-hidden flex flex-col flex-1 min-h-0">
-        <div className="grid grid-cols-[80px_60px_1fr_120px] gap-4 px-6 py-3 bg-base-200/50 border-b border-base-300 text-[10px] font-black text-base-content/40 uppercase tracking-widest shrink-0">
-          <div>{t.status}</div>
-          <div>{t.method}</div>
-          <div>{t.urlPath}</div>
-          <div className="text-right">{t.time}</div>
-        </div>
-
-        <div className="overflow-y-auto flex-1 p-0">
-          {domainCount === 0 ? (
-            <div className="p-4">
-              <EmptyState tier={1} lang={lang} />
-            </div>
-          ) : apiLoggingCount === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                tier={2}
-                icon={History}
-                title={t.noApiLoggingTitle}
-                description={t.noApiLoggingDesc}
-                actionLabel={t.noApiLoggingAction}
-                actionHref="/apis/settings"
-              />
-            </div>
-          ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3 opacity-30 grayscale">
-              <FileText className="w-12 h-12 text-base-content" />
-              <p className="text-sm font-black uppercase tracking-widest text-base-content">
-                {loading ? t.loadingLogs : t.noLogsFound}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-base-300/50">
-              {logs.map((log) => (
-                <button
-                  type="button"
-                  key={log.id}
-                  className="w-full grid grid-cols-[80px_60px_1fr_120px] gap-4 items-center px-6 py-3 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary"
-                  onClick={() => setSelectedLog(log)}
-                >
-                  <div className="flex">
-                    <Badge
-                      variant={{
-                        color:
-                          (log.status_code ?? 0) >= 500
-                            ? "red"
-                            : (log.status_code ?? 0) >= 400
-                              ? "amber"
-                              : (log.status_code ?? 0) >= 300
-                                ? "blue"
-                                : "green",
-                        size: "sm",
-                      }}
-                      className="font-black w-[50px] justify-center tracking-tighter"
-                    >
-                      {log.status_code ?? "-"}
-                    </Badge>
-                  </div>
-                  <span
-                    className={`font-black text-[10px] uppercase tracking-tighter ${
-                      log.method === "GET"
-                        ? "text-success"
-                        : log.method === "POST"
-                          ? "text-info"
-                          : log.method === "PUT"
-                            ? "text-warning"
-                            : log.method === "DELETE"
-                              ? "text-error"
-                              : "text-base-content/60"
-                    }`}
+      {isProxyRunning && (
+        <>
+          {/* Filters & Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+            <div className="flex flex-1 gap-3">
+              <Card className="p-2 bg-base-100 border-base-300 flex-1 flex items-center gap-3 px-4 shadow-sm">
+                <Search className="w-4 h-4 text-base-content/40 shrink-0" />
+                <input
+                  type="text"
+                  placeholder={t.filterPath}
+                  className="bg-transparent border-none outline-none text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="text-base-content/40 hover:text-base-content/80 transition-colors"
                   >
-                    {log.method}
-                  </span>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </Card>
 
-                  <div className="min-w-0 flex flex-col gap-0.5">
-                    <span
-                      className="text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-                      title={log.url}
-                    >
-                      {log.path}
-                    </span>
-                    <span className="text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
-                      {log.host}
-                    </span>
-                  </div>
+              <Card className="p-2 bg-base-100 border-base-300 flex-1 flex items-center gap-3 px-4 shadow-sm">
+                <GlobeIcon className="w-4 h-4 text-base-content/40 shrink-0" />
+                <input
+                  type="text"
+                  placeholder={t.filterHost}
+                  className="bg-transparent border-none outline-none text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
+                  value={hostFilter}
+                  onChange={(e) => setHostFilter(e.target.value)}
+                />
+                {hostFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setHostFilter("")}
+                    className="text-base-content/40 hover:text-base-content/80 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </Card>
+            </div>
 
-                  <span className="text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors">
-                    {new Date(log.timestamp).toLocaleTimeString([], {
-                      hour12: false,
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
-                  </span>
-                </button>
+            <div className="flex items-center gap-2 bg-base-100 rounded-xl border border-base-300 p-1 shadow-sm">
+              <Button
+                variant={methodFilter === "" ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setMethodFilter("")}
+                className="font-black text-[10px] uppercase tracking-tighter h-8"
+              >
+                {t.allMethods}
+              </Button>
+              <div className="w-px h-4 bg-base-300 mx-1" />
+              {METHODS.map((m) => (
+                <Button
+                  key={m}
+                  variant={methodFilter === m ? "primary" : "ghost"}
+                  size="sm"
+                  onClick={() => setMethodFilter(methodFilter === m ? "" : m)}
+                  className="font-black text-[10px] h-8 px-3 uppercase tracking-tighter"
+                >
+                  {m}
+                </Button>
               ))}
             </div>
-          )}
-        </div>
-      </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2 h-auto whitespace-nowrap shrink-0"
+                onClick={() => handleClearLogs(false)}
+                disabled={clearing || logs.length === 0}
+              >
+                <Trash2 className="w-4 h-4" />
+                {t.clearDate(date)}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="flex items-center gap-2 h-auto whitespace-nowrap shrink-0"
+                onClick={() => handleClearLogs(true)}
+                disabled={clearing}
+              >
+                <Trash2 className="w-4 h-4" />
+                {t.clearAll}
+              </Button>
+            </div>
+          </div>
+
+          {/* Log List */}
+          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-xl overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="grid grid-cols-[80px_60px_1fr_120px] gap-4 px-6 py-3 bg-base-200/50 border-b border-base-300 text-[10px] font-black text-base-content/40 uppercase tracking-widest shrink-0">
+              <div>{t.status}</div>
+              <div>{t.method}</div>
+              <div>{t.urlPath}</div>
+              <div className="text-right">{t.time}</div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-0">
+              {domainCount === 0 ? (
+                <div className="p-4">
+                  <EmptyState tier={1} lang={lang} />
+                </div>
+              ) : apiLoggingCount === 0 ? (
+                <div className="p-4">
+                  <EmptyState
+                    tier={2}
+                    icon={History}
+                    title={t.noApiLoggingTitle}
+                    description={t.noApiLoggingDesc}
+                    actionLabel={t.noApiLoggingAction}
+                    actionHref="/apis/settings"
+                  />
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 gap-3 opacity-30 grayscale">
+                  <FileText className="w-12 h-12 text-base-content" />
+                  <p className="text-sm font-black uppercase tracking-widest text-base-content">
+                    {loading ? t.loadingLogs : t.noLogsFound}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-base-300/50">
+                  {logs.map((log) => (
+                    <button
+                      type="button"
+                      key={log.id}
+                      className="w-full grid grid-cols-[80px_60px_1fr_120px] gap-4 items-center px-6 py-3 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary"
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      <div className="flex">
+                        <Badge
+                          variant={{
+                            color:
+                              (log.status_code ?? 0) >= 500
+                                ? "red"
+                                : (log.status_code ?? 0) >= 400
+                                  ? "amber"
+                                  : (log.status_code ?? 0) >= 300
+                                    ? "blue"
+                                    : "green",
+                            size: "sm",
+                          }}
+                          className="font-black w-[50px] justify-center tracking-tighter"
+                        >
+                          {log.status_code ?? "-"}
+                        </Badge>
+                      </div>
+                      <span
+                        className={`font-black text-[10px] uppercase tracking-tighter ${
+                          log.method === "GET"
+                            ? "text-success"
+                            : log.method === "POST"
+                              ? "text-info"
+                              : log.method === "PUT"
+                                ? "text-warning"
+                                : log.method === "DELETE"
+                                  ? "text-error"
+                                  : "text-base-content/60"
+                        }`}
+                      >
+                        {log.method}
+                      </span>
+
+                      <div className="min-w-0 flex flex-col gap-0.5">
+                        <span
+                          className="text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+                          title={log.url}
+                        >
+                          {log.path}
+                        </span>
+                        <span className="text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
+                          {log.host}
+                        </span>
+                      </div>
+
+                      <span className="text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors">
+                        {new Date(log.timestamp).toLocaleTimeString([], {
+                          hour12: false,
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Log Detail Modal */}
       <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)}>

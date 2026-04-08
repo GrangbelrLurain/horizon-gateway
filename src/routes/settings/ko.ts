@@ -32,4 +32,21 @@ export const ko: TranslationSchema = {
   alertImportConfirm: "가져오기를 진행하면 현재의 도메인, 그룹, 프록시 설정이 모두 덮어쓰여집니다. 계속하시겠습니까?",
   alertImportSuccess: "설정을 불러왔습니다. 도메인 및 프록시 페이지를 새로고침해야 할 수 있습니다.",
   alertImportFail: "가져오기에 실패했습니다. 자세한 내용은 콘솔을 확인하세요.",
+
+  // Proxy Server settings
+  proxyTitle: "프록시 서버",
+  proxyDesc: "코어 프록시 엔진과 리스닝 포트를 관리합니다. 이 서버는 로컬 라우팅, API 로깅 및 모킹을 처리합니다.",
+  proxyStatusLabel: "서버 상태",
+  proxyRunning: "실행 중",
+  proxyStopped: "정지됨",
+  proxyPortLabel: "포워드 프록시 포트",
+  proxyHttpLabel: "리버스 HTTP 포트",
+  proxyHttpsLabel: "리버스 HTTPS 포트",
+  proxySavePorts: "포트 설정 저장",
+  proxySaving: "저장 중...",
+
+  // Proxy Warning
+  proxyRequiredTitle: "프록시 서버 필요",
+  proxyRequiredDesc: "이 기능을 사용하려면 프록시 서버가 실행 중이어야 합니다. 설정 페이지에서 서버를 켜주세요.",
+  goToSettings: "설정으로 이동",
 };

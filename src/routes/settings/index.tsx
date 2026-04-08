@@ -1,15 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useAtomValue } from "jotai";
-import { Download, RefreshCw, Settings as SettingsIcon, Upload } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
+import { useAtom, useAtomValue } from "jotai";
+import { Download, RefreshCw, Server, Settings as SettingsIcon, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import {
+  proxyPortInputAtom,
+  proxyReverseHttpPortInputAtom,
+  proxyReverseHttpsPortInputAtom,
+} from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { ProxySettings } from "@/entities/proxy/types/local_route";
+import type { ProxySettings, ProxyStatusPayload } from "@/entities/proxy/types/local_route";
 import type { SettingsExport } from "@/entities/settings/types/settings_export";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { invokeApi } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, P } from "@/shared/ui/typography/typography";
 
 import { en } from "./en";
@@ -25,7 +32,31 @@ function SettingsPage() {
   const lang = useAtomValue(languageAtom);
   const { update, isChecking, error: updateError, checkForUpdates } = useUpdateCheck({ onMount: false });
 
+  const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
+    running: false,
+    port: 0,
+    reverse_http_port: null,
+    reverse_https_port: null,
+    local_routing_enabled: true,
+  });
+  const [proxyPortInput, setProxyPortInput] = useAtom(proxyPortInputAtom);
+  const [reverseHttpInput, setReverseHttpInput] = useAtom(proxyReverseHttpPortInputAtom);
+  const [reverseHttpsInput, setReverseHttpsInput] = useAtom(proxyReverseHttpsPortInputAtom);
+  const [proxyLoading, setProxyLoading] = useState(false);
+  const [proxyPortSaving, setProxyPortSaving] = useState(false);
+
   const t = lang === "ko" ? ko : en;
+
+  const fetchProxyStatus = useCallback(async () => {
+    try {
+      const res = await invokeApi("get_proxy_status");
+      if (res.success && res.data) {
+        setProxyStatus(res.data);
+      }
+    } catch (e) {
+      console.error("get_proxy_status:", e);
+    }
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -33,15 +64,77 @@ function SettingsPage() {
       if (proxyRes.success && proxyRes.data) {
         setProxySettings(proxyRes.data);
         setDnsServerInput(proxyRes.data.dns_server ?? "");
+        setProxyPortInput(String(proxyRes.data.proxy_port));
+        setReverseHttpInput(proxyRes.data.reverse_http_port != null ? String(proxyRes.data.reverse_http_port) : "");
+        setReverseHttpsInput(proxyRes.data.reverse_https_port != null ? String(proxyRes.data.reverse_https_port) : "");
       }
     } catch (e) {
       console.error("fetchSettings:", e);
     }
-  }, []);
+  }, [setProxyPortInput, setReverseHttpInput, setReverseHttpsInput]);
 
   useEffect(() => {
     fetchSettings();
-  }, [fetchSettings]);
+    void fetchProxyStatus();
+
+    const unlisten = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
+      setProxyStatus(ev.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [fetchSettings, fetchProxyStatus]);
+
+  const handleToggleProxy = async (enabled: boolean) => {
+    setProxyLoading(true);
+    try {
+      if (enabled) {
+        await invokeApi("start_local_proxy", { payload: { port: null } });
+      } else {
+        await invokeApi("stop_local_proxy");
+      }
+    } catch (e) {
+      console.error("toggle proxy:", e);
+    } finally {
+      setProxyLoading(false);
+    }
+  };
+
+  const handleSaveAllPorts = async () => {
+    const port = Number(proxyPortInput);
+    if (Number.isNaN(port) || port < 1 || port > 65535) {
+      return;
+    }
+    setProxyPortSaving(true);
+    try {
+      // Save proxy port
+      const portRes = await invokeApi("set_proxy_port", { payload: { port } });
+      if (portRes.success && portRes.data) {
+        setProxySettings(portRes.data);
+      }
+      // Save reverse ports
+      const http = reverseHttpInput.trim() ? Number(reverseHttpInput) : null;
+      const https = reverseHttpsInput.trim() ? Number(reverseHttpsInput) : null;
+      if (
+        (http === null || (!Number.isNaN(http) && http >= 1 && http <= 65535)) &&
+        (https === null || (!Number.isNaN(https) && https >= 1 && https <= 65535))
+      ) {
+        const revRes = await invokeApi("set_proxy_reverse_ports", {
+          payload: {
+            reverseHttpPort: http ?? undefined,
+            reverseHttpsPort: https ?? undefined,
+          },
+        });
+        if (revRes.success && revRes.data) {
+          setProxySettings(revRes.data);
+        }
+      }
+    } catch (e) {
+      console.error("save ports:", e);
+    } finally {
+      setProxyPortSaving(false);
+    }
+  };
 
   const handleSaveDnsServer = async () => {
     const value = dnsServerInput.trim() || null;
@@ -119,6 +212,74 @@ function SettingsPage() {
         </div>
         <P className="text-base-content/60">{t.subtitle}</P>
       </header>
+
+      <Card className="p-4 md:p-6 flex flex-col">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="font-bold text-base-content mb-1">{t.proxyTitle}</h2>
+            <p className="text-sm text-base-content/60">{t.proxyDesc}</p>
+          </div>
+          <StatusToggle
+            label={proxyStatus.running ? t.proxyRunning : t.proxyStopped}
+            checked={proxyStatus.running}
+            onChange={handleToggleProxy}
+            loading={proxyLoading}
+            icon={<Server className="w-3.5 h-3.5" />}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-base-200">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="proxy-listen-port" className="text-xs font-medium text-base-content/50">
+              {t.proxyPortLabel}
+            </label>
+            <Input
+              id="proxy-listen-port"
+              type="number"
+              min={1}
+              max={65535}
+              className="w-full focus:ring-primary"
+              value={proxyPortInput}
+              onChange={(e) => setProxyPortInput(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="reverse-http-port" className="text-xs font-medium text-base-content/50">
+              {t.proxyHttpLabel}
+            </label>
+            <Input
+              id="reverse-http-port"
+              type="number"
+              min={1}
+              max={65535}
+              placeholder="8080"
+              className="w-full"
+              value={reverseHttpInput}
+              onChange={(e) => setReverseHttpInput(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="reverse-https-port" className="text-xs font-medium text-base-content/50">
+              {t.proxyHttpsLabel}
+            </label>
+            <Input
+              id="reverse-https-port"
+              type="number"
+              min={1}
+              max={65535}
+              placeholder="8443"
+              className="w-full"
+              value={reverseHttpsInput}
+              onChange={(e) => setReverseHttpsInput(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Button variant="secondary" size="sm" onClick={handleSaveAllPorts} disabled={proxyPortSaving}>
+            {proxyPortSaving ? t.proxySaving : t.proxySavePorts}
+          </Button>
+        </div>
+      </Card>
 
       <Card className="p-4 md:p-6 flex flex-col">
         <h2 className="font-bold text-base-content mb-2">{t.updateTitle}</h2>

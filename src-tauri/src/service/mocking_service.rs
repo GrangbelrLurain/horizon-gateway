@@ -55,9 +55,23 @@ impl MockingService {
         out
     }
 
-    // --- Scenarios ---
     pub fn get_scenarios(&self) -> Vec<Scenario> {
         self.scenarios.lock().unwrap().clone()
+    }
+
+    pub fn set_scenario_enabled(&self, id: String, enabled: bool) -> Vec<Scenario> {
+        let mut list = self.scenarios.lock().unwrap();
+        for s in list.iter_mut() {
+            if s.id == id {
+                s.enabled = enabled;
+            } else if enabled {
+                // Exclusive enable: if we are enabling one, disable others
+                s.enabled = false;
+            }
+        }
+        let out = list.clone();
+        self.save_scenarios(&out);
+        out
     }
 
     pub fn create_scenario(&self, name: String, description: Option<String>) -> Scenario {
@@ -66,15 +80,28 @@ impl MockingService {
             id: Uuid::new_v4().to_string(),
             name,
             description,
+            enabled: false,
         };
         list.push(scenario.clone());
         self.save_scenarios(&list);
         scenario
     }
 
-    pub fn update_scenario(&self, id: String, name: Option<String>, description: Option<String>) -> Option<Scenario> {
+    pub fn update_scenario(
+        &self,
+        id: String,
+        name: Option<String>,
+        description: Option<String>,
+        enabled: Option<bool>,
+    ) -> Option<Scenario> {
         let mut list = self.scenarios.lock().unwrap();
         let mut updated = None;
+        let mut should_exclusive_disable = false;
+
+        if let Some(true) = enabled {
+            should_exclusive_disable = true;
+        }
+
         for s in list.iter_mut() {
             if s.id == id {
                 if let Some(n) = name.clone() {
@@ -83,8 +110,12 @@ impl MockingService {
                 if description.is_some() {
                     s.description = description.clone();
                 }
+                if let Some(e) = enabled {
+                    s.enabled = e;
+                }
                 updated = Some(s.clone());
-                break;
+            } else if should_exclusive_disable {
+                s.enabled = false;
             }
         }
         if updated.is_some() {

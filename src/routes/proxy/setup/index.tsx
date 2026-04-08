@@ -7,6 +7,7 @@ import type { ProxyStatusPayload } from "@/entities/proxy/types/local_route";
 import { invokeApi } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { H1, H2, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -74,23 +75,16 @@ function ProxySetupPage() {
   return (
     <div className="flex flex-col gap-8 pb-20">
       <div className="flex items-center gap-4">
-        <Link to="/proxy" className="text-slate-600 hover:text-slate-900">
+        <Link to="/proxy/dashboard" className="text-slate-600 hover:text-slate-900">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <H1>{t.title}</H1>
       </div>
 
-      {!proxyStatus.running ? (
-        <Card className="p-6">
-          <P className="text-slate-600">{t.notRunning}</P>
-          <Link to="/proxy">
-            <Button variant="primary" className="mt-4">
-              {t.goToProxy}
-            </Button>
-          </Link>
-        </Card>
-      ) : (
-        <div className="flex flex-col gap-8">
+      <ProxyServerWarning />
+
+      {proxyStatus.running && (
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* HTTPS Root CA */}
           <Card className="p-6">
             <H2 className="mb-4">{t.certTitle}</H2>

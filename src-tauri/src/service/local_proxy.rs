@@ -867,10 +867,14 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
 
     // --- MOCKING INTERCEPTOR ---
     if is_mocking_enabled() {
+        let scenarios = state.mocking_service.get_scenarios();
+        let enabled_scenario_ids: Vec<String> = scenarios.iter().filter(|s| s.enabled).map(|s| s.id.clone()).collect();
+        
         let rules = state.mocking_service.get_mock_rules();
         let target_host = host_key_for_logging_map(&host_h);
         if let Some(rule) = rules.into_iter().find(|r| {
             r.enabled 
+            && enabled_scenario_ids.contains(&r.scenario_id)
             && r.method.eq_ignore_ascii_case(&method) 
             && path.starts_with(&r.url_pattern)
             && (r.host.is_none() || r.host.as_deref().map(|h| h.to_lowercase()).unwrap_or_default() == target_host)

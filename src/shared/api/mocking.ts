@@ -9,8 +9,17 @@ export const createScenario = (name: string, description?: string): Promise<Scen
   return invoke("create_scenario", { name, description });
 };
 
-export const updateScenario = (id: string, name?: string, description?: string): Promise<Scenario> => {
-  return invoke("update_scenario", { id, name, description });
+export const updateScenario = (
+  id: string,
+  name?: string,
+  description?: string,
+  enabled?: boolean,
+): Promise<Scenario> => {
+  return invoke("update_scenario", { id, name, description, enabled });
+};
+
+export const setScenarioEnabled = (id: string, enabled: boolean): Promise<Scenario[]> => {
+  return invoke("set_scenario_enabled", { id, enabled });
 };
 
 export const deleteScenario = (id: string): Promise<boolean> => {

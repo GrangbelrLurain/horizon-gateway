@@ -65,7 +65,7 @@ mod command {
 use command::mocking_commands::{
     create_mock_rule, create_mock_rule_from_log, create_scenario, delete_mock_rule,
     delete_scenario, get_mock_rules, get_mock_rules_by_scenario, get_scenarios, update_mock_rule,
-    update_scenario, get_mocking_status, set_mocking_enabled,
+    update_scenario, get_mocking_status, set_mocking_enabled, set_scenario_enabled,
 };
 
 use command::domain_commands::{
@@ -311,6 +311,7 @@ pub fn run() {
             create_mock_rule_from_log,
             get_mocking_status,
             set_mocking_enabled,
+            set_scenario_enabled,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

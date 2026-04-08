@@ -19,6 +19,10 @@ export const proxyMockingEnabledAtom = atomWithBroadcast<boolean | null>("app-pr
 export const appStatusLoadingAtom = atom(false);
 export const appStatusLoadedAtom = atom(false);
 
+export const proxyPortInputAtom = atomWithStorage("watchtower_proxy_port_input", "8888");
+export const proxyReverseHttpPortInputAtom = atomWithStorage("watchtower_proxy_reverse_http_port", "");
+export const proxyReverseHttpsPortInputAtom = atomWithStorage("watchtower_proxy_reverse_https_port", "");
+
 /** Persistent flag: set to true when user dismisses the setup guide or completes it once */
 export const setupDismissedAtom = atomWithStorage("watchtower-setup-dismissed", false);
 

@@ -28,4 +28,22 @@ export const en = {
   alertImportConfirm: "Import will replace all current domains, groups, proxy routes, and settings. Continue?",
   alertImportSuccess: "Settings imported. You may need to refresh domains and proxy pages.",
   alertImportFail: "Import failed. See console for details.",
+
+  // Proxy Server settings
+  proxyTitle: "Proxy Server",
+  proxyDesc:
+    "Manage the core proxy engine and its listening ports. This server handles local routing, API logging, and mocking.",
+  proxyStatusLabel: "Server Status",
+  proxyRunning: "Running",
+  proxyStopped: "Stopped",
+  proxyPortLabel: "Forward Proxy Port",
+  proxyHttpLabel: "Reverse HTTP Port",
+  proxyHttpsLabel: "Reverse HTTPS Port",
+  proxySavePorts: "Save Port Settings",
+  proxySaving: "Saving...",
+
+  // Proxy Warning
+  proxyRequiredTitle: "Proxy Server Required",
+  proxyRequiredDesc: "The proxy server must be running for this feature to work. Please enable it in Settings.",
+  goToSettings: "Go to Settings",
 } as const;

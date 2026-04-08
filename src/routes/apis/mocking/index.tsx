@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
-import { Edit2, FlaskConical, Pause, Play, Plus, Trash2 } from "lucide-react";
+import { Edit2, FlaskConical, Pause, Play, Plus, Power, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { proxyMockingEnabledAtom } from "@/domain/app-status/store";
+import { proxyMockingEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { MockRule, Scenario } from "@/entities/scenario/types/mocking";
 import { invokeApi } from "@/shared/api";
@@ -11,6 +11,7 @@ import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -24,6 +25,7 @@ function MockingDashboard() {
   const t = lang === "ko" ? ko : en;
 
   const [mockingEnabled, setMockingEnabled] = useAtom(proxyMockingEnabledAtom);
+  const isProxyRunning = useAtomValue(proxyRunningAtom);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
@@ -100,7 +102,15 @@ function MockingDashboard() {
     }
   };
 
-  // Scenario actions
+  const handleToggleScenario = async (id: string, enabled: boolean) => {
+    try {
+      const updatedScenarios = await mockingApi.setScenarioEnabled(id, enabled);
+      setScenarios(updatedScenarios);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSaveScenario = async () => {
     try {
       if (editingScenario) {
@@ -251,9 +261,11 @@ function MockingDashboard() {
       <div className="w-64 flex flex-col gap-4 shrink-0 border-r border-base-300 pr-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black">{t.scenarios}</h2>
-          <Button variant="secondary" size="sm" onClick={() => openScenarioModal()}>
-            <Plus className="w-4 h-4" />
-          </Button>
+          {isProxyRunning && (
+            <Button variant="secondary" size="sm" onClick={() => openScenarioModal()}>
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
         </div>
         <div className="flex flex-col gap-2 overflow-y-auto">
           {scenarios.length === 0 ? (
@@ -265,37 +277,52 @@ function MockingDashboard() {
                 type="button"
                 className={`p-3 rounded-xl border text-left flex justify-between items-center group transition-colors ${selectedScenarioId === s.id ? `bg-primary/10 border-primary` : `bg-base-100 border-base-300 hover:border-primary/50`}`}
                 onClick={() => setSelectedScenarioId(s.id)}
+                disabled={!isProxyRunning}
               >
                 <div className="flex flex-col min-w-0">
                   <span className="font-bold truncate text-sm">{s.name}</span>
                   {s.description && <span className="text-[10px] text-base-content/50 truncate">{s.description}</span>}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className="p-1 hover:text-primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openScenarioModal(s);
-                    }}
-                    onKeyDown={(e) => e.key === "Enter" && openScenarioModal(s)}
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
+                {isProxyRunning && (
+                  <div className="flex gap-1 opacity-100 group-hover:opacity-100 transition-opacity">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={`p-1 hover:text-success transition-colors ${s.enabled ? `text-success` : `text-base-content/20`}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleScenario(s.id, !s.enabled);
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleToggleScenario(s.id, !s.enabled)}
+                    >
+                      <Power className={`w-3.5 h-3.5 ${s.enabled ? `fill-success/20` : ``}`} />
+                    </div>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="p-1 hover:text-primary opacity-0 group-hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openScenarioModal(s);
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && openScenarioModal(s)}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </div>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="p-1 hover:text-error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScenarioToDelete(s.id);
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && setScenarioToDelete(s.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </div>
                   </div>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className="p-1 hover:text-error"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setScenarioToDelete(s.id);
-                    }}
-                    onKeyDown={(e) => e.key === "Enter" && setScenarioToDelete(s.id)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                )}
               </button>
             ))
           )}
@@ -304,89 +331,99 @@ function MockingDashboard() {
 
       {/* Main Area: Mock Rules */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <FlaskConical className="w-5 h-5" />
+        <ProxyServerWarning />
+        {isProxyRunning && (
+          <>
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                  <FlaskConical className="w-5 h-5" />
+                </div>
+                <h1 className="text-3xl font-black">{t.mockRules}</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <StatusToggle
+                  label="Mocking"
+                  checked={mockingEnabled ?? false}
+                  onChange={toggleMocking}
+                  loading={mockingLoading}
+                  icon={<FlaskConical className="w-3.5 h-3.5" />}
+                />
+                <Button variant="primary" onClick={() => openRuleModal()} disabled={!selectedScenarioId}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t.addRule}
+                </Button>
+              </div>
             </div>
-            <h1 className="text-3xl font-black">{t.mockRules}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <StatusToggle
-              label="Mocking"
-              checked={mockingEnabled ?? false}
-              onChange={toggleMocking}
-              loading={mockingLoading}
-              icon={<FlaskConical className="w-3.5 h-3.5" />}
-            />
-            <Button variant="primary" onClick={() => openRuleModal()} disabled={!selectedScenarioId}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t.addRule}
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {!selectedScenarioId ? (
-            <div className="flex flex-col items-center justify-center h-full text-base-content/50">
-              <FlaskConical className="w-12 h-12 mb-4 opacity-50" />
-              <p className="font-bold">{t.noScenarios}</p>
-            </div>
-          ) : rules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-base-content/50">
-              <p>{t.noRulesDesc}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {rules.map((rule) => (
-                <Card key={rule.id} className={`p-4 flex flex-col gap-3 ${!rule.enabled && `opacity-50`}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`font-black text-xs px-2 py-0.5 rounded uppercase ${rule.method === `GET` ? `bg-success/20 text-success` : rule.method === `POST` ? `bg-info/20 text-info` : `bg-warning/20 text-warning`}`}
-                      >
-                        {rule.method}
-                      </span>
-                      <span className="font-mono text-sm font-bold truncate max-w-[200px]" title={rule.url_pattern}>
-                        {rule.url_pattern}
-                      </span>
-                      {rule.host && (
-                        <span className="text-[10px] bg-base-200 text-base-content/50 px-1.5 py-0.5 rounded font-medium">
-                          {rule.host}
+            <div className="flex-1 overflow-y-auto">
+              {!selectedScenarioId ? (
+                <div className="flex flex-col items-center justify-center h-full text-base-content/50">
+                  <FlaskConical className="w-12 h-12 mb-4 opacity-50" />
+                  <p className="font-bold">{t.noScenarios}</p>
+                </div>
+              ) : rules.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-base-content/50">
+                  <p>{t.noRulesDesc}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {rules.map((rule) => (
+                    <Card key={rule.id} className={`p-4 flex flex-col gap-3 ${!rule.enabled && `opacity-50`}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-black text-xs px-2 py-0.5 rounded uppercase ${rule.method === `GET` ? `bg-success/20 text-success` : rule.method === `POST` ? `bg-info/20 text-info` : `bg-warning/20 text-warning`}`}
+                          >
+                            {rule.method}
+                          </span>
+                          <span className="font-mono text-sm font-bold truncate max-w-[200px]" title={rule.url_pattern}>
+                            {rule.url_pattern}
+                          </span>
+                          {rule.host && (
+                            <span className="text-[10px] bg-base-200 text-base-content/50 px-1.5 py-0.5 rounded font-medium">
+                              {rule.host}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleToggleRule(rule)}
+                          >
+                            {rule.enabled ? (
+                              <Pause className="w-4 h-4 text-warning" />
+                            ) : (
+                              <Play className="w-4 h-4 text-success" />
+                            )}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRuleModal(rule)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-error hover:text-error"
+                            onClick={() => setRuleToDelete(rule.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>{" "}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={`font-bold ${rule.response_status >= 400 ? `text-error` : `text-success`}`}>
+                          {rule.response_status}
                         </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleRule(rule)}>
-                        {rule.enabled ? (
-                          <Pause className="w-4 h-4 text-warning" />
-                        ) : (
-                          <Play className="w-4 h-4 text-success" />
-                        )}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openRuleModal(rule)}>
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-error hover:text-error"
-                        onClick={() => setRuleToDelete(rule.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>{" "}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className={`font-bold ${rule.response_status >= 400 ? `text-error` : `text-success`}`}>
-                      {rule.response_status}
-                    </span>
-                    <span className="text-base-content/50">Response Mock</span>
-                  </div>
-                </Card>
-              ))}
+                        <span className="text-base-content/50">Response Mock</span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Scenario Modal */}

@@ -21,6 +21,7 @@ import {
 } from "@/features/dashboard/ui/DashboardComponents";
 import { invokeApi } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
+import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -179,6 +180,8 @@ function Dashboard() {
           />
         </div>
       </header>
+
+      <ProxyServerWarning />
 
       {/* ── Setup Progress Card (disappears when all done or dismissed) ── */}
       {!setupDismissed && (

@@ -6,6 +6,7 @@ export interface Scenario {
   id: string;
   name: string;
   description: string | null;
+  enabled: boolean;
 }
 
 export interface MockRule {
