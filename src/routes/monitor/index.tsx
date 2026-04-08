@@ -133,15 +133,15 @@ function MonitorIndex() {
           <LoadingScreen key="monitor-loader" onCancel={() => setIsFetching(false)} />
         )}
       </AnimatePresence>
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <header className="flex flex-col tablet:flex-row justify-between items-start tablet:items-center gap-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
+          <div className="flex items-center gap-3 mb-1 tablet:mb-2 text-primary">
+            <div className="p-2 bg-primary/10 rounded-lg">
               <Activity className="w-5 h-5 animate-pulse" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-base-content">{t.title}</h1>
+            <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content">{t.title}</h1>
           </div>
-          <div className="flex items-center gap-2 text-base-content/60 text-sm">
+          <div className="flex items-center gap-2 text-base-content/60 text-[10px] tablet:text-sm">
             <Clock className="w-3.5 h-3.5" />
             <span>
               {t.lastSynched}: <span className="font-bold text-base-content/80">{lastUpdated}</span>
@@ -149,25 +149,33 @@ function MonitorIndex() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Link to="/monitor/logs">
-            <Button variant="secondary" className="gap-2 flex items-center">
-              <History className="w-4 h-4 inline-block" />
-              {t.viewLogs}
+        <div className="flex flex-wrap items-center gap-2 w-full tablet:w-auto">
+          <Link to="/monitor/logs" className="flex-1 tablet:flex-none">
+            <Button variant="secondary" className="gap-2 flex items-center w-full justify-center">
+              <History className="w-4 h-4" />
+              <span className="text-xs tablet:text-sm">{t.viewLogs}</span>
             </Button>
           </Link>
-          <Button variant="secondary" onClick={handleManualRefresh} className="gap-2 flex items-center">
-            <RefreshCcw className={clsx("w-4 h-4 inline-block", isFetching && "animate-spin")} />
-            {t.refresh}
+          <Button
+            variant="secondary"
+            onClick={handleManualRefresh}
+            className="gap-2 flex items-center flex-1 tablet:flex-none justify-center"
+          >
+            <RefreshCcw className={clsx("w-4 h-4", isFetching && "animate-spin")} />
+            <span className="text-xs tablet:text-sm">{t.refresh}</span>
           </Button>
-          <Button variant="primary" onClick={copyUrls} className="gap-2 shadow-lg shadow-blue-500/20 flex items-center">
-            <Copy className="w-4 h-4 inline-block" />
-            {t.copyReport}
+          <Button
+            variant="primary"
+            onClick={copyUrls}
+            className="gap-2 shadow-lg shadow-blue-500/20 flex items-center w-full tablet:w-auto justify-center"
+          >
+            <Copy className="w-4 h-4" />
+            <span className="text-xs tablet:text-sm">{t.copyReport}</span>
           </Button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
         <Card className="p-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center text-success">
             <CheckCircle2 className="w-5 h-5" />
@@ -225,7 +233,7 @@ function MonitorIndex() {
         </Card>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-base-100/50 backdrop-blur-sm p-4 rounded-3xl border border-base-300 shadow-sm">
+      <div className="flex flex-col tablet:flex-row gap-4 items-center bg-base-100/50 backdrop-blur-sm p-4 rounded-3xl border border-base-300 shadow-sm">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
           <input
@@ -236,7 +244,7 @@ function MonitorIndex() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0">
+        <div className="flex items-center gap-2 w-full tablet:w-auto overflow-x-auto [scrollbar-width:none] pb-1 tablet:pb-0">
           <Filter className="w-4 h-4 text-base-content/40 mr-1 shrink-0" />
           <div className="flex gap-2">
             {[

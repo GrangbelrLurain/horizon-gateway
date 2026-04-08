@@ -15,7 +15,11 @@ export const domainCountAtom = atomWithBroadcast<number | null>("app-domain-coun
 export const apiLoggingCountAtom = atomWithBroadcast<number | null>("app-api-logging-count", null);
 export const proxyRunningAtom = atomWithBroadcast<boolean | null>("app-proxy-running", null);
 export const proxyLocalRoutingEnabledAtom = atomWithBroadcast<boolean | null>("app-proxy-local-routing", null);
-export const proxyMockingEnabledAtom = atomWithBroadcast<boolean | null>("app-proxy-mocking-enabled", null);
+export const proxyMockingEnabledAtom = atomWithBroadcast<boolean | null>(
+  "app-proxy-mocking-enabled",
+  null,
+  atomWithStorage("watchtower-proxy-mocking-enabled", null as boolean | null),
+);
 export const appStatusLoadingAtom = atom(false);
 export const appStatusLoadedAtom = atom(false);
 

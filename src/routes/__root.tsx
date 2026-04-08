@@ -263,7 +263,7 @@ const RootLayout = () => {
           <div
             className={clsx(
               "mx-auto",
-              !isDetached ? "max-w-(--breakpoint-2xl) p-6 md:p-8 lg:p-12" : "w-full h-full p-4",
+              !isDetached ? "max-w-(--breakpoint-2xl) p-4 tablet:p-8 lg:p-10" : "w-full h-full p-4",
             )}
           >
             {showUpdateBanner && !isDetached && update && (

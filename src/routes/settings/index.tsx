@@ -204,20 +204,20 @@ function SettingsPage() {
   return (
     <div className="flex flex-col gap-8 pb-20">
       <header>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-primary/10 text-primary rounded-lg">
-            <SettingsIcon className="w-5 h-5" />
+        <div className="flex items-center gap-3 mb-1 tablet:mb-2 text-primary">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <SettingsIcon className="w-5 h-5 tablet:w-6 tablet:h-6" />
           </div>
-          <H1>{t.title}</H1>
+          <H1 className="text-2xl tablet:text-3xl font-black tracking-tight">{t.title}</H1>
         </div>
-        <P className="text-base-content/60">{t.subtitle}</P>
+        <P className="text-base-content/60 text-xs tablet:text-sm">{t.subtitle}</P>
       </header>
 
-      <Card className="p-4 md:p-6 flex flex-col">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="p-4 tablet:p-6 flex flex-col">
+        <div className="flex flex-col tablet:flex-row justify-between items-start gap-4 mb-4">
           <div>
-            <h2 className="font-bold text-base-content mb-1">{t.proxyTitle}</h2>
-            <p className="text-sm text-base-content/60">{t.proxyDesc}</p>
+            <h2 className="font-bold text-base-content mb-1 tablet:text-lg">{t.proxyTitle}</h2>
+            <p className="text-xs tablet:text-sm text-base-content/60">{t.proxyDesc}</p>
           </div>
           <StatusToggle
             label={proxyStatus.running ? t.proxyRunning : t.proxyStopped}
@@ -228,9 +228,12 @@ function SettingsPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-base-200">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="proxy-listen-port" className="text-xs font-medium text-base-content/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 tablet:grid-cols-3 gap-4 tablet:gap-6 pt-4 tablet:pt-6 border-t border-base-200">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="proxy-listen-port"
+              className="text-[10px] tablet:text-xs font-bold text-base-content/40 uppercase tracking-wider"
+            >
               {t.proxyPortLabel}
             </label>
             <Input
@@ -238,13 +241,16 @@ function SettingsPage() {
               type="number"
               min={1}
               max={65535}
-              className="w-full focus:ring-primary"
+              className="w-full focus:ring-primary h-10"
               value={proxyPortInput}
               onChange={(e) => setProxyPortInput(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="reverse-http-port" className="text-xs font-medium text-base-content/50">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="reverse-http-port"
+              className="text-[10px] tablet:text-xs font-bold text-base-content/40 uppercase tracking-wider"
+            >
               {t.proxyHttpLabel}
             </label>
             <Input
@@ -253,13 +259,16 @@ function SettingsPage() {
               min={1}
               max={65535}
               placeholder="8080"
-              className="w-full"
+              className="w-full h-10"
               value={reverseHttpInput}
               onChange={(e) => setReverseHttpInput(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="reverse-https-port" className="text-xs font-medium text-base-content/50">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="reverse-https-port"
+              className="text-[10px] tablet:text-xs font-bold text-base-content/40 uppercase tracking-wider"
+            >
               {t.proxyHttpsLabel}
             </label>
             <Input
@@ -268,7 +277,7 @@ function SettingsPage() {
               min={1}
               max={65535}
               placeholder="8443"
-              className="w-full"
+              className="w-full h-10"
               value={reverseHttpsInput}
               onChange={(e) => setReverseHttpsInput(e.target.value)}
             />
@@ -281,7 +290,7 @@ function SettingsPage() {
         </div>
       </Card>
 
-      <Card className="p-4 md:p-6 flex flex-col">
+      <Card className="p-4 tablet:p-6 flex flex-col">
         <h2 className="font-bold text-base-content mb-2">{t.updateTitle}</h2>
         <p className="text-sm text-base-content/60 mb-4">{t.updateDesc}</p>
         <div className="flex flex-wrap gap-3 items-center mb-4">
@@ -303,26 +312,29 @@ function SettingsPage() {
         {update && <UpdateBanner update={update} onDismiss={undefined} />}
       </Card>
 
-      <Card className="p-4 md:p-6 flex flex-col">
+      <Card className="p-4 tablet:p-6 flex flex-col">
         <h2 className="font-bold text-base-content mb-2">{t.dnsTitle}</h2>
         <p className="text-sm text-base-content/60 mb-4">
           {t.dnsDesc} <code className="bg-base-200 px-1 rounded">8.8.8.8</code> or{" "}
           <code className="bg-base-200 px-1 rounded">1.1.1.1:53</code>.
         </p>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="settings-dns-server" className="text-xs font-medium text-base-content/50">
+        <div className="flex flex-col tablet:flex-row gap-4 items-end">
+          <div className="flex flex-col gap-1.5 w-full tablet:w-auto">
+            <label
+              htmlFor="settings-dns-server"
+              className="text-[10px] tablet:text-xs font-bold text-base-content/40 uppercase tracking-wider"
+            >
               {t.dnsLabel}
             </label>
             <Input
               id="settings-dns-server"
               placeholder={t.dnsPlaceholder}
-              className="w-40 md:w-48 focus:ring-primary"
+              className="w-full tablet:w-48 focus:ring-primary h-10"
               value={dnsServerInput}
               onChange={(e) => setDnsServerInput(e.target.value)}
             />
           </div>
-          <Button variant="secondary" size="sm" onClick={handleSaveDnsServer}>
+          <Button variant="secondary" size="sm" onClick={handleSaveDnsServer} className="w-full tablet:w-auto h-10">
             {t.dnsSave}
           </Button>
         </div>
@@ -333,7 +345,7 @@ function SettingsPage() {
         )}
       </Card>
 
-      <Card className="p-4 md:p-6 flex flex-col">
+      <Card className="p-4 tablet:p-6 flex flex-col">
         <h2 className="font-bold text-base-content mb-2">{t.backupTitle}</h2>
         <p className="text-sm text-base-content/60 mb-4">{t.backupDesc}</p>
         <div className="flex flex-wrap gap-3">

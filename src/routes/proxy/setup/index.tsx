@@ -65,7 +65,7 @@ function ProxySetupPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 pb-20">
-        <div className="flex items-center gap-2 text-slate-500">
+        <div className="flex items-center gap-2 text-base-content/40">
           <span className="animate-pulse">{t.loading}</span>
         </div>
       </div>
@@ -75,10 +75,10 @@ function ProxySetupPage() {
   return (
     <div className="flex flex-col gap-8 pb-20">
       <div className="flex items-center gap-4">
-        <Link to="/proxy/dashboard" className="text-slate-600 hover:text-slate-900">
+        <Link to="/proxy/dashboard" className="text-base-content/40 hover:text-base-content transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <H1>{t.title}</H1>
+        <H1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">{t.title}</H1>
       </div>
 
       <ProxyServerWarning />
@@ -87,8 +87,8 @@ function ProxySetupPage() {
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* HTTPS Root CA */}
           <Card className="p-6">
-            <H2 className="mb-4">{t.certTitle}</H2>
-            <P className="text-slate-600 mb-6">{t.certDesc}</P>
+            <H2 className="mb-4 text-xl tablet:text-2xl font-black text-base-content tracking-tight">{t.certTitle}</H2>
+            <P className="text-base-content/60 mb-6">{t.certDesc}</P>
 
             <div className="flex justify-center mb-8">
               <Button
@@ -102,9 +102,11 @@ function ProxySetupPage() {
               </Button>
             </div>
 
-            <div className="bg-slate-50 p-5 rounded-lg border border-slate-200">
-              <h3 className="font-semibold text-slate-800 mb-3">{t.installationStepsTitle}</h3>
-              <ol className="list-decimal list-inside space-y-2 text-slate-700 text-sm">
+            <div className="bg-base-200/50 p-5 rounded-xl border border-base-300">
+              <h3 className="font-bold text-base-content mb-3 uppercase tracking-wider text-xs opacity-50">
+                {t.installationStepsTitle}
+              </h3>
+              <ol className="list-decimal list-inside space-y-2 text-base-content/80 text-sm">
                 <li>{t.step1}</li>
                 <li>{t.step2}</li>
                 <li>{t.step3}</li>
@@ -115,17 +117,19 @@ function ProxySetupPage() {
               </ol>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <P className="text-slate-500 text-xs">{t.macosUsers}</P>
+            <div className="mt-6 pt-4 border-t border-base-200">
+              <P className="text-base-content/40 text-[10px] italic">{t.macosUsers}</P>
             </div>
           </Card>
 
           {/* PAC */}
           <Card className="p-6">
-            <H2 className="mb-2">{t.pacTitle}</H2>
-            <P className="text-slate-600 mb-3">{t.pacDesc}</P>
-            <div className="bg-slate-100 rounded-lg p-4 font-mono text-sm break-all">{pacUrl || "—"}</div>
-            <P className="text-slate-500 text-sm mt-3">
+            <H2 className="mb-2 text-xl font-bold text-base-content">{t.pacTitle}</H2>
+            <P className="text-base-content/60 mb-3">{t.pacDesc}</P>
+            <div className="bg-base-200 rounded-lg p-4 font-mono text-xs tablet:text-sm break-all text-primary font-bold">
+              {pacUrl || "—"}
+            </div>
+            <P className="text-base-content/40 text-xs tablet:text-sm mt-3 leading-relaxed">
               {t.pacWindows}
               <br />
               {t.pacMacos}
@@ -134,14 +138,15 @@ function ProxySetupPage() {
 
           {/* 수동 프록시 */}
           <Card className="p-6">
-            <H2 className="mb-2">{t.manualTitle}</H2>
-            <P className="text-slate-600 mb-2">{t.manualDesc}</P>
-            <ul className="list-disc list-inside text-slate-600 space-y-1">
+            <H2 className="mb-2 text-xl font-bold text-base-content">{t.manualTitle}</H2>
+            <P className="text-base-content/60 mb-2">{t.manualDesc}</P>
+            <ul className="list-disc list-inside text-base-content/80 space-y-1 text-sm">
               <li>
-                {t.manualAddress} <code className="bg-slate-100 px-1 rounded">127.0.0.1</code>
+                {t.manualAddress}{" "}
+                <code className="bg-base-200 px-2 py-0.5 rounded text-primary font-bold">127.0.0.1</code>
               </li>
               <li>
-                {t.manualPort} <code className="bg-slate-100 px-1 rounded">{port}</code>
+                {t.manualPort} <code className="bg-base-200 px-2 py-0.5 rounded text-primary font-bold">{port}</code>
               </li>
             </ul>
           </Card>

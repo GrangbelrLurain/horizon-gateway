@@ -146,9 +146,9 @@ export interface SearchableInputDropdownProps {
 }
 
 function SearchableInputDropdown({
-  className = "absolute top-full left-0 right-0 z-10 mt-1 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1",
-  itemClassName = "w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-violet-50 hover:text-violet-800",
-  itemHighlightedClassName = "bg-violet-50 text-violet-800",
+  className = "absolute top-full left-0 right-0 z-10 mt-1 max-h-48 overflow-auto rounded-lg border border-base-200 bg-base-100 shadow-lg py-1",
+  itemClassName = "w-full text-left px-3 py-2 text-sm text-base-content/80 hover:bg-primary/10 hover:text-primary transition-colors",
+  itemHighlightedClassName = "bg-primary/10 text-primary",
   renderItem,
 }: SearchableInputDropdownProps) {
   const { open, suggestions, highlightedIndex, handleSelect, itemRef } = useSearchableInputContext();

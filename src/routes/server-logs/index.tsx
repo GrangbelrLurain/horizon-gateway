@@ -97,14 +97,24 @@ function ServerLogsPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] space-y-4">
-      <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight text-base-content font-sans">Server Logs</h1>
+      <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6 shrink-0">
+        <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content font-sans">Server Logs</h1>
         {isProxyRunning && (
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="relative flex-1 tablet:flex-initial min-w-[140px]">
+              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-base-content/40" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-base-100 border border-base-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full tablet:w-48 transition-all text-base-content placeholder:text-base-content/30"
+              />
+            </div>
             <select
               value={filterLevel}
               onChange={(e) => setFilterLevel(e.target.value)}
-              className="px-3 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-shadow appearance-none cursor-pointer text-base-content"
+              className="px-3 py-2 bg-base-100 border border-base-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer text-base-content h-9"
             >
               <option value="ALL">All Levels</option>
               <option value="DEBUG">DEBUG</option>
@@ -112,32 +122,24 @@ function ServerLogsPage() {
               <option value="WARN">WARN</option>
               <option value="ERROR">ERROR</option>
             </select>
-            <div className="relative">
-              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-base-content/40" />
-              <input
-                type="text"
-                placeholder="Search logs..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-base-100 border border-base-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64 transition-shadow text-base-content placeholder:text-base-content/30"
-              />
+            <div className="flex gap-2 w-full tablet:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsPaused((p) => !p)}
+                className="flex-1 tablet:flex-initial flex items-center justify-center px-4 py-2 bg-base-100 border border-base-200 rounded-lg hover:bg-base-200 text-sm font-bold transition-all text-base-content h-9"
+              >
+                {isPaused ? <Play className="w-3.5 h-3.5 mr-2" /> : <Pause className="w-3.5 h-3.5 mr-2" />}
+                {isPaused ? "Resume" : "Pause"}
+              </button>
+              <button
+                type="button"
+                onClick={clearLogs}
+                className="tablet:flex-initial flex items-center justify-center px-4 py-2 bg-base-100 border border-error/20 rounded-lg hover:bg-error/10 text-sm font-bold text-error transition-all h-9"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                Clear
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsPaused((p) => !p)}
-              className="flex items-center px-3 py-2 bg-base-100 border border-base-200 rounded-md hover:bg-base-200 text-sm font-medium transition-colors text-base-content"
-            >
-              {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
-              {isPaused ? "Resume" : "Pause"}
-            </button>
-            <button
-              type="button"
-              onClick={clearLogs}
-              className="flex items-center px-3 py-2 bg-base-100 border border-error/20 rounded-md hover:bg-error/10 text-sm font-medium text-error transition-colors"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear
-            </button>
           </div>
         )}
       </div>
@@ -178,12 +180,17 @@ function ServerLogsPage() {
                     }}
                     role="button"
                     tabIndex={0}
-                    className="flex items-center space-x-3 px-2 hover:bg-slate-700/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
+                    className="flex items-center space-x-2 tablet:space-x-3 px-2 hover:bg-slate-700/50 whitespace-nowrap overflow-hidden text-ellipsis transition-colors cursor-pointer"
                   >
-                    <span className="text-slate-500 shrink-0 w-64 text-xs font-semibold">{log.timestamp}</span>
+                    <span className="hidden tablet:inline text-slate-500 shrink-0 w-32 xl:w-64 text-[10px] tablet:text-xs font-semibold">
+                      {log.timestamp}
+                    </span>
+                    <span className="tablet:hidden text-slate-500 shrink-0 w-20 text-[10px] uppercase font-mono">
+                      {log.timestamp.split(" ")[1]}
+                    </span>
                     <span
                       className={clsx(
-                        "shrink-0 font-bold w-16 text-xs",
+                        "shrink-0 font-bold w-12 tablet:w-16 text-[10px] tablet:text-xs",
                         log.level === "ERROR"
                           ? "text-red-400"
                           : log.level === "WARN"
@@ -195,10 +202,10 @@ function ServerLogsPage() {
                     >
                       {log.level.padEnd(5)}
                     </span>
-                    <span className="text-indigo-400/80 shrink-0 min-w-32 truncate max-w-64 border-r border-slate-700 pr-3 text-xs">
+                    <span className="hidden tablet:inline text-indigo-400/80 shrink-0 min-w-24 tablet:min-w-32 truncate max-w-48 tablet:max-w-64 border-r border-slate-700 pr-3 text-[10px] tablet:text-xs text-right tablet:text-left">
                       {log.target}
                     </span>
-                    <span className="text-slate-200 leading-none truncate">{log.message}</span>
+                    <span className="text-slate-200 leading-none truncate text-xs tablet:text-sm">{log.message}</span>
                   </div>
                 );
               })}

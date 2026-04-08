@@ -221,15 +221,15 @@ function ProxyPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-20">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <Server className="w-5 h-5" />
+          <div className="flex items-center gap-3 mb-1 tablet:mb-2 text-primary">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Server className="w-5 h-5 tablet:w-6 tablet:h-6" />
             </div>
-            <H1>{t.title}</H1>
+            <H1 className="text-2xl tablet:text-3xl">{t.title}</H1>
           </div>
-          <P className="text-base-content/60">{t.subtitle}</P>
+          <P className="text-base-content/60 text-xs tablet:text-sm">{t.subtitle}</P>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <StatusToggle
@@ -287,9 +287,12 @@ function ProxyPage() {
               <Plus className="w-4 h-4" />
               {t.addRoute}
             </h2>
-            <div className="flex flex-wrap gap-3 items-end">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="proxy-route-domain" className="text-xs font-medium text-base-content/50">
+            <div className="flex flex-col tablet:flex-row tablet:items-end gap-3 tablet:gap-4">
+              <div className="flex flex-col gap-1 w-full tablet:w-auto">
+                <label
+                  htmlFor="proxy-route-domain"
+                  className="text-xs font-bold text-base-content/40 uppercase tracking-wider"
+                >
                   {t.domainHost}
                 </label>
                 <div className="relative">
@@ -302,37 +305,50 @@ function ProxyPage() {
                     <SearchableInput.Input
                       id="proxy-route-domain"
                       placeholder="api.example.com"
-                      className="w-48 md:w-56 focus:ring-primary"
+                      className="w-full tablet:w-56 focus:ring-primary h-10"
                     />
                     <SearchableInput.Dropdown />
                   </SearchableInput>
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="proxy-route-host" className="text-xs font-medium text-base-content/50">
-                  {t.targetHost}
-                </label>
-                <Input
-                  id="proxy-route-host"
-                  placeholder="127.0.0.1"
-                  className="w-32 focus:ring-primary"
-                  value={newTargetHost}
-                  onChange={(e) => setNewTargetHost(e.target.value)}
-                />
+              <div className="flex gap-3 w-full tablet:w-auto">
+                <div className="flex flex-col gap-1 flex-1 tablet:flex-none">
+                  <label
+                    htmlFor="proxy-route-host"
+                    className="text-xs font-bold text-base-content/40 uppercase tracking-wider"
+                  >
+                    {t.targetHost}
+                  </label>
+                  <Input
+                    id="proxy-route-host"
+                    placeholder="127.0.0.1"
+                    className="w-full tablet:w-32 focus:ring-primary h-10"
+                    value={newTargetHost}
+                    onChange={(e) => setNewTargetHost(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 w-24 tablet:w-20">
+                  <label
+                    htmlFor="proxy-route-port"
+                    className="text-xs font-bold text-base-content/40 uppercase tracking-wider"
+                  >
+                    {t.targetPort}
+                  </label>
+                  <Input
+                    id="proxy-route-port"
+                    placeholder="3000"
+                    className="w-full focus:ring-primary h-10"
+                    value={newTargetPort}
+                    onChange={(e) => setNewTargetPort(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="proxy-route-port" className="text-xs font-medium text-base-content/50">
-                  {t.targetPort}
-                </label>
-                <Input
-                  id="proxy-route-port"
-                  placeholder="3000"
-                  className="w-20 focus:ring-primary"
-                  value={newTargetPort}
-                  onChange={(e) => setNewTargetPort(e.target.value)}
-                />
-              </div>
-              <Button variant="primary" size="sm" className="gap-2 flex items-center" onClick={handleAddRoute}>
+              <Button
+                variant="primary"
+                size="sm"
+                className="gap-2 flex items-center w-full tablet:w-auto h-10 justify-center"
+                onClick={handleAddRoute}
+              >
                 <Plus className="w-4 h-4" /> {t.add}
               </Button>
             </div>

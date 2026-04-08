@@ -15,6 +15,7 @@ import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServer
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { en } from "./en";
 import { ko } from "./ko";
+import { selectedScenarioIdAtom } from "./store";
 
 export const Route = createFileRoute("/apis/mocking/")({
   component: MockingDashboard,
@@ -28,7 +29,7 @@ function MockingDashboard() {
   const isProxyRunning = useAtomValue(proxyRunningAtom);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useAtom(selectedScenarioIdAtom);
   const [rules, setRules] = useState<MockRule[]>([]);
 
   // Modals
@@ -70,7 +71,7 @@ function MockingDashboard() {
     } catch (e) {
       console.error(e);
     }
-  }, [selectedScenarioId]);
+  }, [selectedScenarioId, setSelectedScenarioId]);
 
   useEffect(() => {
     loadScenarios();
@@ -256,9 +257,9 @@ function MockingDashboard() {
   };
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex flex-col tablet:flex-row h-full gap-6">
       {/* Sidebar: Scenarios */}
-      <div className="w-64 flex flex-col gap-4 shrink-0 border-r border-base-300 pr-6">
+      <div className="w-full tablet:w-64 flex flex-col gap-4 shrink-0 tablet:border-r border-base-300 tablet:pr-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black">{t.scenarios}</h2>
           {isProxyRunning && (
@@ -267,7 +268,7 @@ function MockingDashboard() {
             </Button>
           )}
         </div>
-        <div className="flex flex-col gap-2 overflow-y-auto">
+        <div className="flex tablet:flex-col gap-2 overflow-x-auto tablet:overflow-y-auto [scrollbar-width:none] pb-2 tablet:pb-0">
           {scenarios.length === 0 ? (
             <div className="text-sm text-base-content/50">{t.noScenariosDesc}</div>
           ) : (
@@ -275,7 +276,7 @@ function MockingDashboard() {
               <button
                 key={s.id}
                 type="button"
-                className={`p-3 rounded-xl border text-left flex justify-between items-center group transition-colors ${selectedScenarioId === s.id ? `bg-primary/10 border-primary` : `bg-base-100 border-base-300 hover:border-primary/50`}`}
+                className={`p-3 rounded-xl border text-left flex justify-between items-center group transition-colors shrink-0 tablet:shrink-1 min-w-[160px] tablet:min-w-0 ${selectedScenarioId === s.id ? `bg-primary/10 border-primary shadow-sm shadow-primary/5` : `bg-base-100 border-base-300 hover:border-primary/50`}`}
                 onClick={() => setSelectedScenarioId(s.id)}
                 disabled={!isProxyRunning}
               >
@@ -334,24 +335,29 @@ function MockingDashboard() {
         <ProxyServerWarning />
         {isProxyRunning && (
           <>
-            <div className="flex items-center justify-between shrink-0">
+            <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  <FlaskConical className="w-5 h-5" />
+                  <FlaskConical className="w-5 h-5 tablet:w-6 tablet:h-6" />
                 </div>
-                <h1 className="text-3xl font-black">{t.mockRules}</h1>
+                <h1 className="text-2xl tablet:text-3xl font-black tracking-tight">{t.mockRules}</h1>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3 tablet:gap-4">
                 <StatusToggle
-                  label="Mocking"
+                  label={lang === "ko" ? "모킹" : "Mocking"}
                   checked={mockingEnabled ?? false}
                   onChange={toggleMocking}
                   loading={mockingLoading}
                   icon={<FlaskConical className="w-3.5 h-3.5" />}
                 />
-                <Button variant="primary" onClick={() => openRuleModal()} disabled={!selectedScenarioId}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t.addRule}
+                <Button
+                  variant="primary"
+                  onClick={() => openRuleModal()}
+                  disabled={!selectedScenarioId}
+                  className="h-9 tablet:h-auto font-bold text-xs tablet:text-sm"
+                >
+                  <Plus className="w-4 h-4 tablet:mr-2" />
+                  <span className="hidden tablet:inline">{t.addRule}</span>
                 </Button>
               </div>
             </div>
@@ -366,7 +372,7 @@ function MockingDashboard() {
                   <p>{t.noRulesDesc}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
                   {rules.map((rule) => (
                     <Card key={rule.id} className={`p-4 flex flex-col gap-3 ${!rule.enabled && `opacity-50`}`}>
                       <div className="flex justify-between items-start">

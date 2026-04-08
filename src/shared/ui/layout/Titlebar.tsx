@@ -1,8 +1,10 @@
 import { useLocation } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
-import { ExternalLink, Maximize2, Minus, Monitor, Square, X } from "lucide-react";
+import { useSetAtom } from "jotai";
+import { ExternalLink, Maximize2, Menu, Minus, Monitor, Square, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { mobileSidebarOpenAtom } from "@/domain/ui/store";
 import { invokeApi } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 
@@ -13,6 +15,7 @@ export function Titlebar() {
   const isDetached = useIsDetached();
   const [isMaximized, setIsMaximized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const setMobileSidebarOpen = useSetAtom(mobileSidebarOpenAtom);
 
   const updateState = useCallback(async () => {
     setIsMaximized(await appWindow.isMaximized());
@@ -67,7 +70,17 @@ export function Titlebar() {
       onDoubleClick={() => appWindow.toggleMaximize()}
       className="bg-slate-950 flex items-center justify-between select-none z-110 border-b border-slate-800/50 h-10 shrink-0 backdrop-blur-md bg-opacity-80 cursor-default"
     >
-      <div className="flex items-center gap-2 px-4 pointer-events-none">
+      <div className="flex items-center gap-2 px-3 pointer-events-none">
+        {!isDetached && (
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen((open) => !open)}
+            className="tablet:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors pointer-events-auto"
+            title="Toggle Menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        )}
         <img src="/app-icon.svg" alt="" className="w-4 h-4 shrink-0 object-contain" aria-hidden />
         <div className="flex flex-col">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">

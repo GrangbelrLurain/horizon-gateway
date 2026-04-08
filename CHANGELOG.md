@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.6.2] - 2026-04-08
+
+### Added
+
+-   **Responsive UI Rollout**: Implemented a comprehensive responsive layout down to `720px` (tablet) across Settings, Proxy Dashboard, and Monitoring pages.
+-   **Persistent Mocking State**: Enhanced the API Mocking experience by persisting selected scenarios, mocking search queries, and the global mocking toggle in local storage across sessions.
+
+### Changed
+
+-   **Dynamic Grid Optimization**: Refactored dashboard and monitor grids to use CSS Grid `auto-fill` with `minmax` constraints, ensuring consistent card sizing and graceful wrapping across all resolutions.
+-   **Virtualized Grid Responsiveness**: Added a `ResizeObserver`-based column calculation to the domain monitor's virtualized list, preserving performance while adapting to container width changes.
+
+### Fixed
+
+-   **Dark Mode Audit & Polish**: Resolved UI "깨짐" (broken) issues in Proxy Setup, Loading screens, and Empty States by replacing hardcoded slate/white colors with semantic theme variables.
+-   **A11y & Linting**: Resolved sidebar accessibility warnings and fixed missing React hooks and block statement lint errors in monitoring components.
+
+---
+
 ## [v1.6.1] - 2026-04-08
 
 ### Added

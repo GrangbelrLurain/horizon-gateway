@@ -150,19 +150,19 @@ function Dashboard() {
   return (
     <div className="flex flex-col gap-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* ── Header ── */}
-      <header className="flex items-start justify-between">
+      <header className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-black text-base-content tracking-tight">{t.title}</h1>
+            <h1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">{t.title}</h1>
             {version && (
               <Badge variant={{ color: "blue" }} className="bg-primary/10 text-primary border-primary/20">
                 v{version}
               </Badge>
             )}
           </div>
-          <p className="text-base-content/60 text-sm">{t.subtitle}</p>
+          <p className="text-base-content/60 text-xs tablet:text-sm">{t.subtitle}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <StatusToggle
             label={langKey === "ko" ? "모킹" : "Mocking"}
             checked={!!mockingEnabled}

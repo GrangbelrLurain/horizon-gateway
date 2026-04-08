@@ -50,9 +50,9 @@ export function EmptyState(props: EmptyStateProps) {
   if (props.tier === 1) {
     const t = props.lang === "ko" ? KO_T1 : EN_T1;
     return (
-      <div className="py-20 flex flex-col items-center justify-center text-center gap-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
+      <div className="py-20 flex flex-col items-center justify-center text-center gap-5 bg-base-100 rounded-3xl border border-base-200 shadow-sm">
         <div className="relative">
-          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center">
             <svg
               className="w-10 h-10 text-indigo-300"
               fill="none"
@@ -73,8 +73,8 @@ export function EmptyState(props: EmptyStateProps) {
           </div>
         </div>
         <div className="max-w-xs">
-          <h3 className="text-lg font-bold text-slate-800 mb-1">{t.title}</h3>
-          <p className="text-sm text-slate-400 leading-relaxed">{t.description}</p>
+          <h3 className="text-lg font-bold text-base-content mb-1">{t.title}</h3>
+          <p className="text-sm text-base-content/40 leading-relaxed">{t.description}</p>
         </div>
         <Link to="/domains/regist">
           <Button variant="primary" className="gap-2 flex items-center shadow-lg shadow-indigo-500/20">
@@ -89,18 +89,18 @@ export function EmptyState(props: EmptyStateProps) {
   if (props.tier === 2) {
     const Icon = props.icon;
     return (
-      <div className="py-20 flex flex-col items-center justify-center text-center gap-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
+      <div className="py-20 flex flex-col items-center justify-center text-center gap-5 bg-base-100 rounded-3xl border border-base-200 shadow-sm">
         <div className="relative">
-          <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center">
-            <Icon className="w-9 h-9 text-slate-300" />
+          <div className="w-20 h-20 rounded-full bg-base-200/50 flex items-center justify-center">
+            <Icon className="w-9 h-9 text-base-content/20" />
           </div>
           <div className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
             <span className="text-amber-500 text-xs font-bold">!</span>
           </div>
         </div>
         <div className="max-w-xs">
-          <h3 className="text-lg font-bold text-slate-800 mb-1">{props.title}</h3>
-          <p className="text-sm text-slate-400 leading-relaxed">{props.description}</p>
+          <h3 className="text-lg font-bold text-base-content mb-1">{props.title}</h3>
+          <p className="text-sm text-base-content/40 leading-relaxed">{props.description}</p>
         </div>
         <Link to={props.actionHref}>
           <Button variant="primary" className="gap-2 flex items-center">
@@ -115,13 +115,13 @@ export function EmptyState(props: EmptyStateProps) {
   // Tier 3 — normal "no data" state
   const Icon = props.icon;
   return (
-    <div className="py-16 flex flex-col items-center justify-center text-center gap-4 bg-white rounded-3xl border border-slate-100 shadow-sm">
-      <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
-        <Icon className="w-8 h-8 text-slate-200" />
+    <div className="py-16 flex flex-col items-center justify-center text-center gap-4 bg-base-100 rounded-3xl border border-base-200 shadow-sm">
+      <div className="w-16 h-16 rounded-full bg-base-200/50 flex items-center justify-center">
+        <Icon className="w-8 h-8 text-base-content/20" />
       </div>
       <div className="max-w-xs">
-        <h3 className="text-base font-bold text-slate-700 mb-1">{props.title}</h3>
-        <p className="text-sm text-slate-400 leading-relaxed">{props.description}</p>
+        <h3 className="text-base font-bold text-base-content/80 mb-1">{props.title}</h3>
+        <p className="text-sm text-base-content/40 leading-relaxed">{props.description}</p>
       </div>
       {props.actionLabel && props.onAction && (
         <Button variant="secondary" onClick={props.onAction} className="mt-1">

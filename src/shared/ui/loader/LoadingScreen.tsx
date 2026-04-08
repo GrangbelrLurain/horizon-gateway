@@ -14,7 +14,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: "easeInOut" }}
-      className="fixed inset-0 z-100 flex flex-col items-center justify-center bg-white/60 backdrop-blur-xl"
+      className="fixed inset-0 z-100 flex flex-col items-center justify-center bg-base-100/60 backdrop-blur-xl"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -33,7 +33,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
         <div className="absolute -inset-8 rounded-full border border-blue-100/30 animate-[spin_6s_linear_reverse_infinite]" />
 
         {/* Main Icon Container */}
-        <div className="relative flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-2xl shadow-blue-500/10 border border-slate-100 transition-transform hover:scale-105 duration-500">
+        <div className="relative flex items-center justify-center w-20 h-20 bg-base-100 rounded-3xl shadow-2xl shadow-blue-500/10 border border-base-200 transition-transform hover:scale-105 duration-500">
           <Activity className="w-10 h-10 text-blue-600 animate-pulse" />
         </div>
       </motion.div>
@@ -45,7 +45,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
         transition={{ duration: 0.8, delay: 0.2 }}
         className="flex flex-col items-center gap-3"
       >
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Watchtower</h2>
+        <h2 className="text-2xl font-black text-base-content tracking-tight">Watchtower</h2>
 
         <div className="flex items-center gap-1.5 py-1">
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
@@ -53,7 +53,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" />
         </div>
 
-        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-2 bg-slate-100 px-4 py-1 rounded-full">
+        <p className="text-xs font-black text-base-content/40 uppercase tracking-[0.2em] mt-2 bg-base-200 px-4 py-1 rounded-full">
           {message}
         </p>
 
@@ -61,7 +61,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
           <Button
             variant="secondary"
             onClick={onCancel}
-            className="mt-12 group bg-white/40 hover:bg-rose-50 border-slate-200/50 hover:border-rose-200 text-slate-500 hover:text-rose-600 px-6 py-2 rounded-2xl transition-all duration-300 flex items-center"
+            className="mt-12 group bg-base-100/40 hover:bg-rose-500/10 border-base-300/50 hover:border-rose-500/30 text-base-content/50 hover:text-rose-600 px-6 py-2 rounded-2xl transition-all duration-300 flex items-center"
           >
             <X className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-300" />
             <span className="font-bold text-sm">Cancel Request</span>
@@ -75,7 +75,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="fixed bottom-12 text-[10px] text-slate-300 font-bold uppercase tracking-widest"
+          className="fixed bottom-12 text-[10px] text-base-content/30 font-bold uppercase tracking-widest"
         >
           Establishing Secure Connection
         </motion.p>

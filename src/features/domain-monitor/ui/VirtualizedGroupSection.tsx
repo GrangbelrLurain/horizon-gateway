@@ -2,14 +2,14 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ExternalLink, Grid2X2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DomainStatusLog } from "@/entities/domain/types/domain_monitor";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
 
+const CARD_MIN_WIDTH = 320;
 const CARD_ROW_ESTIMATE = 180;
 const ROW_GAP = 24;
-const COLS = 3;
 
 export interface VirtualizedGroupSectionProps {
   group: string;
@@ -19,7 +19,24 @@ export interface VirtualizedGroupSectionProps {
 export function VirtualizedGroupSection({ group, apps }: VirtualizedGroupSectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
-  const rowCount = Math.ceil(apps.length / COLS);
+  const [cols, setCols] = useState(3);
+
+  useEffect(() => {
+    if (!parentRef.current) {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        const newCols = Math.max(1, Math.floor(width / (CARD_MIN_WIDTH + 16)));
+        setCols(newCols);
+      }
+    });
+    observer.observe(parentRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const rowCount = Math.ceil(apps.length / cols);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -68,8 +85,8 @@ export function VirtualizedGroupSection({ group, apps }: VirtualizedGroupSection
             <div ref={parentRef} className="overflow-visible rounded-3xl no-scrollbar relative py-4 px-2">
               <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const start = virtualRow.index * COLS;
-                  const rowApps = apps.slice(start, start + COLS);
+                  const start = virtualRow.index * cols;
+                  const rowApps = apps.slice(start, start + cols);
                   return (
                     <div
                       key={virtualRow.key}
@@ -80,7 +97,7 @@ export function VirtualizedGroupSection({ group, apps }: VirtualizedGroupSection
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                         {rowApps.map((app) => (
                           <Card
                             key={app.url}
