@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.6.0] - 2026-04-08
+
+### Added
+
+-   **Unified StatusToggle Component**: Introduced a premium, high-feedback toggle component (`StatusToggle`) to standardize feature activation across all dashboards.
+-   **Interactive Home Dashboard**: Transformed passive status badges on the home screen into active toggles. Users can now control **Mocking** and **Proxy Active** (Local Routing) directly from the header.
+-   **Advanced Proxy Controls**: Integrated full Start/Stop server controls into the Proxy Dashboard using the new unified toggle UI, replacing legacy buttons and static badges.
+
+### Changed
+
+-   **UI/UX Consistency**: Synchronized the design language for feature toggles (Mocking, Proxy, Local Routing) across the entire application for a more cohesive, high-end experience.
+-   **Real-time Feedback**: Added integrated loading states to all major feature toggles, providing immediate visual confirmation during asynchronous backend operations.
+
+### Fixed
+
+-   **Dashboard Accessibility**: Resolved multiple WCAG compliance issues by properly associating form labels with their respective inputs using unique IDs.
+-   **API Scoping Precision**: Enhanced Mock Rule logic to include optional `Host (Origin)` filtering, allowing for domain-specific mocking behavior.
+
+---
+
 ## [v1.5.2] - 2026-04-03
 
 ### Changed

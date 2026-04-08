@@ -14,7 +14,8 @@
       "recommended": true,
       "a11y": {
         "noStaticElementInteractions": "off",
-        "useSemanticElements": "off"
+        "useSemanticElements": "off",
+        "noSvgWithoutTitle": "off"
       },
       "complexity": {
         "noUselessTernary": "error"

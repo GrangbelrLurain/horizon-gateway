@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
-import { Activity, ArrowRight, CheckCircle2, Globe, History, Server, Wifi, XCircle } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, FlaskConical, Globe, History, Server, Wifi, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { domainCountAtom, proxyActiveAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { invokeApi } from "@/shared/api";
@@ -175,6 +175,7 @@ export function QuickStatsRow({ stats }: QuickStatsRowProps) {
 interface RecentActivityGridProps {
   monitorItems: RecentMonitorItem[];
   apiLogs: RecentApiLog[];
+  mockRules: MockRule[];
   lang: "ko" | "en";
 }
 
@@ -223,10 +224,10 @@ const statusColor = (code: number | null) => {
   return "text-success font-bold";
 };
 
-export function RecentActivityGrid({ monitorItems, apiLogs, lang }: RecentActivityGridProps) {
+export function RecentActivityGrid({ monitorItems, apiLogs, mockRules, lang }: RecentActivityGridProps) {
   const t = ACTIVITY_T[lang];
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Monitor */}
       <Card className="p-5 bg-base-100 shadow-sm border-base-200">
         <div className="flex items-center justify-between mb-4">
@@ -304,22 +305,67 @@ export function RecentActivityGrid({ monitorItems, apiLogs, lang }: RecentActivi
           </div>
         )}
       </Card>
+
+      {/* Mock Rules */}
+      <Card className="p-5 bg-base-100 shadow-sm border-base-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-black text-base-content flex items-center gap-2">
+            <FlaskConical className="w-4 h-4 text-accent" />
+            {lang === "ko" ? "활성 모킹 API" : "Active Mock APIs"}
+          </h2>
+          <Link
+            to="/apis/mocking"
+            className="text-xs text-accent hover:text-accent/80 font-bold uppercase tracking-widest flex items-center gap-1"
+          >
+            {lang === "ko" ? "관리" : "Manage"} <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        {mockRules.length === 0 ? (
+          <p className="text-sm text-base-content/30 text-center py-8">
+            {lang === "ko" ? "활성화된 모킹 룰이 없습니다." : "No active mock rules."}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {mockRules.slice(0, 5).map((rule) => (
+              <div
+                key={rule.id}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-base-200/50 transition-colors border-b border-base-200/50 last:border-0"
+              >
+                <span className="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded w-14 text-center shrink-0 uppercase">
+                  {rule.method}
+                </span>
+                <span className="text-xs font-mono text-base-content/80 flex-1 truncate" title={rule.url_pattern}>
+                  {rule.url_pattern}
+                </span>
+                <span className={`text-xs font-black shrink-0 tabular-nums ${statusColor(rule.response_status)}`}>
+                  {rule.response_status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
 
 // ── DashboardDataProvider ────────────────────────────────────────────────────
 
+import type { MockRule } from "@/entities/scenario/types/mocking";
+import { getMockRules } from "@/shared/api/mocking";
+
 interface DashboardData {
   monitorItems: RecentMonitorItem[];
   apiLogs: RecentApiLog[];
   todayCount: number;
+  mockRules: MockRule[];
 }
 
 export function useDashboardData(): DashboardData {
   const [monitorItems, setMonitorItems] = useState<RecentMonitorItem[]>([]);
   const [apiLogs, setApiLogs] = useState<RecentApiLog[]>([]);
   const [todayCount, setTodayCount] = useState(0);
+  const [mockRules, setMockRules] = useState<MockRule[]>([]);
   const domainCount = useAtomValue(domainCountAtom);
 
   useEffect(() => {
@@ -344,9 +390,15 @@ export function useDashboardData(): DashboardData {
         }
       })
       .catch(console.error);
+
+    getMockRules()
+      .then((rules) => {
+        setMockRules(rules.filter((r) => r.enabled));
+      })
+      .catch(console.error);
   }, [domainCount]);
 
-  return { monitorItems, apiLogs, todayCount };
+  return { monitorItems, apiLogs, todayCount, mockRules };
 }
 
 // ── ProxyStatusBadge ─────────────────────────────────────────────────────────
@@ -363,14 +415,16 @@ export function ProxyStatusBadge({ lang }: { lang: "ko" | "en" }) {
     <Link to="/proxy/dashboard">
       <div
         className={clsx(
-          "flex items-center gap-3 px-4 py-2 rounded-full text-xs font-black transition-all border shadow-lg shadow-black/5 active:scale-95",
+          "flex items-center gap-3 px-4 py-2 rounded-full text-[10px] sm:text-xs font-black transition-all border shadow-lg shadow-black/5 cursor-pointer active:scale-95 h-10 select-none shrink-0",
           proxyActive
-            ? "bg-success/10 text-success border-success/30"
-            : "bg-base-300 text-base-content/40 border-base-content/5 grayscale opacity-70",
+            ? "bg-success/10 text-success border-success/30 hover:bg-success/20 hover:border-success/40"
+            : "bg-base-300 text-base-content/40 border-base-content/5 grayscale opacity-70 hover:opacity-100 hover:grayscale-0 hover:bg-base-300/80 hover:border-base-300",
         )}
       >
-        <Server className="w-3.5 h-3.5" />
-        <span className="uppercase tracking-widest">
+        <Server
+          className={clsx("w-3.5 h-3.5 transition-colors", proxyActive ? "text-success" : "text-base-content/20")}
+        />
+        <span className="uppercase tracking-widest whitespace-nowrap">
           {proxyActive
             ? lang === "ko"
               ? "프록시 활성"

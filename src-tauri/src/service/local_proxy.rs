@@ -53,6 +53,7 @@ type TokioResolver = Resolver<TokioConnectionProvider>;
 /// Global flag: when `false` the proxy still runs but passes all traffic through
 /// without matching local routes (pure pass-through mode).
 static LOCAL_ROUTING_ENABLED: AtomicBool = AtomicBool::new(true);
+static MOCKING_ENABLED: AtomicBool = AtomicBool::new(true);
 
 pub fn is_local_routing_enabled() -> bool {
     LOCAL_ROUTING_ENABLED.load(AtomicOrdering::Relaxed)
@@ -60,6 +61,14 @@ pub fn is_local_routing_enabled() -> bool {
 
 pub fn set_local_routing_enabled(enabled: bool) {
     LOCAL_ROUTING_ENABLED.store(enabled, AtomicOrdering::Relaxed);
+}
+
+pub fn is_mocking_enabled() -> bool {
+    MOCKING_ENABLED.load(AtomicOrdering::Relaxed)
+}
+
+pub fn set_mocking_enabled(enabled: bool) {
+    MOCKING_ENABLED.store(enabled, AtomicOrdering::Relaxed);
 }
 
 /// Parse "8.8.8.8" or "8.8.8.8:53" into (`IpAddr`, port). Returns None if invalid.
@@ -93,6 +102,7 @@ pub struct ProxyState {
     pub api_log_service: Arc<ApiLogService>,
     pub ca_service: Arc<CaService>,
     pub reqwest_client: reqwest::Client,
+    pub mocking_service: Arc<crate::service::mocking_service::MockingService>,
 }
 
 impl ProxyState {
@@ -103,6 +113,7 @@ impl ProxyState {
         api_logging_map: Arc<RwLock<HashMap<String, (bool, bool)>>>,
         api_log_service: Arc<ApiLogService>,
         ca_service: Arc<CaService>,
+        mocking_service: Arc<crate::service::mocking_service::MockingService>,
     ) -> Self {
 
         let resolver = dns_server
@@ -132,6 +143,7 @@ impl ProxyState {
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .unwrap(),
+            mocking_service,
         }
     }
 }
@@ -354,7 +366,7 @@ impl HostCertCache {
                 return Some((Arc::clone(ck), pem.clone()));
             }
         }
-        
+
         let (cert, key_pair) = self.ca_service.sign_host_certificate(host).ok()?;
         let pem = cert.pem();
         let cert_der = CertificateDer::from(cert.der().as_ref().to_vec());
@@ -363,7 +375,7 @@ impl HostCertCache {
         let provider = rustls::crypto::ring::default_provider();
         let signer = provider.key_provider.load_private_key(private_key).ok()?;
         let ck = Arc::new(CertifiedKey::new(vec![cert_der], signer));
-        
+
         {
             let mut g = self.inner.lock().ok()?;
             g.entry(host.to_string())
@@ -634,7 +646,7 @@ async fn handle_connect_tunnel(
     header_buf: Vec<u8>,
 ) {
     proxy_log!("CONNECT {}:{}", host, port);
-    
+
     // API Logging check FIRST
     let key = host_key_for_logging_map(&host);
     let use_api_logging = {
@@ -705,7 +717,7 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
         let Some(port) = state.forward_proxy_port else {
             return (StatusCode::NOT_FOUND, "Forward proxy port not configured").into_response();
         };
-            
+
         let pac = build_pac_js(port);
         return (
             StatusCode::OK,
@@ -826,7 +838,7 @@ async fn proxy_handler(
     }
 
     let mut response = proxy_handler_inner(state, ext, req).await;
-    
+
     let headers = response.headers_mut();
     headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
     headers.insert(header::ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"));
@@ -852,6 +864,58 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
         proxy_log!("-> watchtower reserved: {}", path);
         return serve_watchtower_reserved_path(state, path).await;
     }
+
+    // --- MOCKING INTERCEPTOR ---
+    if is_mocking_enabled() {
+        let rules = state.mocking_service.get_mock_rules();
+        let target_host = host_key_for_logging_map(&host_h);
+        if let Some(rule) = rules.into_iter().find(|r| {
+            r.enabled 
+            && r.method.eq_ignore_ascii_case(&method) 
+            && path.starts_with(&r.url_pattern)
+            && (r.host.is_none() || r.host.as_deref().map(|h| h.to_lowercase()).unwrap_or_default() == target_host)
+        }) {
+            proxy_log!("-> mocked response for {} {}", method, uri);
+            let mut builder = Response::builder().status(rule.response_status);
+            if let Some(headers) = builder.headers_mut() {
+                for (k, v) in &rule.response_headers {
+                    let k_lower = k.to_lowercase();
+                    if k_lower == "content-length" || k_lower == "content-encoding" || k_lower == "transfer-encoding" || k_lower == "connection" {
+                        continue;
+                    }
+                    if let Ok(header_name) = header::HeaderName::from_bytes(k.as_bytes()) {
+                        if let Ok(header_value) = header::HeaderValue::from_str(v) {
+                            headers.insert(header_name, header_value);
+                        }
+                    }
+                }
+                headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+            }
+            let body = rule.response_body.unwrap_or_default();
+
+            // Save Log for mocked request
+            let start_time = OffsetDateTime::now_utc();
+            let entry = ApiLogEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                timestamp: start_time.format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
+                method: method.to_string(),
+                url: uri.to_string(),
+                host: host_h.to_string(),
+                path: path.to_string(),
+                status_code: Some(rule.response_status),
+                request_headers: Some(req.headers().iter().map(|(k,v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect()),
+                request_body: None, // We don't read the body for most mocks to keep it fast, or we could read it if needed
+                response_headers: Some(rule.response_headers.clone()),
+                response_body: Some(body.clone()),
+            };
+            state.api_log_service.save_log(&entry);
+
+            return builder.body(Body::from(body)).unwrap_or_else(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build mock response: {e}")).into_response()
+            });
+        }
+    }
+    // --- END MOCKING INTERCEPTOR ---
 
     let host_header = req.headers().get("host").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
     // When local routing is disabled, pass an empty slice so no routes match → pure pass-through.
@@ -884,13 +948,13 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             .read()
             .ok()
             .and_then(|map| get_logging_config_for_host(&map, &host_key));
-        
+
         let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
         let _is_local = local_origin.is_some();
 
         // Fix Scheme for Intercepted HTTPS Requests (API Logging)
         // If we intercepted a CONNECT request, `proxy_handler` receives origin-form URI.
-        // `resolve_target` defaults to "http". We must force "https" if logging is enabled 
+        // `resolve_target` defaults to "http". We must force "https" if logging is enabled
         // (implying CONNECT interception) and it's not a local route.
 
         if !logging_enabled {
@@ -899,10 +963,10 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             // Actually, for pure pass-through of plain HTTP, reqwest is fine.
             let method = req.method().clone();
             let url_str = target_uri_str.clone();
-            
+
             let mut req_builder = state.reqwest_client.request(method, &url_str);
             let (parts, body) = req.into_parts();
-            
+
             let has_body = !matches!(
                 parts.method,
                 axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS | axum::http::Method::TRACE
@@ -930,7 +994,7 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                 "trailers",
                 "transfer-encoding",
                 "upgrade",
-                "proxy-connection", 
+                "proxy-connection",
             ];
             for (name, value) in parts.headers.iter() {
                 let name_str = name.as_str().to_lowercase();
@@ -982,9 +1046,9 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             // Note: We already read the body into req_bytes.
             let method = parts.method.clone();
             let url_str = target_uri_str.clone(); /* target_uri_str is full URL */
-            
+
             let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
-            
+
             let has_body = !matches!(
                 parts.method,
                 axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS | axum::http::Method::TRACE
@@ -1005,7 +1069,7 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                 "trailers",
                 "transfer-encoding",
                 "upgrade",
-                "proxy-connection", 
+                "proxy-connection",
             ];
 
             for (name, value) in parts.headers.iter() {
@@ -1018,7 +1082,7 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             req_builder = req_builder.header("host", host_h.clone());
 
             let start_time = OffsetDateTime::now_utc();
-            
+
             // Send Request
             let response_result = req_builder.send().await;
 
@@ -1029,7 +1093,7 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                     return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response();
                 }
             };
-            
+
             // Read Response Body
             let status = response.status();
             let res_headers = response.headers().clone();
@@ -1037,7 +1101,7 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                  Ok(b) => b,
                  Err(e) => return (StatusCode::BAD_GATEWAY, format!("Failed to read response body: {e}")).into_response(),
             };
-            
+
             let res_body_str = if body_enabled {
                 String::from_utf8(res_bytes.to_vec()).ok()
             } else {
@@ -1099,6 +1163,7 @@ pub async fn run_proxy(
     api_logging_map: Arc<RwLock<HashMap<String, (bool, bool)>>>,
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
+    mocking_service: Arc<crate::service::mocking_service::MockingService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1109,6 +1174,7 @@ pub async fn run_proxy(
         api_logging_map,
         api_log_service,
         ca_service,
+        mocking_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http"); let handle = tokio::spawn(async move {
         loop {
@@ -1154,6 +1220,7 @@ pub async fn run_reverse_proxy_http(
     api_logging_map: Arc<RwLock<HashMap<String, (bool, bool)>>>,
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
+    mocking_service: Arc<crate::service::mocking_service::MockingService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1164,6 +1231,7 @@ pub async fn run_reverse_proxy_http(
         api_logging_map,
         api_log_service,
         ca_service,
+        mocking_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http"); let handle = tokio::spawn(async move {
         loop {
@@ -1192,6 +1260,7 @@ pub async fn run_reverse_proxy_https(
     api_logging_map: Arc<RwLock<HashMap<String, (bool, bool)>>>,
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
+    mocking_service: Arc<crate::service::mocking_service::MockingService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1202,6 +1271,7 @@ pub async fn run_reverse_proxy_https(
         api_logging_map,
         api_log_service,
         ca_service,
+        mocking_service,
     ));
     let app = proxy_app(Arc::clone(&state), "https"); let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
@@ -1400,7 +1470,7 @@ mod tests {
         // 2. Setup ProxyState
         let temp_dir = tempdir().unwrap();
         let api_log_service = Arc::new(ApiLogService::new(temp_dir.path().to_path_buf()));
-        
+
         let route_service = Arc::new(LocalRouteService::new(temp_dir.path().to_path_buf()));
         route_service.add(
             "api.test.local".to_string(),
@@ -1414,6 +1484,12 @@ mod tests {
 
         let ca_service = Arc::new(CaService::new(temp_dir.path()).unwrap());
 
+        let mocking_service = Arc::new(crate::service::mocking_service::MockingService::new(
+            temp_dir.path().to_path_buf(),
+            temp_dir.path().to_path_buf(),
+            temp_dir.path().to_path_buf(),
+        ));
+
         let state = Arc::new(ProxyState::new(
             route_service,
             None,
@@ -1421,6 +1497,7 @@ mod tests {
             api_logging_map,
             api_log_service.clone(),
             ca_service,
+            mocking_service,
         ));
 
         // 3. Perform request
@@ -1437,7 +1514,7 @@ mod tests {
         // 4. Verify log
         let dates = api_log_service.list_dates();
         assert!(!dates.is_empty(), "Log date should be created");
-        let logs = api_log_service.get_logs(&dates[0], None, None, None);
+        let logs = api_log_service.get_logs(&dates[0], None, None, None, false);
         assert!(!logs.is_empty(), "Log entry should be saved");
         let entry = &logs[0];
         assert_eq!(entry.method, "GET");

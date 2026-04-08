@@ -15,6 +15,7 @@ export const domainCountAtom = atomWithBroadcast<number | null>("app-domain-coun
 export const apiLoggingCountAtom = atomWithBroadcast<number | null>("app-api-logging-count", null);
 export const proxyRunningAtom = atomWithBroadcast<boolean | null>("app-proxy-running", null);
 export const proxyLocalRoutingEnabledAtom = atomWithBroadcast<boolean | null>("app-proxy-local-routing", null);
+export const proxyMockingEnabledAtom = atomWithBroadcast<boolean | null>("app-proxy-mocking-enabled", null);
 export const appStatusLoadingAtom = atom(false);
 export const appStatusLoadedAtom = atom(false);
 
@@ -52,12 +53,14 @@ export async function loadAppStatus(
   setApiLoggingCount: (n: number) => void,
   setProxyRunning: (b: boolean) => void,
   setProxyLocalRouting: (b: boolean) => void,
+  setProxyMockingEnabled: (b: boolean) => void,
 ) {
   try {
-    const [domainsRes, linksRes, proxyRes] = await Promise.all([
+    const [domainsRes, linksRes, proxyRes, mockingRes] = await Promise.all([
       invokeApi("get_domains"),
       invokeApi("get_domain_api_logging_links"),
       invokeApi("get_proxy_status"),
+      invokeApi("get_mocking_status"),
     ]);
     if (domainsRes.success) {
       setDomainCount((domainsRes.data ?? []).length);
@@ -68,6 +71,9 @@ export async function loadAppStatus(
     if (proxyRes.success && proxyRes.data) {
       setProxyRunning(proxyRes.data.running ?? false);
       setProxyLocalRouting(proxyRes.data.local_routing_enabled ?? false);
+    }
+    if (mockingRes.success && mockingRes.data) {
+      setProxyMockingEnabled(mockingRes.data.enabled ?? false);
     }
   } catch (e) {
     console.error("loadAppStatus:", e);

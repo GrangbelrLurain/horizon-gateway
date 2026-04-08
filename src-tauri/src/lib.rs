@@ -20,6 +20,9 @@ mod model {
     pub mod api_log;
     pub mod proxy_settings;
     pub mod settings_export;
+    pub mod scenario;
+    pub mod mock_rule;
+    pub mod mocking_settings;
 }
 mod service {
     pub mod api_logging_settings_service;
@@ -33,6 +36,7 @@ mod service {
     pub mod local_route_service;
     pub mod proxy_settings_service;
     pub mod system_proxy_service;
+    pub mod mocking_service;
 }
 
 use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
@@ -55,7 +59,14 @@ mod command {
     pub mod local_route_commands;
     pub mod settings_commands;
     pub mod window_commands;
+    pub mod mocking_commands;
 }
+
+use command::mocking_commands::{
+    create_mock_rule, create_mock_rule_from_log, create_scenario, delete_mock_rule,
+    delete_scenario, get_mock_rules, get_mock_rules_by_scenario, get_scenarios, update_mock_rule,
+    update_scenario, get_mocking_status, set_mocking_enabled,
+};
 
 use command::domain_commands::{
     clear_all_domains, get_domain_by_id, get_domains, import_domains, regist_domains,
@@ -130,6 +141,9 @@ pub fn run() {
             let local_routes_path = app_data_dir.join("domain_local_routes.json");
             let proxy_settings_path = app_data_dir.join("proxy_settings.json");
             let api_logging_path = app_data_dir.join("domain_api_logging_links.json");
+            let scenarios_path = app_data_dir.join("scenarios.json");
+            let mock_rules_path = app_data_dir.join("mock_rules.json");
+            let mocking_settings_path = app_data_dir.join("mocking_settings.json");
             let ca_service = Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
             let domain_service = DomainService::new(storage_path);
             let group_service = DomainGroupService::new(groups_storage_path);
@@ -139,6 +153,10 @@ pub fn run() {
             let proxy_settings_service = ProxySettingsService::new(proxy_settings_path);
             let api_logging_service = ApiLoggingSettingsService::new(api_logging_path);
             let api_log_service = ApiLogService::new(app_data_dir.clone());
+            let mocking_service = Arc::new(crate::service::mocking_service::MockingService::new(scenarios_path.clone(), mock_rules_path.clone(), mocking_settings_path.clone()));
+
+            crate::service::local_proxy::set_mocking_enabled(mocking_service.get_settings().enabled);
+
             monitor_service.sync_with_domains(&domain_service.get_all());
             api_logging_service.refresh_map(&domain_service.get_all());
 
@@ -147,6 +165,7 @@ pub fn run() {
             let proxy_settings_snapshot = proxy_settings_service.get();
             let api_logging_map_for_proxy = api_logging_service.settings_map_arc();
             let ca_service_for_proxy = Arc::clone(&ca_service);
+            let mocking_service_for_proxy = Arc::clone(&mocking_service);
 
             app.manage(ca_service);
             app.manage(domain_service);
@@ -157,6 +176,7 @@ pub fn run() {
             app.manage(proxy_settings_service);
             app.manage(api_logging_service);
             app.manage(api_log_service.clone());
+            app.manage(mocking_service);
 
             // ── Auto-start proxy ────────────────────────────────────────────
             {
@@ -169,6 +189,7 @@ pub fn run() {
                         api_logging_map_for_proxy,
                         std::sync::Arc::new(api_log_service.clone()),
                         ca_service_for_proxy,
+                        mocking_service_for_proxy,
                     )
                     .await
                     {
@@ -278,6 +299,18 @@ pub fn run() {
             get_api_logs,
             clear_api_logs,
             open_window,
+            get_scenarios,
+            create_scenario,
+            update_scenario,
+            delete_scenario,
+            get_mock_rules,
+            get_mock_rules_by_scenario,
+            create_mock_rule,
+            update_mock_rule,
+            delete_mock_rule,
+            create_mock_rule_from_log,
+            get_mocking_status,
+            set_mocking_enabled,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

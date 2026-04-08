@@ -21,6 +21,8 @@ export const en = {
   responseHeaders: "Response Headers",
   responseBody: "Response Body",
   close: "Close",
+  host: "Host (Origin)",
+  urlPattern: "URL Pattern",
   noApiLoggingTitle: "No API logging configured",
   noApiLoggingDesc: "Enable API logging for at least one domain to start capturing traffic.",
   noApiLoggingAction: "Configure API Settings",

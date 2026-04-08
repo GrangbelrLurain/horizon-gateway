@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, Globe, Loader2Icon, Play, Plus, Server, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, Globe, Loader2Icon, Plus, Server, Trash2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { globalDomainsAtom, globalLocalRoutesAtom } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
@@ -12,6 +12,7 @@ import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
 import { SearchableInput } from "@/shared/ui/searchable-input";
+import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { urlToHost } from "@/shared/utils/url";
 import { en } from "./en";
@@ -180,14 +181,20 @@ function ProxyPage() {
     };
   }, [fetchProxyStatusOnce]);
 
-  const handleManualStart = async () => {
+  const handleToggleProxy = async (enabled: boolean) => {
     setManualStartLoading(true);
     setProxyError(null);
     try {
-      const res = await invokeApi("start_local_proxy", { payload: { port: null } });
-      if (res.success && res.data) {
-        setProxyStatus(res.data);
-        setProxyError(null);
+      if (enabled) {
+        const res = await invokeApi("start_local_proxy", { payload: { port: null } });
+        if (res.success && res.data) {
+          setProxyStatus(res.data);
+        }
+      } else {
+        const res = await invokeApi("stop_local_proxy");
+        if (res.success && res.data) {
+          setProxyStatus(res.data);
+        }
       }
     } catch (e) {
       setProxyError(String(e));
@@ -201,7 +208,6 @@ function ProxyPage() {
     try {
       const newEnabled = !proxyStatus.local_routing_enabled;
       await invokeApi("set_local_routing_enabled", { payload: { enabled: newEnabled } });
-      // State updated via proxy-status-changed event
     } catch (e) {
       console.error("set_local_routing_enabled:", e);
     } finally {
@@ -317,58 +323,20 @@ function ProxyPage() {
           <P className="text-base-content/60">{t.subtitle}</P>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge
-            variant={{ color: proxyStatus.running ? "green" : proxyError ? "red" : "gray" }}
-            className="flex items-center gap-2 py-2 px-4 h-auto"
-          >
-            {proxyStatus.running ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse" />:{proxyStatus.port}
-                {(proxyStatus.reverse_http_port ?? proxyStatus.reverse_https_port) && (
-                  <span className="text-base-content/50 font-normal">
-                    {" "}
-                    · R:
-                    {[proxyStatus.reverse_http_port, proxyStatus.reverse_https_port].filter(Boolean).join("/")}
-                  </span>
-                )}
-              </>
-            ) : proxyError ? (
-              <>
-                <XCircle className="w-3 h-3" />
-                {t.failed}
-              </>
-            ) : (
-              t.starting
-            )}
-          </Badge>
-          {!proxyStatus.running && (
-            <Button
-              variant="primary"
-              size="sm"
-              className="gap-2 flex items-center"
-              onClick={handleManualStart}
-              disabled={manualStartLoading}
-            >
-              {manualStartLoading ? <Loader2Icon className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              {t.startProxy}
-            </Button>
-          )}
-          <Button
-            variant={proxyStatus.local_routing_enabled ? "primary" : "secondary"}
-            size="sm"
-            className="gap-2 flex items-center"
-            onClick={handleToggleLocalRouting}
-            disabled={routingToggleLoading || !proxyStatus.running}
-          >
-            {routingToggleLoading ? (
-              <Loader2Icon className="w-4 h-4 animate-spin" />
-            ) : (
-              <Badge variant={{ color: proxyStatus.local_routing_enabled ? "green" : "gray" }} className="text-xs">
-                {proxyStatus.local_routing_enabled ? t.on : t.off}
-              </Badge>
-            )}
-            {t.localRouting}
-          </Button>
+          <StatusToggle
+            label={proxyStatus.running ? t.running : t.off}
+            checked={proxyStatus.running}
+            onChange={handleToggleProxy}
+            loading={manualStartLoading}
+            icon={<Server className="w-3.5 h-3.5" />}
+          />
+          <StatusToggle
+            label={t.localRouting}
+            checked={proxyStatus.local_routing_enabled}
+            onChange={handleToggleLocalRouting}
+            loading={routingToggleLoading}
+            disabled={!proxyStatus.running}
+          />
         </div>
       </header>
 

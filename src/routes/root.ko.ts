@@ -18,4 +18,5 @@ export const ko: TranslationSchema = {
   setup: "설치",
   schema: "스키마",
   server_logs: "서버 로그",
+  mocking: "모킹",
 } as const;

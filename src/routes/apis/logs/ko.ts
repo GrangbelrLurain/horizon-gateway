@@ -27,6 +27,8 @@ export const ko: TranslationSchema = {
   responseHeaders: "응답 헤더",
   responseBody: "응답 본문",
   close: "닫기",
+  host: "호스트 (Origin)",
+  urlPattern: "URL 패턴",
   noApiLoggingTitle: "API 로깅이 설정된 도메인이 없어요",
   noApiLoggingDesc: "최소 하나의 도메인에서 API 로깅을 활성화하면 트래픽이 여기에 기록됩니다.",
   noApiLoggingAction: "API 설정 바로가기",

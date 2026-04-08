@@ -12,4 +12,5 @@ export const en = {
   setup: "Setup",
   schema: "Schema",
   server_logs: "Server Logs",
+  mocking: "Mocking",
 } as const;

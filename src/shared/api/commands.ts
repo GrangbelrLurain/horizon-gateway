@@ -147,6 +147,14 @@ export interface ApiCommandMap {
     request: { payload: { enabled: boolean } };
     response: ProxyStatusPayload;
   };
+  set_mocking_enabled: {
+    request: { payload: { enabled: boolean } };
+    response: import("@/entities/scenario/types/mocking").MockingSettings;
+  };
+  get_mocking_status: {
+    request?: undefined;
+    response: import("@/entities/scenario/types/mocking").MockingSettings;
+  };
 
   export_all_settings: { request?: undefined; response: SettingsExport };
   import_all_settings: {

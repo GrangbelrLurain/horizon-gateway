@@ -7,6 +7,7 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   ActivityIcon,
   FileTextIcon,
+  FlaskConical,
   GlobeIcon,
   History,
   HomeIcon,
@@ -22,6 +23,7 @@ import {
   domainCountAtom,
   loadAppStatus,
   proxyLocalRoutingEnabledAtom,
+  proxyMockingEnabledAtom,
   proxyRunningAtom,
 } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
@@ -46,6 +48,8 @@ const RootLayout = () => {
   const [, setProxyRunning] = useAtom(proxyRunningAtom);
   const [, setProxyLocalRouting] = useAtom(proxyLocalRoutingEnabledAtom);
 
+  const [, setProxyMockingEnabled] = useAtom(proxyMockingEnabledAtom);
+
   const theme = useAtomValue(themeAtom);
   const userProfile = useAtomValue(userProfileAtom);
 
@@ -69,6 +73,7 @@ const RootLayout = () => {
     };
 
     const targetHex = colorMap[color];
+
     if (targetHex) {
       // Find or create style tag
       let styleTag = document.getElementById("dynamic-theme");
@@ -96,7 +101,7 @@ const RootLayout = () => {
   }, [userProfile.avatarColor]);
 
   useEffect(() => {
-    loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting);
+    loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled);
 
     // Listen for real-time proxy status changes
     const unlistenProxy = listen<{ running: boolean; local_routing_enabled: boolean }>(
@@ -109,15 +114,23 @@ const RootLayout = () => {
       },
     );
 
+    // Listen for real-time mocking status changes
+    const unlistenMocking = listen<{ enabled: boolean }>("mocking-status-changed", (event) => {
+      if (event.payload) {
+        setProxyMockingEnabled(event.payload.enabled);
+      }
+    });
+
     const interval = setInterval(() => {
-      loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting);
+      loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled);
     }, 60_000);
 
     return () => {
       clearInterval(interval);
       unlistenProxy.then((fn) => fn());
+      unlistenMocking.then((fn) => fn());
     };
-  }, [setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting]);
+  }, [setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled]);
 
   const sidebarItems: ComponentProps<typeof Sidebar>["items"] = useMemo(
     () => [
@@ -201,6 +214,11 @@ const RootLayout = () => {
             label: t.settings,
             icon: <SettingsIcon className="w-4 h-4" />,
             href: "/apis/settings",
+          },
+          {
+            label: t.mocking,
+            icon: <FlaskConical className="w-4 h-4" />,
+            href: "/apis/mocking",
           },
           {
             label: t.schema,

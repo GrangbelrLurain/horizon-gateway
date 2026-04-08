@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
 import { ChevronRight, Settings } from "lucide-react";
-import { domainCountAtom, proxyActiveAtom } from "@/domain/app-status/store";
+import { domainCountAtom, proxyActiveAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { getInitials, userProfileAtom } from "@/domain/user/store";
 
 interface SidebarItem {
@@ -40,13 +40,13 @@ function SidebarBadge({
 }
 
 /** Proxy active indicator dot */
-function ProxyDot({ active }: { active: boolean | null }) {
+function ProxyDot({ active, colorClass = "bg-green-500" }: { active: boolean | null; colorClass?: string }) {
   if (active === null) {
     return null;
   }
   return (
     <div
-      className={clsx("w-1.5 h-1.5 rounded-full shrink-0", active ? "bg-green-500 animate-pulse" : "bg-slate-600")}
+      className={clsx("w-1.5 h-1.5 rounded-full shrink-0", active ? `${colorClass} animate-pulse` : "bg-slate-600")}
     />
   );
 }
@@ -57,16 +57,38 @@ export function Sidebar({ items }: SidebarProps) {
   const initials = getInitials(profile.name || "User");
   const domainCount = useAtomValue(domainCountAtom);
   const proxyActive = useAtomValue(proxyActiveAtom);
+  const proxyRunning = useAtomValue(proxyRunningAtom);
+  const mockingEnabled = useAtomValue(proxyMockingEnabledAtom);
 
   // Augment items with live badges
   const augmentedItems = items.map((item) => {
+    const isParentActive = pathname === item.href || item.children?.some((child) => pathname === child.href);
+
     // Domains parent badge: show count
     if (item.href === "/domains/dashboard" && domainCount !== null) {
       return { ...item, badge: <SidebarBadge>{domainCount}</SidebarBadge> };
     }
     // Proxy parent badge: show active status dot
     if (item.href === "/proxy/dashboard") {
-      return { ...item, badge: <ProxyDot active={proxyActive} /> };
+      return {
+        ...item,
+        badge: !isParentActive ? <ProxyDot active={proxyActive} /> : undefined,
+        children: item.children?.map((child) =>
+          child.href === "/proxy/dashboard" ? { ...child, badge: <ProxyDot active={proxyActive} /> } : child,
+        ),
+      };
+    }
+    // APIs parent badge: show dot if mocking is active
+    if (item.href === "/apis/dashboard") {
+      return {
+        ...item,
+        badge: !isParentActive ? <ProxyDot active={mockingEnabled && proxyRunning} /> : undefined,
+        children: item.children?.map((child) =>
+          child.href === "/apis/mocking"
+            ? { ...child, badge: <ProxyDot active={mockingEnabled && proxyRunning} /> }
+            : child,
+        ),
+      };
     }
     return item;
   });
@@ -123,14 +145,19 @@ export function Sidebar({ items }: SidebarProps) {
                         key={child.href}
                         to={child.href}
                         className={clsx(
-                          "flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200",
+                          "flex items-center justify-between gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200",
                           isActive
                             ? "text-white font-medium bg-slate-900"
                             : "text-slate-500 hover:text-slate-200 hover:translate-x-1",
                         )}
                       >
-                        <div className={clsx("w-1 h-1 rounded-full", isActive ? "bg-primary" : "bg-slate-700")} />
-                        {child.label}
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={clsx("w-1 h-1 rounded-full shrink-0", isActive ? "bg-primary" : "bg-slate-700")}
+                          />
+                          {child.label}
+                        </div>
+                        {child.badge && <div className="shrink-0">{child.badge}</div>}
                       </Link>
                     );
                   })}

@@ -27,6 +27,7 @@ import { Route as DomainsGroupsIndexRouteImport } from './routes/domains/groups/
 import { Route as DomainsDashboardIndexRouteImport } from './routes/domains/dashboard/index'
 import { Route as ApisSettingsIndexRouteImport } from './routes/apis/settings/index'
 import { Route as ApisSchemaIndexRouteImport } from './routes/apis/schema/index'
+import { Route as ApisMockingIndexRouteImport } from './routes/apis/mocking/index'
 import { Route as ApisLogsIndexRouteImport } from './routes/apis/logs/index'
 import { Route as ApisDashboardIndexRouteImport } from './routes/apis/dashboard/index'
 
@@ -120,6 +121,11 @@ const ApisSchemaIndexRoute = ApisSchemaIndexRouteImport.update({
   path: '/apis/schema/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApisMockingIndexRoute = ApisMockingIndexRouteImport.update({
+  id: '/apis/mocking/',
+  path: '/apis/mocking/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApisLogsIndexRoute = ApisLogsIndexRouteImport.update({
   id: '/apis/logs/',
   path: '/apis/logs/',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/logs/': typeof ApisLogsIndexRoute
+  '/apis/mocking/': typeof ApisMockingIndexRoute
   '/apis/schema/': typeof ApisSchemaIndexRoute
   '/apis/settings/': typeof ApisSettingsIndexRoute
   '/domains/dashboard/': typeof DomainsDashboardIndexRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/apis/dashboard': typeof ApisDashboardIndexRoute
   '/apis/logs': typeof ApisLogsIndexRoute
+  '/apis/mocking': typeof ApisMockingIndexRoute
   '/apis/schema': typeof ApisSchemaIndexRoute
   '/apis/settings': typeof ApisSettingsIndexRoute
   '/domains/dashboard': typeof DomainsDashboardIndexRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/logs/': typeof ApisLogsIndexRoute
+  '/apis/mocking/': typeof ApisMockingIndexRoute
   '/apis/schema/': typeof ApisSchemaIndexRoute
   '/apis/settings/': typeof ApisSettingsIndexRoute
   '/domains/dashboard/': typeof DomainsDashboardIndexRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/apis/dashboard/'
     | '/apis/logs/'
+    | '/apis/mocking/'
     | '/apis/schema/'
     | '/apis/settings/'
     | '/domains/dashboard/'
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/apis/dashboard'
     | '/apis/logs'
+    | '/apis/mocking'
     | '/apis/schema'
     | '/apis/settings'
     | '/domains/dashboard'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/apis/dashboard/'
     | '/apis/logs/'
+    | '/apis/mocking/'
     | '/apis/schema/'
     | '/apis/settings/'
     | '/domains/dashboard/'
@@ -279,6 +291,7 @@ export interface RootRouteChildren {
   SettingsIndexRoute: typeof SettingsIndexRoute
   ApisDashboardIndexRoute: typeof ApisDashboardIndexRoute
   ApisLogsIndexRoute: typeof ApisLogsIndexRoute
+  ApisMockingIndexRoute: typeof ApisMockingIndexRoute
   ApisSchemaIndexRoute: typeof ApisSchemaIndexRoute
   ApisSettingsIndexRoute: typeof ApisSettingsIndexRoute
   DomainsDashboardIndexRoute: typeof DomainsDashboardIndexRoute
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApisSchemaIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apis/mocking/': {
+      id: '/apis/mocking/'
+      path: '/apis/mocking'
+      fullPath: '/apis/mocking/'
+      preLoaderRoute: typeof ApisMockingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/apis/logs/': {
       id: '/apis/logs/'
       path: '/apis/logs'
@@ -447,6 +467,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsIndexRoute: SettingsIndexRoute,
   ApisDashboardIndexRoute: ApisDashboardIndexRoute,
   ApisLogsIndexRoute: ApisLogsIndexRoute,
+  ApisMockingIndexRoute: ApisMockingIndexRoute,
   ApisSchemaIndexRoute: ApisSchemaIndexRoute,
   ApisSettingsIndexRoute: ApisSettingsIndexRoute,
   DomainsDashboardIndexRoute: DomainsDashboardIndexRoute,

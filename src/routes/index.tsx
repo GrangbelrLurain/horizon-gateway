@@ -7,44 +7,79 @@ import {
   apiLoggingCountAtom,
   domainCountAtom,
   proxyLocalRoutingEnabledAtom,
+  proxyMockingEnabledAtom,
   proxyRunningAtom,
   setupDismissedAtom,
 } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import {
   buildQuickStats,
-  ProxyStatusBadge,
   QuickActionsCard,
   QuickStatsRow,
   RecentActivityGrid,
   SetupProgressCard,
-  useDashboardData,
 } from "@/features/dashboard/ui/DashboardComponents";
+import { invokeApi } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
+import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { en } from "./en";
 import { ko } from "./ko";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  component: Dashboard,
 });
 
-function Index() {
-  const [version, setVersion] = useState<string>("");
-  const lang = useAtomValue(languageAtom);
-  const t = lang === "ko" ? ko : en;
-  const langKey = lang === "ko" ? "ko" : "en";
+function Dashboard() {
+  const [version, setVersion] = useState("");
+  const langKey = useAtomValue(languageAtom);
+  const t = langKey === "ko" ? ko : en;
 
   const domainCount = useAtomValue(domainCountAtom);
   const apiLoggingCount = useAtomValue(apiLoggingCountAtom);
   const proxyRunning = useAtomValue(proxyRunningAtom);
   const proxyLocalRouting = useAtomValue(proxyLocalRoutingEnabledAtom);
-  const [setupDismissed, setSetupDismissed] = useAtom(setupDismissedAtom);
+  const [mockingEnabled, setMockingEnabled] = useAtom(proxyMockingEnabledAtom);
 
-  const { monitorItems, apiLogs, todayCount } = useDashboardData();
+  const [setupDismissed, setSetupDismissed] = useAtom(setupDismissedAtom);
+  const [mockingLoading, setMockingLoading] = useState(false);
+  const [proxyRoutingLoading, setProxyRoutingLoading] = useState(false);
+
+  // monitorItems: mocked later or fetched
+  const monitorItems: never[] = [];
+  const apiLogs: never[] = [];
+  const mockRules: never[] = [];
 
   useEffect(() => {
     getVersion().then(setVersion).catch(console.error);
   }, []);
+
+  const toggleMocking = async (enabled: boolean) => {
+    if (mockingEnabled === null) {
+      return;
+    }
+    setMockingLoading(true);
+    try {
+      const res = await invokeApi("set_mocking_enabled", { payload: { enabled } });
+      if (res.success) {
+        setMockingEnabled(enabled);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setMockingLoading(false);
+    }
+  };
+
+  const toggleProxyLocalRouting = async (enabled: boolean) => {
+    setProxyRoutingLoading(true);
+    try {
+      await invokeApi("set_local_routing_enabled", { payload: { enabled } });
+    } catch (e) {
+      console.error("set_local_routing_enabled:", e);
+    } finally {
+      setProxyRoutingLoading(false);
+    }
+  };
 
   // ── Setup progress ──────────────────────────────────────────────────────────
   const setupSteps = [
@@ -77,7 +112,7 @@ function Index() {
   }, [domainCount, proxyRunning, proxyLocalRouting, apiLoggingCount, setupDismissed, setSetupDismissed]);
 
   // ── Quick stats ─────────────────────────────────────────────────────────────
-  const stats = buildQuickStats(domainCount, apiLoggingCount, proxyRunning, proxyLocalRouting, todayCount, langKey);
+  const stats = buildQuickStats(domainCount, apiLoggingCount, proxyRunning, proxyLocalRouting, 0, langKey);
 
   // ── Quick actions ───────────────────────────────────────────────────────────
   const quickActions = [
@@ -126,7 +161,23 @@ function Index() {
           </div>
           <p className="text-base-content/60 text-sm">{t.subtitle}</p>
         </div>
-        <ProxyStatusBadge lang={langKey} />
+        <div className="flex items-center gap-3">
+          <StatusToggle
+            label={langKey === "ko" ? "모킹" : "Mocking"}
+            checked={!!mockingEnabled}
+            onChange={toggleMocking}
+            loading={mockingLoading}
+            icon={<Server className="w-3.5 h-3.5" />}
+          />
+          <StatusToggle
+            label={langKey === "ko" ? "프록시 활성" : "Proxy Active"}
+            checked={!!(proxyRunning && proxyLocalRouting)}
+            onChange={toggleProxyLocalRouting}
+            loading={proxyRoutingLoading}
+            disabled={!proxyRunning}
+            icon={<Server className="w-3.5 h-3.5" />}
+          />
+        </div>
       </header>
 
       {/* ── Setup Progress Card (disappears when all done or dismissed) ── */}
@@ -138,7 +189,7 @@ function Index() {
       <QuickStatsRow stats={stats} />
 
       {/* ── Recent Activity ── */}
-      <RecentActivityGrid monitorItems={monitorItems} apiLogs={apiLogs} lang={langKey} />
+      <RecentActivityGrid monitorItems={monitorItems} apiLogs={apiLogs} mockRules={mockRules} lang={langKey} />
 
       {/* ── Quick Actions ── */}
       <QuickActionsCard actions={quickActions} title={t.quickActionsTitle} />
