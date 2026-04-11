@@ -22,6 +22,7 @@ import {
   apiLoggingCountAtom,
   domainCountAtom,
   loadAppStatus,
+  proxyInspectorEnabledAtom,
   proxyLocalRoutingEnabledAtom,
   proxyMockingEnabledAtom,
   proxyRunningAtom,
@@ -32,6 +33,7 @@ import { userProfileAtom } from "@/domain/user/store";
 import { Sidebar } from "@/features/sidebar/ui/Sidebar";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile/ui/UserProfileSetup";
+import { invokeApi } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { Titlebar } from "@/shared/ui/layout/Titlebar";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
@@ -49,6 +51,7 @@ const RootLayout = () => {
   const [, setProxyLocalRouting] = useAtom(proxyLocalRoutingEnabledAtom);
 
   const [, setProxyMockingEnabled] = useAtom(proxyMockingEnabledAtom);
+  const [proxyInspectorEnabled, setProxyInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
 
   const theme = useAtomValue(themeAtom);
   const userProfile = useAtomValue(userProfileAtom);
@@ -101,7 +104,25 @@ const RootLayout = () => {
   }, [userProfile.avatarColor]);
 
   useEffect(() => {
-    loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled);
+    loadAppStatus(
+      setDomainCount,
+      setApiLoggingCount,
+      setProxyRunning,
+      setProxyLocalRouting,
+      setProxyMockingEnabled,
+      setProxyInspectorEnabled,
+    );
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle Inspector: Ctrl + Alt + I
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "i") {
+        const newState = !proxyInspectorEnabled;
+        setProxyInspectorEnabled(newState);
+        invokeApi("set_global_inspector_enabled", { payload: newState });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
 
     // Listen for real-time proxy status changes
     const unlistenProxy = listen<{ running: boolean; local_routing_enabled: boolean }>(
@@ -122,15 +143,31 @@ const RootLayout = () => {
     });
 
     const interval = setInterval(() => {
-      loadAppStatus(setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled);
+      loadAppStatus(
+        setDomainCount,
+        setApiLoggingCount,
+        setProxyRunning,
+        setProxyLocalRouting,
+        setProxyMockingEnabled,
+        setProxyInspectorEnabled,
+      );
     }, 60_000);
 
     return () => {
+      window.removeEventListener("keydown", handleKeyDown);
       clearInterval(interval);
       unlistenProxy.then((fn) => fn());
       unlistenMocking.then((fn) => fn());
     };
-  }, [setDomainCount, setApiLoggingCount, setProxyRunning, setProxyLocalRouting, setProxyMockingEnabled]);
+  }, [
+    setDomainCount,
+    setApiLoggingCount,
+    setProxyRunning,
+    setProxyLocalRouting,
+    setProxyMockingEnabled,
+    setProxyInspectorEnabled,
+    proxyInspectorEnabled,
+  ]);
 
   const sidebarItems: ComponentProps<typeof Sidebar>["items"] = useMemo(
     () => [
@@ -190,13 +227,25 @@ const RootLayout = () => {
         children: [
           {
             label: t.dashboard,
-            icon: <ServerIcon className="w-4 h-4" />,
+            icon: <LayoutGrid className="w-4 h-4" />,
             href: "/proxy/dashboard",
           },
           {
             label: t.setup,
             icon: <SettingsIcon className="w-4 h-4" />,
             href: "/proxy/setup",
+          },
+        ],
+      },
+      {
+        label: t.policy_group,
+        icon: <FileTextIcon className="w-4 h-4" />,
+        href: "/proxy/inspector",
+        children: [
+          {
+            label: t.inspector,
+            icon: <FileTextIcon className="w-4 h-4" />,
+            href: "/proxy/inspector",
           },
         ],
       },

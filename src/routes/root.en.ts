@@ -1,8 +1,9 @@
 export const en = {
   home: "Home",
   domains: "Domains",
-  monitor: "Monitor",
+  monitor: "Monitoring",
   proxy: "Proxy",
+  policy_group: "Policy Management",
   apis: "APIs",
   dashboard: "Dashboard",
   regist: "Regist",
@@ -10,6 +11,7 @@ export const en = {
   logs: "Logs",
   settings: "Settings",
   setup: "Setup",
+  inspector: "UX Policy",
   schema: "Schema",
   server_logs: "Server Logs",
   mocking: "Mocking",

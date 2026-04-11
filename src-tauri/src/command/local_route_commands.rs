@@ -1,8 +1,8 @@
 use crate::model::api_response::ApiResponse;
 use crate::model::local_route::LocalRoute;
 use crate::model::proxy_settings::ProxySettings;
-use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::api_log_service::ApiLogService;
+use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::ca_service::CaService;
 use crate::service::local_proxy;
 use crate::service::local_route_service::LocalRouteService;
@@ -306,7 +306,10 @@ pub async fn start_local_proxy(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
     api_log_service: tauri::State<'_, ApiLogService>,
     ca_service: tauri::State<'_, std::sync::Arc<CaService>>,
-    mocking_service: tauri::State<'_, std::sync::Arc<crate::service::mocking_service::MockingService>>,
+    mocking_service: tauri::State<
+        '_,
+        std::sync::Arc<crate::service::mocking_service::MockingService>,
+    >,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let port = payload
         .and_then(|p| p.port)
@@ -349,6 +352,7 @@ pub async fn start_local_proxy(
     let mocking_service_arc = (*mocking_service).clone();
 
     match local_proxy::run_proxy(
+        app.clone(),
         port,
         std::sync::Arc::clone(&*route_service),
         dns_server.clone(),
@@ -365,6 +369,7 @@ pub async fn start_local_proxy(
 
     if let Some(rh) = reverse_http {
         match local_proxy::run_reverse_proxy_http(
+            app.clone(),
             rh,
             std::sync::Arc::clone(&*route_service),
             dns_server.clone(),
@@ -388,6 +393,7 @@ pub async fn start_local_proxy(
     }
     if let Some(rht) = reverse_https {
         match local_proxy::run_reverse_proxy_https(
+            app.clone(),
             rht,
             std::sync::Arc::clone(&*route_service),
             dns_server,
@@ -543,7 +549,11 @@ pub fn set_local_routing_enabled(
     Ok(ApiResponse {
         message: format!(
             "Local routing {}",
-            if payload.enabled { "enabled" } else { "disabled" }
+            if payload.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
         ),
         success: true,
         data: status,
@@ -554,9 +564,12 @@ pub fn set_local_routing_enabled(
 
 /// Start the proxy using persisted settings. Designed to be called once from the Tauri setup hook.
 pub async fn auto_start_proxy(
+    app_handle: tauri::AppHandle,
     route_service: std::sync::Arc<LocalRouteService>,
     settings: &ProxySettings,
-    api_logging_map: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<String, (bool, bool)>>>,
+    api_logging_map: std::sync::Arc<
+        std::sync::RwLock<std::collections::HashMap<String, (bool, bool)>>,
+    >,
     api_log_service: std::sync::Arc<ApiLogService>,
     ca_service: std::sync::Arc<CaService>,
     mocking_service: std::sync::Arc<crate::service::mocking_service::MockingService>,
@@ -576,7 +589,9 @@ pub async fn auto_start_proxy(
     let mut used = std::collections::HashSet::from([port]);
     if let Some(rh) = reverse_http {
         if !used.insert(rh) {
-            return Err(format!("Reverse HTTP port {rh} conflicts with main proxy port"));
+            return Err(format!(
+                "Reverse HTTP port {rh} conflicts with main proxy port"
+            ));
         }
     }
     if let Some(rht) = reverse_https {
@@ -587,6 +602,7 @@ pub async fn auto_start_proxy(
 
     let mut handles = Vec::new();
     match local_proxy::run_proxy(
+        app_handle.clone(),
         port,
         std::sync::Arc::clone(&route_service),
         dns_server.clone(),
@@ -603,6 +619,7 @@ pub async fn auto_start_proxy(
 
     if let Some(rh) = reverse_http {
         match local_proxy::run_reverse_proxy_http(
+            app_handle.clone(),
             rh,
             std::sync::Arc::clone(&route_service),
             dns_server.clone(),
@@ -626,6 +643,7 @@ pub async fn auto_start_proxy(
     }
     if let Some(rht) = reverse_https {
         match local_proxy::run_reverse_proxy_https(
+            app_handle,
             rht,
             std::sync::Arc::clone(&route_service),
             dns_server,

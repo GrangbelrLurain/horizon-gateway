@@ -9,6 +9,7 @@ mod storage {
     pub mod versioned;
 }
 mod model {
+    pub mod api_log;
     pub mod api_response;
     pub mod domain;
     pub mod domain_api_logging_link;
@@ -16,36 +17,38 @@ mod model {
     pub mod domain_group_link;
     pub mod domain_monitor_link;
     pub mod domain_status_log;
+    pub mod inspector;
     pub mod local_route;
-    pub mod api_log;
-    pub mod proxy_settings;
-    pub mod settings_export;
-    pub mod scenario;
     pub mod mock_rule;
     pub mod mocking_settings;
+    pub mod proxy_settings;
+    pub mod scenario;
+    pub mod settings_export;
 }
 mod service {
-    pub mod api_logging_settings_service;
     pub mod api_log_service;
+    pub mod api_logging_settings_service;
     pub mod ca_service;
     pub mod domain_group_link_service;
     pub mod domain_group_service;
     pub mod domain_monitor_service;
     pub mod domain_service;
+    pub mod inspector_service;
     pub mod local_proxy;
     pub mod local_route_service;
+    pub mod mocking_service;
     pub mod proxy_settings_service;
     pub mod system_proxy_service;
-    pub mod mocking_service;
 }
 
-use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::api_log_service::ApiLogService;
+use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::ca_service::CaService;
 use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_group_service::DomainGroupService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::domain_service::DomainService;
+use crate::service::inspector_service::InspectorService;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 use std::sync::Arc;
@@ -56,18 +59,29 @@ mod command {
     pub mod domain_commands;
     pub mod domain_group_commands;
     pub mod domain_monitor_command;
+    pub mod inspector_commands;
     pub mod local_route_commands;
+    pub mod mocking_commands;
     pub mod settings_commands;
     pub mod window_commands;
-    pub mod mocking_commands;
 }
+
+use command::inspector_commands::{
+    add_annotation, delete_annotation, get_annotations, get_global_inspector_enabled,
+    set_global_inspector_enabled, update_annotation,
+};
 
 use command::mocking_commands::{
     create_mock_rule, create_mock_rule_from_log, create_scenario, delete_mock_rule,
-    delete_scenario, get_mock_rules, get_mock_rules_by_scenario, get_scenarios, update_mock_rule,
-    update_scenario, get_mocking_status, set_mocking_enabled, set_scenario_enabled,
+    delete_scenario, get_mock_rules, get_mock_rules_by_scenario, get_mocking_status, get_scenarios,
+    set_mocking_enabled, set_scenario_enabled, update_mock_rule, update_scenario,
 };
 
+use command::api_log_commands::{
+    clear_api_logs, download_api_schema, get_api_logs, get_api_schema_content,
+    get_domain_api_logging_links, list_api_log_dates, remove_domain_api_logging, send_api_request,
+    set_domain_api_logging,
+};
 use command::domain_commands::{
     clear_all_domains, get_domain_by_id, get_domains, import_domains, regist_domains,
     remove_domains, update_domain_by_id,
@@ -86,13 +100,8 @@ use command::local_route_commands::{
     set_local_routing_enabled, set_proxy_dns_server, set_proxy_port, set_proxy_reverse_ports,
     start_local_proxy, stop_local_proxy, update_local_route,
 };
-use command::api_log_commands::{
-    download_api_schema, get_api_schema_content, get_domain_api_logging_links,
-    remove_domain_api_logging, send_api_request, set_domain_api_logging,
-    list_api_log_dates, get_api_logs, clear_api_logs,
-};
 use command::settings_commands::{export_all_settings, import_all_settings, save_root_ca};
-use command::window_commands::open_window;
+use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window};
 
 #[tauri::command]
 fn check_apis() {
@@ -144,7 +153,9 @@ pub fn run() {
             let scenarios_path = app_data_dir.join("scenarios.json");
             let mock_rules_path = app_data_dir.join("mock_rules.json");
             let mocking_settings_path = app_data_dir.join("mocking_settings.json");
-            let ca_service = Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
+            let inspector_path = app_data_dir.join("inspector_annotations.json");
+            let ca_service =
+                Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
             let domain_service = DomainService::new(storage_path);
             let group_service = DomainGroupService::new(groups_storage_path);
             let link_service = DomainGroupLinkService::new(links_storage_path);
@@ -153,9 +164,16 @@ pub fn run() {
             let proxy_settings_service = ProxySettingsService::new(proxy_settings_path);
             let api_logging_service = ApiLoggingSettingsService::new(api_logging_path);
             let api_log_service = ApiLogService::new(app_data_dir.clone());
-            let mocking_service = Arc::new(crate::service::mocking_service::MockingService::new(scenarios_path.clone(), mock_rules_path.clone(), mocking_settings_path.clone()));
+            let mocking_service = Arc::new(crate::service::mocking_service::MockingService::new(
+                scenarios_path.clone(),
+                mock_rules_path.clone(),
+                mocking_settings_path.clone(),
+            ));
+            let inspector_service = InspectorService::new(inspector_path);
 
-            crate::service::local_proxy::set_mocking_enabled(mocking_service.get_settings().enabled);
+            crate::service::local_proxy::set_mocking_enabled(
+                mocking_service.get_settings().enabled,
+            );
 
             monitor_service.sync_with_domains(&domain_service.get_all());
             api_logging_service.refresh_map(&domain_service.get_all());
@@ -177,6 +195,7 @@ pub fn run() {
             app.manage(api_logging_service);
             app.manage(api_log_service.clone());
             app.manage(mocking_service);
+            app.manage(inspector_service);
 
             // ── Auto-start proxy ────────────────────────────────────────────
             {
@@ -184,6 +203,7 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     use tauri::Emitter;
                     match command::local_route_commands::auto_start_proxy(
+                        app_handle.clone(),
                         route_svc_for_proxy,
                         &proxy_settings_snapshot,
                         api_logging_map_for_proxy,
@@ -203,10 +223,8 @@ pub fn run() {
                         Err(e) => {
                             tracing::error!("[auto-start] proxy failed: {e}");
                             command::local_route_commands::set_auto_start_error(Some(e.clone()));
-                            let _ = app_handle.emit(
-                                command::local_route_commands::PROXY_AUTO_START_ERROR,
-                                &e,
-                            );
+                            let _ = app_handle
+                                .emit(command::local_route_commands::PROXY_AUTO_START_ERROR, &e);
                         }
                     }
                 });
@@ -299,6 +317,14 @@ pub fn run() {
             get_api_logs,
             clear_api_logs,
             open_window,
+            open_inspector_window,
+            open_annotation_dialog,
+            get_annotations,
+            add_annotation,
+            update_annotation,
+            delete_annotation,
+            set_global_inspector_enabled,
+            get_global_inspector_enabled,
             get_scenarios,
             create_scenario,
             update_scenario,
@@ -316,7 +342,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {
-            tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { .. }, .. } => {
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { .. },
+                ..
+            } => {
                 if label == "main" {
                     app_handle.exit(0);
                 }

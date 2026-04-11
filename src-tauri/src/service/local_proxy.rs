@@ -8,7 +8,10 @@
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{header::{self, HeaderValue, CONTENT_TYPE}, uri::Uri},
+    http::{
+        header::{self, HeaderValue, CONTENT_TYPE},
+        uri::Uri,
+    },
     response::{Html, IntoResponse, Response},
     routing::any,
     Router,
@@ -18,7 +21,6 @@ use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::Resolver;
 use hyper::server::conn::http1::Builder as Http1Builder;
 use hyper::StatusCode;
-
 
 use futures::TryStreamExt;
 
@@ -46,7 +48,6 @@ macro_rules! proxy_log {
     ($($t:tt)*) => { eprintln!("[proxy] {}", format!($($t)*)) }
 }
 
-
 type TokioResolver = Resolver<TokioConnectionProvider>;
 
 // ── Local routing toggle ───────────────────────────────────────────────
@@ -54,6 +55,7 @@ type TokioResolver = Resolver<TokioConnectionProvider>;
 /// without matching local routes (pure pass-through mode).
 static LOCAL_ROUTING_ENABLED: AtomicBool = AtomicBool::new(true);
 static MOCKING_ENABLED: AtomicBool = AtomicBool::new(true);
+static INSPECTOR_ENABLED: AtomicBool = AtomicBool::new(false);
 
 pub fn is_local_routing_enabled() -> bool {
     LOCAL_ROUTING_ENABLED.load(AtomicOrdering::Relaxed)
@@ -69,6 +71,14 @@ pub fn is_mocking_enabled() -> bool {
 
 pub fn set_mocking_enabled(enabled: bool) {
     MOCKING_ENABLED.store(enabled, AtomicOrdering::Relaxed);
+}
+
+pub fn is_inspector_enabled() -> bool {
+    INSPECTOR_ENABLED.load(AtomicOrdering::Relaxed)
+}
+
+pub fn set_inspector_enabled(enabled: bool) {
+    INSPECTOR_ENABLED.store(enabled, AtomicOrdering::Relaxed);
 }
 
 /// Parse "8.8.8.8" or "8.8.8.8:53" into (`IpAddr`, port). Returns None if invalid.
@@ -91,8 +101,10 @@ use crate::model::api_log::ApiLogEntry;
 use crate::service::api_log_service::ApiLogService;
 use crate::service::ca_service::CaService;
 
-pub struct ProxyState {
+use tauri::{Emitter, Manager};
 
+pub struct ProxyState {
+    pub app_handle: tauri::AppHandle,
     route_service: Arc<LocalRouteService>,
     resolver: Option<Arc<TokioResolver>>,
     pub forward_proxy_port: Option<u16>,
@@ -107,6 +119,7 @@ pub struct ProxyState {
 
 impl ProxyState {
     fn new(
+        app_handle: tauri::AppHandle,
         route_service: Arc<LocalRouteService>,
         dns_server: Option<String>,
         forward_proxy_port: Option<u16>,
@@ -115,7 +128,6 @@ impl ProxyState {
         ca_service: Arc<CaService>,
         mocking_service: Arc<crate::service::mocking_service::MockingService>,
     ) -> Self {
-
         let resolver = dns_server
             .as_ref()
             .and_then(|s| parse_dns_server(s))
@@ -130,7 +142,7 @@ impl ProxyState {
                 Arc::new(r)
             });
         Self {
-
+            app_handle,
             route_service,
             resolver,
             forward_proxy_port,
@@ -152,13 +164,10 @@ fn host_key_for_logging_map(host: &str) -> String {
     let host = host.trim();
     if host.starts_with('[') {
         if let Some(end) = host.rfind(']') {
-             return host[0..=end].to_lowercase();
+            return host[0..=end].to_lowercase();
         }
     }
-    host.split(':')
-        .next()
-        .unwrap_or(host)
-        .to_lowercase()
+    host.split(':').next().unwrap_or(host).to_lowercase()
 }
 
 /// 로깅 설정 조회. 정확 일치 후 서브도메인 매칭(host.ends_with("." + key)); 여러 매칭 시 가장 긴 키 사용.
@@ -598,7 +607,8 @@ async fn handle_connect_tunnel_local(
         target_port,
         original_host
     );
-    let io = TokioIo::new(tls_stream); let app = proxy_app(Arc::clone(&state), "https");
+    let io = TokioIo::new(tls_stream);
+    let app = proxy_app(Arc::clone(&state), "https");
     let svc = TowerToHyperService::new(app);
     let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
 }
@@ -632,11 +642,11 @@ async fn handle_connect_tunnel_decrypted(
             return;
         }
     };
-    let io = TokioIo::new(tls_stream); let app = proxy_app(Arc::clone(&state), "https");
+    let io = TokioIo::new(tls_stream);
+    let app = proxy_app(Arc::clone(&state), "https");
     let svc = TowerToHyperService::new(app);
     let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
 }
-
 
 async fn handle_connect_tunnel(
     mut client: TcpStream,
@@ -651,13 +661,21 @@ async fn handle_connect_tunnel(
     let key = host_key_for_logging_map(&host);
     let use_api_logging = {
         let map_read = state.api_logging_map.read().ok();
-        let config = map_read.as_ref().and_then(|map| get_logging_config_for_host(map, &key));
-        proxy_log!("[matching] host: {}, key: {}, found_in_map: {}", host, key, config.is_some());
+        let config = map_read
+            .as_ref()
+            .and_then(|map| get_logging_config_for_host(map, &key));
+        proxy_log!(
+            "[matching] host: {}, key: {}, found_in_map: {}",
+            host,
+            key,
+            config.is_some()
+        );
         config.map_or(false, |(logging_enabled, _)| logging_enabled)
     };
 
-    if use_api_logging {
-        proxy_log!("-> CONNECT logging enabled for {}", host);
+    if use_api_logging || true {
+        // Always decrypt for Inspector/Dashboard
+        proxy_log!("-> CONNECT decryption enabled for {}", host);
         handle_connect_tunnel_decrypted(client, host, state).await;
         return;
     }
@@ -722,8 +740,14 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
         return (
             StatusCode::OK,
             [
-                (CONTENT_TYPE, HeaderValue::from_static("application/x-ns-proxy-autoconfig")),
-                (header::CACHE_CONTROL, HeaderValue::from_static("no-cache, no-store, must-revalidate")),
+                (
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-ns-proxy-autoconfig"),
+                ),
+                (
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache, no-store, must-revalidate"),
+                ),
                 (header::PRAGMA, HeaderValue::from_static("no-cache")),
                 (header::EXPIRES, HeaderValue::from_static("0")),
             ],
@@ -747,7 +771,10 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
         return (
             StatusCode::OK,
             [
-                (CONTENT_TYPE, HeaderValue::from_static("application/x-x509-ca-cert")),
+                (
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-x509-ca-cert"),
+                ),
                 (
                     header::CONTENT_DISPOSITION,
                     HeaderValue::from_static("attachment; filename=\"watchtower-root-ca.crt\""),
@@ -785,6 +812,32 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
             pem,
         )
             .into_response();
+    }
+    if path == "/.watchtower/inspector.js" {
+        let js = include_str!("../../resources/inspector.js");
+        return (
+            StatusCode::OK,
+            [(
+                CONTENT_TYPE,
+                HeaderValue::from_static("application/javascript"),
+            )],
+            js,
+        )
+            .into_response();
+    }
+    if path == "/.watchtower/logo.svg" {
+        let svg = include_str!("../../../app-icon.svg");
+        return (
+            StatusCode::OK,
+            [(CONTENT_TYPE, HeaderValue::from_static("image/svg+xml"))],
+            svg,
+        )
+            .into_response();
+    }
+    if path == "/.watchtower/api/annotation" {
+        // We'll handle POST request in a separate part or here by checking method
+        // But serve_watchtower_reserved_path is called with the whole request context in proxy_handler_inner
+        return (StatusCode::METHOD_NOT_ALLOWED, "Use POST for this endpoint").into_response();
     }
     (StatusCode::NOT_FOUND, "Not found").into_response()
 }
@@ -825,30 +878,59 @@ async fn proxy_handler(
     req: Request,
 ) -> Response {
     if req.method() == hyper::Method::OPTIONS {
-         return (
+        return (
             StatusCode::OK,
             [
-                (header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*")),
-                (header::ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH")),
-                (header::ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*")),
-                (header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true")),
+                (
+                    header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    HeaderValue::from_static("*"),
+                ),
+                (
+                    header::ACCESS_CONTROL_ALLOW_METHODS,
+                    HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
+                ),
+                (
+                    header::ACCESS_CONTROL_ALLOW_HEADERS,
+                    HeaderValue::from_static("*"),
+                ),
+                (
+                    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                    HeaderValue::from_static("true"),
+                ),
             ],
             Body::empty(),
-        ).into_response();
+        )
+            .into_response();
     }
 
     let mut response = proxy_handler_inner(state, ext, req).await;
 
     let headers = response.headers_mut();
-    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
-    headers.insert(header::ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"));
-    headers.insert(header::ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
-    headers.insert(header::ACCESS_CONTROL_ALLOW_CREDENTIALS, HeaderValue::from_static("true"));
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("*"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        HeaderValue::from_static("true"),
+    );
 
     response
 }
 
-async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extension(scheme): axum::Extension<&'static str>, mut req: Request) -> Response {
+async fn proxy_handler_inner(
+    State(state): State<Arc<ProxyState>>,
+    axum::Extension(scheme): axum::Extension<&'static str>,
+    mut req: Request,
+) -> Response {
     let method = req.method().to_string();
     let uri = req.uri().clone();
     let path = uri.path();
@@ -862,29 +944,86 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
 
     if path.starts_with(WATCHTOWER_PATH_PREFIX) {
         proxy_log!("-> watchtower reserved: {}", path);
+
+        // Handle App Focus
+        if path == "/.watchtower/api/focus" {
+            if let Some(main) = state.app_handle.get_webview_window("main") {
+                let _ = main.set_focus();
+            }
+            return (StatusCode::OK, "Focused").into_response();
+        }
+
+        // Handle API Annotation POST
+        if path == "/.watchtower/api/annotation" && req.method() == hyper::Method::POST {
+            let host_h = req
+                .headers()
+                .get(hyper::header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default()
+                .to_string();
+
+            // Construct full URL (Assuming HTTPS since it's a proxy, or check scheme)
+            let full_url = if req.uri().scheme().is_some() {
+                req.uri().to_string()
+            } else {
+                format!("https://{}{}", host_h, req.uri())
+            };
+
+            let body = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+                Ok(b) => b,
+                Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read body").into_response(),
+            };
+
+            if let Ok(mut annotation_val) = serde_json::from_slice::<serde_json::Value>(&body) {
+                if let Some(obj) = annotation_val.as_object_mut() {
+                    obj.insert("domain".to_string(), serde_json::Value::String(host_h));
+                    obj.insert("url".to_string(), serde_json::Value::String(full_url));
+                }
+                // Emit event to UI
+                let _ = state
+                    .app_handle
+                    .emit("annotation-dialog-requested", annotation_val);
+                return (StatusCode::OK, "Annotation received").into_response();
+            }
+            return (StatusCode::BAD_REQUEST, "Invalid JSON").into_response();
+        }
+
         return serve_watchtower_reserved_path(state, path).await;
     }
 
     // --- MOCKING INTERCEPTOR ---
     if is_mocking_enabled() {
         let scenarios = state.mocking_service.get_scenarios();
-        let enabled_scenario_ids: Vec<String> = scenarios.iter().filter(|s| s.enabled).map(|s| s.id.clone()).collect();
-        
+        let enabled_scenario_ids: Vec<String> = scenarios
+            .iter()
+            .filter(|s| s.enabled)
+            .map(|s| s.id.clone())
+            .collect();
+
         let rules = state.mocking_service.get_mock_rules();
         let target_host = host_key_for_logging_map(&host_h);
         if let Some(rule) = rules.into_iter().find(|r| {
-            r.enabled 
-            && enabled_scenario_ids.contains(&r.scenario_id)
-            && r.method.eq_ignore_ascii_case(&method) 
-            && path.starts_with(&r.url_pattern)
-            && (r.host.is_none() || r.host.as_deref().map(|h| h.to_lowercase()).unwrap_or_default() == target_host)
+            r.enabled
+                && enabled_scenario_ids.contains(&r.scenario_id)
+                && r.method.eq_ignore_ascii_case(&method)
+                && path.starts_with(&r.url_pattern)
+                && (r.host.is_none()
+                    || r.host
+                        .as_deref()
+                        .map(|h| h.to_lowercase())
+                        .unwrap_or_default()
+                        == target_host)
         }) {
             proxy_log!("-> mocked response for {} {}", method, uri);
             let mut builder = Response::builder().status(rule.response_status);
             if let Some(headers) = builder.headers_mut() {
                 for (k, v) in &rule.response_headers {
                     let k_lower = k.to_lowercase();
-                    if k_lower == "content-length" || k_lower == "content-encoding" || k_lower == "transfer-encoding" || k_lower == "connection" {
+                    if k_lower == "content-length"
+                        || k_lower == "content-encoding"
+                        || k_lower == "transfer-encoding"
+                        || k_lower == "connection"
+                    {
                         continue;
                     }
                     if let Ok(header_name) = header::HeaderName::from_bytes(k.as_bytes()) {
@@ -893,7 +1032,10 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                         }
                     }
                 }
-                headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+                headers.insert(
+                    header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                    HeaderValue::from_static("*"),
+                );
             }
             let body = rule.response_body.unwrap_or_default();
 
@@ -901,13 +1043,20 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             let start_time = OffsetDateTime::now_utc();
             let entry = ApiLogEntry {
                 id: uuid::Uuid::new_v4().to_string(),
-                timestamp: start_time.format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
+                timestamp: start_time
+                    .format(&time::format_description::well_known::Rfc3339)
+                    .unwrap_or_default(),
                 method: method.to_string(),
                 url: uri.to_string(),
                 host: host_h.to_string(),
                 path: path.to_string(),
                 status_code: Some(rule.response_status),
-                request_headers: Some(req.headers().iter().map(|(k,v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect()),
+                request_headers: Some(
+                    req.headers()
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                        .collect(),
+                ),
                 request_body: None, // We don't read the body for most mocks to keep it fast, or we could read it if needed
                 response_headers: Some(rule.response_headers.clone()),
                 response_body: Some(body.clone()),
@@ -915,13 +1064,21 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             state.api_log_service.save_log(&entry);
 
             return builder.body(Body::from(body)).unwrap_or_else(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build mock response: {e}")).into_response()
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to build mock response: {e}"),
+                )
+                    .into_response()
             });
         }
     }
     // --- END MOCKING INTERCEPTOR ---
 
-    let host_header = req.headers().get("host").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+    let host_header = req
+        .headers()
+        .get("host")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
     // When local routing is disabled, pass an empty slice so no routes match → pure pass-through.
     let routes = if is_local_routing_enabled() {
         state.route_service.get_enabled()
@@ -939,132 +1096,327 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
             path_query
         );
     }
-        let Ok(target_uri) = Uri::try_from(target_uri_str.as_str()) else {
-            return (StatusCode::BAD_REQUEST, "Invalid target URI").into_response();
-        };
+    let Ok(target_uri) = Uri::try_from(target_uri_str.as_str()) else {
+        return (StatusCode::BAD_REQUEST, "Invalid target URI").into_response();
+    };
 
-        *req.uri_mut() = target_uri.clone();
+    *req.uri_mut() = target_uri.clone();
 
-        // API Logging check
-        let host_key = host_key_for_logging_map(&host_h);
-        let logging_config = state
-            .api_logging_map
-            .read()
-            .ok()
-            .and_then(|map| get_logging_config_for_host(&map, &host_key));
+    // API Logging check
+    let host_key = host_key_for_logging_map(&host_h);
+    let logging_config = state
+        .api_logging_map
+        .read()
+        .ok()
+        .and_then(|map| get_logging_config_for_host(&map, &host_key));
 
-        let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
-        let _is_local = local_origin.is_some();
+    let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
+    let _is_local = local_origin.is_some();
 
-        // Fix Scheme for Intercepted HTTPS Requests (API Logging)
-        // If we intercepted a CONNECT request, `proxy_handler` receives origin-form URI.
-        // `resolve_target` defaults to "http". We must force "https" if logging is enabled
-        // (implying CONNECT interception) and it's not a local route.
+    // Fix Scheme for Intercepted HTTPS Requests (API Logging)
+    // If we intercepted a CONNECT request, `proxy_handler` receives origin-form URI.
+    // `resolve_target` defaults to "http". We must force "https" if logging is enabled
+    // (implying CONNECT interception) and it's not a local route.
 
-        if !logging_enabled {
-            // Pass-through or local routing (Non-logging)
-            // Use reqwest for robustness (handles HTTPS redirects if any, though CONNECT tunnel handles encryption usually)
-            // Actually, for pure pass-through of plain HTTP, reqwest is fine.
-            let method = req.method().clone();
-            let url_str = target_uri_str.clone();
+    if !logging_enabled {
+        // Pass-through or local routing (Non-logging)
+        // Use reqwest for robustness (handles HTTPS redirects if any, though CONNECT tunnel handles encryption usually)
+        // Actually, for pure pass-through of plain HTTP, reqwest is fine.
+        let method = req.method().clone();
+        let url_str = target_uri_str.clone();
 
-            let mut req_builder = state.reqwest_client.request(method, &url_str);
-            let (parts, body) = req.into_parts();
+        let mut req_builder = state.reqwest_client.request(method, &url_str);
+        let (parts, body) = req.into_parts();
 
-            let has_body = !matches!(
-                parts.method,
-                axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS | axum::http::Method::TRACE
+        let has_body = !matches!(
+            parts.method,
+            axum::http::Method::GET
+                | axum::http::Method::HEAD
+                | axum::http::Method::OPTIONS
+                | axum::http::Method::TRACE
+        );
+
+        if has_body {
+            let body_stream = TryStreamExt::map_err(
+                TryStreamExt::map_ok(http_body_util::BodyStream::new(body), |frame| {
+                    frame.into_data().unwrap_or_default()
+                }),
+                |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>,
             );
+            let reqwest_body = reqwest::Body::wrap_stream(body_stream);
+            req_builder = req_builder.body(reqwest_body);
+        }
 
-            if has_body {
-                let body_stream = TryStreamExt::map_err(
-                    TryStreamExt::map_ok(
-                        http_body_util::BodyStream::new(body),
-                        |frame| frame.into_data().unwrap_or_default()
-                    ),
-                    |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-                );
-                let reqwest_body = reqwest::Body::wrap_stream(body_stream);
-                req_builder = req_builder.body(reqwest_body);
+        // Headers
+        let hop_by_hop_headers = [
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailers",
+            "transfer-encoding",
+            "upgrade",
+            "proxy-connection",
+            "accept-encoding", // Remove to avoid compressed response for injection/logging
+        ];
+        for (name, value) in parts.headers.iter() {
+            let name_str = name.as_str().to_lowercase();
+            if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
+                req_builder = req_builder.header(name, value);
             }
+        }
+        req_builder = req_builder.header("host", host_h.clone());
 
-             // Headers
-            let hop_by_hop_headers = [
-                "connection",
-                "keep-alive",
-                "proxy-authenticate",
-                "proxy-authorization",
-                "te",
-                "trailers",
-                "transfer-encoding",
-                "upgrade",
-                "proxy-connection",
-            ];
-            for (name, value) in parts.headers.iter() {
-                let name_str = name.as_str().to_lowercase();
-                if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
-                    req_builder = req_builder.header(name, value);
-                }
-            }
-            req_builder = req_builder.header("host", host_h.clone());
+        match req_builder.send().await {
+            Ok(res) => {
+                let status = res.status();
+                let res_headers = res.headers().clone();
 
-            match req_builder.send().await {
-                 Ok(res) => {
-                    let status = res.status();
+                let is_html = res_headers
+                    .get(header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.contains("text/html"))
+                    .unwrap_or(false);
+
+                if is_html {
+                    // Always inject for Dashboard
+                    let full_body = match res.bytes().await {
+                        Ok(b) => b,
+                        Err(e) => {
+                            return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}"))
+                                .into_response()
+                        }
+                    };
+                    let mut final_res_bytes = full_body.to_vec();
+                    if let Ok(body_str) = String::from_utf8(final_res_bytes.clone()) {
+                        // Case-insensitive search for </body>
+                        let body_lower = body_str.to_lowercase();
+                        if let Some(pos) = body_lower.rfind("</body>") {
+                            let mut new_body = body_str[..pos].to_string();
+                            new_body
+                                .push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
+                            new_body.push_str(&body_str[pos..]);
+                            final_res_bytes = new_body.into_bytes();
+                        } else {
+                            // Fallback: append to end if </body> not found
+                            let mut new_body = body_str;
+                            new_body
+                                .push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
+                            final_res_bytes = new_body.into_bytes();
+                        }
+                    }
+
                     let mut builder = Response::builder().status(status);
                     if let Some(headers) = builder.headers_mut() {
                         let skip_headers = [
-                            "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-                            "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
+                            "connection",
+                            "keep-alive",
+                            "proxy-authenticate",
+                            "proxy-authorization",
+                            "te",
+                            "trailers",
+                            "transfer-encoding",
+                            "upgrade",
+                            "proxy-connection",
                             "content-length",
                         ];
-                        for (k, v) in res.headers() {
+                        for (k, v) in &res_headers {
                             let k_str = k.as_str().to_lowercase();
                             if !skip_headers.contains(&k_str.as_str()) {
                                 headers.insert(k, v.clone());
                             }
                         }
                     }
-                    let stream = res.bytes_stream();
-                    let body = Body::from_stream(stream.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
-                    builder.body(body).unwrap_or_else(|e| {
-                        (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response()
-                    })
-                 }
-                 Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
+                    return builder
+                        .body(Body::from(final_res_bytes))
+                        .unwrap_or_else(|e| {
+                            (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response()
+                        });
+                }
+
+                let mut builder = Response::builder().status(status);
+                if let Some(headers) = builder.headers_mut() {
+                    let skip_headers = [
+                        "connection",
+                        "keep-alive",
+                        "proxy-authenticate",
+                        "proxy-authorization",
+                        "te",
+                        "trailers",
+                        "transfer-encoding",
+                        "upgrade",
+                        "proxy-connection",
+                        "content-length",
+                    ];
+                    for (k, v) in &res_headers {
+                        let k_str = k.as_str().to_lowercase();
+                        if !skip_headers.contains(&k_str.as_str()) {
+                            headers.insert(k, v.clone());
+                        }
+                    }
+                }
+                let stream = res.bytes_stream();
+                let body = Body::from_stream(
+                    stream.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+                );
+                builder.body(body).unwrap_or_else(|e| {
+                    (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response()
+                })
             }
+            Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
+        }
+    } else {
+        // Read Request Body
+        let (parts, body) = req.into_parts();
+        let req_bytes = match axum::body::to_bytes(body, usize::MAX).await {
+            Ok(b) => b,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    format!("Failed to read request body: {e}"),
+                )
+                    .into_response()
+            }
+        };
+        let req_body_str = if body_enabled {
+            String::from_utf8(req_bytes.to_vec()).ok()
         } else {
-            // Read Request Body
-            let (parts, body) = req.into_parts();
-            let req_bytes = match axum::body::to_bytes(body, usize::MAX).await {
-                Ok(b) => b,
-                Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read request body: {e}")).into_response(),
-            };
-            let req_body_str = if body_enabled {
-                String::from_utf8(req_bytes.to_vec()).ok()
-            } else {
-                None
-            };
+            None
+        };
 
-            // Reconstruct request for forwarding (using reqwest)
-            // Note: We already read the body into req_bytes.
-            let method = parts.method.clone();
-            let url_str = target_uri_str.clone(); /* target_uri_str is full URL */
+        // Reconstruct request for forwarding (using reqwest)
+        // Note: We already read the body into req_bytes.
+        let method = parts.method.clone();
+        let url_str = target_uri_str.clone(); /* target_uri_str is full URL */
 
-            let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
+        let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
 
-            let has_body = !matches!(
-                parts.method,
-                axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS | axum::http::Method::TRACE
-            );
+        let has_body = !matches!(
+            parts.method,
+            axum::http::Method::GET
+                | axum::http::Method::HEAD
+                | axum::http::Method::OPTIONS
+                | axum::http::Method::TRACE
+        );
 
-            if has_body && !req_bytes.is_empty() {
-                // Allow sending relatively large bodies for API logging
-                req_builder = req_builder.body(req_bytes.to_vec());
+        if has_body && !req_bytes.is_empty() {
+            // Allow sending relatively large bodies for API logging
+            req_builder = req_builder.body(req_bytes.to_vec());
+        }
+
+        // Copy headers
+        let hop_by_hop_headers = [
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailers",
+            "transfer-encoding",
+            "upgrade",
+            "proxy-connection",
+            "accept-encoding", // Added
+        ];
+
+        for (name, value) in parts.headers.iter() {
+            let name_str = name.as_str().to_lowercase();
+            if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
+                req_builder = req_builder.header(name, value);
             }
+        }
+        // Add Host header if needed (reqwest usually sets it from URL)
+        req_builder = req_builder.header("host", host_h.clone());
 
-            // Copy headers
-            let hop_by_hop_headers = [
+        let start_time = OffsetDateTime::now_utc();
+
+        // Send Request
+        let response_result = req_builder.send().await;
+
+        let response = match response_result {
+            Ok(res) => res,
+            Err(e) => {
+                proxy_log!("   reqwest error: {}", e);
+                return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response();
+            }
+        };
+
+        // Read Response Body
+        let status = response.status();
+        let res_headers = response.headers().clone();
+        let res_bytes = match response.bytes().await {
+            Ok(b) => b,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_GATEWAY,
+                    format!("Failed to read response body: {e}"),
+                )
+                    .into_response()
+            }
+        };
+
+        let res_body_str = if body_enabled {
+            String::from_utf8(res_bytes.to_vec()).ok()
+        } else {
+            None
+        };
+
+        let is_html = res_headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.contains("text/html"))
+            .unwrap_or(false);
+
+        let mut final_res_bytes = res_bytes.to_vec();
+        if is_html {
+            if let Ok(body_str) = String::from_utf8(final_res_bytes.clone()) {
+                let body_lower = body_str.to_lowercase();
+                if let Some(pos) = body_lower.rfind("</body>") {
+                    let mut new_body = body_str[..pos].to_string();
+                    new_body.push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
+                    new_body.push_str(&body_str[pos..]);
+                    final_res_bytes = new_body.into_bytes();
+                } else {
+                    let mut new_body = body_str;
+                    new_body.push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
+                    final_res_bytes = new_body.into_bytes();
+                }
+            }
+        }
+
+        // Save Log
+        let entry = ApiLogEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: start_time
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_default(),
+            method: method.to_string(),
+            url: target_uri_str.clone(),
+            host: host_h.to_string(),
+            path: path.to_string(),
+            status_code: Some(status.as_u16()),
+            request_headers: Some(
+                parts
+                    .headers
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                    .collect(),
+            ),
+            request_body: req_body_str,
+            response_headers: Some(
+                res_headers
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                    .collect(),
+            ),
+            response_body: res_body_str,
+        };
+        state.api_log_service.save_log(&entry);
+
+        // Reconstruct response
+        let mut builder = Response::builder().status(status);
+        if let Some(headers) = builder.headers_mut() {
+            let skip_headers = [
                 "connection",
                 "keep-alive",
                 "proxy-authenticate",
@@ -1074,93 +1426,41 @@ async fn proxy_handler_inner(State(state): State<Arc<ProxyState>>, axum::Extensi
                 "transfer-encoding",
                 "upgrade",
                 "proxy-connection",
+                "content-length",
             ];
-
-            for (name, value) in parts.headers.iter() {
-                let name_str = name.as_str().to_lowercase();
-                if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
-                    req_builder = req_builder.header(name, value);
+            for (k, v) in res_headers.iter() {
+                let k_str = k.as_str().to_lowercase();
+                if !skip_headers.contains(&k_str.as_str()) {
+                    headers.insert(k, v.clone());
                 }
             }
-            // Add Host header if needed (reqwest usually sets it from URL)
-            req_builder = req_builder.header("host", host_h.clone());
-
-            let start_time = OffsetDateTime::now_utc();
-
-            // Send Request
-            let response_result = req_builder.send().await;
-
-            let response = match response_result {
-                Ok(res) => res,
-                Err(e) => {
-                    proxy_log!("   reqwest error: {}", e);
-                    return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response();
-                }
-            };
-
-            // Read Response Body
-            let status = response.status();
-            let res_headers = response.headers().clone();
-            let res_bytes = match response.bytes().await {
-                 Ok(b) => b,
-                 Err(e) => return (StatusCode::BAD_GATEWAY, format!("Failed to read response body: {e}")).into_response(),
-            };
-
-            let res_body_str = if body_enabled {
-                String::from_utf8(res_bytes.to_vec()).ok()
-            } else {
-                None
-            };
-
-            // Save Log
-            let entry = ApiLogEntry {
-                id: uuid::Uuid::new_v4().to_string(),
-                timestamp: start_time.format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
-                method: method.to_string(),
-                url: target_uri_str.clone(),
-                host: host_h.to_string(),
-                path: path.to_string(),
-                status_code: Some(status.as_u16()),
-                request_headers: Some(parts.headers.iter().map(|(k,v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect()),
-                request_body: req_body_str,
-                response_headers: Some(res_headers.iter().map(|(k,v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect()),
-                response_body: res_body_str,
-            };
-            state.api_log_service.save_log(&entry);
-
-            // Reconstruct response
-            let mut builder = Response::builder().status(status);
-            if let Some(headers) = builder.headers_mut() {
-                let skip_headers = [
-                    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-                    "te", "trailers", "transfer-encoding", "upgrade", "proxy-connection",
-                    "content-length",
-                ];
-                for (k, v) in res_headers.iter() {
-                    let k_str = k.as_str().to_lowercase();
-                    if !skip_headers.contains(&k_str.as_str()) {
-                         headers.insert(k, v.clone());
-                    }
-                }
-            }
-            // Use Bytes directly
-            builder.body(Body::from(res_bytes)).unwrap_or_else(|e| {
-                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build response: {e}")).into_response()
-            })
         }
+        // Use (potentially modified) Bytes
+        builder
+            .body(Body::from(final_res_bytes))
+            .unwrap_or_else(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to build response: {e}"),
+                )
+                    .into_response()
+            })
     }
+}
 
 /// Build shared app (Router + state) for `proxy_handler`.
 fn proxy_app(state: Arc<ProxyState>, scheme: &'static str) -> Router {
     Router::new()
         .route("/", any(proxy_handler))
         .route("/*path", any(proxy_handler))
-        .with_state(state).layer(axum::Extension(scheme))
+        .with_state(state)
+        .layer(axum::Extension(scheme))
 }
 
 /// Bind to 127.0.0.1:port and run the proxy. Returns the `JoinHandle` so the caller can abort it.
 /// Handles CONNECT (HTTPS tunnel) and regular HTTP; when `dns_server` is set, pass-through hosts are resolved via it.
 pub async fn run_proxy(
+    app_handle: tauri::AppHandle,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,
@@ -1172,6 +1472,7 @@ pub async fn run_proxy(
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     let state = Arc::new(ProxyState::new(
+        app_handle,
         route_service,
         dns_server,
         Some(port),
@@ -1180,7 +1481,8 @@ pub async fn run_proxy(
         ca_service,
         mocking_service,
     ));
-    let app = proxy_app(Arc::clone(&state), "http"); let handle = tokio::spawn(async move {
+    let app = proxy_app(Arc::clone(&state), "http");
+    let handle = tokio::spawn(async move {
         loop {
             let Ok((stream, _)) = listener.accept().await else {
                 continue;
@@ -1217,6 +1519,7 @@ pub async fn run_proxy(
 /// Requests are origin-form (GET /path); routing by Host header.
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 pub async fn run_reverse_proxy_http(
+    app_handle: tauri::AppHandle,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,
@@ -1229,6 +1532,7 @@ pub async fn run_reverse_proxy_http(
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     let state = Arc::new(ProxyState::new(
+        app_handle,
         route_service,
         dns_server,
         forward_proxy_port,
@@ -1237,7 +1541,8 @@ pub async fn run_reverse_proxy_http(
         ca_service,
         mocking_service,
     ));
-    let app = proxy_app(Arc::clone(&state), "http"); let handle = tokio::spawn(async move {
+    let app = proxy_app(Arc::clone(&state), "http");
+    let handle = tokio::spawn(async move {
         loop {
             let Ok((stream, _)) = listener.accept().await else {
                 continue;
@@ -1257,6 +1562,7 @@ pub async fn run_reverse_proxy_http(
 /// Reverse HTTPS listener: TLS termination by Host (SNI), then forward by Host. Use https://dev.modetour.local:port with hosts.
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 pub async fn run_reverse_proxy_https(
+    app_handle: tauri::AppHandle,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,
@@ -1269,6 +1575,7 @@ pub async fn run_reverse_proxy_https(
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     let state = Arc::new(ProxyState::new(
+        app_handle,
         route_service,
         dns_server,
         forward_proxy_port,
@@ -1277,7 +1584,8 @@ pub async fn run_reverse_proxy_https(
         ca_service,
         mocking_service,
     ));
-    let app = proxy_app(Arc::clone(&state), "https"); let config = rustls::ServerConfig::builder()
+    let app = proxy_app(Arc::clone(&state), "https");
+    let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_cert_resolver(Arc::new(DynamicCertResolver {
             cache: Arc::clone(&state.cert_cache),
@@ -1335,7 +1643,10 @@ mod tests {
             resolve_target(&uri, Some("example.com"), &[], "http");
 
         // No local route matched → local_origin is None
-        assert!(local_origin.is_none(), "empty routes should yield no local_origin");
+        assert!(
+            local_origin.is_none(),
+            "empty routes should yield no local_origin"
+        );
         // Target URI is the original (pass-through)
         assert!(
             target_uri.contains("example.com"),
@@ -1357,7 +1668,10 @@ mod tests {
         let (_target_uri, _pass_host, _target_host_value, local_origin) =
             resolve_target(&uri, Some("api.example.com"), &[route], "http");
 
-        assert!(local_origin.is_some(), "matching route should yield local_origin");
+        assert!(
+            local_origin.is_some(),
+            "matching route should yield local_origin"
+        );
         let (host, port, path) = local_origin.unwrap();
         assert_eq!(host, "127.0.0.1");
         assert_eq!(port, 3000);
@@ -1378,17 +1692,17 @@ mod tests {
         let (_target_uri, _pass_host, _target_host_value, local_origin) =
             resolve_target(&uri, Some("api.example.com"), &[route], "http");
 
-        assert!(
-            local_origin.is_none(),
-            "disabled route should not match"
-        );
+        assert!(local_origin.is_none(), "disabled route should not match");
     }
 
     // ── resolve_connect_target: empty routes ────────────────────────────
     #[test]
     fn test_resolve_connect_target_empty_routes() {
         let result = resolve_connect_target("api.example.com", &[]);
-        assert!(result.is_none(), "empty routes should return None for CONNECT");
+        assert!(
+            result.is_none(),
+            "empty routes should return None for CONNECT"
+        );
     }
 
     // ── resolve_connect_target: matching route ──────────────────────────
@@ -1427,7 +1741,8 @@ mod tests {
         } else {
             vec![]
         };
-        let (_, _, _, local_origin) = resolve_target(&uri, Some("dev.local"), &routes_enabled, "http");
+        let (_, _, _, local_origin) =
+            resolve_target(&uri, Some("dev.local"), &routes_enabled, "http");
         assert!(local_origin.is_some(), "routing enabled → should match");
 
         // Disabled: same route, but we pass empty vec (mimicking proxy_handler logic)
@@ -1437,8 +1752,12 @@ mod tests {
         } else {
             vec![]
         };
-        let (_, _, _, local_origin) = resolve_target(&uri, Some("dev.local"), &routes_disabled, "http");
-        assert!(local_origin.is_none(), "routing disabled → should pass through");
+        let (_, _, _, local_origin) =
+            resolve_target(&uri, Some("dev.local"), &routes_disabled, "http");
+        assert!(
+            local_origin.is_none(),
+            "routing disabled → should pass through"
+        );
 
         // Cleanup
         set_local_routing_enabled(true);
@@ -1446,14 +1765,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_proxy_handler_logging_for_local_route() {
-        use std::collections::HashMap;
-        use std::sync::{Arc, RwLock};
+        use crate::service::api_log_service::ApiLogService;
+        use crate::service::local_proxy::{proxy_handler, ProxyState};
+        use crate::service::local_route_service::LocalRouteService;
+        use axum::body::Body;
         use axum::extract::State;
         use axum::http::{Request, StatusCode};
-        use axum::body::Body;
-        use crate::service::api_log_service::ApiLogService;
-        use crate::service::local_proxy::{ProxyState, proxy_handler};
-        use crate::service::local_route_service::LocalRouteService;
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
         use tempfile::tempdir;
 
         // 1. Setup mock backend

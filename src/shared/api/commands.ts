@@ -1,6 +1,12 @@
 import type { Domain, DomainGroupLink } from "@/entities/domain/types/domain";
 import type { DomainGroup } from "@/entities/domain/types/domain_group";
 import type { DomainMonitorWithUrl, DomainStatusLog } from "@/entities/domain/types/domain_monitor";
+/**
+ * Command별 Request/Response 타입 정의.
+ * BE ApiResponse<T> 구조에 맞춤.
+ * 모든 Command는 payload 객체 단위로 인자 전달.
+ */
+import type { Annotation } from "@/entities/domain/types/inspector";
 import type {
   ApiLogEntry,
   ApiRequestResult,
@@ -12,11 +18,6 @@ import type {
 } from "@/entities/proxy/types/local_route";
 import type { SettingsExport } from "@/entities/settings/types/settings_export";
 
-/**
- * Command별 Request/Response 타입 정의.
- * BE ApiResponse<T> 구조에 맞춤.
- * 모든 Command는 payload 객체 단위로 인자 전달.
- */
 export interface ApiCommandMap {
   get_domains: { request?: undefined; response: Domain[] };
   get_domain_by_id: {
@@ -228,5 +229,65 @@ export interface ApiCommandMap {
       height: number;
     };
     response: undefined;
+  };
+
+  open_inspector_window: {
+    request: {
+      url: string;
+      script?: string | null;
+    };
+    response: undefined;
+  };
+
+  open_annotation_dialog: {
+    request: {
+      selector: string;
+      content: string;
+      tagName: string;
+      thumbnail: string;
+    };
+    response: undefined;
+  };
+
+  set_global_inspector_enabled: {
+    request: { payload: boolean };
+    response: undefined;
+  };
+  get_global_inspector_enabled: {
+    request?: undefined;
+    response: boolean;
+  };
+
+  get_annotations: {
+    request?: undefined;
+    response: Annotation[];
+  };
+  add_annotation: {
+    request: { payload: Annotation };
+    response: Annotation[];
+  };
+  update_annotation: {
+    request: { payload: { id: string; role: string; description: string } };
+    response: Annotation[];
+  };
+  delete_annotation: {
+    request: { payload: { id: string } };
+    response: Annotation[];
+  };
+  export_to_pdf: {
+    request: {
+      payload: {
+        title: string;
+        items: {
+          role: string;
+          description: string;
+          domain: string;
+          url: string;
+          thumbnail: string;
+        }[];
+        path: string;
+      };
+    };
+    response: string;
   };
 }

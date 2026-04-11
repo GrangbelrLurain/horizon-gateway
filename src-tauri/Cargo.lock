@@ -5525,6 +5525,7 @@ name = "watchtower"
 version = "1.6.2"
 dependencies = [
  "axum",
+ "base64 0.21.7",
  "chrono",
  "futures",
  "hickory-resolver",

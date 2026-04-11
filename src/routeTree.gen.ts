@@ -19,6 +19,7 @@ import { Route as DomainsIndexRouteImport } from './routes/domains/index'
 import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
+import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
 import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
 import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
 import { Route as MonitorLogsIndexRouteImport } from './routes/monitor/logs/index'
@@ -79,6 +80,11 @@ const AboutIndexRoute = AboutIndexRouteImport.update({
 const ProxySetupIndexRoute = ProxySetupIndexRouteImport.update({
   id: '/proxy/setup/',
   path: '/proxy/setup/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProxyInspectorIndexRoute = ProxyInspectorIndexRouteImport.update({
+  id: '/proxy/inspector/',
+  path: '/proxy/inspector/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProxyDashboardIndexRoute = ProxyDashboardIndexRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/monitor/logs/': typeof MonitorLogsIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
+  '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
 }
 export interface FileRoutesByTo {
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/monitor/logs': typeof MonitorLogsIndexRoute
   '/monitor/settings': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard': typeof ProxyDashboardIndexRoute
+  '/proxy/inspector': typeof ProxyInspectorIndexRoute
   '/proxy/setup': typeof ProxySetupIndexRoute
 }
 export interface FileRoutesById {
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/monitor/logs/': typeof MonitorLogsIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
+  '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
 }
 export interface FileRouteTypes {
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/monitor/logs/'
     | '/monitor/settings/'
     | '/proxy/dashboard/'
+    | '/proxy/inspector/'
     | '/proxy/setup/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/monitor/logs'
     | '/monitor/settings'
     | '/proxy/dashboard'
+    | '/proxy/inspector'
     | '/proxy/setup'
   id:
     | '__root__'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/monitor/logs/'
     | '/monitor/settings/'
     | '/proxy/dashboard/'
+    | '/proxy/inspector/'
     | '/proxy/setup/'
   fileRoutesById: FileRoutesById
 }
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   MonitorLogsIndexRoute: typeof MonitorLogsIndexRoute
   MonitorSettingsIndexRoute: typeof MonitorSettingsIndexRoute
   ProxyDashboardIndexRoute: typeof ProxyDashboardIndexRoute
+  ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
   ProxySetupIndexRoute: typeof ProxySetupIndexRoute
 }
 
@@ -373,6 +386,13 @@ declare module '@tanstack/react-router' {
       path: '/proxy/setup'
       fullPath: '/proxy/setup/'
       preLoaderRoute: typeof ProxySetupIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/inspector/': {
+      id: '/proxy/inspector/'
+      path: '/proxy/inspector'
+      fullPath: '/proxy/inspector/'
+      preLoaderRoute: typeof ProxyInspectorIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proxy/dashboard/': {
@@ -476,6 +496,7 @@ const rootRouteChildren: RootRouteChildren = {
   MonitorLogsIndexRoute: MonitorLogsIndexRoute,
   MonitorSettingsIndexRoute: MonitorSettingsIndexRoute,
   ProxyDashboardIndexRoute: ProxyDashboardIndexRoute,
+  ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
   ProxySetupIndexRoute: ProxySetupIndexRoute,
 }
 export const routeTree = rootRouteImport

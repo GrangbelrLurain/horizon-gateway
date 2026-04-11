@@ -20,6 +20,11 @@ export const proxyMockingEnabledAtom = atomWithBroadcast<boolean | null>(
   null,
   atomWithStorage("watchtower-proxy-mocking-enabled", null as boolean | null),
 );
+export const proxyInspectorEnabledAtom = atomWithBroadcast<boolean | null>(
+  "app-proxy-inspector-enabled",
+  null,
+  atomWithStorage("watchtower-proxy-inspector-enabled", null as boolean | null),
+);
 export const appStatusLoadingAtom = atom(false);
 export const appStatusLoadedAtom = atom(false);
 
@@ -62,13 +67,15 @@ export async function loadAppStatus(
   setProxyRunning: (b: boolean) => void,
   setProxyLocalRouting: (b: boolean) => void,
   setProxyMockingEnabled: (b: boolean) => void,
+  setProxyInspectorEnabled: (b: boolean) => void,
 ) {
   try {
-    const [domainsRes, linksRes, proxyRes, mockingRes] = await Promise.all([
+    const [domainsRes, linksRes, proxyRes, mockingRes, inspectorRes] = await Promise.all([
       invokeApi("get_domains"),
       invokeApi("get_domain_api_logging_links"),
       invokeApi("get_proxy_status"),
       invokeApi("get_mocking_status"),
+      invokeApi("get_global_inspector_enabled"),
     ]);
     if (domainsRes.success) {
       setDomainCount((domainsRes.data ?? []).length);
@@ -82,6 +89,9 @@ export async function loadAppStatus(
     }
     if (mockingRes.success && mockingRes.data) {
       setProxyMockingEnabled(mockingRes.data.enabled ?? false);
+    }
+    if (inspectorRes?.success) {
+      setProxyInspectorEnabled(inspectorRes.data);
     }
   } catch (e) {
     console.error("loadAppStatus:", e);
