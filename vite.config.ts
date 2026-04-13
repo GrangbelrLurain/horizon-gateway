@@ -1,5 +1,5 @@
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -12,7 +12,7 @@ const host = process.env.TAURI_DEV_HOST;
  */
 const copyInjectionPlugin = () => {
   return {
-    name: 'copy-injection',
+    name: "copy-injection",
     closeBundle() {
       const src = path.resolve(__dirname, "dist/inspector.js");
       const dest = path.resolve(__dirname, "src-tauri/resources/inspector.js");
@@ -20,7 +20,7 @@ const copyInjectionPlugin = () => {
         fs.copyFileSync(src, dest);
         console.log(`\n✅ Copied ${src} to ${dest}\n`);
       }
-    }
+    },
   };
 };
 
@@ -42,9 +42,6 @@ export default defineConfig(() => ({
     },
   },
   build: {
-    watch: {
-      exclude: ["node_modules/**", "src-tauri/**", "dist/**"],
-    },
     cssCodeSplit: false,
     rollupOptions: {
       input: {
@@ -57,7 +54,11 @@ export default defineConfig(() => ({
           return chunkInfo.name === "injection" ? "inspector.js" : "assets/[name]-[hash].js";
         },
         manualChunks: (id) => {
-          if (id.includes("src/injection") || id.includes("node_modules/react") || id.includes("node_modules/scheduler")) {
+          if (
+            id.includes("src/injection") ||
+            id.includes("node_modules/react") ||
+            id.includes("node_modules/scheduler")
+          ) {
             return "inspector";
           }
         },

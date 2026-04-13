@@ -1,7 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": false, "includes": ["src/**", "!**/*.gen.ts"] },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": ["src/**", "*.ts", "*.mjs", "*.json", "!**/*.gen.ts"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -34,22 +37,64 @@
             "requireAscii": true,
             "conventions": [
               { "selector": { "kind": "class" }, "formats": ["PascalCase"] },
-              { "selector": { "kind": "interface" }, "formats": ["PascalCase"] },
-              { "selector": { "kind": "typeAlias" }, "formats": ["PascalCase"] },
+              {
+                "selector": { "kind": "interface" },
+                "formats": ["PascalCase"]
+              },
+              {
+                "selector": { "kind": "typeAlias" },
+                "formats": ["PascalCase"]
+              },
               { "selector": { "kind": "enum" }, "formats": ["PascalCase"] },
-              { "selector": { "kind": "enumMember" }, "formats": ["CONSTANT_CASE"] },
-              { "selector": { "kind": "const" }, "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"] },
-              { "selector": { "kind": "function" }, "formats": ["camelCase", "PascalCase"] },
-              { "selector": { "kind": "classMethod" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "objectLiteralMethod" }, "formats": ["camelCase"] },
+              {
+                "selector": { "kind": "enumMember" },
+                "formats": ["CONSTANT_CASE"]
+              },
+              {
+                "selector": { "kind": "const" },
+                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "function" },
+                "formats": ["camelCase", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "classMethod" },
+                "formats": ["camelCase"]
+              },
+              {
+                "selector": { "kind": "objectLiteralMethod" },
+                "formats": ["camelCase"]
+              },
               { "selector": { "kind": "variable" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "functionParameter" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "catchParameter" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "indexParameter" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "typeParameter" }, "formats": ["PascalCase"] },
-              { "selector": { "kind": "classProperty" }, "formats": ["camelCase"] },
-              { "selector": { "kind": "objectLiteralProperty" }, "formats": ["camelCase", "snake_case"] },
-              { "selector": { "kind": "typeProperty" }, "formats": ["camelCase", "snake_case"] }
+              {
+                "selector": { "kind": "functionParameter" },
+                "formats": ["camelCase"]
+              },
+              {
+                "selector": { "kind": "catchParameter" },
+                "formats": ["camelCase"]
+              },
+              {
+                "selector": { "kind": "indexParameter" },
+                "formats": ["camelCase"]
+              },
+              {
+                "selector": { "kind": "typeParameter" },
+                "formats": ["PascalCase"]
+              },
+              {
+                "selector": { "kind": "classProperty" },
+                "formats": ["camelCase"]
+              },
+              {
+                "selector": { "kind": "objectLiteralProperty" },
+                "formats": ["camelCase", "snake_case"]
+              },
+              {
+                "selector": { "kind": "typeProperty" },
+                "formats": ["camelCase", "snake_case"]
+              }
             ]
           }
         }
