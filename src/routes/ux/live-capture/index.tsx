@@ -318,7 +318,17 @@ function LiveCapturePage() {
       return;
     }
     const res = await invokeApi("update_mock_rule", {
-      payload: { ...editingMockRule, response_body: editMockBody },
+      payload: {
+        id: editingMockRule.id,
+        name: editingMockRule.name,
+        host: editingMockRule.host,
+        method: editingMockRule.method,
+        urlPattern: editingMockRule.url_pattern,
+        responseStatus: editingMockRule.response_status,
+        responseHeaders: editingMockRule.response_headers,
+        responseBody: editMockBody,
+        enabled: editingMockRule.enabled,
+      },
     });
     if (res.success) {
       alert("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");

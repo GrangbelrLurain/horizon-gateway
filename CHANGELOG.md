@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.1] - 2026-04-13
+
+### Fixed
+
+- **Code Quality & Linting**: Resolved multiple Biome linting errors, including unused type definitions (`Position`), shadowed variables (`handleMouseMove`), and missing block statements in `InspectorPanel` and `InjectionApp`.
+- **UI Interaction Stability**: Fixed a shadowing issue in the injection engine's mouse move handler that could potentially cause dragging behavior to conflict with inspection logic.
+
 ## [v1.7.0] - 2026-04-13
 
 ### Added

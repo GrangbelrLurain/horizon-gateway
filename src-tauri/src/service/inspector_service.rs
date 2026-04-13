@@ -32,6 +32,16 @@ impl InspectorService {
         self.persist(&list);
     }
 
+    pub fn import_annotations(&self, annotations: Vec<Annotation>) {
+        let mut list = self.annotations.lock().unwrap();
+        for ann in annotations {
+            // 기존에 같은 ID가 있으면 제거 (덮어쓰기 효과)
+            list.retain(|a| a.id != ann.id);
+            list.push(ann);
+        }
+        self.persist(&list);
+    }
+
     pub fn update_annotation(&self, id: String, role: String, description: String) {
         let mut list = self.annotations.lock().unwrap();
         if let Some(ann) = list.iter_mut().find(|a| a.id == id) {

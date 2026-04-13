@@ -40,6 +40,7 @@ function MockingDashboard() {
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<MockRule | null>(null);
   const [ruleForm, setRuleForm] = useState({
+    name: "",
     host: "",
     method: "GET",
     url_pattern: "",
@@ -169,6 +170,7 @@ function MockingDashboard() {
       if (editingRule) {
         await mockingApi.updateMockRule(
           editingRule.id,
+          ruleForm.name,
           ruleForm.host || null,
           ruleForm.method,
           ruleForm.url_pattern,
@@ -179,6 +181,7 @@ function MockingDashboard() {
         );
       } else {
         await mockingApi.createMockRule(
+          ruleForm.name,
           selectedScenarioId,
           ruleForm.host || null,
           ruleForm.method,
@@ -213,6 +216,7 @@ function MockingDashboard() {
     try {
       await mockingApi.updateMockRule(
         rule.id,
+        rule.name,
         rule.host,
         rule.method,
         rule.url_pattern,
@@ -233,6 +237,7 @@ function MockingDashboard() {
     if (rule) {
       setEditingRule(rule);
       setRuleForm({
+        name: rule.name,
         host: rule.host || "",
         method: rule.method,
         url_pattern: rule.url_pattern,
@@ -244,6 +249,7 @@ function MockingDashboard() {
     } else {
       setEditingRule(null);
       setRuleForm({
+        name: "",
         host: "",
         method: "GET",
         url_pattern: "",
@@ -375,6 +381,7 @@ function MockingDashboard() {
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
                   {rules.map((rule) => (
                     <Card key={rule.id} className={`p-4 flex flex-col gap-3 ${!rule.enabled && `opacity-50`}`}>
+                      <div className="font-bold text-sm truncate">{rule.name}</div>
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
                           <span
@@ -473,6 +480,18 @@ function MockingDashboard() {
       <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)}>
         <Modal.Header title={editingRule ? t.editRule : t.addRule} />
         <Modal.Body className="flex flex-col gap-4 h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="rule-name" className="text-xs font-bold uppercase">
+              {t.name}
+            </label>
+            <input
+              id="rule-name"
+              className="input input-bordered border-base-300 w-full font-bold bg-base-100/50"
+              placeholder="e.g. Success Response"
+              value={ruleForm.name}
+              onChange={(e) => setRuleForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
           <div className="flex gap-4">
             <div className="flex flex-col gap-1 w-1/3">
               <label htmlFor="rule-method" className="text-xs font-bold uppercase">
@@ -564,7 +583,7 @@ function MockingDashboard() {
           <Button variant="secondary" onClick={() => setIsRuleModalOpen(false)}>
             {t.cancel}
           </Button>
-          <Button variant="primary" onClick={handleSaveRule} disabled={!ruleForm.url_pattern}>
+          <Button variant="primary" onClick={handleSaveRule} disabled={!ruleForm.url_pattern || !ruleForm.name}>
             {t.save}
           </Button>
         </Modal.Footer>

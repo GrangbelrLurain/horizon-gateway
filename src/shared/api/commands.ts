@@ -224,7 +224,17 @@ export interface ApiCommandMap {
     response: MockRule[];
   };
   create_mock_rule: {
-    request: { payload: Omit<MockRule, "id"> };
+    request: {
+      name: string;
+      scenario_id: string;
+      host: string | null;
+      method: string;
+      url_pattern: string;
+      response_status: number;
+      response_headers: Record<string, string>;
+      response_body: string | null;
+      enabled: boolean;
+    };
     response: MockRule;
   };
   create_mock_rule_from_log: {
@@ -234,7 +244,19 @@ export interface ApiCommandMap {
     response: MockRule;
   };
   update_mock_rule: {
-    request: { payload: Partial<MockRule> & { id: string } };
+    request: {
+      payload: {
+        id: string;
+        name?: string;
+        host?: string | null;
+        method?: string;
+        urlPattern?: string;
+        responseStatus?: number;
+        responseHeaders?: Record<string, string>;
+        responseBody?: string | null;
+        enabled?: boolean;
+      };
+    };
     response: MockRule;
   };
   get_mocking_status: { request?: undefined; response: MockingSettings };
@@ -295,6 +317,10 @@ export interface ApiCommandMap {
   };
   delete_annotation: {
     request: { payload: { id: string } };
+    response: Annotation[];
+  };
+  import_annotations: {
+    request: { payload: { annotations: Annotation[] } };
     response: Annotation[];
   };
   export_to_pdf: {

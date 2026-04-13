@@ -71,6 +71,25 @@ pub fn delete_annotation(
 }
 
 #[derive(serde::Deserialize)]
+pub struct ImportAnnotationsPayload {
+    pub annotations: Vec<Annotation>,
+}
+
+#[tauri::command]
+pub fn import_annotations(
+    service: State<'_, InspectorService>,
+    payload: ImportAnnotationsPayload,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    service.import_annotations(payload.annotations);
+    let list = service.get_all();
+    Ok(ApiResponse {
+        message: "정책들을 성공적으로 가져왔습니다.".to_string(),
+        success: true,
+        data: list,
+    })
+}
+
+#[derive(serde::Deserialize)]
 pub struct SetEnabledPayload {
     pub enabled: bool,
 }

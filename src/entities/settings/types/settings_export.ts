@@ -11,12 +11,12 @@ export interface SettingsExport {
   exportedAt: string;
   domains: { id: number; url: string }[];
   groups: { id: number; name: string }[];
-  domainGroupLinks: { domainId: number; groupId: number }[];
+  domainGroupLinks: { domain_id: number; group_id: number }[];
   localRoutes: {
     id: number;
     domain: string;
-    targetHost: string;
-    targetPort: number;
+    target_host: string;
+    target_port: number;
     enabled: boolean;
   }[];
   proxySettings: {
@@ -24,6 +24,7 @@ export interface SettingsExport {
     proxy_port: number;
     reverse_http_port?: number | null;
     reverse_https_port?: number | null;
+    local_routing_enabled: boolean;
   };
   /** Monitor settings per domain. Status logs are excluded from export. */
   domainMonitor?: DomainMonitorExport[];

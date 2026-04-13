@@ -1,9 +1,6 @@
 import html2canvas from "html2canvas";
-import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { Annotation } from "@/entities/domain/types/inspector";
-
-type Position = "bottom-right" | "bottom-left" | "bottom-center" | "top-right" | "top-left" | "top-center";
 
 interface EditingElement {
   tagName: string;
@@ -89,8 +86,13 @@ export function InjectionApp() {
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [position, setPosition] = useState<Position>("bottom-right");
   const [showPolicyBadges, setShowPolicyBadges] = useState(true);
+
+  // Drag State
+  const [dragOffset, setDragOffset] = useState({ x: 24, y: 24 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const hasMoved = React.useRef(false);
 
   const [editingElement, setEditingElement] = useState<EditingElement | null>(null);
   const [role, setRole] = useState("");
@@ -102,11 +104,9 @@ export function InjectionApp() {
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
 
   const fetchAnnotations = useCallback(() => {
-    // console.log("🔍 [Watchtower] Fetching annotations from server...");
     fetch("/.watchtower/api/annotations")
       .then((res) => res.json())
       .then((data) => {
-        // console.log("📥 [Watchtower] Received data:", data);
         setAnnotations(Array.isArray(data) ? data : []);
       })
       .catch(() => {});
@@ -132,14 +132,10 @@ export function InjectionApp() {
   // --- Strict Matching Logic (Host + Pathname) ---
   const currentPagePolicies = useMemo(() => {
     const current = normalizeUrl(window.location.href);
-
-    const filtered = allAnnotations.filter((ann) => {
+    return allAnnotations.filter((ann) => {
       const target = normalizeUrl(ann.url);
       return target.host === current.host && target.path === current.path;
     });
-
-    // console.log("✅ [Watchtower] Total policies loaded:", filtered.length);
-    return filtered;
   }, [allAnnotations]);
 
   const deleteAnnotation = async (id: string) => {
@@ -155,6 +151,7 @@ export function InjectionApp() {
       fetchAnnotations();
     }
   };
+
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!isInspectMode || editingElement) {
@@ -208,6 +205,48 @@ export function InjectionApp() {
     };
   }, [isInspectMode, handleMouseMove, handleClick]);
 
+  const handleDragStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    hasMoved.current = false;
+    setDragStart({
+      x: e.clientX + dragOffset.x,
+      y: window.innerHeight - e.clientY - dragOffset.y,
+    });
+    e.stopPropagation();
+  };
+
+  useEffect(() => {
+    const handleDragMove = (e: MouseEvent) => {
+      if (!isDragging) {
+        return;
+      }
+      const newX = dragStart.x - e.clientX;
+      const newY = window.innerHeight - e.clientY - dragStart.y;
+
+      if (Math.abs(newX - dragOffset.x) > 3 || Math.abs(newY - dragOffset.y) > 3) {
+        hasMoved.current = true;
+      }
+
+      setDragOffset({
+        x: Math.max(10, Math.min(window.innerWidth - 50, newX)),
+        y: Math.max(10, Math.min(window.innerHeight - 50, newY)),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener("mousemove", handleDragMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, dragStart, dragOffset]);
+
   const saveAnnotation = async () => {
     if (!editingElement || !role) {
       return;
@@ -222,7 +261,7 @@ export function InjectionApp() {
     const cleanUrl = window.location.href.split("/.watchtower")[0];
 
     const payload = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       role,
       description,
       tagName: editingElement.tagName,
@@ -245,30 +284,6 @@ export function InjectionApp() {
       window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
     }
     setIsSaving(false);
-  };
-
-  const getPositionStyles = (): React.CSSProperties => {
-    const styles: React.CSSProperties = {
-      position: "fixed",
-      zIndex: 2147483647,
-      pointerEvents: "auto",
-      transition: "all 0.5s",
-    };
-    const offset = "24px";
-    if (position.includes("bottom")) {
-      styles.bottom = offset;
-    } else {
-      styles.top = offset;
-    }
-    if (position.includes("right")) {
-      styles.right = offset;
-    } else if (position.includes("left")) {
-      styles.left = offset;
-    } else {
-      styles.left = "50%";
-      styles.transform = "translateX(-50%)";
-    }
-    return styles;
   };
 
   return (
@@ -305,7 +320,16 @@ export function InjectionApp() {
         ))}
 
       {!editingElement && (
-        <div style={getPositionStyles()}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: `${dragOffset.y}px`,
+            right: `${dragOffset.x}px`,
+            zIndex: 2147483647,
+            pointerEvents: "auto",
+            transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -319,15 +343,22 @@ export function InjectionApp() {
               boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)",
               color: "white",
               fontFamily: "sans-serif",
+              cursor: isDragging ? "grabbing" : "grab",
             }}
+            onMouseDown={handleDragStart}
           >
             <div
               role="button"
               tabIndex={0}
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              onClick={() => {
+                if (!hasMoved.current) {
+                  setIsMenuOpen(!isMenuOpen);
+                }
+              }}
               onKeyDown={(e) => {
-                // biome-ignore lint/style/useBlockStatements: Concise single-line toggle
-                if (e.key === "Enter" || e.key === " ") setIsMenuOpen(!isMenuOpen);
+                if (e.key === "Enter" || e.key === " ") {
+                  setIsMenuOpen(!isMenuOpen);
+                }
               }}
               style={{
                 cursor: "pointer",
@@ -340,12 +371,13 @@ export function InjectionApp() {
                 justifyContent: "center",
                 fontSize: "14px",
                 fontWeight: "900",
+                userSelect: "none",
               }}
             >
               {isMenuOpen ? "⋮" : "W"}
             </div>
             {!isMenuOpen && (
-              <div style={{ display: "flex", gap: "4px", padding: "0 8px" }}>
+              <div style={{ display: "flex", gap: "4px", padding: "0 8px", userSelect: "none" }}>
                 <StatusDot active={status.proxy} color="#10b981" label="PRX" />
                 <StatusDot active={status.mocking} color="#f59e0b" label="MCK" />
                 <StatusDot active={showPolicyBadges} color="#ec4899" label="GUIDE" />
@@ -373,20 +405,6 @@ export function InjectionApp() {
                   onClick={() => setShowPolicyBadges(!showPolicyBadges)}
                   icon="👁️"
                   active={showPolicyBadges}
-                />
-                <ActionButton
-                  onClick={() => {
-                    const ps: Position[] = [
-                      "bottom-right",
-                      "bottom-center",
-                      "bottom-left",
-                      "top-left",
-                      "top-center",
-                      "top-right",
-                    ];
-                    setPosition((prev) => ps[(ps.indexOf(prev) + 1) % ps.length]);
-                  }}
-                  icon="📍"
                 />
               </div>
             )}
@@ -731,7 +749,6 @@ function PolicyBadge({
   }, [updatePosition]);
 
   if (!rect) {
-    // console.log(`[Watchtower] No rect for ${annotation.id} (Selector: ${annotation.selector})`);
     return null;
   }
 

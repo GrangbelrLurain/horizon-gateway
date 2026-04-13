@@ -1,13 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
-import { readFile, writeFile } from "@tauri-apps/plugin-fs";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readFile, readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { useAtomValue } from "jotai";
 import { jsPDF } from "jspdf";
 import {
   AlertCircle,
   Camera,
   Check,
+  Download,
   Edit2,
   ExternalLink,
   FileText,
@@ -15,6 +16,7 @@ import {
   Info,
   RotateCcw,
   Save,
+  Upload,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -141,8 +143,19 @@ export function InspectorPanel() {
       setRole("");
       setDescription("");
     });
+
+    const unlistenUpdated = listen("annotations-updated", () => {
+      console.log("Annotations updated remotely, refreshing list...");
+      invokeApi("get_annotations").then((res) => {
+        if (res.success && res.data) {
+          setAnnotations(res.data);
+        }
+      });
+    });
+
     return () => {
       unlisten.then((fn) => fn());
+      unlistenUpdated.then((fn) => fn());
     };
   }, []);
 
@@ -278,10 +291,28 @@ export function InspectorPanel() {
         // 2. Image (Thumbnail)
         if (ann.thumbnail) {
           try {
-            doc.addImage(ann.thumbnail, "PNG", 20, yPos, 100, 60);
-            yPos += 70;
+            // 원본 이미지 비율 계산을 위한 헬퍼 (base64 이미지 크기 추출)
+            const img = new Image();
+            img.src = ann.thumbnail;
+            await new Promise((resolve) => {
+              img.onload = resolve;
+            });
+
+            const maxWidth = 170; // PDF 가로 최대 너비
+            const ratio = img.width / img.height;
+            let imgWidth = 100; // 기본값
+            let imgHeight = imgWidth / ratio;
+
+            if (imgWidth > maxWidth) {
+              imgWidth = maxWidth;
+              imgHeight = imgWidth / ratio;
+            }
+
+            doc.addImage(ann.thumbnail, "PNG", 20, yPos, imgWidth, imgHeight);
+            yPos += imgHeight + 10;
           } catch (e) {
             console.error("Failed to add image to PDF:", e);
+            yPos += 10;
           }
         }
 
@@ -307,6 +338,50 @@ export function InspectorPanel() {
     }
   };
 
+  const handleExportJson = async () => {
+    try {
+      const filePath = await save({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        defaultPath: "watchtower-policies.json",
+      });
+      if (!filePath) {
+        return;
+      }
+
+      await writeTextFile(filePath, JSON.stringify(annotations, null, 2));
+      alert("정책 데이터가 JSON 파일로 저장되었습니다.");
+    } catch (err) {
+      alert(`내보내기 실패: ${err}`);
+    }
+  };
+
+  const handleImportJson = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+
+      const content = await readTextFile(selected);
+      const imported = JSON.parse(content) as Annotation[];
+
+      if (!Array.isArray(imported)) {
+        throw new Error("Invalid format");
+      }
+
+      const res = await invokeApi("import_annotations", { payload: { annotations: imported } });
+      if (res.success && res.data) {
+        setAnnotations(res.data);
+        alert(`${imported.length}개의 정책을 성공적으로 가져왔습니다.`);
+      }
+    } catch (err) {
+      alert(`가져오기 실패: ${err}`);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8 pb-20">
       <header className="flex justify-between items-end">
@@ -319,12 +394,24 @@ export function InspectorPanel() {
           </div>
           <P className="text-base-content/60 ml-1">{t.subtitle}</P>
         </div>
-        {annotations.length > 0 && (
-          <Button variant="secondary" size="sm" className="gap-2 mb-1" onClick={exportToPdf}>
-            <FileText className="w-4 h-4" />
-            PDF로 저장하기
+        <div className="flex gap-2 mb-1">
+          <Button variant="secondary" size="sm" className="gap-2" onClick={handleImportJson}>
+            <Upload className="w-4 h-4" />
+            가져오기
           </Button>
-        )}
+          {annotations.length > 0 && (
+            <>
+              <Button variant="secondary" size="sm" className="gap-2" onClick={handleExportJson}>
+                <Download className="w-4 h-4" />
+                내보내기
+              </Button>
+              <Button variant="secondary" size="sm" className="gap-2" onClick={exportToPdf}>
+                <FileText className="w-4 h-4" />
+                PDF로 저장하기
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       {/* 안내 문구: 프록시가 꺼져 있을 때만 표시 (오류 상태) */}

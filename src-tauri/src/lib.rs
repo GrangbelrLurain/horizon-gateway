@@ -68,7 +68,7 @@ mod command {
 
 use command::inspector_commands::{
     add_annotation, delete_annotation, get_annotations, get_global_inspector_enabled,
-    set_global_inspector_enabled, update_annotation,
+    import_annotations, set_global_inspector_enabled, update_annotation,
 };
 
 use command::mocking_commands::{
@@ -325,6 +325,7 @@ pub fn run() {
             add_annotation,
             update_annotation,
             delete_annotation,
+            import_annotations,
             set_global_inspector_enabled,
             get_global_inspector_enabled,
             get_scenarios,
