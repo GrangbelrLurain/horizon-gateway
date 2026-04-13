@@ -127,13 +127,16 @@ export function InspectorPanel() {
 
   useEffect(() => {
     // Initial status
+    console.log("Fetching annotations...");
     invokeApi("get_annotations").then((res) => {
+      console.log("Annotations response:", res);
       if (res.success && res.data) {
         setAnnotations(res.data);
       }
     });
 
     const unlisten = listen<CapturedElement>("annotation-dialog-requested", (event) => {
+      console.log("Capture event received:", event.payload);
       setCaptured(event.payload);
       setRole("");
       setDescription("");
@@ -146,7 +149,8 @@ export function InspectorPanel() {
   const annotationsByDomain = useMemo(() => {
     const groups: Record<string, Annotation[]> = {};
     for (const ann of annotations) {
-      const domain = ann.domain || "Unknown";
+      // domain 필드가 없거나 빈 문자열인 경우 'Unknown'으로 취급
+      const domain = ann.domain && ann.domain.trim() !== "" ? ann.domain : "Unknown";
       if (!groups[domain]) {
         groups[domain] = [];
       }
@@ -498,7 +502,7 @@ export function InspectorPanel() {
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 text-[11px] text-base-content/40 font-medium mt-1">
-                                <span className="truncate max-w-[300px]">{ann.url}</span>
+                                <span className="truncate max-w-[200px]">{ann.url}</span>
                                 <span>•</span>
                                 <span>{new Date(ann.timestamp).toLocaleString()}</span>
                               </div>

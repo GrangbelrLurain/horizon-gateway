@@ -1,16 +1,18 @@
-use tauri::State;
-use std::collections::HashMap;
-use crate::model::scenario::Scenario;
+use crate::model::api_response::ApiResponse;
 use crate::model::mock_rule::MockRule;
 use crate::model::mocking_settings::MockingSettings;
-use crate::model::api_response::ApiResponse;
-use crate::service::mocking_service::MockingService;
+use crate::model::scenario::Scenario;
 use crate::service::api_log_service::ApiLogService;
+use crate::service::mocking_service::MockingService;
+use std::collections::HashMap;
+use tauri::State;
 
 pub const MOCKING_STATUS_CHANGED: &str = "mocking-status-changed";
 
 #[tauri::command]
-pub fn get_mocking_status(service: State<'_, std::sync::Arc<MockingService>>) -> Result<ApiResponse<MockingSettings>, String> {
+pub fn get_mocking_status(
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<ApiResponse<MockingSettings>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -38,7 +40,11 @@ pub fn set_mocking_enabled(
     Ok(ApiResponse {
         message: format!(
             "Mocking {}",
-            if payload.enabled { "enabled" } else { "disabled" }
+            if payload.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
         ),
         success: true,
         data: settings,
@@ -46,17 +52,30 @@ pub fn set_mocking_enabled(
 }
 
 #[tauri::command]
-pub fn get_scenarios(service: State<'_, std::sync::Arc<MockingService>>) -> Result<Vec<Scenario>, String> {
+pub fn get_scenarios(
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<Vec<Scenario>, String> {
     Ok(service.get_scenarios())
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateScenarioPayload {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 #[tauri::command]
 pub fn create_scenario(
-    name: String,
-    description: Option<String>,
+    payload: CreateScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<Scenario, String> {
-    Ok(service.create_scenario(name, description))
+) -> Result<ApiResponse<Scenario>, String> {
+    let scenario = service.create_scenario(payload.name, payload.description);
+    Ok(ApiResponse {
+        message: "시나리오가 생성되었습니다.".to_string(),
+        success: true,
+        data: scenario,
+    })
 }
 
 #[tauri::command]
@@ -82,12 +101,17 @@ pub fn set_scenario_enabled(
 }
 
 #[tauri::command]
-pub fn delete_scenario(id: String, service: State<'_, std::sync::Arc<MockingService>>) -> Result<bool, String> {
+pub fn delete_scenario(
+    id: String,
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<bool, String> {
     Ok(service.delete_scenario(id))
 }
 
 #[tauri::command]
-pub fn get_mock_rules(service: State<'_, std::sync::Arc<MockingService>>) -> Result<Vec<MockRule>, String> {
+pub fn get_mock_rules(
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<Vec<MockRule>, String> {
     Ok(service.get_mock_rules())
 }
 
@@ -102,6 +126,7 @@ pub fn get_mock_rules_by_scenario(
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub fn create_mock_rule(
+    name: String,
     scenario_id: String,
     host: Option<String>,
     method: String,
@@ -113,6 +138,7 @@ pub fn create_mock_rule(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<MockRule, String> {
     Ok(service.create_mock_rule(
+        name,
         scenario_id,
         host,
         method,
@@ -124,62 +150,94 @@ pub fn create_mock_rule(
     ))
 }
 
-#[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub fn update_mock_rule(
-    id: String,
-    host: Option<String>,
-    method: Option<String>,
-    url_pattern: Option<String>,
-    response_status: Option<u16>,
-    response_headers: Option<HashMap<String, String>>,
-    response_body: Option<String>,
-    enabled: Option<bool>,
-    service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<MockRule, String> {
-    service.update_mock_rule(
-        id,
-        host,
-        method,
-        url_pattern,
-        response_status,
-        response_headers,
-        response_body,
-        enabled,
-    ).ok_or_else(|| "MockRule not found".to_string())
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMockRulePayload {
+    pub id: String,
+    pub name: Option<String>,
+    pub host: Option<String>,
+    pub method: Option<String>,
+    pub url_pattern: Option<String>,
+    pub response_status: Option<u16>,
+    pub response_headers: Option<HashMap<String, String>>,
+    pub response_body: Option<String>,
+    pub enabled: Option<bool>,
 }
 
 #[tauri::command]
-pub fn delete_mock_rule(id: String, service: State<'_, std::sync::Arc<MockingService>>) -> Result<bool, String> {
+pub fn update_mock_rule(
+    payload: UpdateMockRulePayload,
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<MockRule, String> {
+    service
+        .update_mock_rule(
+            payload.id,
+            payload.name,
+            payload.host,
+            payload.method,
+            payload.url_pattern,
+            payload.response_status,
+            payload.response_headers,
+            payload.response_body,
+            payload.enabled,
+        )
+        .ok_or_else(|| "MockRule not found".to_string())
+}
+
+#[tauri::command]
+pub fn delete_mock_rule(
+    id: String,
+    service: State<'_, std::sync::Arc<MockingService>>,
+) -> Result<bool, String> {
     Ok(service.delete_mock_rule(id))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateMockFromLogPayload {
+    pub log_id: String,
+    pub scenario_id: String,
+    pub name: String,
+    pub log_date: String,
 }
 
 #[tauri::command]
 pub fn create_mock_rule_from_log(
-    log_date: String,
-    log_id: String,
-    scenario_id: String,
+    payload: CreateMockFromLogPayload,
     log_service: State<'_, ApiLogService>,
     mock_service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<MockRule, String> {
-    let logs = log_service.get_logs(&log_date, None, None, None, false);
-    let log = logs.into_iter().find(|l| l.id == log_id).ok_or_else(|| "Log not found".to_string())?;
+) -> Result<ApiResponse<MockRule>, String> {
+    let logs = log_service.get_logs(&payload.log_date, None, None, None, false);
+
+    let log = logs
+        .into_iter()
+        .find(|l| l.id == payload.log_id)
+        .ok_or_else(|| {
+            "오늘 발생한 로그 중 해당 ID를 찾을 수 없습니다. (로그 날짜 불일치 가능성)".to_string()
+        })?;
 
     let method = log.method.clone();
     let host = Some(log.host.clone());
-    let url_pattern = log.path.clone(); // Basic matching initially based on path.
+    let url_pattern = log.path.clone();
     let response_status = log.status_code.unwrap_or(200);
     let response_headers = log.response_headers.unwrap_or_default();
     let response_body = log.response_body.clone();
 
-    Ok(mock_service.create_mock_rule(
-        scenario_id,
+    let rule = mock_service.create_mock_rule(
+        payload.name,
+        payload.scenario_id,
         host,
         method,
         url_pattern,
         response_status,
         response_headers,
         response_body,
-        true, // Enable by default
-    ))
+        true,
+    );
+
+    Ok(ApiResponse {
+        message: "스냅샷으로부터 모킹 규칙이 생성되었습니다.".to_string(),
+        success: true,
+        data: rule,
+    })
 }

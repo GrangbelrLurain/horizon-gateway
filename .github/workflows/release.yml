@@ -51,6 +51,9 @@ jobs:
       - name: install frontend dependencies
         run: pnpm install # libwebkit2gtk-4.1-dev is needed for Tauri v2
 
+      - name: build injection script
+        run: pnpm build:injection
+
       - name: setup signing key
         shell: bash
         run: |

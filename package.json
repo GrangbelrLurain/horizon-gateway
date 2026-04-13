@@ -1,12 +1,15 @@
 {
   "name": "watchtower",
   "private": true,
-  "version": "1.6.2",
+  "version": "1.7.0",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:tauri": "pnpm build:injection && tauri dev",
     "build": "tsc && vite build",
+    "build:injection": "vite build --mode injection",
+    "watch:injection": "vite build --watch --mode injection",
     "preview": "vite preview",
     "tauri": "tauri",
     "format": "biome check --write",

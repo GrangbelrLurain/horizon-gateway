@@ -1,10 +1,11 @@
 use crate::model::inspector::Annotation;
 use crate::storage::versioned::{load_versioned, save_versioned};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
+#[derive(Clone)]
 pub struct InspectorService {
-    pub annotations: Mutex<Vec<Annotation>>,
+    pub annotations: Arc<Mutex<Vec<Annotation>>>,
     pub storage_path: PathBuf,
 }
 
@@ -12,7 +13,7 @@ impl InspectorService {
     pub fn new(storage_path: PathBuf) -> Self {
         let initial_annotations = load_versioned(&storage_path);
         Self {
-            annotations: Mutex::new(initial_annotations),
+            annotations: Arc::new(Mutex::new(initial_annotations)),
             storage_path,
         }
     }

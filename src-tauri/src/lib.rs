@@ -184,6 +184,7 @@ pub fn run() {
             let api_logging_map_for_proxy = api_logging_service.settings_map_arc();
             let ca_service_for_proxy = Arc::clone(&ca_service);
             let mocking_service_for_proxy = Arc::clone(&mocking_service);
+            let inspector_svc_for_proxy = inspector_service.clone();
 
             app.manage(ca_service);
             app.manage(domain_service);
@@ -210,6 +211,7 @@ pub fn run() {
                         std::sync::Arc::new(api_log_service.clone()),
                         ca_service_for_proxy,
                         mocking_service_for_proxy,
+                        inspector_svc_for_proxy,
                     )
                     .await
                     {

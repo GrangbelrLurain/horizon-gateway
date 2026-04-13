@@ -11,6 +11,7 @@ export interface Scenario {
 
 export interface MockRule {
   id: string;
+  name: string;
   scenario_id: string;
   host?: string | null;
   method: string;

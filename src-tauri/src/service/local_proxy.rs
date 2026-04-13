@@ -45,7 +45,7 @@ use crate::model::local_route::LocalRoute;
 use crate::service::local_route_service::LocalRouteService;
 
 macro_rules! proxy_log {
-    ($($t:tt)*) => { eprintln!("[proxy] {}", format!($($t)*)) }
+    ($($t:tt)*) => { tracing::info!("[proxy] {}", format!($($t)*)) }
 }
 
 type TokioResolver = Resolver<TokioConnectionProvider>;
@@ -98,6 +98,7 @@ fn parse_dns_server(s: &str) -> Option<(IpAddr, u16)> {
 }
 
 use crate::model::api_log::ApiLogEntry;
+use crate::model::inspector::Annotation;
 use crate::service::api_log_service::ApiLogService;
 use crate::service::ca_service::CaService;
 
@@ -115,6 +116,7 @@ pub struct ProxyState {
     pub ca_service: Arc<CaService>,
     pub reqwest_client: reqwest::Client,
     pub mocking_service: Arc<crate::service::mocking_service::MockingService>,
+    pub inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 }
 
 impl ProxyState {
@@ -127,6 +129,7 @@ impl ProxyState {
         api_log_service: Arc<ApiLogService>,
         ca_service: Arc<CaService>,
         mocking_service: Arc<crate::service::mocking_service::MockingService>,
+        inspector_service: Arc<crate::service::inspector_service::InspectorService>,
     ) -> Self {
         let resolver = dns_server
             .as_ref()
@@ -153,9 +156,12 @@ impl ProxyState {
             reqwest_client: reqwest::Client::builder()
                 .no_proxy()
                 .redirect(reqwest::redirect::Policy::none())
+                .gzip(true)
+                .brotli(true)
                 .build()
                 .unwrap(),
             mocking_service,
+            inspector_service,
         }
     }
 }
@@ -673,7 +679,7 @@ async fn handle_connect_tunnel(
         config.map_or(false, |(logging_enabled, _)| logging_enabled)
     };
 
-    if use_api_logging || true {
+    if use_api_logging || is_inspector_enabled() || true {
         // Always decrypt for Inspector/Dashboard
         proxy_log!("-> CONNECT decryption enabled for {}", host);
         handle_connect_tunnel_decrypted(client, host, state).await;
@@ -797,6 +803,7 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
     }
     if path == "/.watchtower/ca.crt" || path.starts_with("/.watchtower/ca.crt") {
         let pem = state.ca_service.ca_cert_pem();
+        let origin = HeaderValue::from_static("*"); // Default for static files
         return (
             StatusCode::OK,
             [
@@ -804,6 +811,7 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/x-x509-ca-cert"),
                 ),
+                (header::ACCESS_CONTROL_ALLOW_ORIGIN, origin),
                 (
                     axum::http::header::CONTENT_DISPOSITION,
                     HeaderValue::from_static("attachment; filename=\"watchtower-ca.crt\""),
@@ -814,13 +822,24 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
             .into_response();
     }
     if path == "/.watchtower/inspector.js" {
-        let js = include_str!("../../resources/inspector.js");
+        // Try to read from filesystem first (for live updates during dev)
+        let js = std::fs::read_to_string("resources/inspector.js")
+            .or_else(|_| std::fs::read_to_string("src-tauri/resources/inspector.js"))
+            .unwrap_or_else(|_| include_str!("../../resources/inspector.js").to_string());
+
         return (
             StatusCode::OK,
-            [(
-                CONTENT_TYPE,
-                HeaderValue::from_static("application/javascript"),
-            )],
+            [
+                (
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/javascript"),
+                ),
+                (
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+                ),
+                (header::PRAGMA, HeaderValue::from_static("no-cache")),
+            ],
             js,
         )
             .into_response();
@@ -877,14 +896,17 @@ async fn proxy_handler(
     ext: axum::Extension<&'static str>,
     req: Request,
 ) -> Response {
+    let origin = req
+        .headers()
+        .get(header::ORIGIN)
+        .cloned()
+        .unwrap_or_else(|| HeaderValue::from_static("*"));
+
     if req.method() == hyper::Method::OPTIONS {
         return (
             StatusCode::OK,
             [
-                (
-                    header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                    HeaderValue::from_static("*"),
-                ),
+                (header::ACCESS_CONTROL_ALLOW_ORIGIN, origin),
                 (
                     header::ACCESS_CONTROL_ALLOW_METHODS,
                     HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
@@ -906,10 +928,7 @@ async fn proxy_handler(
     let mut response = proxy_handler_inner(state, ext, req).await;
 
     let headers = response.headers_mut();
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        HeaderValue::from_static("*"),
-    );
+    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
         HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
@@ -942,19 +961,92 @@ async fn proxy_handler_inner(
         .unwrap_or_default();
     proxy_log!("request {} {} Host: {}", method, uri, host_h);
 
-    if path.starts_with(WATCHTOWER_PATH_PREFIX) {
-        proxy_log!("-> watchtower reserved: {}", path);
+    let uri_str = uri.to_string();
+    let is_watchtower_path =
+        path.starts_with(WATCHTOWER_PATH_PREFIX) || uri_str.contains(WATCHTOWER_PATH_PREFIX);
+
+    if is_watchtower_path {
+        let normalized_path = if let Some(idx) = uri_str.find(WATCHTOWER_PATH_PREFIX) {
+            &uri_str[idx..]
+        } else {
+            path
+        };
+        // Remove query strings for internal path matching
+        let clean_path = normalized_path.split('?').next().unwrap_or(normalized_path);
+
+        proxy_log!(
+            "-> watchtower reserved: {} (Original: {})",
+            clean_path,
+            path
+        );
 
         // Handle App Focus
-        if path == "/.watchtower/api/focus" {
+        if clean_path == "/.watchtower/api/focus" {
             if let Some(main) = state.app_handle.get_webview_window("main") {
                 let _ = main.set_focus();
             }
-            return (StatusCode::OK, "Focused").into_response();
+            return (
+                StatusCode::OK,
+                [
+                    (
+                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HeaderValue::from_static("*"),
+                    ),
+                    (header::CONTENT_TYPE, HeaderValue::from_static("text/plain")),
+                ],
+                "Focused",
+            )
+                .into_response();
+        }
+
+        // Handle Status Request
+        if clean_path == "/.watchtower/api/status" {
+            let mocking_enabled = state.mocking_service.get_settings().enabled;
+            let json = serde_json::json!({
+                "proxy": true,
+                "mocking": mocking_enabled,
+                "logging": true
+            });
+            return (
+                StatusCode::OK,
+                [
+                    (
+                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HeaderValue::from_static("*"),
+                    ),
+                    (
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static("application/json"),
+                    ),
+                ],
+                json.to_string(),
+            )
+                .into_response();
+        }
+
+        // Handle Get All Annotations
+        if clean_path == "/.watchtower/api/annotations" && req.method() == hyper::Method::GET {
+            let list = state.inspector_service.get_all();
+            let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
+            return (
+                StatusCode::OK,
+                [
+                    (
+                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+                        HeaderValue::from_static("*"),
+                    ),
+                    (
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static("application/json"),
+                    ),
+                ],
+                json,
+            )
+                .into_response();
         }
 
         // Handle API Annotation POST
-        if path == "/.watchtower/api/annotation" && req.method() == hyper::Method::POST {
+        if clean_path == "/.watchtower/api/annotation" && req.method() == hyper::Method::POST {
             let host_h = req
                 .headers()
                 .get(hyper::header::HOST)
@@ -976,19 +1068,42 @@ async fn proxy_handler_inner(
 
             if let Ok(mut annotation_val) = serde_json::from_slice::<serde_json::Value>(&body) {
                 if let Some(obj) = annotation_val.as_object_mut() {
-                    obj.insert("domain".to_string(), serde_json::Value::String(host_h));
-                    obj.insert("url".to_string(), serde_json::Value::String(full_url));
+                    if !obj.contains_key("domain") {
+                        obj.insert("domain".to_string(), serde_json::Value::String(host_h));
+                    }
+                    if !obj.contains_key("url") {
+                        obj.insert("url".to_string(), serde_json::Value::String(full_url));
+                    }
                 }
-                // Emit event to UI
+
+                // Parse into model and save to service
+                match serde_json::from_value::<Annotation>(annotation_val.clone()) {
+                    Ok(ann) => {
+                        state.inspector_service.add_annotation(ann);
+                        let count = state.inspector_service.get_all().len();
+                        proxy_log!(
+                            "✅ [Watchtower] Annotation saved to file. Total count: {}",
+                            count
+                        );
+
+                        // Emit event to all windows to refresh UI
+                        let _ = state.app_handle.emit("annotations-updated", ());
+                    }
+                    Err(e) => {
+                        proxy_log!("❌ [Watchtower] Failed to parse annotation JSON: {}", e);
+                    }
+                }
+
+                // Emit legacy event for backward compatibility
                 let _ = state
                     .app_handle
                     .emit("annotation-dialog-requested", annotation_val);
-                return (StatusCode::OK, "Annotation received").into_response();
+                return (StatusCode::OK, "Annotation saved").into_response();
             }
             return (StatusCode::BAD_REQUEST, "Invalid JSON").into_response();
         }
 
-        return serve_watchtower_reserved_path(state, path).await;
+        return serve_watchtower_reserved_path(state, clean_path).await;
     }
 
     // --- MOCKING INTERCEPTOR ---
@@ -1062,6 +1177,7 @@ async fn proxy_handler_inner(
                 response_body: Some(body.clone()),
             };
             state.api_log_service.save_log(&entry);
+            let _ = state.app_handle.emit("api-log-captured", entry);
 
             return builder.body(Body::from(body)).unwrap_or_else(|e| {
                 (
@@ -1125,7 +1241,7 @@ async fn proxy_handler_inner(
         let method = req.method().clone();
         let url_str = target_uri_str.clone();
 
-        let mut req_builder = state.reqwest_client.request(method, &url_str);
+        let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
         let (parts, body) = req.into_parts();
 
         let has_body = !matches!(
@@ -1158,7 +1274,6 @@ async fn proxy_handler_inner(
             "transfer-encoding",
             "upgrade",
             "proxy-connection",
-            "accept-encoding", // Remove to avoid compressed response for injection/logging
         ];
         for (name, value) in parts.headers.iter() {
             let name_str = name.as_str().to_lowercase();
@@ -1171,39 +1286,157 @@ async fn proxy_handler_inner(
         match req_builder.send().await {
             Ok(res) => {
                 let status = res.status();
-                let res_headers = res.headers().clone();
+                let mut res_headers = res.headers().clone();
 
-                let is_html = res_headers
+                res_headers.remove(header::CONTENT_ENCODING);
+
+                // ── [Live Capture] Strip Security Headers to allow iframing ──────
+                res_headers.remove(header::X_FRAME_OPTIONS);
+                res_headers.remove(header::CONTENT_SECURITY_POLICY);
+                res_headers.remove("content-security-policy-report-only");
+                res_headers.remove("x-content-security-policy");
+
+                // ── [CORS Fix] Force permissive CORS headers ──────────────────
+                let origin = parts
+                    .headers
+                    .get(header::ORIGIN)
+                    .cloned()
+                    .unwrap_or_else(|| HeaderValue::from_static("*"));
+
+                res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+                res_headers.insert(
+                    header::ACCESS_CONTROL_ALLOW_METHODS,
+                    HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
+                );
+                res_headers.insert(
+                    header::ACCESS_CONTROL_ALLOW_HEADERS,
+                    HeaderValue::from_static("*"),
+                );
+                res_headers.insert(
+                    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                    HeaderValue::from_static("true"),
+                );
+
+                // ── [Cookie Fix] Force SameSite=None; Secure for iframing ──────
+                let mut cookie_updates = Vec::new();
+                for (name, value) in res_headers.iter() {
+                    if name == header::SET_COOKIE {
+                        if let Ok(cookie_str) = value.to_str() {
+                            let mut new_cookie = cookie_str.to_string();
+                            if !new_cookie.contains("SameSite=") {
+                                new_cookie.push_str("; SameSite=None");
+                            } else {
+                                new_cookie = new_cookie
+                                    .replace("SameSite=Lax", "SameSite=None")
+                                    .replace("SameSite=Strict", "SameSite=None");
+                            }
+                            if !new_cookie.contains("Secure") {
+                                new_cookie.push_str("; Secure");
+                            }
+                            cookie_updates.push(new_cookie);
+                        }
+                    }
+                }
+                if !cookie_updates.is_empty() {
+                    res_headers.remove(header::SET_COOKIE);
+                    for cookie in cookie_updates {
+                        if let Ok(hv) = HeaderValue::from_str(&cookie) {
+                            res_headers.append(header::SET_COOKIE, hv);
+                        }
+                    }
+                }
+                // ────────────────────────────────────────────────────────────────
+
+                // Send real-time event even if logging is disabled for DB
+                let entry = crate::model::api_log::ApiLogEntry {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    method: method.to_string(),
+                    url: url_str.clone(),
+                    host: host_h.clone(),
+                    path: path.to_string(),
+                    status_code: Some(status.as_u16()),
+                    request_headers: None,
+                    request_body: None,
+                    response_headers: None,
+                    response_body: None,
+                };
+                state.api_log_service.save_log(&entry);
+                let _ = state.app_handle.emit("api-log-captured", entry);
+
+                let content_type = res_headers
                     .get(header::CONTENT_TYPE)
                     .and_then(|v| v.to_str().ok())
-                    .map(|s| s.contains("text/html"))
-                    .unwrap_or(false);
+                    .unwrap_or("unknown")
+                    .to_lowercase();
+
+                // Aggressive HTML detection
+                let is_html = content_type.contains("text/html")
+                    || content_type.contains("application/xhtml+xml");
+
+                // Aggressive Cache & Protocol fix
+                res_headers.remove(header::ETAG);
+                res_headers.remove(header::LAST_MODIFIED);
+                res_headers.remove("alt-svc"); // Disable HTTP/3 upgrade
 
                 if is_html {
-                    // Always inject for Dashboard
+                    // Force no-cache for HTML to ensure injection is always processed
+                    res_headers.insert(
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static(
+                            "no-store, no-cache, must-revalidate, proxy-revalidate",
+                        ),
+                    );
+                    res_headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+                    res_headers.remove(header::EXPIRES);
+
                     let full_body = match res.bytes().await {
                         Ok(b) => b,
                         Err(e) => {
+                            proxy_log!("❌ [Watchtower] Failed to read HTML body: {}", e);
                             return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}"))
-                                .into_response()
+                                .into_response();
                         }
                     };
                     let mut final_res_bytes = full_body.to_vec();
+                    let injection_script = r#"<script id="wt-injection-marker" type="module" src="/.watchtower/inspector.js"></script>"#;
+
+                    // 1. Try UTF-8 injection
+                    let mut injected = false;
                     if let Ok(body_str) = String::from_utf8(final_res_bytes.clone()) {
-                        // Case-insensitive search for </body>
                         let body_lower = body_str.to_lowercase();
-                        if let Some(pos) = body_lower.rfind("</body>") {
-                            let mut new_body = body_str[..pos].to_string();
-                            new_body
-                                .push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
-                            new_body.push_str(&body_str[pos..]);
-                            final_res_bytes = new_body.into_bytes();
-                        } else {
-                            // Fallback: append to end if </body> not found
-                            let mut new_body = body_str;
-                            new_body
-                                .push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
-                            final_res_bytes = new_body.into_bytes();
+                        if body_lower.contains("</body>")
+                            && !body_str.contains("wt-injection-marker")
+                        {
+                            if let Some(pos) = body_lower.rfind("</body>") {
+                                let mut new_body = body_str[..pos].to_string();
+                                new_body.push_str(injection_script);
+                                new_body.push_str(&body_str[pos..]);
+                                final_res_bytes = new_body.into_bytes();
+                                injected = true;
+                                proxy_log!("✅ [Watchtower] Inspector injected (UTF-8).");
+                            }
+                        }
+                    }
+
+                    // 2. Fallback to Byte-level injection
+                    if !injected {
+                        let pattern = b"</body>";
+                        let marker = b"wt-injection-marker";
+                        if !final_res_bytes.windows(marker.len()).any(|w| w == marker) {
+                            if let Some(pos) = final_res_bytes
+                                .windows(pattern.len())
+                                .rposition(|w| w.eq_ignore_ascii_case(pattern))
+                            {
+                                let mut new_bytes = Vec::with_capacity(
+                                    final_res_bytes.len() + injection_script.len(),
+                                );
+                                new_bytes.extend_from_slice(&final_res_bytes[..pos]);
+                                new_bytes.extend_from_slice(injection_script.as_bytes());
+                                new_bytes.extend_from_slice(&final_res_bytes[pos..]);
+                                final_res_bytes = new_bytes;
+                                proxy_log!("✅ [Watchtower] Inspector injected (Byte-level).");
+                            }
                         }
                     }
 
@@ -1220,6 +1453,7 @@ async fn proxy_handler_inner(
                             "upgrade",
                             "proxy-connection",
                             "content-length",
+                            "content-encoding",
                         ];
                         for (k, v) in &res_headers {
                             let k_str = k.as_str().to_lowercase();
@@ -1316,7 +1550,6 @@ async fn proxy_handler_inner(
             "transfer-encoding",
             "upgrade",
             "proxy-connection",
-            "accept-encoding", // Added
         ];
 
         for (name, value) in parts.headers.iter() {
@@ -1343,7 +1576,7 @@ async fn proxy_handler_inner(
 
         // Read Response Body
         let status = response.status();
-        let res_headers = response.headers().clone();
+        let mut res_headers = response.headers().clone();
         let res_bytes = match response.bytes().await {
             Ok(b) => b,
             Err(e) => {
@@ -1361,25 +1594,66 @@ async fn proxy_handler_inner(
             None
         };
 
-        let is_html = res_headers
+        let content_type = res_headers
             .get(header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.contains("text/html"))
-            .unwrap_or(false);
+            .unwrap_or("unknown")
+            .to_lowercase();
+
+        // Aggressive HTML detection
+        let is_html =
+            content_type.contains("text/html") || content_type.contains("application/xhtml+xml");
+
+        // Aggressive Cache & Protocol fix
+        res_headers.remove(header::ETAG);
+        res_headers.remove(header::LAST_MODIFIED);
+        res_headers.remove("alt-svc"); // Disable HTTP/3 upgrade
 
         let mut final_res_bytes = res_bytes.to_vec();
         if is_html {
+            // Force no-cache for HTML to ensure injection is always processed
+            res_headers.insert(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("no-store, no-cache, must-revalidate, proxy-revalidate"),
+            );
+            res_headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+            res_headers.remove(header::EXPIRES);
+
+            let injection_script = r#"<script id="wt-injection-marker" type="module" src="/.watchtower/inspector.js"></script>"#;
+
+            // 1. Try UTF-8 injection
+            let mut injected = false;
             if let Ok(body_str) = String::from_utf8(final_res_bytes.clone()) {
                 let body_lower = body_str.to_lowercase();
-                if let Some(pos) = body_lower.rfind("</body>") {
-                    let mut new_body = body_str[..pos].to_string();
-                    new_body.push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
-                    new_body.push_str(&body_str[pos..]);
-                    final_res_bytes = new_body.into_bytes();
-                } else {
-                    let mut new_body = body_str;
-                    new_body.push_str(r#"<script src="/.watchtower/inspector.js"></script>"#);
-                    final_res_bytes = new_body.into_bytes();
+                if body_lower.contains("</body>") && !body_str.contains("wt-injection-marker") {
+                    if let Some(pos) = body_lower.rfind("</body>") {
+                        let mut new_body = body_str[..pos].to_string();
+                        new_body.push_str(injection_script);
+                        new_body.push_str(&body_str[pos..]);
+                        final_res_bytes = new_body.into_bytes();
+                        injected = true;
+                        proxy_log!("✅ [Watchtower] Inspector injected (UTF-8).");
+                    }
+                }
+            }
+
+            // 2. Fallback to Byte-level injection if UTF-8 failed or tag not found in string
+            if !injected {
+                let pattern = b"</body>";
+                let marker = b"wt-injection-marker";
+                if !final_res_bytes.windows(marker.len()).any(|w| w == marker) {
+                    if let Some(pos) = final_res_bytes
+                        .windows(pattern.len())
+                        .rposition(|w: &[u8]| w.eq_ignore_ascii_case(pattern))
+                    {
+                        let mut new_bytes =
+                            Vec::with_capacity(final_res_bytes.len() + injection_script.len());
+                        new_bytes.extend_from_slice(&final_res_bytes[..pos]);
+                        new_bytes.extend_from_slice(injection_script.as_bytes());
+                        new_bytes.extend_from_slice(&final_res_bytes[pos..]);
+                        final_res_bytes = new_bytes;
+                        proxy_log!("✅ [Watchtower] Inspector injected (Byte-level).");
+                    }
                 }
             }
         }
@@ -1412,6 +1686,7 @@ async fn proxy_handler_inner(
             response_body: res_body_str,
         };
         state.api_log_service.save_log(&entry);
+        let _ = state.app_handle.emit("api-log-captured", entry);
 
         // Reconstruct response
         let mut builder = Response::builder().status(status);
@@ -1427,6 +1702,7 @@ async fn proxy_handler_inner(
                 "upgrade",
                 "proxy-connection",
                 "content-length",
+                "content-encoding",
             ];
             for (k, v) in res_headers.iter() {
                 let k_str = k.as_str().to_lowercase();
@@ -1468,6 +1744,7 @@ pub async fn run_proxy(
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
+    inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1480,6 +1757,7 @@ pub async fn run_proxy(
         api_log_service,
         ca_service,
         mocking_service,
+        inspector_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -1528,6 +1806,7 @@ pub async fn run_reverse_proxy_http(
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
+    inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1540,6 +1819,7 @@ pub async fn run_reverse_proxy_http(
         api_log_service,
         ca_service,
         mocking_service,
+        inspector_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -1571,6 +1851,7 @@ pub async fn run_reverse_proxy_https(
     api_log_service: Arc<ApiLogService>,
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
+    inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -1583,6 +1864,7 @@ pub async fn run_reverse_proxy_https(
         api_log_service,
         ca_service,
         mocking_service,
+        inspector_service,
     ));
     let app = proxy_app(Arc::clone(&state), "https");
     let config = rustls::ServerConfig::builder()
@@ -1813,15 +2095,29 @@ mod tests {
             temp_dir.path().to_path_buf(),
         ));
 
-        let state = Arc::new(ProxyState::new(
-            route_service,
-            None,
-            None,
-            api_logging_map,
-            api_log_service.clone(),
-            ca_service,
-            mocking_service,
+        let inspector_service = Arc::new(crate::service::inspector_service::InspectorService::new(
+            temp_dir.path().to_path_buf(),
         ));
+
+        // In tests, we don't have a real AppHandle, so we might need a different way to construct ProxyState
+        // For now, let's assume we can pass a dummy handle if possible, or we need to change how ProxyState is constructed in tests.
+        // Looking at the error, it's a signature mismatch.
+
+        // Note: This test might still fail to compile if tauri::test::mock_builder is needed for AppHandle.
+        // But let's fix the argument count first.
+        let state = Arc::new(ProxyState {
+            app_handle: tauri::test::mock_app_handle(),
+            route_service,
+            resolver: None,
+            forward_proxy_port: None,
+            cert_cache: Arc::new(HostCertCache::new(ca_service.clone())),
+            api_logging_map,
+            api_log_service: api_log_service.clone(),
+            ca_service,
+            reqwest_client: reqwest::Client::new(),
+            mocking_service,
+            inspector_service,
+        });
 
         // 3. Perform request
         let req = Request::builder()

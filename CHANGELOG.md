@@ -4,22 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.0] - 2026-04-13
+
+### Added
+
+- **Robust Injection Engine**: Completely overhauled the inspector injection system. It now features aggressive cache-busting, automatic HTTP/3 fallback to HTTP/1.1/2, and a dual-strategy injection (UTF-8 + Byte-level fallback) to ensure the inspector works on any website, regardless of encoding or caching.
+- **Policy List Sidebar**: Added a new "📋" panel in the injected app. Users can now view, manage, and delete all policies associated with the current page, even if their visual badges are misplaced due to DOM changes.
+- **Heuristic Element Tracking**: Upgraded the selector generator to use IDs and stable semantic attributes (like `data-testid`). The recovery logic now uses a weighted similarity score to re-anchor policies more accurately when page structures change.
+
+### Changed
+
+- **Proxy Pipeline Optimization**: Enhanced the internal proxy to automatically handle Gzip/Brotli decompression for intercepted traffic, enabling reliable content modification without manual encoding management.
+- **Cross-Platform Build CI**: Standardized build scripts to be OS-independent, ensuring seamless releases from GitHub Actions runners.
+
+### Fixed
+
+- **MIME Type Enforcement**: Resolved a "text/html" MIME type error for `inspector.js` by strengthening the internal proxy's path interception and adding explicit caching headers for reserved assets.
+- **SSL Interception Toggle**: Fixed an issue where the global inspector state wasn't correctly propagated to the SSL decryption layer.
+
+---
+
 ## [v1.6.2] - 2026-04-08
 
 ### Added
 
--   **Responsive UI Rollout**: Implemented a comprehensive responsive layout down to `720px` (tablet) across Settings, Proxy Dashboard, and Monitoring pages.
--   **Persistent Mocking State**: Enhanced the API Mocking experience by persisting selected scenarios, mocking search queries, and the global mocking toggle in local storage across sessions.
+- **Responsive UI Rollout**: Implemented a comprehensive responsive layout down to `720px` (tablet) across Settings, Proxy Dashboard, and Monitoring pages.
+- **Persistent Mocking State**: Enhanced the API Mocking experience by persisting selected scenarios, mocking search queries, and the global mocking toggle in local storage across sessions.
 
 ### Changed
 
--   **Dynamic Grid Optimization**: Refactored dashboard and monitor grids to use CSS Grid `auto-fill` with `minmax` constraints, ensuring consistent card sizing and graceful wrapping across all resolutions.
--   **Virtualized Grid Responsiveness**: Added a `ResizeObserver`-based column calculation to the domain monitor's virtualized list, preserving performance while adapting to container width changes.
+- **Dynamic Grid Optimization**: Refactored dashboard and monitor grids to use CSS Grid `auto-fill` with `minmax` constraints, ensuring consistent card sizing and graceful wrapping across all resolutions.
+- **Virtualized Grid Responsiveness**: Added a `ResizeObserver`-based column calculation to the domain monitor's virtualized list, preserving performance while adapting to container width changes.
 
 ### Fixed
 
--   **Dark Mode Audit & Polish**: Resolved UI "깨짐" (broken) issues in Proxy Setup, Loading screens, and Empty States by replacing hardcoded slate/white colors with semantic theme variables.
--   **A11y & Linting**: Resolved sidebar accessibility warnings and fixed missing React hooks and block statement lint errors in monitoring components.
+- **Dark Mode Audit & Polish**: Resolved UI "깨짐" (broken) issues in Proxy Setup, Loading screens, and Empty States by replacing hardcoded slate/white colors with semantic theme variables.
+- **A11y & Linting**: Resolved sidebar accessibility warnings and fixed missing React hooks and block statement lint errors in monitoring components.
 
 ---
 
@@ -27,19 +47,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Global Proxy Safeguard (`ProxyServerWarning`)**: Created a premium, reusable warning component that indicates when the proxy engine is inactive across all features.
--   **Unified Proxy Infrastructure Control**: Relocated the master Proxy Server switch and detailed port settings (Forward/Reverse HTTP/HTTPS) to the global Settings page for centralized infrastructure management.
+- **Global Proxy Safeguard (`ProxyServerWarning`)**: Created a premium, reusable warning component that indicates when the proxy engine is inactive across all features.
+- **Unified Proxy Infrastructure Control**: Relocated the master Proxy Server switch and detailed port settings (Forward/Reverse HTTP/HTTPS) to the global Settings page for centralized infrastructure management.
 
 ### Changed
 
--   **Feature-Level Proxy Awareness**: Integrated the `ProxyServerWarning` into Dashboard, Proxy Dashboard, API Logs, API Mocking, and Server Logs.
--   **Improved UI Masking**: Functional elements (buttons, lists, filters) in Proxy-dependent pages are now conditionally hidden when the server is OFF to prevent user confusion.
--   **Localized Proxy Guidance**: Updated Korean and English dictionaries with clear instructions on how to reactivate the proxy engine directly from the warning component.
+- **Feature-Level Proxy Awareness**: Integrated the `ProxyServerWarning` into Dashboard, Proxy Dashboard, API Logs, API Mocking, and Server Logs.
+- **Improved UI Masking**: Functional elements (buttons, lists, filters) in Proxy-dependent pages are now conditionally hidden when the server is OFF to prevent user confusion.
+- **Localized Proxy Guidance**: Updated Korean and English dictionaries with clear instructions on how to reactivate the proxy engine directly from the warning component.
 
 ### Fixed
 
--   **Proxy Setup Pathing**: Corrected internal navigation links within the Setup Guide to ensure seamless flow between setup and dashboard views.
--   **Server Logs Consistency**: Resolved a UI overlapping issue where functional controls were still visible through the proxy warning alert.
+- **Proxy Setup Pathing**: Corrected internal navigation links within the Setup Guide to ensure seamless flow between setup and dashboard views.
+- **Server Logs Consistency**: Resolved a UI overlapping issue where functional controls were still visible through the proxy warning alert.
 
 ---
 
@@ -47,19 +67,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Unified StatusToggle Component**: Introduced a premium, high-feedback toggle component (`StatusToggle`) to standardize feature activation across all dashboards.
--   **Interactive Home Dashboard**: Transformed passive status badges on the home screen into active toggles. Users can now control **Mocking** and **Proxy Active** (Local Routing) directly from the header.
--   **Advanced Proxy Controls**: Integrated full Start/Stop server controls into the Proxy Dashboard using the new unified toggle UI, replacing legacy buttons and static badges.
+- **Unified StatusToggle Component**: Introduced a premium, high-feedback toggle component (`StatusToggle`) to standardize feature activation across all dashboards.
+- **Interactive Home Dashboard**: Transformed passive status badges on the home screen into active toggles. Users can now control **Mocking** and **Proxy Active** (Local Routing) directly from the header.
+- **Advanced Proxy Controls**: Integrated full Start/Stop server controls into the Proxy Dashboard using the new unified toggle UI, replacing legacy buttons and static badges.
 
 ### Changed
 
--   **UI/UX Consistency**: Synchronized the design language for feature toggles (Mocking, Proxy, Local Routing) across the entire application for a more cohesive, high-end experience.
--   **Real-time Feedback**: Added integrated loading states to all major feature toggles, providing immediate visual confirmation during asynchronous backend operations.
+- **UI/UX Consistency**: Synchronized the design language for feature toggles (Mocking, Proxy, Local Routing) across the entire application for a more cohesive, high-end experience.
+- **Real-time Feedback**: Added integrated loading states to all major feature toggles, providing immediate visual confirmation during asynchronous backend operations.
 
 ### Fixed
 
--   **Dashboard Accessibility**: Resolved multiple WCAG compliance issues by properly associating form labels with their respective inputs using unique IDs.
--   **API Scoping Precision**: Enhanced Mock Rule logic to include optional `Host (Origin)` filtering, allowing for domain-specific mocking behavior.
+- **Dashboard Accessibility**: Resolved multiple WCAG compliance issues by properly associating form labels with their respective inputs using unique IDs.
+- **API Scoping Precision**: Enhanced Mock Rule logic to include optional `Host (Origin)` filtering, allowing for domain-specific mocking behavior.
 
 ---
 
@@ -67,14 +87,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
--   **Unified Multi-Group Management**: Refactored Monitoring and API Setting dashboards to display domains independently under each assigned group section, removing legacy comma-separated headers.
--   **Synchronized Selection Tracking**: Implemented ID-based unified selection logic. Checking a domain in one group section now automatically updates all of its other occurrences across the dashboard.
--   **Refined Registration Workflow**: Removed automatic navigation and background monitoring sync upon new domain registration, allowing for a more controlled setup process.
+- **Unified Multi-Group Management**: Refactored Monitoring and API Setting dashboards to display domains independently under each assigned group section, removing legacy comma-separated headers.
+- **Synchronized Selection Tracking**: Implemented ID-based unified selection logic. Checking a domain in one group section now automatically updates all of its other occurrences across the dashboard.
+- **Refined Registration Workflow**: Removed automatic navigation and background monitoring sync upon new domain registration, allowing for a more controlled setup process.
 
 ### Fixed
 
--   **Registration Group Matching**: Resolved a bug where domains could be assigned to incorrect groups during bulk registration due to UI state desynchronization.
--   **Search Scope Expansion**: Enhanced dashboard search to include both domain URLs and group names for more comprehensive results.
+- **Registration Group Matching**: Resolved a bug where domains could be assigned to incorrect groups during bulk registration due to UI state desynchronization.
+- **Search Scope Expansion**: Enhanced dashboard search to include both domain URLs and group names for more comprehensive results.
 
 ---
 
@@ -82,19 +102,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Enhanced Domain Group Management**: Redesigned the "Assign Domains" modal with a search bar, group-based filtering, and cross-group membership visibility (badges showing other assigned groups).
--   **Smart Home Dashboard Stats**: Integrated real-time API request counting for the "Today" stats on the home dashboard, replacing previous static/incorrect counts.
+- **Enhanced Domain Group Management**: Redesigned the "Assign Domains" modal with a search bar, group-based filtering, and cross-group membership visibility (badges showing other assigned groups).
+- **Smart Home Dashboard Stats**: Integrated real-time API request counting for the "Today" stats on the home dashboard, replacing previous static/incorrect counts.
 
 ### Changed
 
--   **UI Refinement (Border Radius)**: Optimized the global modal border radius from `2.5rem` to `3xl` (24px) for a sharper, more professional look, along with internal element radius adjustments.
--   **Flattened Monitoring Groups**: Domains belonging to multiple groups are now displayed in each group's section independently, rather than creating a combined group header.
--   **Empty State Modernization**: Overhauled all "Empty State" visuals across Domain and Monitor dashboards with theme-aware dashed borders and glowing icon effects.
+- **UI Refinement (Border Radius)**: Optimized the global modal border radius from `2.5rem` to `3xl` (24px) for a sharper, more professional look, along with internal element radius adjustments.
+- **Flattened Monitoring Groups**: Domains belonging to multiple groups are now displayed in each group's section independently, rather than creating a combined group header.
+- **Empty State Modernization**: Overhauled all "Empty State" visuals across Domain and Monitor dashboards with theme-aware dashed borders and glowing icon effects.
 
 ### Fixed
 
--   **Modal Context Stability**: Resolved a critical "Modal provider" error that caused the application to crash when opening certain domain management modals.
--   **Z-Index Collisions**: Fixed minor layering issues where the sidebar glow effect could overlap with open modals.
+- **Modal Context Stability**: Resolved a critical "Modal provider" error that caused the application to crash when opening certain domain management modals.
+- **Z-Index Collisions**: Fixed minor layering issues where the sidebar glow effect could overlap with open modals.
 
 ---
 
@@ -102,20 +122,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Dynamic Theme Personalization**: Linked the app's `primary-color` to the user's selected avatar theme. The entire UI color scheme (Sidebar highlights, buttons, loading bars, icons) now updates in real-time based on the user's profile choice.
--   **Theme-Aware Confirmation System**: Replaced native browser alerts with a premium, theme-consistent `ConfirmModal` for sensitive actions like API and domain deletion.
+- **Dynamic Theme Personalization**: Linked the app's `primary-color` to the user's selected avatar theme. The entire UI color scheme (Sidebar highlights, buttons, loading bars, icons) now updates in real-time based on the user's profile choice.
+- **Theme-Aware Confirmation System**: Replaced native browser alerts with a premium, theme-consistent `ConfirmModal` for sensitive actions like API and domain deletion.
 
 ### Changed
 
--   **UI Modernization (DaisyUI v4)**: Fully transitioned all hardcoded slate/white styles to semantic DaisyUI variables throughout the Monitoring, API Schema, and Proxy dashboards.
--   **Dashboard Aesthetic**: Standardized all dashboard cards with `rounded-[2rem]` or `rounded-[3rem]` and enhanced typography (`font-black`) for a more modern, premium feel.
--   **API Schema UX**: Redesigned the "Empty State" for the API Schema explorer with better instructions and a theme-consistent visual call-to-action.
+- **UI Modernization (DaisyUI v4)**: Fully transitioned all hardcoded slate/white styles to semantic DaisyUI variables throughout the Monitoring, API Schema, and Proxy dashboards.
+- **Dashboard Aesthetic**: Standardized all dashboard cards with `rounded-[2rem]` or `rounded-[3rem]` and enhanced typography (`font-black`) for a more modern, premium feel.
+- **API Schema UX**: Redesigned the "Empty State" for the API Schema explorer with better instructions and a theme-consistent visual call-to-action.
 
 ### Fixed
 
--   **Server Logs Visibility**: Resolved contrast issues in the Log Viewer where timestamps and labels were illegible in Light Mode. Applied a theme-independent high-contrast terminal styling.
--   **Sidebar Icon Matching**: Synchronized Sidebar icon colors and hover states with the dynamic primary theme to fix visual imbalance.
--   **Monitor Grouping Constraints**: Fixed a layout bug where `overflow-scroll` was clipping card borders and shadows in grouped monitoring views.
+- **Server Logs Visibility**: Resolved contrast issues in the Log Viewer where timestamps and labels were illegible in Light Mode. Applied a theme-independent high-contrast terminal styling.
+- **Sidebar Icon Matching**: Synchronized Sidebar icon colors and hover states with the dynamic primary theme to fix visual imbalance.
+- **Monitor Grouping Constraints**: Fixed a layout bug where `overflow-scroll` was clipping card borders and shadows in grouped monitoring views.
 
 ---
 
@@ -123,17 +143,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Isolated Window Persistence**: Introduced `atomWithWindowStorage`, a new persistence strategy that isolates UI state by window label. This allows multiple API windows to have their own independent selection and search history while maintaining data in `localStorage`.
--   **Inherited Initial Context**: Detached windows now automatically clone the current state of the "main" window upon opening, providing immediate context that can then diverge independently.
+- **Isolated Window Persistence**: Introduced `atomWithWindowStorage`, a new persistence strategy that isolates UI state by window label. This allows multiple API windows to have their own independent selection and search history while maintaining data in `localStorage`.
+- **Inherited Initial Context**: Detached windows now automatically clone the current state of the "main" window upon opening, providing immediate context that can then diverge independently.
 
 ### Changed
 
--   **API Context Isolation**: Switched `/apis/schema` and `/apis/logs` to use isolated persistence. This allows users to open multiple documentation and log viewers for different domains simultaneously without synchronization conflicts.
+- **API Context Isolation**: Switched `/apis/schema` and `/apis/logs` to use isolated persistence. This allows users to open multiple documentation and log viewers for different domains simultaneously without synchronization conflicts.
 
 ### Fixed
 
--   **Rust Build Compatibility**: Resolved compilation errors on Darwin (macOS) targets related to `WebviewWindowBuilder::transparent` and type inference in `window_commands.rs`.
--   **Rust Code Quality**: Cleaned up various `unused_mut`, `unused_imports`, and `dead_code` warnings in `local_proxy.rs` to ensure a completely clean build.
+- **Rust Build Compatibility**: Resolved compilation errors on Darwin (macOS) targets related to `WebviewWindowBuilder::transparent` and type inference in `window_commands.rs`.
+- **Rust Code Quality**: Cleaned up various `unused_mut`, `unused_imports`, and `dead_code` warnings in `local_proxy.rs` to ensure a completely clean build.
 
 ---
 
@@ -141,35 +161,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Multi-Window State Synchronization**: Refined `atomWithBroadcast` with remote update locking and value equality checks to eliminate infinite render loops across detached windows.
--   **Universal Detach Support**: Added a generic "Detach" button to the titlebar, allowing any page (including the root Dashboard) to be pulled into a standalone window.
--   **Security Capability Expansion**: Updated Tauri's capability configuration to grant all detached windows (`*` label) permission to listen to backend events and invoke APIs.
--   **Context-Aware Sync Strategy**: 
-    -   **Global Data Broadcast**: Synchronizes true backend data (domains, proxy routes, logs) across all windows in real-time.
-    -   **Local View Persistence**: Isolated UI-only states (search queries, filters, scroll positions) per window to prevent "ghost typing" while inheriting initial state via `atomWithStorage`.
+- **Multi-Window State Synchronization**: Refined `atomWithBroadcast` with remote update locking and value equality checks to eliminate infinite render loops across detached windows.
+- **Universal Detach Support**: Added a generic "Detach" button to the titlebar, allowing any page (including the root Dashboard) to be pulled into a standalone window.
+- **Security Capability Expansion**: Updated Tauri's capability configuration to grant all detached windows (`*` label) permission to listen to backend events and invoke APIs.
+- **Context-Aware Sync Strategy**:
+  - **Global Data Broadcast**: Synchronizes true backend data (domains, proxy routes, logs) across all windows in real-time.
+  - **Local View Persistence**: Isolated UI-only states (search queries, filters, scroll positions) per window to prevent "ghost typing" while inheriting initial state via `atomWithStorage`.
 
 ### Changed
 
--   **Server Logs UI**: Cleaned up duplicated search inputs and improved the header layout for better space efficiency.
--   **Window Lifecycle**: Refined sub-window management to ensure all detached windows close gracefully when the main application window is exited.
+- **Server Logs UI**: Cleaned up duplicated search inputs and improved the header layout for better space efficiency.
+- **Window Lifecycle**: Refined sub-window management to ensure all detached windows close gracefully when the main application window is exited.
 
 ---
 
 ## [v1.4.8] - 2026-03-31
 
-
 ### Added
 
--   **Server Logs Dashboard**: Implemented a high-performance terminal-style log viewer for real-time Rust backend and proxy traffic monitoring.
--   **Log Level Filtering**: Added a multi-level filter (DEBUG, INFO, WARN, ERROR) to the server logs to isolate specific events.
--   **Advanced Log Detail View**: Integrated a detailed modal view for logs with support for:
-    -   **DNS Record Parsing**: Specialized visualization for DNS response dumps (Hickory Resolver) with color-coded records (CNAME, A, etc.).
-    -   **Pattern Highlighting**: Automatic syntax highlighting for IP addresses, HTTP methods, and status codes.
--   **Log Control**: Added Pause/Resume functionality to stabilize the view during high-traffic periods and a 10,000-line virtualized scroll buffer.
+- **Server Logs Dashboard**: Implemented a high-performance terminal-style log viewer for real-time Rust backend and proxy traffic monitoring.
+- **Log Level Filtering**: Added a multi-level filter (DEBUG, INFO, WARN, ERROR) to the server logs to isolate specific events.
+- **Advanced Log Detail View**: Integrated a detailed modal view for logs with support for:
+  - **DNS Record Parsing**: Specialized visualization for DNS response dumps (Hickory Resolver) with color-coded records (CNAME, A, etc.).
+  - **Pattern Highlighting**: Automatic syntax highlighting for IP addresses, HTTP methods, and status codes.
+- **Log Control**: Added Pause/Resume functionality to stabilize the view during high-traffic periods and a 10,000-line virtualized scroll buffer.
 
 ### Fixed
 
--   **TanStack Router Warnings**: Optimized route tree scanning by configuring `routeFileIgnorePattern` for non-route internal files (`en.ts`, `ko.ts`, `store.ts`).
+- **TanStack Router Warnings**: Optimized route tree scanning by configuring `routeFileIgnorePattern` for non-route internal files (`en.ts`, `ko.ts`, `store.ts`).
 
 ---
 
@@ -177,15 +196,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Domain Dashboard Functional Hub**: Transformed the domain list into a centralized hub for managing monitoring, proxying, and API logging in-place.
--   **In-line Feature Toggling**: Users can now toggle Monitoring, Proxy Local Routing, and API Logging status directly on each domain card without navigating away.
--   **Direct Proxy Route Addition**: Integrated a mini-modal to add local proxy routes from the domain list, eliminating the need to visit the proxy dashboard for basic setup.
--   **Proxy Status Context**: Added real-time global proxy status awareness and guidance (e.g., toast banners) when trying to manage routes while the proxy is stopped.
+- **Domain Dashboard Functional Hub**: Transformed the domain list into a centralized hub for managing monitoring, proxying, and API logging in-place.
+- **In-line Feature Toggling**: Users can now toggle Monitoring, Proxy Local Routing, and API Logging status directly on each domain card without navigating away.
+- **Direct Proxy Route Addition**: Integrated a mini-modal to add local proxy routes from the domain list, eliminating the need to visit the proxy dashboard for basic setup.
+- **Proxy Status Context**: Added real-time global proxy status awareness and guidance (e.g., toast banners) when trying to manage routes while the proxy is stopped.
 
 ### Changed
 
--   **Domain Row UI**: Redesigned domain rows to accommodate feature badges while maintaining a clean, premium aesthetic with improved spacing and animations.
--   **Modal UX**: Rewrote proxy route modals to use Portals for better stacking in virtualized lists and improved field alignment for a more professional feel.
+- **Domain Row UI**: Redesigned domain rows to accommodate feature badges while maintaining a clean, premium aesthetic with improved spacing and animations.
+- **Modal UX**: Rewrote proxy route modals to use Portals for better stacking in virtualized lists and improved field alignment for a more professional feel.
 
 ---
 
@@ -193,14 +212,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Persistent Page State Management**: Implemented route-level Jotai stores for all major pages to maintain UI state (search queries, filters, input fields) across navigation.
--   **API Schema Persistence**: Enhanced the API schema explorer to remember selected domains, endpoints, and individual form data per endpoint, surviving app restarts via `atomWithStorage`.
--   **Expanded Filter Persistence**: Migrated monitor and API logs to use `atomWithStorage` for filter settings, ensuring selections persist across app reloads.
--   **Proxy Dashboard Memory**: Port settings and route addition inputs now persist across page changes.
+- **Persistent Page State Management**: Implemented route-level Jotai stores for all major pages to maintain UI state (search queries, filters, input fields) across navigation.
+- **API Schema Persistence**: Enhanced the API schema explorer to remember selected domains, endpoints, and individual form data per endpoint, surviving app restarts via `atomWithStorage`.
+- **Expanded Filter Persistence**: Migrated monitor and API logs to use `atomWithStorage` for filter settings, ensuring selections persist across app reloads.
+- **Proxy Dashboard Memory**: Port settings and route addition inputs now persist across page changes.
 
 ### Changed
 
--   **State Architecture**: Refactored application state to a modular "route-level store" pattern for better maintainability and performance.
+- **State Architecture**: Refactored application state to a modular "route-level store" pattern for better maintainability and performance.
 
 ---
 
@@ -208,21 +227,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **User Profile System**: Integrated a persistent user profile system using Jotai (`atomWithStorage`). Users can now customize their name, role, and avatar theme (gradients).
--   **Onboarding Flow**: Added a premium first-time onboarding modal that greets new users and guides them through account setup and language selection.
--   **Standalone Profile Page**: Created a dedicated `/profile` route for managing personal information and language preferences, providing a focused space for user customization.
+- **User Profile System**: Integrated a persistent user profile system using Jotai (`atomWithStorage`). Users can now customize their name, role, and avatar theme (gradients).
+- **Onboarding Flow**: Added a premium first-time onboarding modal that greets new users and guides them through account setup and language selection.
+- **Standalone Profile Page**: Created a dedicated `/profile` route for managing personal information and language preferences, providing a focused space for user customization.
 
 ### Changed
 
--   **Sidebar Redesign**:
-    -   Removed the top logo section for a minimalist, sophisticated aesthetic.
-    -   Replaced hardcoded profile data with dynamic atom-based data.
-    -   Decoupled Profile Settings and General Settings click targets to prevent overlapping event issues.
--   **Settings Refinement**: Migrated language preferences from global settings to the Profile page.
+- **Sidebar Redesign**:
+  - Removed the top logo section for a minimalist, sophisticated aesthetic.
+  - Replaced hardcoded profile data with dynamic atom-based data.
+  - Decoupled Profile Settings and General Settings click targets to prevent overlapping event issues.
+- **Settings Refinement**: Migrated language preferences from global settings to the Profile page.
 
 ### Fixed
 
--   **A11y (Accessibility)**: Resolved multiple labeling inconsistencies and ensured all inputs on the onboarding and profile pages are correctly associated for screen-reader support.
+- **A11y (Accessibility)**: Resolved multiple labeling inconsistencies and ensured all inputs on the onboarding and profile pages are correctly associated for screen-reader support.
 
 ---
 
@@ -230,12 +249,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
--   **Routing Structure**: Migrated file-based routes (`*.tsx`) across `apis`, `domains`, `monitor`, and `proxy` to a folder-based structure (`*/index.tsx`) for better code organization and collocation of localization files.
--   **Localization (i18n)**: Fully decoupled hardcoded UI text in domain feature components (`DomainListEmpty`, `EditDomainModal`, `GroupSelectModal`, `GroupCard`, etc.) by passing translation dictionaries via props. Refined Korean dictionaries for a more natural UX.
+- **Routing Structure**: Migrated file-based routes (`*.tsx`) across `apis`, `domains`, `monitor`, and `proxy` to a folder-based structure (`*/index.tsx`) for better code organization and collocation of localization files.
+- **Localization (i18n)**: Fully decoupled hardcoded UI text in domain feature components (`DomainListEmpty`, `EditDomainModal`, `GroupSelectModal`, `GroupCard`, etc.) by passing translation dictionaries via props. Refined Korean dictionaries for a more natural UX.
 
 ### Fixed
 
--   **Logs UI Layout**: Fixed an issue where grid and flex layouts were completely broken on `/monitor/logs` and `/apis/logs`. The root cause was an overly broad `logs` entry in `.gitignore` that caused Tailwind v4 to abruptly skip scanning any directory named `logs` for utility classes.
+- **Logs UI Layout**: Fixed an issue where grid and flex layouts were completely broken on `/monitor/logs` and `/apis/logs`. The root cause was an overly broad `logs` entry in `.gitignore` that caused Tailwind v4 to abruptly skip scanning any directory named `logs` for utility classes.
 
 ---
 
@@ -243,11 +262,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
--   **Proxy Infinite Loop**: Fixed an issue where the `reqwest` client would pick up the OS system proxy (Watchtower itself), causing an infinite request loop. Added `.no_proxy()` to bypass system settings.
--   **Local Route Streaming**: Fixed a bug where local route requests were fully buffered into memory when API logging was disabled. Now uses a fast streaming body path to support SSE and chunked streams properly.
--   **Root Path 404 Error**: Fixed the Axum router configuration to correctly match the root `/` path. Previously, the `/*path` rule failed to match `/`, leading to unexpected 404 errors.
--   **GET Request Body Error**: Fixed a bug where `GET`, `HEAD`, and `OPTIONS` requests were assigned an empty body stream, causing `reqwest` to append a `Transfer-Encoding: chunked` header which was rejected by Next.js/Node servers.
--   **Garbled Text Rendering**: Fixed an issue where compressed responses (like `gzip` or `br`) appeared as garbled text in the browser. The proxy now preserves the `content-encoding` header, allowing the browser to decode it correctly.
+- **Proxy Infinite Loop**: Fixed an issue where the `reqwest` client would pick up the OS system proxy (Watchtower itself), causing an infinite request loop. Added `.no_proxy()` to bypass system settings.
+- **Local Route Streaming**: Fixed a bug where local route requests were fully buffered into memory when API logging was disabled. Now uses a fast streaming body path to support SSE and chunked streams properly.
+- **Root Path 404 Error**: Fixed the Axum router configuration to correctly match the root `/` path. Previously, the `/*path` rule failed to match `/`, leading to unexpected 404 errors.
+- **GET Request Body Error**: Fixed a bug where `GET`, `HEAD`, and `OPTIONS` requests were assigned an empty body stream, causing `reqwest` to append a `Transfer-Encoding: chunked` header which was rejected by Next.js/Node servers.
+- **Garbled Text Rendering**: Fixed an issue where compressed responses (like `gzip` or `br`) appeared as garbled text in the browser. The proxy now preserves the `content-encoding` header, allowing the browser to decode it correctly.
 
 ---
 
@@ -255,17 +274,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Docs**: Aligned architecture design with the new 9-step development roadmap.
-    -   Defined new data models: SubPage, TestScenario, ScenarioStep, and MockRule.
-    -   Detailed the API Chaining pipeline (variable extraction & template substitution).
-    -   Integrated Golden Master (Mocking) interceptor logic into the Proxy architecture.
-    -   Specified the Sequential Migration (Migration Chain: v1->v2->v3) strategy.
+- **Docs**: Aligned architecture design with the new 9-step development roadmap.
+  - Defined new data models: SubPage, TestScenario, ScenarioStep, and MockRule.
+  - Detailed the API Chaining pipeline (variable extraction & template substitution).
+  - Integrated Golden Master (Mocking) interceptor logic into the Proxy architecture.
+  - Specified the Sequential Migration (Migration Chain: v1->v2->v3) strategy.
 
 ### Changed
 
--   **Monitoring**: Expanded monitoring scope to include per-route health checks for sub-pages.
--   **Architecture Models**: Updated project overview diagrams and unified backend command specifications.
--   **UI**: Updated icons across the application.
+- **Monitoring**: Expanded monitoring scope to include per-route health checks for sub-pages.
+- **Architecture Models**: Updated project overview diagrams and unified backend command specifications.
+- **UI**: Updated icons across the application.
 
 ---
 
@@ -273,20 +292,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **API Logs System** (`/apis/logs`): Full implementation of request/response logging (Phase 2).
-    -   Daily JSONL log rotation with file management.
-    -   Logs Dashboard with filtering by Date, Method, Host, and Path.
-    -   Detail view for request/response headers and bodies.
--   **API History & Replay**: Schema Viewer now has a "History" button to view log entries for the selected endpoint.
--   **Request Replay**: One-click to populate request headers and body from historical logs into the Schema test form.
--   **API Log Filter**: `get_api_logs` backend command extended with `exact_match` filter support for precise endpoint lookup.
+- **API Logs System** (`/apis/logs`): Full implementation of request/response logging (Phase 2).
+  - Daily JSONL log rotation with file management.
+  - Logs Dashboard with filtering by Date, Method, Host, and Path.
+  - Detail view for request/response headers and bodies.
+- **API History & Replay**: Schema Viewer now has a "History" button to view log entries for the selected endpoint.
+- **Request Replay**: One-click to populate request headers and body from historical logs into the Schema test form.
+- **API Log Filter**: `get_api_logs` backend command extended with `exact_match` filter support for precise endpoint lookup.
 
 ### Changed
 
--   **Schema UI**: Improved Domain Selector design (Card-based) and overall Schema Viewer layout responsiveness.
--   **UI Refinement**: Fixed button shrinking and text wrapping issues on mobile layouts across Dashboard and Logs pages.
--   **Code Quality**: Fixed `ApiLogEntry` property naming (snake_case) consistency between frontend and backend.
--   **Icons**: Added missing Lucide icons (`Clock`, `X`) to Schema Viewer.
+- **Schema UI**: Improved Domain Selector design (Card-based) and overall Schema Viewer layout responsiveness.
+- **UI Refinement**: Fixed button shrinking and text wrapping issues on mobile layouts across Dashboard and Logs pages.
+- **Code Quality**: Fixed `ApiLogEntry` property naming (snake_case) consistency between frontend and backend.
+- **Icons**: Added missing Lucide icons (`Clock`, `X`) to Schema Viewer.
 
 ---
 
@@ -294,29 +313,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **APIs section**: New sidebar section "APIs" with Dashboard, Settings, Schema, and Logs (Logs placeholder).
--   **APIs Dashboard**: Per-domain API logging—register domains, toggle logging/body, set Schema URL, download OpenAPI schema from URL. Cascade delete of API logging links when a domain is removed.
--   **APIs Settings** (`/apis/settings`): Two-panel UI for domain registration/unregistration with group-based sections and search (same pattern as Monitor Settings).
--   **API Schema viewer** (`/apis/schema`): OpenAPI 3.x JSON viewer—select domain, browse tag-grouped endpoints, fill parameters/body, send request (Try-it-out), view response. Custom headers collapsible; compact parameter layout.
--   **Schema URL & download**: `DomainApiLoggingLink` now has `schemaUrl`; backend commands `download_api_schema` and `get_api_schema_content` for fetching and storing schemas under `{app_data}/schemas/{domain_id}.json`.
--   **Send API request**: Backend `send_api_request` command (reqwest, TLS skip, 30s timeout) returns status, headers, body, elapsed time; errors returned as ApiResponse for clear UI feedback.
--   **OpenAPI parser**: Frontend `openapi-parser.ts` for endpoint extraction, `$ref`/`allOf` resolution, and example JSON generation.
--   **Version bump scripts**: `pnpm version:patch`, `version:minor`, `version:major` to sync version across `package.json`, `tauri.conf.json`, and `Cargo.toml`.
+- **APIs section**: New sidebar section "APIs" with Dashboard, Settings, Schema, and Logs (Logs placeholder).
+- **APIs Dashboard**: Per-domain API logging—register domains, toggle logging/body, set Schema URL, download OpenAPI schema from URL. Cascade delete of API logging links when a domain is removed.
+- **APIs Settings** (`/apis/settings`): Two-panel UI for domain registration/unregistration with group-based sections and search (same pattern as Monitor Settings).
+- **API Schema viewer** (`/apis/schema`): OpenAPI 3.x JSON viewer—select domain, browse tag-grouped endpoints, fill parameters/body, send request (Try-it-out), view response. Custom headers collapsible; compact parameter layout.
+- **Schema URL & download**: `DomainApiLoggingLink` now has `schemaUrl`; backend commands `download_api_schema` and `get_api_schema_content` for fetching and storing schemas under `{app_data}/schemas/{domain_id}.json`.
+- **Send API request**: Backend `send_api_request` command (reqwest, TLS skip, 30s timeout) returns status, headers, body, elapsed time; errors returned as ApiResponse for clear UI feedback.
+- **OpenAPI parser**: Frontend `openapi-parser.ts` for endpoint extraction, `$ref`/`allOf` resolution, and example JSON generation.
+- **Version bump scripts**: `pnpm version:patch`, `version:minor`, `version:major` to sync version across `package.json`, `tauri.conf.json`, and `Cargo.toml`.
 
 ### Changed
 
--   **Proxy always-on**: Proxy auto-starts on app launch; start/stop buttons removed. "Local routing" toggle controls whether traffic is routed to local backends or passed through; port settings (forward + reverse) consolidated in one card.
--   **Proxy auto-start errors**: Persistent error state and banner when proxy fails to start (e.g. port in use); manual retry via dashboard.
--   **Monitor rename**: "Status" renamed to "Monitor"—routes `/status` → `/monitor`, "Status Check Settings" → "Monitor Settings", "Live Status" → "Live Monitor". Backend `DomainStatus` → `DomainMonitorLink`, `domain_status.json` → `domain_monitor_links.json` with migration.
--   **Monitor Settings**: Group-based collapsible UI and search (URL or group name); fixed scroll-to-top bug on checkbox click by moving ListItem out of parent component.
--   **Docs**: `docs/plans/` restructured to `docs/architecture/`; added `docs/TODO.md` for implementation checklist. New/updated docs: 05-monitor (group UI), 07-apis (Dashboard, Settings, Schema viewer), 09-domain-use-cases, 10-json-schema-migration.
+- **Proxy always-on**: Proxy auto-starts on app launch; start/stop buttons removed. "Local routing" toggle controls whether traffic is routed to local backends or passed through; port settings (forward + reverse) consolidated in one card.
+- **Proxy auto-start errors**: Persistent error state and banner when proxy fails to start (e.g. port in use); manual retry via dashboard.
+- **Monitor rename**: "Status" renamed to "Monitor"—routes `/status` → `/monitor`, "Status Check Settings" → "Monitor Settings", "Live Status" → "Live Monitor". Backend `DomainStatus` → `DomainMonitorLink`, `domain_status.json` → `domain_monitor_links.json` with migration.
+- **Monitor Settings**: Group-based collapsible UI and search (URL or group name); fixed scroll-to-top bug on checkbox click by moving ListItem out of parent component.
+- **Docs**: `docs/plans/` restructured to `docs/architecture/`; added `docs/TODO.md` for implementation checklist. New/updated docs: 05-monitor (group UI), 07-apis (Dashboard, Settings, Schema viewer), 09-domain-use-cases, 10-json-schema-migration.
 
 ### Fixed
 
--   **HTTPS CONNECT**: Fixed request body stream blocking in `forward_to_backend` (reconstruct request for GET/HEAD/etc. to avoid blocking on TLS-terminated body).
--   **PAC file**: Forward proxy now passes its port to `ProxyState` so `/.watchtower/proxy.pac` is generated correctly.
--   **Certificate download**: Setup page certificate download now uses HTTP proxy port (`http://127.0.0.1:{port}/.watchtower/cert/...`) instead of HTTPS target URL, avoiding chicken-and-egg trust issue.
--   **Schema viewer base URL**: Domain URL already containing scheme (e.g. `https://api.example.com`) no longer double-prefixed as `https://https//...`.
+- **HTTPS CONNECT**: Fixed request body stream blocking in `forward_to_backend` (reconstruct request for GET/HEAD/etc. to avoid blocking on TLS-terminated body).
+- **PAC file**: Forward proxy now passes its port to `ProxyState` so `/.watchtower/proxy.pac` is generated correctly.
+- **Certificate download**: Setup page certificate download now uses HTTP proxy port (`http://127.0.0.1:{port}/.watchtower/cert/...`) instead of HTTPS target URL, avoiding chicken-and-egg trust issue.
+- **Schema viewer base URL**: Domain URL already containing scheme (e.g. `https://api.example.com`) no longer double-prefixed as `https://https//...`.
 
 ---
 
@@ -324,15 +343,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Search domains in proxy**: Added search domains support in proxy feature.
--   **Version display**: App version is now shown on the Home page hero section (from `tauri.conf.json`).
--   **Docs consolidation**: Project docs moved from `.agent/workflows` to `docs/` (Human·Agent shared). Added `.agent/README.md` and `.cursor/README.md` as pointers.
--   **YAML frontmatter**: All docs now have consistent frontmatter (`title`, `description`, `keywords`, `when`, `related`). Keywords unified in Korean.
+- **Search domains in proxy**: Added search domains support in proxy feature.
+- **Version display**: App version is now shown on the Home page hero section (from `tauri.conf.json`).
+- **Docs consolidation**: Project docs moved from `.agent/workflows` to `docs/` (Human·Agent shared). Added `.agent/README.md` and `.cursor/README.md` as pointers.
+- **YAML frontmatter**: All docs now have consistent frontmatter (`title`, `description`, `keywords`, `when`, `related`). Keywords unified in Korean.
 
 ### Changed
 
--   **Route restructure**: Split dashboards (`/domains/dashboard`, `/proxy/dashboard`), reorganized status routes (`/status` with index, logs, settings).
--   **Docs structure**: Standardized `related` path format; updated docs/README with document map and directory structure.
+- **Route restructure**: Split dashboards (`/domains/dashboard`, `/proxy/dashboard`), reorganized status routes (`/status` with index, logs, settings).
+- **Docs structure**: Standardized `related` path format; updated docs/README with document map and directory structure.
 
 ---
 
@@ -340,7 +359,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
--   **Pubkey alignment**: Fixed updater public key to match the signing key used in CI. In-app update install and verification now work correctly (resolves "signature was created with a different key" error).
+- **Pubkey alignment**: Fixed updater public key to match the signing key used in CI. In-app update install and verification now work correctly (resolves "signature was created with a different key" error).
 
 ---
 
@@ -348,9 +367,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Auto-update notifications**: App checks for updates on startup (3s delay) and shows a notification banner when a new version is available.
--   **Settings page**: "Check for updates" button for manual check.
--   **Signed updates**: Tauri updater plugin with GitHub Releases; requires signing keys. See "Updater Setup" in README.
+- **Auto-update notifications**: App checks for updates on startup (3s delay) and shows a notification banner when a new version is available.
+- **Settings page**: "Check for updates" button for manual check.
+- **Signed updates**: Tauri updater plugin with GitHub Releases; requires signing keys. See "Updater Setup" in README.
 
 ---
 
@@ -358,18 +377,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **In-app setup page** (`/proxy/setup`): PAC URL, manual proxy, and HTTPS certificate download. "설정 페이지 열기" now navigates in-app instead of opening in browser.
--   **Host-specific certificate**: Shared `HostCertCache` so TLS and download serve the same cert—installing the downloaded cert now correctly trusts the server. Fixed CN (hostname) and validity dates (no more 1975 issue).
--   **Setup page in English**: Both in-app and proxy-served setup pages localized to English.
--   **Window startup**: App starts maximized (`maximized: true` in `tauri.conf.json`).
+- **In-app setup page** (`/proxy/setup`): PAC URL, manual proxy, and HTTPS certificate download. "설정 페이지 열기" now navigates in-app instead of opening in browser.
+- **Host-specific certificate**: Shared `HostCertCache` so TLS and download serve the same cert—installing the downloaded cert now correctly trusts the server. Fixed CN (hostname) and validity dates (no more 1975 issue).
+- **Setup page in English**: Both in-app and proxy-served setup pages localized to English.
+- **Window startup**: App starts maximized (`maximized: true` in `tauri.conf.json`).
 
 ### Changed
 
--   **Setup HTML extraction**: Proxy setup page moved from inline Rust to `src-tauri/resources/setup.html` for easier maintenance.
+- **Setup HTML extraction**: Proxy setup page moved from inline Rust to `src-tauri/resources/setup.html` for easier maintenance.
 
 ### Removed
 
--   **Standalone setup app**: `apps/setup` Vite project removed (consolidated into main app).
+- **Standalone setup app**: `apps/setup` Vite project removed (consolidated into main app).
 
 ---
 
@@ -377,16 +396,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Settings page** (sidebar entry): DNS server (used for proxy pass-through and domain status checks), full settings Export/Import (JSON: domains, groups, links, proxy routes, DNS).
--   **Proxy**: Optional DNS server for pass-through; when no route matches, hostnames are resolved via the configured DNS. Domain status checks also use the same global DNS.
--   **Domain management**: Domain settings (pencil icon) opens Edit modal: change address (URL) and group in one place.
--   **Status Logs**: Level filter (All / Info / Warning / Error) to narrow log list.
--   **App identity**: Watchtower tower icon (SVG) applied to sidebar, titlebar, favicon, and window/taskbar.
+- **Settings page** (sidebar entry): DNS server (used for proxy pass-through and domain status checks), full settings Export/Import (JSON: domains, groups, links, proxy routes, DNS).
+- **Proxy**: Optional DNS server for pass-through; when no route matches, hostnames are resolved via the configured DNS. Domain status checks also use the same global DNS.
+- **Domain management**: Domain settings (pencil icon) opens Edit modal: change address (URL) and group in one place.
+- **Status Logs**: Level filter (All / Info / Warning / Error) to narrow log list.
+- **App identity**: Watchtower tower icon (SVG) applied to sidebar, titlebar, favicon, and window/taskbar.
 
 ### Changed
 
--   **UI consistency**: Input, Button (incl. `size="icon"`), Textarea, Badge style unified across pages; raw inputs replaced with shared components where applicable.
--   **API**: `update_domain_by_id` now takes optional payload `{ url? }`.
+- **UI consistency**: Input, Button (incl. `size="icon"`), Textarea, Badge style unified across pages; raw inputs replaced with shared components where applicable.
+- **API**: `update_domain_by_id` now takes optional payload `{ url? }`.
 
 ---
 
@@ -394,14 +413,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   Row virtualizer on Domains list page for smooth scrolling with large lists.
--   Row virtualizer on Status page (per-group) with card grid virtualization.
--   Row spacing between virtualized rows on domains and status pages.
+- Row virtualizer on Domains list page for smooth scrolling with large lists.
+- Row virtualizer on Status page (per-group) with card grid virtualization.
+- Row spacing between virtualized rows on domains and status pages.
 
 ### Changed
 
--   **Refactored UI** into feature modules: `features/dashboard`, `features/domains-list`, `features/domain-groups`, `features/domain-status`.
--   Extracted reusable components: HeroSection, FeatureGrid, SystemStatusCard, VirtualizedDomainList, DomainRow, GroupSelectModal, DomainListEmpty, CreateGroupCard, GroupCard, AssignDomainsModal, VirtualizedGroupSection.
+- **Refactored UI** into feature modules: `features/dashboard`, `features/domains-list`, `features/domain-groups`, `features/domain-status`.
+- Extracted reusable components: HeroSection, FeatureGrid, SystemStatusCard, VirtualizedDomainList, DomainRow, GroupSelectModal, DomainListEmpty, CreateGroupCard, GroupCard, AssignDomainsModal, VirtualizedGroupSection.
 
 ---
 
@@ -409,9 +428,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
--   **Initial Stable Release** 🚀
--   Global Loading Screen with interactive cancel functionality.
--   Full History Logs system with daily file rotation.
--   Dashboard Hero design and responsive layout.
--   Husky + lint-staged for development workflow.
--   Unified domain management and real-time status UI.
+- **Initial Stable Release** 🚀
+- Global Loading Screen with interactive cancel functionality.
+- Full History Logs system with daily file rotation.
+- Dashboard Hero design and responsive layout.
+- Husky + lint-staged for development workflow.
+- Unified domain management and real-time status UI.

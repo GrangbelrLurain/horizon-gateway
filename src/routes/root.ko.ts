@@ -18,6 +18,7 @@ export const ko: TranslationSchema = {
   settings: "설정",
   setup: "설치",
   inspector: "UX 정책 관리",
+  live_capture: "라이브 캡처",
   schema: "스키마",
   server_logs: "서버 로그",
   mocking: "모킹",

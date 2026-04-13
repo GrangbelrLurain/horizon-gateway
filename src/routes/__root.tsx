@@ -6,6 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import {
   ActivityIcon,
+  Camera,
   FileTextIcon,
   FlaskConical,
   GlobeIcon,
@@ -35,14 +36,34 @@ import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile/ui/UserProfileSetup";
 import { invokeApi } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
+import { createMockModalAtom } from "@/shared/store/modals";
 import { Titlebar } from "@/shared/ui/layout/Titlebar";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
+import { CreateMockModal } from "@/shared/ui/modals/CreateMockModal";
 import { en } from "./root.en";
 import { ko } from "./root.ko";
 
 const RootLayout = () => {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+
+  const [, setCreateMockModal] = useAtom(createMockModalAtom);
+
+  // Global Message Listener (for Browser Injection & Cross-page actions)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === "WT_ACTION_CREATE_MOCK") {
+        setCreateMockModal({
+          isOpen: true,
+          logData: event.data.payload.logData,
+          onSuccess: event.data.payload.onSuccess,
+        });
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [setCreateMockModal]);
 
   // ── Global App Status ──────────────────────────────────────────────────────
   const [, setDomainCount] = useAtom(domainCountAtom);
@@ -247,6 +268,11 @@ const RootLayout = () => {
             icon: <FileTextIcon className="w-4 h-4" />,
             href: "/proxy/inspector",
           },
+          {
+            label: t.live_capture,
+            icon: <Camera className="w-4 h-4" />,
+            href: "/ux/live-capture",
+          },
         ],
       },
       {
@@ -325,6 +351,7 @@ const RootLayout = () => {
         </main>
       </div>
 
+      <CreateMockModal />
       <TanStackRouterDevtools position="bottom-right" />
     </div>
   );

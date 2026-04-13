@@ -12,6 +12,7 @@ export const en = {
   settings: "Settings",
   setup: "Setup",
   inspector: "UX Policy",
+  live_capture: "Live Capture",
   schema: "Schema",
   server_logs: "Server Logs",
   mocking: "Mocking",

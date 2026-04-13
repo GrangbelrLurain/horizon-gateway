@@ -18,9 +18,8 @@ import { useCallback, useEffect, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
-import type { Scenario } from "@/entities/scenario/types/mocking";
 import { invokeApi } from "@/shared/api";
-import * as mockingApi from "@/shared/api/mocking";
+import { createMockModalAtom } from "@/shared/store/modals";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -48,19 +47,11 @@ function ApiLogs() {
   const [methodFilter, setMethodFilter] = useAtom(apiLogsMethodFilterAtom);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [, setCreateMockModal] = useAtom(createMockModalAtom);
+
   const domainCount = useAtomValue(domainCountAtom);
   const apiLoggingCount = useAtomValue(apiLoggingCountAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
-
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [isScenarioSelectModalOpen, setIsScenarioSelectModalOpen] = useState(false);
-  const [selectedScenarioIdForMock, setSelectedScenarioIdForMock] = useState<string>("");
-  const [mockForm, setMockForm] = useState({
-    host: "",
-    method: "GET",
-    urlPattern: "",
-    responseStatus: 200,
-  });
 
   // 날짜 목록 조회
   const fetchDates = useCallback(async () => {
@@ -104,7 +95,6 @@ function ApiLogs() {
 
   useEffect(() => {
     fetchDates();
-    mockingApi.getScenarios().then(setScenarios).catch(console.error);
   }, [fetchDates]);
 
   useEffect(() => {
@@ -118,29 +108,6 @@ function ApiLogs() {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + days);
     setDate(newDate.toISOString().split("T")[0]);
-  };
-
-  const handleSaveAsMockRule = async () => {
-    if (!selectedLog || !selectedScenarioIdForMock) {
-      return;
-    }
-    try {
-      await mockingApi.createMockRule(
-        selectedScenarioIdForMock,
-        mockForm.host || null,
-        mockForm.method,
-        mockForm.urlPattern,
-        Number(mockForm.responseStatus),
-        selectedLog.response_headers || {},
-        selectedLog.response_body || "",
-        true,
-      );
-      alert("Mock rule created successfully.");
-      setIsScenarioSelectModalOpen(false);
-    } catch (e) {
-      console.error(e);
-      alert("Failed to create mock rule.");
-    }
   };
 
   const handleClearLogs = async (clearAll: boolean) => {
@@ -439,16 +406,10 @@ function ApiLogs() {
                   size="sm"
                   className="absolute top-4 right-4"
                   onClick={() => {
-                    if (scenarios.length > 0) {
-                      setSelectedScenarioIdForMock(scenarios[0].id);
-                    }
-                    setMockForm({
-                      host: selectedLog.host || "",
-                      method: selectedLog.method || "GET",
-                      urlPattern: selectedLog.path || "/",
-                      responseStatus: selectedLog.status_code || 200,
+                    setCreateMockModal({
+                      isOpen: true,
+                      logData: selectedLog,
                     });
-                    setIsScenarioSelectModalOpen(true);
                   }}
                 >
                   <FlaskConical className="w-4 h-4 mr-2" />
@@ -548,106 +509,6 @@ function ApiLogs() {
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setSelectedLog(null)} className="w-full sm:w-auto">
             {t.close}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Scenario Selection Modal for Mock Rule */}
-      <Modal isOpen={isScenarioSelectModalOpen} onClose={() => setIsScenarioSelectModalOpen(false)}>
-        <Modal.Header title="Save as Mock Rule" description="Select a scenario to save this mock rule to" />
-        <Modal.Body className="flex flex-col gap-4 py-4">
-          {scenarios.length === 0 ? (
-            <p className="text-sm text-base-content/50">
-              No scenarios available. Please create one in the Mocking dashboard first.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="scenario-select" className="text-xs font-bold uppercase">
-                  Select Scenario
-                </label>
-                <select
-                  id="scenario-select"
-                  className="select select-bordered border-base-300 w-full font-bold bg-base-100/50"
-                  value={selectedScenarioIdForMock}
-                  onChange={(e) => setSelectedScenarioIdForMock(e.target.value)}
-                >
-                  {scenarios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-1 w-1/3">
-                  <label htmlFor="mock-method" className="text-xs font-bold uppercase">
-                    Method
-                  </label>
-                  <select
-                    id="mock-method"
-                    className="select select-bordered border-base-300 w-full font-bold bg-base-100/50"
-                    value={mockForm.method}
-                    onChange={(e) => setMockForm((prev) => ({ ...prev, method: e.target.value }))}
-                  >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                    <option value="PUT">PUT</option>
-                    <option value="DELETE">DELETE</option>
-                    <option value="PATCH">PATCH</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1 w-2/3">
-                  <label htmlFor="mock-status" className="text-xs font-bold uppercase">
-                    Status Code
-                  </label>
-                  <input
-                    id="mock-status"
-                    type="number"
-                    className="input input-bordered border-base-300 w-full font-bold bg-base-100/50 tabular-nums"
-                    value={mockForm.responseStatus}
-                    onChange={(e) => setMockForm((prev) => ({ ...prev, responseStatus: Number(e.target.value) }))}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="mock-host" className="text-xs font-bold uppercase">
-                  {t.host}
-                </label>
-                <input
-                  id="mock-host"
-                  type="text"
-                  className="input input-bordered border-base-300 w-full font-mono text-sm bg-base-100/50"
-                  placeholder="Domain (optional)"
-                  value={mockForm.host}
-                  onChange={(e) => setMockForm((prev) => ({ ...prev, host: e.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="mock-url" className="text-xs font-bold uppercase">
-                  {t.urlPattern}
-                </label>
-                <input
-                  id="mock-url"
-                  type="text"
-                  className="input input-bordered border-base-300 w-full font-mono text-sm bg-base-100/50"
-                  value={mockForm.urlPattern}
-                  onChange={(e) => setMockForm((prev) => ({ ...prev, urlPattern: e.target.value }))}
-                />
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsScenarioSelectModalOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSaveAsMockRule}
-            disabled={scenarios.length === 0 || !selectedScenarioIdForMock}
-          >
-            Save
           </Button>
         </Modal.Footer>
       </Modal>

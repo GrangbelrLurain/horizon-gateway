@@ -16,6 +16,7 @@ import type {
   ProxyStatusPayload,
   SchemaDownloadResult,
 } from "@/entities/proxy/types/local_route";
+import type { MockingSettings, MockRule, Scenario } from "@/entities/scenario/types/mocking";
 import type { SettingsExport } from "@/entities/settings/types/settings_export";
 
 export interface ApiCommandMap {
@@ -148,14 +149,6 @@ export interface ApiCommandMap {
     request: { payload: { enabled: boolean } };
     response: ProxyStatusPayload;
   };
-  set_mocking_enabled: {
-    request: { payload: { enabled: boolean } };
-    response: import("@/entities/scenario/types/mocking").MockingSettings;
-  };
-  get_mocking_status: {
-    request?: undefined;
-    response: import("@/entities/scenario/types/mocking").MockingSettings;
-  };
 
   export_all_settings: { request?: undefined; response: SettingsExport };
   import_all_settings: {
@@ -218,6 +211,36 @@ export interface ApiCommandMap {
   clear_api_logs: {
     request: { payload: { date?: string } };
     response: undefined;
+  };
+
+  get_scenarios: { request?: undefined; response: Scenario[] };
+  create_scenario: {
+    request: { payload: { name: string; description?: string | null } };
+    response: Scenario;
+  };
+  get_mock_rules: { request?: undefined; response: MockRule[] };
+  get_mock_rules_by_scenario: {
+    request: { payload: { scenarioId: string } };
+    response: MockRule[];
+  };
+  create_mock_rule: {
+    request: { payload: Omit<MockRule, "id"> };
+    response: MockRule;
+  };
+  create_mock_rule_from_log: {
+    request: {
+      payload: { logId: string; scenarioId: string; name: string; logDate: string };
+    };
+    response: MockRule;
+  };
+  update_mock_rule: {
+    request: { payload: Partial<MockRule> & { id: string } };
+    response: MockRule;
+  };
+  get_mocking_status: { request?: undefined; response: MockingSettings };
+  set_mocking_enabled: {
+    request: { payload: { enabled: boolean } };
+    response: MockingSettings;
   };
 
   open_window: {

@@ -310,6 +310,7 @@ pub async fn start_local_proxy(
         '_,
         std::sync::Arc<crate::service::mocking_service::MockingService>,
     >,
+    inspector_service: tauri::State<'_, crate::service::inspector_service::InspectorService>,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let port = payload
         .and_then(|p| p.port)
@@ -350,6 +351,7 @@ pub async fn start_local_proxy(
     let api_log_service_arc = std::sync::Arc::new((*api_log_service).clone());
     let ca_service_arc = (*ca_service).clone();
     let mocking_service_arc = (*mocking_service).clone();
+    let inspector_service_arc = (*inspector_service).clone();
 
     match local_proxy::run_proxy(
         app.clone(),
@@ -360,6 +362,7 @@ pub async fn start_local_proxy(
         api_log_service_arc.clone(),
         ca_service_arc.clone(),
         mocking_service_arc.clone(),
+        std::sync::Arc::new(inspector_service_arc.clone()),
     )
     .await
     {
@@ -378,6 +381,7 @@ pub async fn start_local_proxy(
             api_log_service_arc.clone(),
             ca_service_arc.clone(),
             mocking_service_arc.clone(),
+            std::sync::Arc::new(inspector_service_arc.clone()),
         )
         .await
         {
@@ -402,6 +406,7 @@ pub async fn start_local_proxy(
             api_log_service_arc.clone(),
             ca_service_arc,
             mocking_service_arc.clone(),
+            std::sync::Arc::new(inspector_service_arc.clone()),
         )
         .await
         {
@@ -573,6 +578,7 @@ pub async fn auto_start_proxy(
     api_log_service: std::sync::Arc<ApiLogService>,
     ca_service: std::sync::Arc<CaService>,
     mocking_service: std::sync::Arc<crate::service::mocking_service::MockingService>,
+    inspector_service: crate::service::inspector_service::InspectorService,
 ) -> Result<(), String> {
     // Restore persisted local_routing_enabled flag
     local_proxy::set_local_routing_enabled(settings.local_routing_enabled);
@@ -610,6 +616,7 @@ pub async fn auto_start_proxy(
         api_log_service.clone(),
         ca_service.clone(),
         mocking_service.clone(),
+        std::sync::Arc::new(inspector_service.clone()),
     )
     .await
     {
@@ -628,6 +635,7 @@ pub async fn auto_start_proxy(
             api_log_service.clone(),
             ca_service.clone(),
             mocking_service.clone(),
+            std::sync::Arc::new(inspector_service.clone()),
         )
         .await
         {
@@ -652,6 +660,7 @@ pub async fn auto_start_proxy(
             api_log_service.clone(),
             ca_service,
             mocking_service.clone(),
+            std::sync::Arc::new(inspector_service.clone()),
         )
         .await
         {

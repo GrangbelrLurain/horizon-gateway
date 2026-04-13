@@ -1,4 +1,5 @@
-import { ExternalLink, Globe, Pencil, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Camera, ExternalLink, Globe, Pencil, Trash2 } from "lucide-react";
 import type { Domain } from "@/entities/domain/types/domain";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -90,6 +91,14 @@ export function DomainRow({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+          <Link
+            to="/ux/live-capture"
+            search={{ url: domain.url }}
+            className="btn btn-secondary btn-sm btn-square rounded-xl w-9 h-9 bg-base-100 border-base-300"
+            title="Open in Live Capture"
+          >
+            <Camera className="w-4 h-4 text-primary" />
+          </Link>
           <Button
             variant="secondary"
             size="icon"

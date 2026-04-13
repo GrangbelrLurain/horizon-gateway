@@ -164,6 +164,7 @@ impl MockingService {
     #[allow(clippy::too_many_arguments)]
     pub fn create_mock_rule(
         &self,
+        name: String,
         scenario_id: String,
         host: Option<String>,
         method: String,
@@ -176,6 +177,7 @@ impl MockingService {
         let mut list = self.mock_rules.lock().unwrap();
         let rule = MockRule {
             id: Uuid::new_v4().to_string(),
+            name,
             scenario_id,
             host,
             method: method.to_uppercase(),
@@ -194,6 +196,7 @@ impl MockingService {
     pub fn update_mock_rule(
         &self,
         id: String,
+        name: Option<String>,
         host: Option<String>,
         method: Option<String>,
         url_pattern: Option<String>,
@@ -206,8 +209,11 @@ impl MockingService {
         let mut updated = None;
         for r in list.iter_mut() {
             if r.id == id {
-                if host.is_some() {
-                    r.host = host.clone();
+                if let Some(n) = name.clone() {
+                    r.name = n;
+                }
+                if let Some(h) = host.clone() {
+                    r.host = Some(h);
                 }
                 if let Some(m) = method.clone() {
                     r.method = m.to_uppercase();

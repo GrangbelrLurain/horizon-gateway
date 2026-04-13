@@ -1,10 +1,28 @@
 import path from "node:path";
+import fs from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
+
+/**
+ * Custom plugin to copy injection script to tauri resources
+ */
+const copyInjectionPlugin = () => {
+  return {
+    name: 'copy-injection',
+    closeBundle() {
+      const src = path.resolve(__dirname, "dist/inspector.js");
+      const dest = path.resolve(__dirname, "src-tauri/resources/inspector.js");
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, dest);
+        console.log(`\n✅ Copied ${src} to ${dest}\n`);
+      }
+    }
+  };
+};
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
@@ -16,10 +34,34 @@ export default defineConfig(() => ({
     }),
     react(),
     tailwindcss(),
+    copyInjectionPlugin(),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+    },
+  },
+  build: {
+    watch: {
+      exclude: ["node_modules/**", "src-tauri/**", "dist/**"],
+    },
+    cssCodeSplit: false,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        injection: path.resolve(__dirname, "src/injection/main.tsx"),
+      },
+      output: {
+        inlineDynamicImports: false,
+        entryFileNames: (chunkInfo) => {
+          return chunkInfo.name === "injection" ? "inspector.js" : "assets/[name]-[hash].js";
+        },
+        manualChunks: (id) => {
+          if (id.includes("src/injection") || id.includes("node_modules/react") || id.includes("node_modules/scheduler")) {
+            return "inspector";
+          }
+        },
+      },
     },
   },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -39,8 +81,8 @@ export default defineConfig(() => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore watching `src-tauri` and `dist`
+      ignored: ["**/src-tauri/**", "**/dist/**"],
     },
   },
 }));
