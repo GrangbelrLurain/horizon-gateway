@@ -700,8 +700,8 @@ function LiveCapturePage() {
               </div>
               <div className="flex-1 p-6 flex flex-col gap-4">
                 <div className="flex items-center gap-2 text-xs bg-base-200 p-3 rounded-xl border border-base-300">
-                  <span className="badge badge-sm badge-primary font-black uppercase">{editingMockRule.method}</span>
-                  <code className="truncate flex-1 font-mono text-base-content/60">{editingMockRule.url_pattern}</code>
+                  <span className="badge badge-sm badge-primary font-black uppercase">{editingMockRule?.method}</span>
+                  <code className="truncate flex-1 font-mono text-base-content/60">{editingMockRule?.url_pattern}</code>
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label
