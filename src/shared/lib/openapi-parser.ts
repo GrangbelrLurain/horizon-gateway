@@ -55,7 +55,6 @@ export interface SchemaObject {
   format?: string;
   properties?: Record<string, SchemaObject>;
   items?: SchemaObject;
-  // biome-ignore lint/style/useNamingConvention: OpenAPI spec uses $ref
   $ref?: string;
   allOf?: SchemaObject[];
   oneOf?: SchemaObject[];

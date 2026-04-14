@@ -10,12 +10,7 @@
     "opener:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [
-        { "url": "http://127.0.0.1:*" },
-        { "url": "https://127.0.0.1:*" },
-        { "url": "http://localhost:*" },
-        { "url": "https://localhost:*" }
-      ]
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }, { "url": "*" }]
     },
     "dialog:default",
     "dialog:allow-save",

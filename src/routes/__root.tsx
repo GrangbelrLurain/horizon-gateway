@@ -261,11 +261,16 @@ const RootLayout = () => {
       {
         label: t.policy_group,
         icon: <FileTextIcon className="w-4 h-4" />,
-        href: "/proxy/inspector",
+        href: "/ux/policies",
         children: [
           {
-            label: t.inspector,
+            label: t.policy_list,
             icon: <FileTextIcon className="w-4 h-4" />,
+            href: "/ux/policies",
+          },
+          {
+            label: t.inspector,
+            icon: <PlusIcon className="w-4 h-4" />,
             href: "/proxy/inspector",
           },
           {

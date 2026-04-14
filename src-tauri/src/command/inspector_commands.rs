@@ -104,3 +104,36 @@ pub fn set_global_inspector_enabled(payload: SetEnabledPayload) -> Result<(), St
 pub fn get_global_inspector_enabled() -> bool {
     local_proxy::is_inspector_enabled()
 }
+
+// ── Injection Domains ──────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_injection_domains(
+    service: State<'_, InspectorService>,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    let list = service.get_injection_domains();
+    Ok(ApiResponse {
+        message: "인젝션 도메인 목록 조회 완료".to_string(),
+        success: true,
+        data: list,
+    })
+}
+
+#[derive(serde::Deserialize)]
+pub struct SetInjectionDomainsPayload {
+    pub domains: Vec<String>,
+}
+
+#[tauri::command]
+pub fn set_injection_domains(
+    service: State<'_, InspectorService>,
+    payload: SetInjectionDomainsPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    service.set_injection_domains(payload.domains);
+    let list = service.get_injection_domains();
+    Ok(ApiResponse {
+        message: "인젝션 도메인 목록이 저장되었습니다.".to_string(),
+        success: true,
+        data: list,
+    })
+}

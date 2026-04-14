@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.2] - 2026-04-14
+
+### Added
+
+- **Dual View Policy Management**: Introduced a new "Policy List" dashboard with two distinct modes:
+  - **Manage Mode**: Interactive cards for easy editing, deleting, and quick access to linked sites.
+  - **Report Mode**: A clean, document-style preview optimized for final review and PDF export.
+- **Selective Injection Policy**: Enhanced the proxy engine to support selective script injection. Users can now:
+  - Toggle injection globally.
+  - Define specific domains for injection.
+  - If no domains are specified, injection applies globally by default.
+- **Report Display Options**: Added toolbar toggles to show/hide specific technical fields (URL, Tag, Selector) in the policy list and PDF report.
+- **Dedicated Edit Modal**: Replaced inline editing with a focused modal for updating policy titles and descriptions.
+
+### Changed
+
+- **UX Navigation Overhaul**: Restructured the sidebar to prioritize policy management, separating the high-frequency "Inspector" capture tool from the "Policy List" management dashboard.
+- **Improved "Visit Site" Feature**: Enhanced reliability of external URL opening with multi-layer fallbacks (Tauri Opener v2, shell open, and browser window fallback) and expanded security capabilities.
+
+### Fixed
+
+- **WYSIWYG PDF Export**: Completely redesigned the PDF generation logic using style isolation and fixed-width desktop rendering. This resolves layout breaking, missing padding, and "oklch/oklab" color parsing errors in the generated reports.
+- **Proxy CORS Interception**: Fixed a bug where API-logged requests were missing critical CORS headers, preventing cross-origin fetches during live interception.
+
 ## [v1.7.1] - 2026-04-13
 
 ### Fixed

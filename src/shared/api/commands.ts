@@ -323,6 +323,14 @@ export interface ApiCommandMap {
     request: { payload: { annotations: Annotation[] } };
     response: Annotation[];
   };
+  get_injection_domains: {
+    request?: undefined;
+    response: string[];
+  };
+  set_injection_domains: {
+    request: { payload: { domains: string[] } };
+    response: string[];
+  };
   export_to_pdf: {
     request: {
       payload: {

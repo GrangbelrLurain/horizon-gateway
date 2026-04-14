@@ -663,7 +663,7 @@ async fn handle_connect_tunnel(
 ) {
     proxy_log!("CONNECT {}:{}", host, port);
 
-    // API Logging check FIRST
+    // 1. API Logging check FIRST
     let key = host_key_for_logging_map(&host);
     let use_api_logging = {
         let map_read = state.api_logging_map.read().ok();
@@ -679,8 +679,25 @@ async fn handle_connect_tunnel(
         config.map_or(false, |(logging_enabled, _)| logging_enabled)
     };
 
-    if use_api_logging || is_inspector_enabled() || true {
-        // Always decrypt for Inspector/Dashboard
+    // 2. Selective Decryption for Inspector/Injection
+    let should_decrypt = use_api_logging || {
+        if is_inspector_enabled() {
+            let domains = state.inspector_service.get_injection_domains();
+            if domains.is_empty() {
+                true // No domains registered -> Apply globally
+            } else {
+                // Match host or subdomains
+                domains
+                    .iter()
+                    .any(|d| host == *d || host.ends_with(&format!(".{}", d)))
+            }
+        } else {
+            false
+        }
+    };
+
+    if should_decrypt {
+        // Decrypt for API Logging or Inspector
         proxy_log!("-> CONNECT decryption enabled for {}", host);
         handle_connect_tunnel_decrypted(client, host, state).await;
         return;
@@ -1608,6 +1625,28 @@ async fn proxy_handler_inner(
         res_headers.remove(header::ETAG);
         res_headers.remove(header::LAST_MODIFIED);
         res_headers.remove("alt-svc"); // Disable HTTP/3 upgrade
+
+        // ── [CORS Fix] Force permissive CORS headers for logged requests ────────
+        let origin = parts
+            .headers
+            .get(header::ORIGIN)
+            .cloned()
+            .unwrap_or_else(|| HeaderValue::from_static("*"));
+
+        res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
+        );
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_HEADERS,
+            HeaderValue::from_static("*"),
+        );
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            HeaderValue::from_static("true"),
+        );
+        // ────────────────────────────────────────────────────────────────────────
 
         let mut final_res_bytes = res_bytes.to_vec();
         if is_html {

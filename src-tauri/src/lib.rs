@@ -68,7 +68,8 @@ mod command {
 
 use command::inspector_commands::{
     add_annotation, delete_annotation, get_annotations, get_global_inspector_enabled,
-    import_annotations, set_global_inspector_enabled, update_annotation,
+    get_injection_domains, import_annotations, set_global_inspector_enabled, set_injection_domains,
+    update_annotation,
 };
 
 use command::mocking_commands::{
@@ -154,6 +155,7 @@ pub fn run() {
             let mock_rules_path = app_data_dir.join("mock_rules.json");
             let mocking_settings_path = app_data_dir.join("mocking_settings.json");
             let inspector_path = app_data_dir.join("inspector_annotations.json");
+            let injection_domains_path = app_data_dir.join("injection_domains.json");
             let ca_service =
                 Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
             let domain_service = DomainService::new(storage_path);
@@ -169,7 +171,7 @@ pub fn run() {
                 mock_rules_path.clone(),
                 mocking_settings_path.clone(),
             ));
-            let inspector_service = InspectorService::new(inspector_path);
+            let inspector_service = InspectorService::new(inspector_path, injection_domains_path);
 
             crate::service::local_proxy::set_mocking_enabled(
                 mocking_service.get_settings().enabled,
@@ -328,6 +330,8 @@ pub fn run() {
             import_annotations,
             set_global_inspector_enabled,
             get_global_inspector_enabled,
+            get_injection_domains,
+            set_injection_domains,
             get_scenarios,
             create_scenario,
             update_scenario,

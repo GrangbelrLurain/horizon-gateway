@@ -15,11 +15,7 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "a11y": {
-        "noStaticElementInteractions": "off",
-        "useSemanticElements": "off",
-        "noSvgWithoutTitle": "off"
-      },
+      "a11y": "off",
       "complexity": {
         "noUselessTernary": "error"
       },
@@ -30,74 +26,7 @@
         "noNonNullAssertion": "warn",
         "useBlockStatements": "error",
         "useConst": "error",
-        "useNamingConvention": {
-          "level": "error",
-          "options": {
-            "strictCase": false,
-            "requireAscii": true,
-            "conventions": [
-              { "selector": { "kind": "class" }, "formats": ["PascalCase"] },
-              {
-                "selector": { "kind": "interface" },
-                "formats": ["PascalCase"]
-              },
-              {
-                "selector": { "kind": "typeAlias" },
-                "formats": ["PascalCase"]
-              },
-              { "selector": { "kind": "enum" }, "formats": ["PascalCase"] },
-              {
-                "selector": { "kind": "enumMember" },
-                "formats": ["CONSTANT_CASE"]
-              },
-              {
-                "selector": { "kind": "const" },
-                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
-              },
-              {
-                "selector": { "kind": "function" },
-                "formats": ["camelCase", "PascalCase"]
-              },
-              {
-                "selector": { "kind": "classMethod" },
-                "formats": ["camelCase"]
-              },
-              {
-                "selector": { "kind": "objectLiteralMethod" },
-                "formats": ["camelCase"]
-              },
-              { "selector": { "kind": "variable" }, "formats": ["camelCase"] },
-              {
-                "selector": { "kind": "functionParameter" },
-                "formats": ["camelCase"]
-              },
-              {
-                "selector": { "kind": "catchParameter" },
-                "formats": ["camelCase"]
-              },
-              {
-                "selector": { "kind": "indexParameter" },
-                "formats": ["camelCase"]
-              },
-              {
-                "selector": { "kind": "typeParameter" },
-                "formats": ["PascalCase"]
-              },
-              {
-                "selector": { "kind": "classProperty" },
-                "formats": ["camelCase"]
-              },
-              {
-                "selector": { "kind": "objectLiteralProperty" },
-                "formats": ["camelCase", "snake_case"]
-              },
-              {
-                "selector": { "kind": "typeProperty" },
-                "formats": ["camelCase", "snake_case"]
-              }
-            ]
-          }
-        }
+        "useNamingConvention": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off",

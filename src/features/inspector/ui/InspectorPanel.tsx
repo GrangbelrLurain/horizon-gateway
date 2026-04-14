@@ -1,176 +1,137 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Link } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { readFile, readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
-import { useAtomValue } from "jotai";
-import { jsPDF } from "jspdf";
-import {
-  AlertCircle,
-  Camera,
-  Check,
-  Download,
-  Edit2,
-  ExternalLink,
-  FileText,
-  Globe,
-  Info,
-  RotateCcw,
-  Save,
-  Upload,
-  X,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { proxyRunningAtom } from "@/domain/app-status/store";
+import { useAtom, useAtomValue } from "jotai";
+import { AlertCircle, Camera, Check, ChevronRight, ExternalLink, Globe, Plus, Save, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { proxyInspectorEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { Annotation, CapturedElement } from "@/entities/domain/types/inspector";
 import { invokeApi } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, P } from "@/shared/ui/typography/typography";
-
-/**
- * URL을 감지하여 <a> 태그로 변환하는 컴포넌트
- */
-function AutoLinkText({ text }: { text: string }) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-
-  return (
-    <>
-      {parts.map((part, i) =>
-        urlRegex.test(part) ? (
-          <a
-            key={i}
-            href={part}
-            onClick={(e) => {
-              e.preventDefault();
-              invoke("plugin:opener|open", { path: part });
-            }}
-            className="text-primary hover:underline inline-flex items-center gap-0.5"
-          >
-            {part}
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-}
 
 export function InspectorPanel() {
   const lang = useAtomValue(languageAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
+  const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
+  const [injectionDomains, setInjectionDomains] = useState<string[]>([]);
+  const [newDomain, setNewDomain] = useState("");
+
   const [captured, setCaptured] = useState<CapturedElement | null>(null);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [role, setRole] = useState("");
   const [description, setDescription] = useState("");
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editRole, setEditRole] = useState("");
-  const [editDesc, setEditDesc] = useState("");
-
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
   const t = {
     ko: {
-      title: "UX 정책 관리",
-      subtitle: "서비스의 UI 요소별 정책과 요구사항을 문서화하고 관리합니다.",
+      title: "인스펙터 & 설정",
+      subtitle: "인젝션 정책을 설정하고 브라우저에서 새로운 UX 요소를 캡처합니다.",
       statusActive: "워치타워 프록시가 활성화되어 있습니다.",
       statusInactive: "프록시가 실행 중이 아닙니다. 인스펙터 기능을 사용하려면 프록시를 켜주세요.",
       capturedTitle: "새 정책 정의",
       rolePlaceholder: "요소 명칭 (예: 메인 로그인 버튼)",
       descPlaceholder: "기능 정의 및 UX 정책 내용을 입력하세요.",
       saveBtn: "정책 저장",
-      listTitle: "정의된 UX 정책",
-      noAnnotations: "아직 등록된 정책이 없습니다. 브라우저에서 요소를 캡처하여 시작하세요.",
       selector: "CSS 선택자",
-      tagName: "태그",
-      exportBtn: "문서로 내보내기",
-      copySuccess: "마크다운 문서가 클립보드에 복사되었습니다.",
-      domainGroup: "도메인",
+      injectionSettings: "인젝션 정책 설정",
+      injectionEnabled: "인젝션 기능 활성화",
+      injectionDisabled: "인젝션 기능 비활성화",
+      injectionDomainsLabel: "대상 도메인 목록",
+      injectionDomainsDesc:
+        "도메인을 등록하면 해당 도메인에만 인젝션 스크립트가 삽입됩니다. 목록이 비어 있으면 모든 도메인에 적용됩니다.",
+      addDomainPlaceholder: "example.com (엔터로 추가)",
+      globalApply: "전체 도메인 적용 중",
+      waitingCapture: "브라우저에서 캡처 대기 중...",
+      waitingCaptureDesc: "인젝션이 활성화된 브라우저에서 Alt + 클릭으로 요소를 선택하세요.",
+      saveSuccess: "정책이 성공적으로 저장되었습니다!",
+      viewList: "정책 목록 보기",
     },
     en: {
-      title: "UX Policy Management",
-      subtitle: "Document and manage UI policies and requirements for each service.",
+      title: "Inspector & Settings",
+      subtitle: "Configure injection policies and capture new UX elements from browser.",
       statusActive: "Watchtower Proxy is active.",
       statusInactive: "Proxy is not running. Please start the proxy to use the inspector.",
       capturedTitle: "Define New Policy",
       rolePlaceholder: "Element Title (e.g. Main Login Button)",
       descPlaceholder: "Enter functional definitions and UX policy details.",
       saveBtn: "Save Policy",
-      listTitle: "Defined UX Policies",
-      noAnnotations: "No policies registered yet. Start by capturing elements from your browser.",
       selector: "CSS Selector",
-      tagName: "Tag",
-      exportBtn: "Export as Document",
-      copySuccess: "Markdown document copied to clipboard.",
-      domainGroup: "Domain",
+      injectionSettings: "Injection Policy Settings",
+      injectionEnabled: "Injection Enabled",
+      injectionDisabled: "Injection Disabled",
+      injectionDomainsLabel: "Target Domains",
+      injectionDomainsDesc: "Register domains to limit injection. If the list is empty, it applies to all domains.",
+      addDomainPlaceholder: "example.com (Press Enter)",
+      globalApply: "Applied to all domains",
+      waitingCapture: "Waiting for capture from browser...",
+      waitingCaptureDesc: "Press Alt + Click on any element in the injected browser.",
+      saveSuccess: "Policy saved successfully!",
+      viewList: "View Policy List",
     },
   }[lang] || {
-    title: "UX Policy Management",
-    subtitle: "Document and manage UI policies and requirements for each service.",
+    title: "Inspector & Settings",
+    subtitle: "Configure injection policies and capture new UX elements from browser.",
     statusActive: "Watchtower Proxy is active.",
     statusInactive: "Proxy is not running. Please start the proxy to use the inspector.",
     capturedTitle: "Define New Policy",
     rolePlaceholder: "Element Title (e.g. Main Login Button)",
     descPlaceholder: "Enter functional definitions and UX policy details.",
     saveBtn: "Save Policy",
-    listTitle: "Defined UX Policies",
-    noAnnotations: "No policies registered yet. Start by capturing elements from your browser.",
     selector: "CSS Selector",
-    tagName: "Tag",
-    exportBtn: "Export as Document",
-    copySuccess: "Markdown document copied to clipboard.",
-    domainGroup: "Domain",
+    injectionSettings: "Injection Policy Settings",
+    injectionEnabled: "Injection Enabled",
+    injectionDisabled: "Injection Disabled",
+    injectionDomainsLabel: "Target Domains",
+    injectionDomainsDesc: "Register domains to limit injection. If the list is empty, it applies to all domains.",
+    addDomainPlaceholder: "example.com (Press Enter)",
+    globalApply: "Applied to all domains",
+    waitingCapture: "Waiting for capture from browser...",
+    waitingCaptureDesc: "Press Alt + Click on any element in the injected browser.",
+    saveSuccess: "Policy saved successfully!",
+    viewList: "View Policy List",
   };
 
   useEffect(() => {
-    // Initial status
-    console.log("Fetching annotations...");
-    invokeApi("get_annotations").then((res) => {
-      console.log("Annotations response:", res);
+    invokeApi("get_injection_domains").then((res) => {
       if (res.success && res.data) {
-        setAnnotations(res.data);
+        setInjectionDomains(res.data);
       }
     });
 
     const unlisten = listen<CapturedElement>("annotation-dialog-requested", (event) => {
-      console.log("Capture event received:", event.payload);
       setCaptured(event.payload);
       setRole("");
       setDescription("");
-    });
-
-    const unlistenUpdated = listen("annotations-updated", () => {
-      console.log("Annotations updated remotely, refreshing list...");
-      invokeApi("get_annotations").then((res) => {
-        if (res.success && res.data) {
-          setAnnotations(res.data);
-        }
-      });
+      setLastSavedId(null);
     });
 
     return () => {
       unlisten.then((fn) => fn());
-      unlistenUpdated.then((fn) => fn());
     };
   }, []);
 
-  const annotationsByDomain = useMemo(() => {
-    const groups: Record<string, Annotation[]> = {};
-    for (const ann of annotations) {
-      // domain 필드가 없거나 빈 문자열인 경우 'Unknown'으로 취급
-      const domain = ann.domain && ann.domain.trim() !== "" ? ann.domain : "Unknown";
-      if (!groups[domain]) {
-        groups[domain] = [];
-      }
-      groups[domain].push(ann);
+  const handleToggleInspector = async (enabled: boolean) => {
+    setInspectorEnabled(enabled);
+    await invokeApi("set_global_inspector_enabled", { payload: enabled });
+  };
+
+  const handleAddDomain = async (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && newDomain.trim()) {
+      const updated = [...injectionDomains, newDomain.trim()];
+      setInjectionDomains(updated);
+      await invokeApi("set_injection_domains", { payload: { domains: updated } });
+      setNewDomain("");
     }
-    return groups;
-  }, [annotations]);
+  };
+
+  const handleRemoveDomain = async (domain: string) => {
+    const updated = injectionDomains.filter((d) => d !== domain);
+    setInjectionDomains(updated);
+    await invokeApi("set_injection_domains", { payload: { domains: updated } });
+  };
 
   const saveAnnotation = async () => {
     if (!captured) {
@@ -185,236 +146,87 @@ export function InspectorPanel() {
     };
 
     const res = await invokeApi("add_annotation", { payload: newAnnotation });
-    if (res.success && res.data) {
-      setAnnotations(res.data);
-    }
-    setCaptured(null);
-  };
-
-  const deleteAnnotation = async (id: string) => {
-    const res = await invokeApi("delete_annotation", { payload: { id } });
-    if (res.success && res.data) {
-      setAnnotations(res.data);
-    }
-  };
-
-  const startEdit = (ann: Annotation) => {
-    setEditingId(ann.id);
-    setEditRole(ann.role);
-    setEditDesc(ann.description);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditRole("");
-    setEditDesc("");
-  };
-
-  const handleUpdate = async () => {
-    if (!editingId) {
-      return;
-    }
-    const res = await invokeApi("update_annotation", {
-      payload: { id: editingId, role: editRole, description: editDesc },
-    });
-    if (res.success && res.data) {
-      setAnnotations(res.data);
-      cancelEdit();
-    }
-  };
-
-  const openExternalUrl = async (url: string) => {
-    if (!url) {
-      return;
-    }
-    try {
-      await invoke("plugin:opener|open", { path: url });
-    } catch (err) {
-      console.error("Failed to open URL:", err);
-      // Fallback
-      window.open(url, "_blank");
-    }
-  };
-
-  const exportToPdf = async () => {
-    try {
-      const filePath = await save({
-        filters: [{ name: "PDF Document", extensions: ["pdf"] }],
-        defaultPath: "ux-policy-report.pdf",
-      });
-
-      if (!filePath) {
-        return;
-      }
-
-      const doc = new jsPDF();
-
-      // Load Korean Font (Malgun Gothic)
-      try {
-        const fontBytes = await readFile("C:\\Windows\\Fonts\\malgun.ttf");
-        // Convert to Base64
-        let binary = "";
-        const bytes = new Uint8Array(fontBytes);
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64Font = btoa(binary);
-
-        doc.addFileToVFS("malgun.ttf", base64Font);
-        doc.addFont("malgun.ttf", "malgun", "normal");
-        doc.setFont("malgun");
-      } catch (e) {
-        console.error("Font load failed:", e);
-      }
-
-      let yPos = 20;
-
-      // Title
-      doc.setFontSize(22);
-      doc.setTextColor(0, 102, 204);
-      doc.text(t.title, 20, yPos);
-      yPos += 15;
-
-      for (const ann of annotations) {
-        if (yPos > 240) {
-          doc.addPage();
-          doc.setFont("malgun");
-          yPos = 20;
-        }
-
-        // 1. Role (Title)
-        doc.setFontSize(16);
-        doc.setTextColor(0, 0, 0);
-        doc.text(ann.role, 20, yPos);
-        yPos += 10;
-
-        // 2. Image (Thumbnail)
-        if (ann.thumbnail) {
-          try {
-            // 원본 이미지 비율 계산을 위한 헬퍼 (base64 이미지 크기 추출)
-            const img = new Image();
-            img.src = ann.thumbnail;
-            await new Promise((resolve) => {
-              img.onload = resolve;
-            });
-
-            const maxWidth = 170; // PDF 가로 최대 너비
-            const ratio = img.width / img.height;
-            let imgWidth = 100; // 기본값
-            let imgHeight = imgWidth / ratio;
-
-            if (imgWidth > maxWidth) {
-              imgWidth = maxWidth;
-              imgHeight = imgWidth / ratio;
-            }
-
-            doc.addImage(ann.thumbnail, "PNG", 20, yPos, imgWidth, imgHeight);
-            yPos += imgHeight + 10;
-          } catch (e) {
-            console.error("Failed to add image to PDF:", e);
-            yPos += 10;
-          }
-        }
-
-        // 3. Description (Multi-line)
-        doc.setFontSize(11);
-        doc.setTextColor(100, 100, 100);
-        const splitText = doc.splitTextToSize(ann.description, 170);
-        doc.text(splitText, 20, yPos);
-        yPos += splitText.length * 7 + 15;
-
-        // Separator
-        doc.setDrawColor(230, 230, 230);
-        doc.line(20, yPos - 10, 190, yPos - 10);
-      }
-
-      const pdfArrayBuffer = doc.output("arraybuffer");
-      await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
-      alert("이미지가 포함된 PDF 문서가 성공적으로 생성되었습니다.");
-    } catch (err: unknown) {
-      console.error("Failed to export PDF:", err);
-      const message = err instanceof Error ? err.message : String(err);
-      alert(`PDF 생성 중 오류가 발생했습니다: ${message}`);
-    }
-  };
-
-  const handleExportJson = async () => {
-    try {
-      const filePath = await save({
-        filters: [{ name: "JSON", extensions: ["json"] }],
-        defaultPath: "watchtower-policies.json",
-      });
-      if (!filePath) {
-        return;
-      }
-
-      await writeTextFile(filePath, JSON.stringify(annotations, null, 2));
-      alert("정책 데이터가 JSON 파일로 저장되었습니다.");
-    } catch (err) {
-      alert(`내보내기 실패: ${err}`);
-    }
-  };
-
-  const handleImportJson = async () => {
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      });
-      if (!selected || Array.isArray(selected)) {
-        return;
-      }
-
-      const content = await readTextFile(selected);
-      const imported = JSON.parse(content) as Annotation[];
-
-      if (!Array.isArray(imported)) {
-        throw new Error("Invalid format");
-      }
-
-      const res = await invokeApi("import_annotations", { payload: { annotations: imported } });
-      if (res.success && res.data) {
-        setAnnotations(res.data);
-        alert(`${imported.length}개의 정책을 성공적으로 가져왔습니다.`);
-      }
-    } catch (err) {
-      alert(`가져오기 실패: ${err}`);
+    if (res.success) {
+      setLastSavedId(newAnnotation.id);
+      setCaptured(null);
     }
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20">
-      <header className="flex justify-between items-end">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
-              <FileText className="w-6 h-6" />
-            </div>
-            <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
+    <div className="flex flex-col gap-8 pb-20 max-w-4xl mx-auto">
+      <header>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
+            <Camera className="w-6 h-6" />
           </div>
-          <P className="text-base-content/60 ml-1">{t.subtitle}</P>
+          <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
         </div>
-        <div className="flex gap-2 mb-1">
-          <Button variant="secondary" size="sm" className="gap-2" onClick={handleImportJson}>
-            <Upload className="w-4 h-4" />
-            가져오기
-          </Button>
-          {annotations.length > 0 && (
-            <>
-              <Button variant="secondary" size="sm" className="gap-2" onClick={handleExportJson}>
-                <Download className="w-4 h-4" />
-                내보내기
-              </Button>
-              <Button variant="secondary" size="sm" className="gap-2" onClick={exportToPdf}>
-                <FileText className="w-4 h-4" />
-                PDF로 저장하기
-              </Button>
-            </>
-          )}
-        </div>
+        <P className="text-base-content/60 ml-1">{t.subtitle}</P>
       </header>
 
-      {/* 안내 문구: 프록시가 꺼져 있을 때만 표시 (오류 상태) */}
+      {/* 인젝션 설정 섹션 */}
+      <Card className="p-6 border-none bg-base-100 shadow-sm ring-1 ring-base-300">
+        <div className="flex flex-col tablet:flex-row justify-between items-start gap-6">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-1">
+              <ExternalLink className="w-5 h-5 text-primary" />
+              {t.injectionSettings}
+            </h2>
+            <P className="text-sm text-base-content/60 leading-relaxed">{t.injectionDomainsDesc}</P>
+          </div>
+          <StatusToggle
+            label={inspectorEnabled ? t.injectionEnabled : t.injectionDisabled}
+            checked={!!inspectorEnabled}
+            onChange={handleToggleInspector}
+            icon={<Camera className="w-3.5 h-3.5" />}
+          />
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-base-200">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
+                {t.injectionDomainsLabel}
+              </label>
+              {injectionDomains.length === 0 && (
+                <span className="text-[10px] font-bold text-success uppercase tracking-widest px-2 py-0.5 bg-success/10 rounded-full flex items-center gap-1">
+                  <Check className="w-3 h-3" /> {t.globalApply}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-2">
+              {injectionDomains.map((domain) => (
+                <div
+                  key={domain}
+                  className="group flex items-center gap-1.5 bg-base-200 hover:bg-base-300 px-3 py-1.5 rounded-xl border border-base-300 transition-colors"
+                >
+                  <Globe className="w-3 h-3 text-base-content/40" />
+                  <span className="text-xs font-bold font-mono">{domain}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveDomain(domain)}
+                    className="p-0.5 hover:text-error transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <div className="relative flex-1 min-w-[200px]">
+                <Input
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  onKeyDown={handleAddDomain}
+                  placeholder={t.addDomainPlaceholder}
+                  className="h-9 text-xs font-mono"
+                />
+                <Plus className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/30" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {!isProxyRunning && (
         <Card className="p-6 border-none bg-error/10 shadow-sm ring-1 ring-error/20">
           <div className="flex items-center gap-5">
@@ -432,7 +244,7 @@ export function InspectorPanel() {
         </Card>
       )}
 
-      {captured && (
+      {captured ? (
         <Card className="p-6 border-2 border-primary/50 animate-in zoom-in-95 duration-300 shadow-2xl bg-base-100 ring-4 ring-primary/5">
           <div className="flex justify-between items-start mb-6">
             <h2 className="text-2xl font-bold flex items-center gap-3 text-primary">
@@ -503,195 +315,40 @@ export function InspectorPanel() {
             </div>
           </div>
         </Card>
-      )}
+      ) : (
+        <div className="flex flex-col gap-6">
+          {lastSavedId && (
+            <Card className="p-6 bg-success/10 border-none ring-1 ring-success/20 animate-in fade-in slide-in-from-top-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-success/20 rounded-lg text-success">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <span className="font-bold text-success">{t.saveSuccess}</span>
+                </div>
+                <Link to="/ux/policies">
+                  <Button variant="ghost" size="sm" className="gap-2 text-success hover:bg-success/10">
+                    {t.viewList}
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          )}
 
-      <div className="flex flex-col gap-10">
-        {annotations.length === 0 ? (
-          <div className="py-20 text-center border-2 border-dashed border-base-300/50 rounded-3xl bg-base-200/20 text-base-content/20">
-            <Info className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <P className="text-lg">{t.noAnnotations}</P>
+          <div className="py-32 flex flex-col items-center justify-center border-2 border-dashed border-base-300 rounded-3xl bg-base-100/50 text-base-content/20">
+            <div className="relative mb-6">
+              <Camera className="w-20 h-16 opacity-10" />
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full animate-ping opacity-20" />
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-base-content/40 mb-2">{t.waitingCapture}</h3>
+            <P className="text-sm text-base-content/30">{t.waitingCaptureDesc}</P>
           </div>
-        ) : (
-          Object.entries(annotationsByDomain).map(([domain, items]) => (
-            <section key={domain} className="flex flex-col gap-5">
-              <div className="flex items-center gap-3 border-b border-base-300 pb-3">
-                <Globe className="w-5 h-5 text-primary/50" />
-                <h2 className="text-xl font-black uppercase tracking-wider text-base-content/70">
-                  {domain} <span className="text-primary ml-2 font-mono">({items.length})</span>
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5">
-                {items.map((ann) => (
-                  <Card
-                    key={ann.id}
-                    className="p-5 flex gap-6 hover:border-primary/40 transition-all group bg-base-100 hover:shadow-lg border-base-300/50"
-                  >
-                    <div className="w-40 h-40 bg-base-200 rounded-xl overflow-hidden shrink-0 border border-base-300/30 flex items-center justify-center p-3 relative group/thumb">
-                      <img src={ann.thumbnail} alt="" className="max-w-full max-h-full object-contain drop-shadow-md" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-white hover:bg-white/20 gap-1.5"
-                          onClick={() => setZoomImage(ann.thumbnail)}
-                        >
-                          <Camera className="w-4 h-4" />
-                          확대
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0 flex flex-col py-1">
-                      {editingId === ann.id ? (
-                        <div className="flex flex-col gap-3">
-                          <Input
-                            value={editRole}
-                            onChange={(e) => setEditRole(e.target.value)}
-                            className="font-bold text-lg h-10"
-                            placeholder="요소 명칭"
-                          />
-                          <textarea
-                            value={editDesc}
-                            onChange={(e) => setEditDesc(e.target.value)}
-                            className="textarea textarea-bordered w-full h-24 bg-base-200/30 focus:outline-primary rounded-xl text-sm"
-                            placeholder="정책 내용"
-                          />
-                          <div className="flex gap-2 justify-end mt-1">
-                            <Button variant="ghost" size="sm" className="gap-1.5" onClick={cancelEdit}>
-                              <RotateCcw className="w-4 h-4" />
-                              취소
-                            </Button>
-                            <Button variant="primary" size="sm" className="gap-1.5" onClick={handleUpdate}>
-                              <Check className="w-4 h-4" />
-                              저장
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <h3 className="font-bold text-2xl text-primary group-hover:text-primary-focus transition-colors">
-                                  {ann.role}
-                                </h3>
-                                {ann.url && (
-                                  <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    className="h-7 px-2 text-primary/60 hover:text-primary hover:bg-primary/10 gap-1 bg-primary/5 rounded-lg border border-primary/10"
-                                    onClick={() => openExternalUrl(ann.url)}
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                    사이트 방문
-                                  </Button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-[11px] text-base-content/40 font-medium mt-1">
-                                <span className="truncate max-w-[200px]">{ann.url}</span>
-                                <span>•</span>
-                                <span>{new Date(ann.timestamp).toLocaleString()}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-base-200/30 p-4 rounded-xl border border-base-200 mt-2">
-                            <P className="text-base text-base-content/80 whitespace-pre-wrap leading-relaxed">
-                              <AutoLinkText text={ann.description} />
-                            </P>
-                          </div>
-                        </>
-                      )}
-
-                      <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-base-200/50">
-                        <span className="badge badge-md bg-base-200 border-none text-base-content/60 rounded-lg font-bold">
-                          {ann.tagName}
-                        </span>
-                        <code className="text-[10px] bg-primary/5 px-2 py-1 rounded-md text-primary/60 truncate max-w-sm font-mono border border-primary/10">
-                          {ann.selector}
-                        </code>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 self-start pt-1">
-                      {editingId !== ann.id && (
-                        <button
-                          type="button"
-                          onClick={() => startEdit(ann)}
-                          className="text-base-content/20 hover:text-primary hover:bg-primary/10 rounded-xl p-2.5 transition-all"
-                          title="수정"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => deleteAnnotation(ann.id)}
-                        className="text-base-content/20 hover:text-error hover:bg-error/10 rounded-xl p-2.5 transition-all"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          ))
-        )}
-      </div>
-
-      {/* 이미지 확대 모달 */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-10 animate-in fade-in duration-200"
-          onClick={() => setZoomImage(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setZoomImage(null);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <button
-            type="button"
-            className="absolute top-10 right-10 text-white/50 hover:text-white transition-colors"
-            onClick={() => setZoomImage(null)}
-          >
-            <X className="w-10 h-10" />
-          </button>
-          <img
-            src={zoomImage}
-            alt="Zoomed preview"
-            className="max-w-full max-h-full shadow-2xl rounded-lg animate-in zoom-in-95 duration-300"
-          />
         </div>
       )}
     </div>
-  );
-}
-
-function Trash2({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M3 6h18" />
-      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-      <line x1="10" y1="11" x2="10" y2="17" />
-      <line x1="14" y1="11" x2="14" y2="17" />
-    </svg>
   );
 }

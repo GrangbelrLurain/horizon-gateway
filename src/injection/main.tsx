@@ -4,7 +4,6 @@ import { InjectionApp } from "./InjectionApp";
 
 declare global {
   interface Window {
-    // biome-ignore lint/style/useNamingConvention: Global flag for injection tracking
     __WATCHTOWER_LOADED__?: boolean;
   }
 }

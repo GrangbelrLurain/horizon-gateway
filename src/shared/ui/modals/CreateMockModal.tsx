@@ -89,12 +89,10 @@ export function CreateMockModal() {
   };
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Backdrop click handler
     <div
       className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-10 animate-in fade-in zoom-in-95 duration-200"
       onClick={handleClose}
     >
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Stop propagation container */}
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
         <Card className="bg-base-100 p-6 shadow-2xl flex flex-col gap-6">
           <div className="flex justify-between items-center border-b border-base-200 pb-4">
@@ -108,7 +106,6 @@ export function CreateMockModal() {
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              {/* biome-ignore lint/a11y/noLabelWithoutControl: Label for custom select */}
               <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
                 기존 시나리오
               </label>
@@ -128,7 +125,6 @@ export function CreateMockModal() {
 
             {!targetScenarioId && (
               <div className="flex flex-col gap-1.5">
-                {/* biome-ignore lint/a11y/noLabelWithoutControl: Label for custom Input */}
                 <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
                   새 시나리오 명칭
                 </label>

@@ -18,6 +18,7 @@ import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
 import { Route as DomainsIndexRouteImport } from './routes/domains/index'
 import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
+import { Route as UxPoliciesIndexRouteImport } from './routes/ux/policies/index'
 import { Route as UxLiveCaptureIndexRouteImport } from './routes/ux/live-capture/index'
 import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
 import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
@@ -76,6 +77,11 @@ const ApisIndexRoute = ApisIndexRouteImport.update({
 const AboutIndexRoute = AboutIndexRouteImport.update({
   id: '/about/',
   path: '/about/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UxPoliciesIndexRoute = UxPoliciesIndexRouteImport.update({
+  id: '/ux/policies/',
+  path: '/ux/policies/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UxLiveCaptureIndexRoute = UxLiveCaptureIndexRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
+  '/ux/policies/': typeof UxPoliciesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/proxy/inspector': typeof ProxyInspectorIndexRoute
   '/proxy/setup': typeof ProxySetupIndexRoute
   '/ux/live-capture': typeof UxLiveCaptureIndexRoute
+  '/ux/policies': typeof UxPoliciesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
+  '/ux/policies/': typeof UxPoliciesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/proxy/inspector/'
     | '/proxy/setup/'
     | '/ux/live-capture/'
+    | '/ux/policies/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/proxy/inspector'
     | '/proxy/setup'
     | '/ux/live-capture'
+    | '/ux/policies'
   id:
     | '__root__'
     | '/'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/proxy/inspector/'
     | '/proxy/setup/'
     | '/ux/live-capture/'
+    | '/ux/policies/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -327,6 +339,7 @@ export interface RootRouteChildren {
   ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
   ProxySetupIndexRoute: typeof ProxySetupIndexRoute
   UxLiveCaptureIndexRoute: typeof UxLiveCaptureIndexRoute
+  UxPoliciesIndexRoute: typeof UxPoliciesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about/'
       preLoaderRoute: typeof AboutIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ux/policies/': {
+      id: '/ux/policies/'
+      path: '/ux/policies'
+      fullPath: '/ux/policies/'
+      preLoaderRoute: typeof UxPoliciesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ux/live-capture/': {
@@ -519,6 +539,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
   ProxySetupIndexRoute: ProxySetupIndexRoute,
   UxLiveCaptureIndexRoute: UxLiveCaptureIndexRoute,
+  UxPoliciesIndexRoute: UxPoliciesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
