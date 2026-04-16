@@ -2,7 +2,13 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { ChevronRight, Settings, X } from "lucide-react";
-import { domainCountAtom, proxyActiveAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
+import {
+  domainCountAtom,
+  proxyActiveAtom,
+  proxyInspectorEnabledAtom,
+  proxyMockingEnabledAtom,
+  proxyRunningAtom,
+} from "@/domain/app-status/store";
 import { mobileSidebarOpenAtom } from "@/domain/ui/store";
 import { getInitials, userProfileAtom } from "@/domain/user/store";
 
@@ -60,6 +66,7 @@ export function Sidebar({ items }: SidebarProps) {
   const proxyActive = useAtomValue(proxyActiveAtom);
   const proxyRunning = useAtomValue(proxyRunningAtom);
   const mockingEnabled = useAtomValue(proxyMockingEnabledAtom);
+  const inspectorEnabled = useAtomValue(proxyInspectorEnabledAtom);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useAtom(mobileSidebarOpenAtom);
 
   // Augment items with live badges
@@ -88,6 +95,18 @@ export function Sidebar({ items }: SidebarProps) {
         children: item.children?.map((child) =>
           child.href === "/apis/mocking"
             ? { ...child, badge: <ProxyDot active={mockingEnabled && proxyRunning} /> }
+            : child,
+        ),
+      };
+    }
+    // UX Policies parent badge: show dot if inspector is active
+    if (item.href === "/ux/policies") {
+      return {
+        ...item,
+        badge: !isParentActive ? <ProxyDot active={!!inspectorEnabled && !!proxyRunning} /> : undefined,
+        children: item.children?.map((child) =>
+          child.href === "/proxy/inspector"
+            ? { ...child, badge: <ProxyDot active={!!inspectorEnabled && !!proxyRunning} /> }
             : child,
         ),
       };

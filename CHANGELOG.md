@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.3] - 2026-04-16
+
+### Added
+
+- **Sidebar Status Dot for Inspector**: Added a real-time status indicator to the "UX Policy" and "Inspector" sidebar menus. Users can now instantly see if the inspector/injection engine is active.
+- **Improved Sidebar Feedback**: Menu icons now pulse when their respective services (Proxy, Mocking, Inspector) are active, providing better visual feedback.
+
+### Fixed
+
+- **Inspector Setting Persistence**: Resolved an issue where the Inspector's On/Off state was reset after application restart. The state is now correctly persisted in the backend configuration.
+- **Service Syncing Logic**: Corrected the synchronization between the `InspectorService` and the `local_proxy` engine to ensure UI toggles are immediately reflected in the traffic interception layer.
+
 ## [v1.7.2] - 2026-04-14
 
 ### Added

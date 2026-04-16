@@ -9,7 +9,7 @@ use axum::{
     body::Body,
     extract::{Request, State},
     http::{
-        header::{self, HeaderValue, CONTENT_TYPE},
+        header::{self, HeaderMap, HeaderValue, CONTENT_TYPE},
         uri::Uri,
     },
     response::{Html, IntoResponse, Response},
@@ -81,6 +81,21 @@ pub fn set_inspector_enabled(enabled: bool) {
     INSPECTOR_ENABLED.store(enabled, AtomicOrdering::Relaxed);
 }
 
+fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> bool {
+    if !is_inspector_enabled() {
+        return false;
+    }
+    let domains = state.inspector_service.get_injection_domains();
+    if domains.is_empty() {
+        return true;
+    }
+    let host_key = host_key_for_logging_map(host);
+    domains.iter().any(|d| {
+        let d_lower = d.to_lowercase();
+        host_key == d_lower || host_key.ends_with(&format!(".{}", d_lower))
+    })
+}
+
 /// Parse "8.8.8.8" or "8.8.8.8:53" into (`IpAddr`, port). Returns None if invalid.
 fn parse_dns_server(s: &str) -> Option<(IpAddr, u16)> {
     let s = s.trim();
@@ -115,6 +130,8 @@ pub struct ProxyState {
     pub api_log_service: Arc<ApiLogService>,
     pub ca_service: Arc<CaService>,
     pub reqwest_client: reqwest::Client,
+    /// Dedicated client for pass-through that might need custom DNS resolution to avoid infinite loops if system proxy is set to this app.
+    pub reqwest_client_direct: reqwest::Client,
     pub mocking_service: Arc<crate::service::mocking_service::MockingService>,
     pub inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 }
@@ -155,6 +172,13 @@ impl ProxyState {
             ca_service,
             reqwest_client: reqwest::Client::builder()
                 .no_proxy()
+                .redirect(reqwest::redirect::Policy::none())
+                .gzip(true)
+                .brotli(true)
+                .build()
+                .unwrap(),
+            reqwest_client_direct: reqwest::Client::builder()
+                .no_proxy() // Crucial: avoid using system proxy for pass-through to prevent infinite loops
                 .redirect(reqwest::redirect::Policy::none())
                 .gzip(true)
                 .brotli(true)
@@ -319,9 +343,21 @@ fn resolve_target(
         uri.to_string()
     } else if let Some(h) = host_from_header {
         let scheme = uri.scheme_str().unwrap_or(connection_scheme);
-        format!("{scheme}://{h}{path_query}")
+        let host_part = h.trim_end_matches('/');
+        let path_part = if path_query.starts_with('/') {
+            path_query
+        } else {
+            &format!("/{}", path_query)
+        };
+        format!("{scheme}://{host_part}{path_part}")
     } else {
-        format!("{connection_scheme}://{host}{path_query}")
+        let host_part = host.trim_end_matches('/');
+        let path_part = if path_query.starts_with('/') {
+            path_query
+        } else {
+            &format!("/{}", path_query)
+        };
+        format!("{connection_scheme}://{host_part}{path_part}")
     };
     (target, Some(host.to_string()), None, None)
 }
@@ -820,7 +856,6 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
     }
     if path == "/.watchtower/ca.crt" || path.starts_with("/.watchtower/ca.crt") {
         let pem = state.ca_service.ca_cert_pem();
-        let origin = HeaderValue::from_static("*"); // Default for static files
         return (
             StatusCode::OK,
             [
@@ -828,7 +863,6 @@ async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> R
                     CONTENT_TYPE,
                     HeaderValue::from_static("application/x-x509-ca-cert"),
                 ),
-                (header::ACCESS_CONTROL_ALLOW_ORIGIN, origin),
                 (
                     axum::http::header::CONTENT_DISPOSITION,
                     HeaderValue::from_static("attachment; filename=\"watchtower-ca.crt\""),
@@ -913,51 +947,83 @@ async fn proxy_handler(
     ext: axum::Extension<&'static str>,
     req: Request,
 ) -> Response {
-    let origin = req
-        .headers()
+    let req_headers = req.headers().clone();
+    let origin = req_headers
         .get(header::ORIGIN)
         .cloned()
         .unwrap_or_else(|| HeaderValue::from_static("*"));
 
+    // 1. Handle Preflight OPTIONS
     if req.method() == hyper::Method::OPTIONS {
-        return (
-            StatusCode::OK,
-            [
-                (header::ACCESS_CONTROL_ALLOW_ORIGIN, origin),
-                (
-                    header::ACCESS_CONTROL_ALLOW_METHODS,
-                    HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
-                ),
-                (
-                    header::ACCESS_CONTROL_ALLOW_HEADERS,
-                    HeaderValue::from_static("*"),
-                ),
-                (
-                    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                    HeaderValue::from_static("true"),
-                ),
-            ],
-            Body::empty(),
-        )
-            .into_response();
+        let mut res_headers = HeaderMap::new();
+        res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
+        );
+
+        // Echo back requested headers to be permissive
+        if let Some(req_hdrs) = req_headers.get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
+            res_headers.insert(header::ACCESS_CONTROL_ALLOW_HEADERS, req_hdrs.clone());
+        } else {
+            res_headers.insert(
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                HeaderValue::from_static("*"),
+            );
+        }
+
+        // Broad compatibility for credentials (only if origin is not *)
+        if origin != "*" {
+            res_headers.insert(
+                header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+                HeaderValue::from_static("true"),
+            );
+        }
+
+        return (StatusCode::OK, res_headers, Body::empty()).into_response();
     }
 
+    // 2. Handle actual request
     let mut response = proxy_handler_inner(state, ext, req).await;
 
-    let headers = response.headers_mut();
-    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-    headers.insert(
+    // 3. Skip CORS for WebSocket Upgrades (101 Switching Protocols)
+    // Adding CORS headers to 101 responses can cause browser to fail the handshake.
+    if response.status() == StatusCode::SWITCHING_PROTOCOLS {
+        return response;
+    }
+
+    // 4. Inject CORS headers into the response
+    let res_headers = response.headers_mut();
+    res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
+    res_headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
         HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
     );
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_HEADERS,
+
+    if let Some(req_hdrs) = req_headers.get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
+        res_headers.insert(header::ACCESS_CONTROL_ALLOW_HEADERS, req_hdrs.clone());
+    } else {
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_HEADERS,
+            HeaderValue::from_static("*"),
+        );
+    }
+
+    if origin != "*" {
+        res_headers.insert(
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            HeaderValue::from_static("true"),
+        );
+    }
+
+    // Expose headers so extensions/scripts can read them
+    res_headers.insert(
+        header::ACCESS_CONTROL_EXPOSE_HEADERS,
         HeaderValue::from_static("*"),
     );
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-        HeaderValue::from_static("true"),
-    );
+
+    // Add Vary: Origin to avoid caching issues with CORS
+    res_headers.append(header::VARY, HeaderValue::from_static("Origin"));
 
     response
 }
@@ -1004,13 +1070,7 @@ async fn proxy_handler_inner(
             }
             return (
                 StatusCode::OK,
-                [
-                    (
-                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                        HeaderValue::from_static("*"),
-                    ),
-                    (header::CONTENT_TYPE, HeaderValue::from_static("text/plain")),
-                ],
+                [(header::CONTENT_TYPE, HeaderValue::from_static("text/plain"))],
                 "Focused",
             )
                 .into_response();
@@ -1026,16 +1086,10 @@ async fn proxy_handler_inner(
             });
             return (
                 StatusCode::OK,
-                [
-                    (
-                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                        HeaderValue::from_static("*"),
-                    ),
-                    (
-                        header::CONTENT_TYPE,
-                        HeaderValue::from_static("application/json"),
-                    ),
-                ],
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/json"),
+                )],
                 json.to_string(),
             )
                 .into_response();
@@ -1047,16 +1101,10 @@ async fn proxy_handler_inner(
             let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
             return (
                 StatusCode::OK,
-                [
-                    (
-                        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                        HeaderValue::from_static("*"),
-                    ),
-                    (
-                        header::CONTENT_TYPE,
-                        HeaderValue::from_static("application/json"),
-                    ),
-                ],
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/json"),
+                )],
                 json,
             )
                 .into_response();
@@ -1246,19 +1294,152 @@ async fn proxy_handler_inner(
     let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
     let _is_local = local_origin.is_some();
 
-    // Fix Scheme for Intercepted HTTPS Requests (API Logging)
-    // If we intercepted a CONNECT request, `proxy_handler` receives origin-form URI.
-    // `resolve_target` defaults to "http". We must force "https" if logging is enabled
-    // (implying CONNECT interception) and it's not a local route.
+    // ── [WebSocket / Upgrade Handling] ──────────────────────────────────────────
+    // reqwest does not support WebSocket upgrades. We must handle them manually.
+    let is_upgrade = req
+        .headers()
+        .get(header::UPGRADE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_lowercase() == "websocket")
+        .unwrap_or(false);
+
+    if is_upgrade {
+        proxy_log!("-> upgrade request (WebSocket) for {}", uri);
+
+        // 1. Prepare request for upstream (Force HTTP/1.1)
+        // Use reqwest_client_direct for pass-through to ensure it doesn't try to use system proxy (itself)
+        let mut req_builder = if local_origin.is_some() {
+            state
+                .reqwest_client
+                .request(req.method().clone(), &target_uri_str)
+        } else {
+            state
+                .reqwest_client_direct
+                .request(req.method().clone(), &target_uri_str)
+        };
+        req_builder = req_builder.version(reqwest::Version::HTTP_11);
+
+        // Copy headers (excluding hop-by-hop)
+        let hop_by_hop_headers = [
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailers",
+            "transfer-encoding",
+            "proxy-connection",
+            "accept-encoding",
+        ];
+
+        for (name, value) in req.headers().iter() {
+            let name_str = name.as_str().to_lowercase();
+            if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
+                req_builder = req_builder.header(name, value);
+            }
+        }
+        // Force Upgrade/Connection headers for handshake
+        req_builder = req_builder.header(header::UPGRADE, "websocket");
+        req_builder = req_builder.header(header::CONNECTION, "upgrade");
+
+        if local_origin.is_some() {
+            req_builder = req_builder.header("host", host_h.clone());
+        }
+
+        // 2. Perform Handshake
+        match req_builder.send().await {
+            Ok(res) if res.status() == StatusCode::SWITCHING_PROTOCOLS => {
+                proxy_log!(
+                    "✅ [WS] Upstream handshake success (101). Headers: {:?}",
+                    res.headers()
+                );
+
+                let mut res_builder = Response::builder().status(StatusCode::SWITCHING_PROTOCOLS);
+
+                // Copy response headers back to client
+                if let Some(h) = res_builder.headers_mut() {
+                    for (k, v) in res.headers() {
+                        let k_str = k.as_str().to_lowercase();
+                        if !hop_by_hop_headers.contains(&k_str.as_str()) {
+                            h.insert(k, v.clone());
+                        }
+                    }
+                    // Ensure these are set
+                    h.insert(header::UPGRADE, HeaderValue::from_static("websocket"));
+                    h.insert(header::CONNECTION, HeaderValue::from_static("upgrade"));
+                }
+
+                // 3. Handle Bidirectional Tunneling
+                let (parts, _) = req.into_parts();
+                let upgraded_client =
+                    hyper::upgrade::on(axum::http::Request::from_parts(parts, Body::empty()));
+
+                tokio::spawn(async move {
+                    proxy_log!("🚀 [WS] Starting bidirectional copy...");
+                    let mut upstream_io = match res.upgrade().await {
+                        Ok(upgraded) => upgraded,
+                        Err(e) => {
+                            proxy_log!("❌ [WS] Upstream upgrade failed (after 101): {e}");
+                            return;
+                        }
+                    };
+
+                    let mut client_io = match upgraded_client.await {
+                        Ok(upgraded) => TokioIo::new(upgraded),
+                        Err(e) => {
+                            proxy_log!("❌ [WS] Client upgrade failed (after 101): {e}");
+                            return;
+                        }
+                    };
+
+                    match tokio::io::copy_bidirectional(&mut client_io, &mut upstream_io).await {
+                        Ok(_) => proxy_log!("✅ [WS] Tunnel closed normally."),
+                        Err(e) => proxy_log!("ℹ️ [WS] Tunnel closed: {e}"),
+                    }
+                });
+
+                return res_builder
+                    .body(Body::empty())
+                    .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+            }
+            Ok(res) => {
+                proxy_log!(
+                    "❌ [WS] Upstream refused upgrade. Status: {}, Headers: {:?}",
+                    res.status(),
+                    res.headers()
+                );
+                let status = res.status();
+                let mut res_builder = Response::builder().status(status);
+                if let Some(h) = res_builder.headers_mut() {
+                    for (k, v) in res.headers() {
+                        h.insert(k, v.clone());
+                    }
+                }
+                let body_bytes = res.bytes().await.unwrap_or_default();
+                return res_builder
+                    .body(Body::from(body_bytes))
+                    .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+            }
+            Err(e) => {
+                proxy_log!("❌ [WS] Upstream connection error: {e}");
+                return (StatusCode::BAD_GATEWAY, format!("Proxy WS error: {e}")).into_response();
+            }
+        }
+    }
 
     if !logging_enabled {
         // Pass-through or local routing (Non-logging)
-        // Use reqwest for robustness (handles HTTPS redirects if any, though CONNECT tunnel handles encryption usually)
-        // Actually, for pure pass-through of plain HTTP, reqwest is fine.
+        // Use reqwest_client_direct for pass-through to ensure it doesn't try to use system proxy (itself)
         let method = req.method().clone();
         let url_str = target_uri_str.clone();
 
-        let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
+        let mut req_builder = if local_origin.is_some() {
+            state.reqwest_client.request(method.clone(), &url_str)
+        } else {
+            state
+                .reqwest_client_direct
+                .request(method.clone(), &url_str)
+        };
         let (parts, body) = req.into_parts();
 
         let has_body = !matches!(
@@ -1291,6 +1472,7 @@ async fn proxy_handler_inner(
             "transfer-encoding",
             "upgrade",
             "proxy-connection",
+            "accept-encoding",
         ];
         for (name, value) in parts.headers.iter() {
             let name_str = name.as_str().to_lowercase();
@@ -1298,41 +1480,22 @@ async fn proxy_handler_inner(
                 req_builder = req_builder.header(name, value);
             }
         }
-        req_builder = req_builder.header("host", host_h.clone());
+        // Note: Do NOT manually set "host" header for pass-through unless it's a local route
+        // reqwest automatically sets it from the URL.
+        if local_origin.is_some() {
+            req_builder = req_builder.header("host", host_h.clone());
+        }
 
         match req_builder.send().await {
             Ok(res) => {
                 let status = res.status();
                 let mut res_headers = res.headers().clone();
 
-                res_headers.remove(header::CONTENT_ENCODING);
-
                 // ── [Live Capture] Strip Security Headers to allow iframing ──────
                 res_headers.remove(header::X_FRAME_OPTIONS);
                 res_headers.remove(header::CONTENT_SECURITY_POLICY);
                 res_headers.remove("content-security-policy-report-only");
                 res_headers.remove("x-content-security-policy");
-
-                // ── [CORS Fix] Force permissive CORS headers ──────────────────
-                let origin = parts
-                    .headers
-                    .get(header::ORIGIN)
-                    .cloned()
-                    .unwrap_or_else(|| HeaderValue::from_static("*"));
-
-                res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-                res_headers.insert(
-                    header::ACCESS_CONTROL_ALLOW_METHODS,
-                    HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),
-                );
-                res_headers.insert(
-                    header::ACCESS_CONTROL_ALLOW_HEADERS,
-                    HeaderValue::from_static("*"),
-                );
-                res_headers.insert(
-                    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-                    HeaderValue::from_static("true"),
-                );
 
                 // ── [Cookie Fix] Force SameSite=None; Secure for iframing ──────
                 let mut cookie_updates = Vec::new();
@@ -1396,7 +1559,7 @@ async fn proxy_handler_inner(
                 res_headers.remove(header::LAST_MODIFIED);
                 res_headers.remove("alt-svc"); // Disable HTTP/3 upgrade
 
-                if is_html {
+                if is_html && should_inject_for_host(&state, &host_h) {
                     // Force no-cache for HTML to ensure injection is always processed
                     res_headers.insert(
                         header::CACHE_CONTROL,
@@ -1470,7 +1633,6 @@ async fn proxy_handler_inner(
                             "upgrade",
                             "proxy-connection",
                             "content-length",
-                            "content-encoding",
                         ];
                         for (k, v) in &res_headers {
                             let k_str = k.as_str().to_lowercase();
@@ -1541,7 +1703,13 @@ async fn proxy_handler_inner(
         let method = parts.method.clone();
         let url_str = target_uri_str.clone(); /* target_uri_str is full URL */
 
-        let mut req_builder = state.reqwest_client.request(method.clone(), &url_str);
+        let mut req_builder = if local_origin.is_some() {
+            state.reqwest_client.request(method.clone(), &url_str)
+        } else {
+            state
+                .reqwest_client_direct
+                .request(method.clone(), &url_str)
+        };
 
         let has_body = !matches!(
             parts.method,
@@ -1567,6 +1735,7 @@ async fn proxy_handler_inner(
             "transfer-encoding",
             "upgrade",
             "proxy-connection",
+            "accept-encoding",
         ];
 
         for (name, value) in parts.headers.iter() {
@@ -1575,8 +1744,10 @@ async fn proxy_handler_inner(
                 req_builder = req_builder.header(name, value);
             }
         }
-        // Add Host header if needed (reqwest usually sets it from URL)
-        req_builder = req_builder.header("host", host_h.clone());
+        // Add Host header if needed (Only for local routes, reqwest handles it for pass-through)
+        if local_origin.is_some() {
+            req_builder = req_builder.header("host", host_h.clone());
+        }
 
         let start_time = OffsetDateTime::now_utc();
 
@@ -1621,35 +1792,19 @@ async fn proxy_handler_inner(
         let is_html =
             content_type.contains("text/html") || content_type.contains("application/xhtml+xml");
 
+        // ── [Aggressive Security Header Strip] allow iframing/injection ─────────
+        res_headers.remove(header::X_FRAME_OPTIONS);
+        res_headers.remove(header::CONTENT_SECURITY_POLICY);
+        res_headers.remove("content-security-policy-report-only");
+        res_headers.remove("x-content-security-policy");
+
         // Aggressive Cache & Protocol fix
         res_headers.remove(header::ETAG);
         res_headers.remove(header::LAST_MODIFIED);
         res_headers.remove("alt-svc"); // Disable HTTP/3 upgrade
 
-        // ── [CORS Fix] Force permissive CORS headers for logged requests ────────
-        let origin = parts
-            .headers
-            .get(header::ORIGIN)
-            .cloned()
-            .unwrap_or_else(|| HeaderValue::from_static("*"));
-
-        res_headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-        res_headers.insert(
-            header::ACCESS_CONTROL_ALLOW_METHODS,
-            HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS, PATCH"),
-        );
-        res_headers.insert(
-            header::ACCESS_CONTROL_ALLOW_HEADERS,
-            HeaderValue::from_static("*"),
-        );
-        res_headers.insert(
-            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-            HeaderValue::from_static("true"),
-        );
-        // ────────────────────────────────────────────────────────────────────────
-
         let mut final_res_bytes = res_bytes.to_vec();
-        if is_html {
+        if is_html && should_inject_for_host(&state, &host_h) {
             // Force no-cache for HTML to ensure injection is always processed
             res_headers.insert(
                 header::CACHE_CONTROL,
@@ -1741,7 +1896,6 @@ async fn proxy_handler_inner(
                 "upgrade",
                 "proxy-connection",
                 "content-length",
-                "content-encoding",
             ];
             for (k, v) in res_headers.iter() {
                 let k_str = k.as_str().to_lowercase();
@@ -2135,6 +2289,8 @@ mod tests {
         ));
 
         let inspector_service = Arc::new(crate::service::inspector_service::InspectorService::new(
+            temp_dir.path().to_path_buf(),
+            temp_dir.path().to_path_buf(),
             temp_dir.path().to_path_buf(),
         ));
 

@@ -16,3 +16,14 @@ pub struct Annotation {
     #[serde(default)]
     pub url: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InspectorSettings {
+    pub enabled: bool,
+}
+
+impl Default for InspectorSettings {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}

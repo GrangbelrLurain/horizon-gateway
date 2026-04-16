@@ -89,20 +89,23 @@ pub fn import_annotations(
     })
 }
 
-#[derive(serde::Deserialize)]
-pub struct SetEnabledPayload {
-    pub enabled: bool,
-}
-
 #[tauri::command]
-pub fn set_global_inspector_enabled(payload: SetEnabledPayload) -> Result<(), String> {
-    local_proxy::set_inspector_enabled(payload.enabled);
+pub fn set_global_inspector_enabled(
+    service: State<'_, InspectorService>,
+    payload: bool,
+) -> Result<(), String> {
+    service.set_enabled(payload);
+    local_proxy::set_inspector_enabled(payload);
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_global_inspector_enabled() -> bool {
-    local_proxy::is_inspector_enabled()
+pub fn get_global_inspector_enabled() -> Result<ApiResponse<bool>, String> {
+    Ok(ApiResponse {
+        message: "인스펙터 상태 조회 완료".to_string(),
+        success: true,
+        data: local_proxy::is_inspector_enabled(),
+    })
 }
 
 // ── Injection Domains ──────────────────────────────────────────────────

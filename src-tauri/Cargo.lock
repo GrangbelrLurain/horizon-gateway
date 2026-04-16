@@ -5557,7 +5557,7 @@ dependencies = [
 
 [[package]]
 name = "watchtower"
-version = "1.7.2"
+version = "1.7.3"
 dependencies = [
  "axum",
  "base64 0.21.7",

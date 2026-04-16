@@ -156,6 +156,7 @@ pub fn run() {
             let mocking_settings_path = app_data_dir.join("mocking_settings.json");
             let inspector_path = app_data_dir.join("inspector_annotations.json");
             let injection_domains_path = app_data_dir.join("injection_domains.json");
+            let inspector_settings_path = app_data_dir.join("inspector_settings.json");
             let ca_service =
                 Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
             let domain_service = DomainService::new(storage_path);
@@ -171,10 +172,13 @@ pub fn run() {
                 mock_rules_path.clone(),
                 mocking_settings_path.clone(),
             ));
-            let inspector_service = InspectorService::new(inspector_path, injection_domains_path);
+            let inspector_service = InspectorService::new(inspector_path, injection_domains_path, inspector_settings_path);
 
             crate::service::local_proxy::set_mocking_enabled(
                 mocking_service.get_settings().enabled,
+            );
+            crate::service::local_proxy::set_inspector_enabled(
+                inspector_service.get_settings().enabled,
             );
 
             monitor_service.sync_with_domains(&domain_service.get_all());
