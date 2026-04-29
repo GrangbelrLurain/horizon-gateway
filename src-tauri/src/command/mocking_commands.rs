@@ -54,8 +54,12 @@ pub fn set_mocking_enabled(
 #[tauri::command]
 pub fn get_scenarios(
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<Vec<Scenario>, String> {
-    Ok(service.get_scenarios())
+) -> Result<ApiResponse<Vec<Scenario>>, String> {
+    Ok(ApiResponse {
+        message: "OK".to_string(),
+        success: true,
+        data: service.get_scenarios(),
+    })
 }
 
 #[derive(serde::Deserialize)]
@@ -111,43 +115,67 @@ pub fn delete_scenario(
 #[tauri::command]
 pub fn get_mock_rules(
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<Vec<MockRule>, String> {
-    Ok(service.get_mock_rules())
+) -> Result<ApiResponse<Vec<MockRule>>, String> {
+    Ok(ApiResponse {
+        message: "OK".to_string(),
+        success: true,
+        data: service.get_mock_rules(),
+    })
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMockRulesByScenarioPayload {
+    pub scenario_id: String,
 }
 
 #[tauri::command]
 pub fn get_mock_rules_by_scenario(
-    scenario_id: String,
+    payload: GetMockRulesByScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<Vec<MockRule>, String> {
-    Ok(service.get_mock_rules_by_scenario(&scenario_id))
+) -> Result<ApiResponse<Vec<MockRule>>, String> {
+    Ok(ApiResponse {
+        message: "OK".to_string(),
+        success: true,
+        data: service.get_mock_rules_by_scenario(&payload.scenario_id),
+    })
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateMockRulePayload {
+    pub name: String,
+    pub scenario_id: String,
+    pub host: Option<String>,
+    pub method: String,
+    pub url_pattern: String,
+    pub response_status: u16,
+    pub response_headers: HashMap<String, String>,
+    pub response_body: Option<String>,
+    pub enabled: bool,
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub fn create_mock_rule(
-    name: String,
-    scenario_id: String,
-    host: Option<String>,
-    method: String,
-    url_pattern: String,
-    response_status: u16,
-    response_headers: HashMap<String, String>,
-    response_body: Option<String>,
-    enabled: bool,
+    payload: CreateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<MockRule, String> {
-    Ok(service.create_mock_rule(
-        name,
-        scenario_id,
-        host,
-        method,
-        url_pattern,
-        response_status,
-        response_headers,
-        response_body,
-        enabled,
-    ))
+) -> Result<ApiResponse<MockRule>, String> {
+    let rule = service.create_mock_rule(
+        payload.name,
+        payload.scenario_id,
+        payload.host,
+        payload.method,
+        payload.url_pattern,
+        payload.response_status,
+        payload.response_headers,
+        payload.response_body,
+        payload.enabled,
+    );
+    Ok(ApiResponse {
+        message: "모킹 규칙이 생성되었습니다.".to_string(),
+        success: true,
+        data: rule,
+    })
 }
 
 #[derive(serde::Deserialize)]
@@ -168,8 +196,8 @@ pub struct UpdateMockRulePayload {
 pub fn update_mock_rule(
     payload: UpdateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
-) -> Result<MockRule, String> {
-    service
+) -> Result<ApiResponse<MockRule>, String> {
+    let rule = service
         .update_mock_rule(
             payload.id,
             payload.name,
@@ -181,7 +209,13 @@ pub fn update_mock_rule(
             payload.response_body,
             payload.enabled,
         )
-        .ok_or_else(|| "MockRule not found".to_string())
+        .ok_or_else(|| "MockRule not found".to_string())?;
+
+    Ok(ApiResponse {
+        message: "모킹 규칙이 수정되었습니다.".to_string(),
+        success: true,
+        data: rule,
+    })
 }
 
 #[tauri::command]

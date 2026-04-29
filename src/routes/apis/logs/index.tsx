@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
@@ -14,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
@@ -43,11 +44,25 @@ function ApiLogs() {
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useAtom(apiLogsSearchAtom);
+  const [localSearch, setLocalSearch] = useState(search);
   const [hostFilter, setHostFilter] = useAtom(apiLogsHostFilterAtom);
+  const [localHostFilter, setLocalHostFilter] = useState(hostFilter);
   const [methodFilter, setMethodFilter] = useAtom(apiLogsMethodFilterAtom);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [clearing, setClearing] = useState(false);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
+
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(localSearch), 400);
+    return () => clearTimeout(timer);
+  }, [localSearch, setSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setHostFilter(localHostFilter), 400);
+    return () => clearTimeout(timer);
+  }, [localHostFilter, setHostFilter]);
 
   const domainCount = useAtomValue(domainCountAtom);
   const apiLoggingCount = useAtomValue(apiLoggingCountAtom);
@@ -128,6 +143,13 @@ function ApiLogs() {
     }
   };
 
+  const rowVirtualizer = useVirtualizer({
+    count: logs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Height of the row (py-3 approx + content)
+    overscan: 10,
+  });
+
   const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 
   return (
@@ -207,13 +229,13 @@ function ApiLogs() {
                   type="text"
                   placeholder={t.filterPath}
                   className="bg-transparent border-none outline-none text-xs tablet:text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
                 />
-                {search && (
+                {localSearch && (
                   <button
                     type="button"
-                    onClick={() => setSearch("")}
+                    onClick={() => setLocalSearch("")}
                     className="text-base-content/40 hover:text-base-content/80 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -227,13 +249,13 @@ function ApiLogs() {
                   type="text"
                   placeholder={t.filterHost}
                   className="bg-transparent border-none outline-none text-xs tablet:text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
-                  value={hostFilter}
-                  onChange={(e) => setHostFilter(e.target.value)}
+                  value={localHostFilter}
+                  onChange={(e) => setLocalHostFilter(e.target.value)}
                 />
-                {hostFilter && (
+                {localHostFilter && (
                   <button
                     type="button"
-                    onClick={() => setHostFilter("")}
+                    onClick={() => setLocalHostFilter("")}
                     className="text-base-content/40 hover:text-base-content/80 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -298,7 +320,7 @@ function ApiLogs() {
               <div className="hidden tablet:block text-right">{t.time}</div>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-0">
+            <div ref={parentRef} className="overflow-y-auto flex-1 p-0 relative">
               {domainCount === 0 ? (
                 <div className="p-4">
                   <EmptyState tier={1} lang={lang} />
@@ -322,70 +344,87 @@ function ApiLogs() {
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-base-300/50">
-                  {logs.map((log) => (
-                    <button
-                      type="button"
-                      key={log.id}
-                      className="w-full grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 py-3 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary"
-                      onClick={() => setSelectedLog(log)}
-                    >
-                      <div className="flex">
-                        <Badge
-                          variant={{
-                            color:
-                              (log.status_code ?? 0) >= 500
-                                ? "red"
-                                : (log.status_code ?? 0) >= 400
-                                  ? "amber"
-                                  : (log.status_code ?? 0) >= 300
-                                    ? "blue"
-                                    : "green",
-                            size: "sm",
-                          }}
-                          className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
-                        >
-                          {log.status_code ?? "-"}
-                        </Badge>
-                      </div>
-                      <span
-                        className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter ${
-                          log.method === "GET"
-                            ? "text-success"
-                            : log.method === "POST"
-                              ? "text-info"
-                              : log.method === "PUT"
-                                ? "text-warning"
-                                : log.method === "DELETE"
-                                  ? "text-error"
-                                  : "text-base-content/60"
-                        }`}
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const log = logs[virtualRow.index];
+                    return (
+                      <button
+                        type="button"
+                        key={log.id}
+                        className="w-full grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50"
+                        onClick={() => setSelectedLog(log)}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
                       >
-                        {log.method}
-                      </span>
-
-                      <div className="min-w-0 flex flex-col gap-0.5">
+                        <div className="flex shrink-0">
+                          <Badge
+                            variant={{
+                              color:
+                                (log.status_code ?? 0) >= 500
+                                  ? "red"
+                                  : (log.status_code ?? 0) >= 400
+                                    ? "amber"
+                                    : (log.status_code ?? 0) >= 300
+                                      ? "blue"
+                                      : "green",
+                              size: "sm",
+                            }}
+                            className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
+                          >
+                            {log.status_code ?? "-"}
+                          </Badge>
+                        </div>
                         <span
-                          className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-                          title={log.url}
+                          className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
+                            log.method === "GET"
+                              ? "text-success"
+                              : log.method === "POST"
+                                ? "text-info"
+                                : log.method === "PUT"
+                                  ? "text-warning"
+                                  : log.method === "DELETE"
+                                    ? "text-error"
+                                    : "text-base-content/60"
+                          }`}
                         >
-                          {log.path}
+                          {log.method}
                         </span>
-                        <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
-                          {log.host}
-                        </span>
-                      </div>
 
-                      <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors">
-                        {new Date(log.timestamp).toLocaleTimeString([], {
-                          hour12: false,
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </span>
-                    </button>
-                  ))}
+                        <div className="min-w-0 flex flex-col gap-0.5">
+                          <span
+                            className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+                            title={log.url}
+                          >
+                            {log.path}
+                          </span>
+                          <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
+                            {log.host}
+                          </span>
+                        </div>
+
+                        <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
+                          {new Date(log.timestamp).toLocaleTimeString([], {
+                            hour12: false,
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -225,15 +225,17 @@ export interface ApiCommandMap {
   };
   create_mock_rule: {
     request: {
-      name: string;
-      scenario_id: string;
-      host: string | null;
-      method: string;
-      url_pattern: string;
-      response_status: number;
-      response_headers: Record<string, string>;
-      response_body: string | null;
-      enabled: boolean;
+      payload: {
+        name: string;
+        scenarioId: string;
+        host: string | null;
+        method: string;
+        urlPattern: string;
+        responseStatus: number;
+        responseHeaders: Record<string, string>;
+        responseBody: string | null;
+        enabled: boolean;
+      };
     };
     response: MockRule;
   };

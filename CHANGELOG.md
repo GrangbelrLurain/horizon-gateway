@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.4] - 2026-04-29
+
+### Fixed
+
+- **Mock Rule Registration**: Fixed a critical bug where API mock rules failed to register due to a data structure mismatch between the frontend and backend.
+- **Backend Command Refactoring**: Standardized `create_mock_rule` and `update_mock_rule` to use `payload` objects and return consistent `ApiResponse` wrappers.
+- **API Type Synchronization**: Updated TypeScript command definitions to perfectly align with the Rust backend's expected input/output structures, ensuring better runtime stability.
+
 ## [v1.7.3] - 2026-04-16
 
 ### Added

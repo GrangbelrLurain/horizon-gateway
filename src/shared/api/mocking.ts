@@ -2,12 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import type { MockRule, Scenario } from "../../entities/scenario/types/mocking";
 import { invokeApi } from "./invoke";
 
-export const getScenarios = (): Promise<Scenario[]> => {
-  return invoke("get_scenarios");
+export const getScenarios = async (): Promise<Scenario[]> => {
+  const res = await invokeApi("get_scenarios");
+  return res.data;
 };
 
-export const createScenario = (name: string, description?: string): Promise<Scenario> => {
-  return invoke("create_scenario", { name, description });
+export const createScenario = async (name: string, description?: string): Promise<Scenario> => {
+  const res = await invokeApi("create_scenario", { payload: { name, description } });
+  return res.data;
 };
 
 export const updateScenario = (
@@ -27,8 +29,9 @@ export const deleteScenario = (id: string): Promise<boolean> => {
   return invoke("delete_scenario", { id });
 };
 
-export const getMockRules = (): Promise<MockRule[]> => {
-  return invoke("get_mock_rules");
+export const getMockRules = async (): Promise<MockRule[]> => {
+  const res = await invokeApi("get_mock_rules");
+  return res.data;
 };
 
 export const getMockRulesByScenario = async (scenarioId: string): Promise<MockRule[]> => {
@@ -48,15 +51,17 @@ export const createMockRule = async (
   enabled: boolean,
 ): Promise<MockRule> => {
   const res = await invokeApi("create_mock_rule", {
-    name,
-    scenario_id: scenarioId,
-    host,
-    method,
-    url_pattern: urlPattern,
-    response_status: responseStatus,
-    response_headers: responseHeaders,
-    response_body: responseBody,
-    enabled,
+    payload: {
+      name,
+      scenarioId,
+      host,
+      method,
+      urlPattern,
+      responseStatus,
+      responseHeaders,
+      responseBody,
+      enabled,
+    },
   });
   return res.data;
 };
