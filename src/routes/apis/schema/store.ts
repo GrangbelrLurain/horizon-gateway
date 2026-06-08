@@ -1,3 +1,4 @@
+import type { ApiRequestResult } from "@/shared/api";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import type { ParsedEndpoint } from "@/shared/lib/openapi-parser";
 
@@ -5,12 +6,7 @@ export interface EndpointFormState {
   paramValues: Record<string, string>;
   bodyText: string;
   headerText: string;
-  response: {
-    statusCode: number;
-    headers: Record<string, string>;
-    body: string;
-    elapsedMs: number;
-  } | null;
+  response: ApiRequestResult | null;
   error: string | null;
 }
 

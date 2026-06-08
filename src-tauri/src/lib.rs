@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
+#[specta::specta]
 fn greet(name: &str) -> String {
     format!("Hello, {name}! You've been greeted from Rust!")
 }
@@ -105,12 +106,104 @@ use command::settings_commands::{export_all_settings, import_all_settings, save_
 use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window};
 
 #[tauri::command]
+#[specta::specta]
 fn check_apis() {
     println!("check_apis");
 }
 
+pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+    tauri_specta::Builder::<tauri::Wry>::new()
+        .commands(tauri_specta::collect_commands![
+            greet,
+            check_apis,
+            regist_domains,
+            get_domains,
+            remove_domains,
+            get_domain_by_id,
+            update_domain_by_id,
+            import_domains,
+            clear_all_domains,
+            get_latest_status,
+            check_domain_status,
+            get_domain_status_logs,
+            get_domain_group_links,
+            set_domain_groups,
+            set_group_domains,
+            get_domains_by_group,
+            get_groups_for_domain,
+            create_group,
+            get_groups,
+            delete_group,
+            update_group,
+            get_local_routes,
+            add_local_route,
+            update_local_route,
+            remove_local_route,
+            set_local_route_enabled,
+            get_proxy_status,
+            start_local_proxy,
+            stop_local_proxy,
+            get_proxy_settings,
+            set_proxy_dns_server,
+            set_proxy_port,
+            set_proxy_reverse_ports,
+            get_proxy_setup_url,
+            export_all_settings,
+            import_all_settings,
+            save_root_ca,
+            get_domain_monitor_list,
+            set_domain_monitor_check_enabled,
+            get_domain_api_logging_links,
+            set_domain_api_logging,
+            remove_domain_api_logging,
+            download_api_schema,
+            get_api_schema_content,
+            send_api_request,
+            set_local_routing_enabled,
+            get_proxy_auto_start_error,
+            list_api_log_dates,
+            get_api_logs,
+            clear_api_logs,
+            open_window,
+            open_inspector_window,
+            open_annotation_dialog,
+            get_annotations,
+            add_annotation,
+            update_annotation,
+            delete_annotation,
+            import_annotations,
+            set_global_inspector_enabled,
+            get_global_inspector_enabled,
+            get_injection_domains,
+            set_injection_domains,
+            get_scenarios,
+            create_scenario,
+            update_scenario,
+            delete_scenario,
+            get_mock_rules,
+            get_mock_rules_by_scenario,
+            create_mock_rule,
+            update_mock_rule,
+            delete_mock_rule,
+            create_mock_rule_from_log,
+            get_mocking_status,
+            set_mocking_enabled,
+            set_scenario_enabled,
+        ])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let specta_builder = get_specta_builder();
+
+    #[cfg(debug_assertions)]
+    specta_builder
+        .export(
+            specta_typescript::Typescript::default(),
+            "../src/bindings.ts",
+        )
+        .expect("Failed to export typescript bindings");
+
     // Required by rustls 0.23: set process-wide crypto provider before any TLS (e.g. reverse HTTPS proxy).
     let () = rustls::crypto::ring::default_provider()
         .install_default()
@@ -273,83 +366,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            check_apis,
-            regist_domains,
-            get_domains,
-            remove_domains,
-            get_domain_by_id,
-            update_domain_by_id,
-            import_domains,
-            clear_all_domains,
-            get_latest_status,
-            check_domain_status,
-            get_domain_status_logs,
-            get_domain_group_links,
-            set_domain_groups,
-            set_group_domains,
-            get_domains_by_group,
-            get_groups_for_domain,
-            create_group,
-            get_groups,
-            delete_group,
-            update_group,
-            get_local_routes,
-            add_local_route,
-            update_local_route,
-            remove_local_route,
-            set_local_route_enabled,
-            get_proxy_status,
-            start_local_proxy,
-            stop_local_proxy,
-            get_proxy_settings,
-            set_proxy_dns_server,
-            set_proxy_port,
-            set_proxy_reverse_ports,
-            get_proxy_setup_url,
-            export_all_settings,
-            import_all_settings,
-            save_root_ca,
-            get_domain_monitor_list,
-            set_domain_monitor_check_enabled,
-            get_domain_api_logging_links,
-            set_domain_api_logging,
-            remove_domain_api_logging,
-            download_api_schema,
-            get_api_schema_content,
-            send_api_request,
-            set_local_routing_enabled,
-            get_proxy_auto_start_error,
-            list_api_log_dates,
-            get_api_logs,
-            clear_api_logs,
-            open_window,
-            open_inspector_window,
-            open_annotation_dialog,
-            get_annotations,
-            add_annotation,
-            update_annotation,
-            delete_annotation,
-            import_annotations,
-            set_global_inspector_enabled,
-            get_global_inspector_enabled,
-            get_injection_domains,
-            set_injection_domains,
-            get_scenarios,
-            create_scenario,
-            update_scenario,
-            delete_scenario,
-            get_mock_rules,
-            get_mock_rules_by_scenario,
-            create_mock_rule,
-            update_mock_rule,
-            delete_mock_rule,
-            create_mock_rule_from_log,
-            get_mocking_status,
-            set_mocking_enabled,
-            set_scenario_enabled,
-        ])
+        .invoke_handler(specta_builder.invoke_handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {

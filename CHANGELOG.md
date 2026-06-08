@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.5] - 2026-06-08
+
+### Added
+
+- **Tauri Specta v2 Integration**: Replaced the manual, error-prone `invokeApi` wrapper and `ApiCommandMap` definitions with automatically generated type-safe TypeScript command bindings.
+- **Type Safety and Import Alignment**: Updated all global store atoms (such as `globalSiteCheckAtom`) and route files to utilize the new Specta types, resolving all type incompatibilities.
+
+### Changed
+
+- **Direct Command Binding Calls**: Refactored frontend components to invoke camelCase backend commands directly from `src/bindings.ts` with a unified `unwrap` helper.
+- **Opener Plugin Guest Bindings**: Migrated standard tauri-plugin-opener `invoke` calls (`plugin:opener|open` and `plugin:opener|open_url`) in `ux/policies/index.tsx` to use typed official guest bindings (`openPath` and `openUrl`) from `@tauri-apps/plugin-opener`.
+
+### Removed
+
+- **Obsolete API Helpers**: Deleted deprecated helper files (`commands.ts`, `invoke.ts`, and `types.ts` under `src/shared/api`) since the compiler now automatically generates bindings.
+
 ## [v1.7.4] - 2026-04-29
 
 ### Fixed

@@ -5,7 +5,7 @@
  */
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 
 import { atomWithBroadcast } from "@/shared/lib/jotai/atomWithBroadcast";
 
@@ -71,11 +71,11 @@ export async function loadAppStatus(
 ) {
   try {
     const [domainsRes, linksRes, proxyRes, mockingRes, inspectorRes] = await Promise.all([
-      invokeApi("get_domains"),
-      invokeApi("get_domain_api_logging_links"),
-      invokeApi("get_proxy_status"),
-      invokeApi("get_mocking_status"),
-      invokeApi("get_global_inspector_enabled"),
+      commands.getDomains().then(unwrap),
+      commands.getDomainApiLoggingLinks().then(unwrap),
+      commands.getProxyStatus().then(unwrap),
+      commands.getMockingStatus().then(unwrap),
+      commands.getGlobalInspectorEnabled().then(unwrap),
     ]);
     if (domainsRes.success) {
       setDomainCount((domainsRes.data ?? []).length);

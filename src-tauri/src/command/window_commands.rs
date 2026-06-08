@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
+#[specta::specta]
 pub async fn open_window(
     app: AppHandle,
     label: String,
@@ -25,6 +26,7 @@ pub async fn open_window(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn open_inspector_window(
     app: AppHandle,
     url: String,
@@ -52,6 +54,7 @@ pub async fn open_inspector_window(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn open_annotation_dialog(
     app: AppHandle,
     selector: String,

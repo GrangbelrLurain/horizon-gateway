@@ -9,7 +9,7 @@ import type { Domain } from "@/entities/domain/types/domain";
 import type { DomainGroup } from "@/entities/domain/types/domain_group";
 import { AssignDomainsModal, CreateGroupCard, EditGroupModal, GroupCard } from "@/features/domain-groups/ui";
 import type { DomainWithGroupMeta } from "@/features/domain-groups/ui/AssignDomainsModal";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
@@ -46,7 +46,7 @@ function DomainGroups() {
   const fetchGroups = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await invokeApi("get_groups");
+      const response = await commands.getGroups().then(unwrap);
       if (response.success) {
         setGroups(response.data);
       }
@@ -59,7 +59,7 @@ function DomainGroups() {
 
   const fetchDomains = useCallback(async () => {
     try {
-      const response = await invokeApi("get_domains");
+      const response = await commands.getDomains().then(unwrap);
       setDomains(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch domains:", err);
@@ -68,7 +68,7 @@ function DomainGroups() {
 
   const fetchLinks = useCallback(async () => {
     try {
-      const response = await invokeApi("get_domain_group_links");
+      const response = await commands.getDomainGroupLinks().then(unwrap);
       setLinks(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch links:", err);
@@ -134,9 +134,7 @@ function DomainGroups() {
     }
     setIsCreating(true);
     try {
-      const response = await invokeApi("create_group", {
-        payload: { name: newGroupName.trim() },
-      });
+      const response = await commands.createGroup({ name: newGroupName.trim() }).then(unwrap);
       if (response.success) {
         setGroups(response.data);
         setNewGroupName("");
@@ -150,7 +148,7 @@ function DomainGroups() {
 
   const deleteGroup = async (id: number) => {
     try {
-      const response = await invokeApi("delete_group", { payload: { id } });
+      const response = await commands.deleteGroup({ id }).then(unwrap);
       if (response.success) {
         setGroups(response.data);
         await fetchLinks();
@@ -166,7 +164,7 @@ function DomainGroups() {
   const updateGroupName = async (id: number, name: string) => {
     setIsUpdating(true);
     try {
-      const response = await invokeApi("update_group", { payload: { id, name } });
+      const response = await commands.updateGroup({ id, name }).then(unwrap);
       if (response.success) {
         setGroups(response.data);
         setEditGroup(null);
@@ -207,12 +205,12 @@ function DomainGroups() {
     }
     setIsSavingAssign(true);
     try {
-      await invokeApi("set_group_domains", {
-        payload: {
+      await commands
+        .setGroupDomains({
           groupId: assignModalGroup.id,
           domainIds: Array.from(selectedDomainIds),
-        },
-      });
+        })
+        .then(unwrap);
       await fetchLinks();
       closeAssignModal();
     } catch (err) {

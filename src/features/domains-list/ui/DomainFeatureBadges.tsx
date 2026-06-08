@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
 import { Activity, Loader2, Server, Wifi } from "lucide-react";
 import { useState } from "react";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { Modal } from "@/shared/ui/modal/Modal";
@@ -136,13 +136,13 @@ function ProxyRouteModal({ domainUrl, t, onClose, onAdded }: ProxyRouteModalProp
     }
     setAdding(true);
     try {
-      await invokeApi("add_local_route", {
-        payload: {
+      await commands
+        .addLocalRoute({
           domain: domainHost,
           targetHost: host.trim(),
           targetPort: portNum,
-        },
-      });
+        })
+        .then(unwrap);
       onAdded();
       onClose();
     } catch (e) {
@@ -248,9 +248,12 @@ export function DomainFeatureBadges({
     try {
       // If no monitor link yet (undefined), enabling creates one
       const newEnabled = state.monitorEnabled !== true;
-      await invokeApi("set_domain_monitor_check_enabled", {
-        payload: { domainIds: [domainId], enabled: newEnabled },
-      });
+      await commands
+        .setDomainMonitorCheckEnabled({
+          domainIds: [domainId],
+          enabled: newEnabled,
+        })
+        .then(unwrap);
       onRefresh();
     } catch (e) {
       console.error("set_domain_monitor_check_enabled:", e);
@@ -277,12 +280,15 @@ export function DomainFeatureBadges({
     // Route exists — toggle enabled
     setProxyLoading(true);
     try {
-      await invokeApi("update_local_route", {
-        payload: {
+      await commands
+        .updateLocalRoute({
           id: state.proxyRouteId,
+          domain: null,
+          targetHost: null,
+          targetPort: null,
           enabled: state.proxyEnabled !== true,
-        },
-      });
+        })
+        .then(unwrap);
       onRefresh();
     } catch (e) {
       console.error("update_local_route:", e);
@@ -296,18 +302,16 @@ export function DomainFeatureBadges({
     setApiLoading(true);
     try {
       if (state.apiLoggingEnabled === true) {
-        await invokeApi("remove_domain_api_logging", {
-          payload: { domainId },
-        });
+        await commands.removeDomainApiLogging({ domainId }).then(unwrap);
       } else {
-        await invokeApi("set_domain_api_logging", {
-          payload: {
+        await commands
+          .setDomainApiLogging({
             domainId,
             loggingEnabled: true,
             bodyEnabled: false,
             schemaUrl: null,
-          },
-        });
+          })
+          .then(unwrap);
       }
       onRefresh();
     } catch (e) {

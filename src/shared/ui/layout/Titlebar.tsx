@@ -5,7 +5,7 @@ import { useSetAtom } from "jotai";
 import { ExternalLink, Maximize2, Menu, Minus, Monitor, Square, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { mobileSidebarOpenAtom } from "@/domain/ui/store";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 
 const appWindow = getCurrentWindow();
@@ -55,13 +55,7 @@ export function Titlebar() {
   const openInNewWindow = async () => {
     const pathLabel = location.pathname.replace(/\//g, "-").slice(1) || "dashboard";
     const label = `window-${pathLabel}-${Date.now()}`;
-    await invokeApi("open_window", {
-      label,
-      title: `Watchtower - ${pathLabel}`,
-      url: location.pathname,
-      width: 1000,
-      height: 700,
-    });
+    unwrap(await commands.openWindow(label, `Watchtower - ${pathLabel}`, location.pathname, 1000, 700));
   };
 
   return (

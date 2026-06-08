@@ -19,7 +19,7 @@ import {
   RecentActivityGrid,
   SetupProgressCard,
 } from "@/features/dashboard/ui/DashboardComponents";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
@@ -60,7 +60,7 @@ function Dashboard() {
     }
     setMockingLoading(true);
     try {
-      const res = await invokeApi("set_mocking_enabled", { payload: { enabled } });
+      const res = await commands.setMockingEnabled({ enabled }).then(unwrap);
       if (res.success) {
         setMockingEnabled(enabled);
       }
@@ -74,7 +74,7 @@ function Dashboard() {
   const toggleProxyLocalRouting = async (enabled: boolean) => {
     setProxyRoutingLoading(true);
     try {
-      await invokeApi("set_local_routing_enabled", { payload: { enabled } });
+      await commands.setLocalRoutingEnabled({ enabled }).then(unwrap);
     } catch (e) {
       console.error("set_local_routing_enabled:", e);
     } finally {

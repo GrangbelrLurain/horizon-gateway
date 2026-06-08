@@ -1,7 +1,12 @@
-import type { Domain, DomainGroupLink } from "@/entities/domain/types/domain";
-import type { DomainGroup } from "@/entities/domain/types/domain_group";
-import type { DomainMonitorWithUrl, DomainStatusLog } from "@/entities/domain/types/domain_monitor";
-import type { DomainApiLoggingLink, LocalRoute } from "@/entities/proxy/types/local_route";
+import type {
+  Domain,
+  DomainApiLoggingLink,
+  DomainGroup,
+  DomainGroupLink,
+  DomainMonitorWithUrl,
+  DomainStatusLog,
+  LocalRoute,
+} from "@/shared/api";
 import { atomWithBroadcast } from "@/shared/lib/jotai/atomWithBroadcast";
 
 export const globalDomainsAtom = atomWithBroadcast<Domain[]>("global-domains", []);

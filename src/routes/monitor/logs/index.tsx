@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
-import type { DomainStatusLog } from "@/entities/domain/types/domain_monitor";
-import { invokeApi } from "@/shared/api";
+import type { DomainStatusLog } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -56,9 +56,7 @@ function MonitorLogs() {
   const fetchLogs = useCallback(async (targetDate: string) => {
     setLoading(true);
     try {
-      const response = await invokeApi("get_domain_status_logs", {
-        payload: { date: targetDate },
-      });
+      const response = await commands.getDomainStatusLogs({ date: targetDate }).then(unwrap);
       if (response.success) {
         setLogs(response.data.reverse());
       }
@@ -262,7 +260,7 @@ function MonitorLogs() {
                     <div className="min-w-0 pr-4 w-[300px]">
                       <span
                         className="text-[11px] text-base-content/50 font-medium truncate block"
-                        title={log.errorMessage}
+                        title={log.errorMessage ?? undefined}
                       >
                         {log.errorMessage || "-"}
                       </span>

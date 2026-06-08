@@ -10,6 +10,7 @@ use tauri::State;
 pub const MOCKING_STATUS_CHANGED: &str = "mocking-status-changed";
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_mocking_status(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockingSettings>, String> {
@@ -20,13 +21,14 @@ pub fn get_mocking_status(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetMockingEnabledPayload {
     pub enabled: bool,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_mocking_enabled(
     app: tauri::AppHandle,
     payload: SetMockingEnabledPayload,
@@ -52,6 +54,7 @@ pub fn set_mocking_enabled(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_scenarios(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Vec<Scenario>>, String> {
@@ -62,7 +65,7 @@ pub fn get_scenarios(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateScenarioPayload {
     pub name: String,
@@ -70,6 +73,7 @@ pub struct CreateScenarioPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_scenario(
     payload: CreateScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -83,6 +87,7 @@ pub fn create_scenario(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_scenario(
     id: String,
     name: Option<String>,
@@ -96,6 +101,7 @@ pub fn update_scenario(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_scenario_enabled(
     id: String,
     enabled: bool,
@@ -105,6 +111,7 @@ pub fn set_scenario_enabled(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_scenario(
     id: String,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -113,6 +120,7 @@ pub fn delete_scenario(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_mock_rules(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Vec<MockRule>>, String> {
@@ -123,13 +131,14 @@ pub fn get_mock_rules(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetMockRulesByScenarioPayload {
     pub scenario_id: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_mock_rules_by_scenario(
     payload: GetMockRulesByScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -141,7 +150,7 @@ pub fn get_mock_rules_by_scenario(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMockRulePayload {
     pub name: String,
@@ -156,6 +165,7 @@ pub struct CreateMockRulePayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_mock_rule(
     payload: CreateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -178,7 +188,7 @@ pub fn create_mock_rule(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMockRulePayload {
     pub id: String,
@@ -193,6 +203,7 @@ pub struct UpdateMockRulePayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_mock_rule(
     payload: UpdateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -219,6 +230,7 @@ pub fn update_mock_rule(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_mock_rule(
     id: String,
     service: State<'_, std::sync::Arc<MockingService>>,
@@ -226,7 +238,7 @@ pub fn delete_mock_rule(
     Ok(service.delete_mock_rule(id))
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMockFromLogPayload {
     pub log_id: String,
@@ -236,6 +248,7 @@ pub struct CreateMockFromLogPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_mock_rule_from_log(
     payload: CreateMockFromLogPayload,
     log_service: State<'_, ApiLogService>,

@@ -4,7 +4,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ProxyStatusPayload } from "@/entities/proxy/types/local_route";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
@@ -30,7 +30,7 @@ function ProxySetupPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const statusRes = await invokeApi("get_proxy_status");
+      const statusRes = await commands.getProxyStatus().then(unwrap);
       if (statusRes?.success && statusRes.data) {
         setProxyStatus(statusRes.data);
       }
@@ -50,7 +50,7 @@ function ProxySetupPage() {
 
   const handleSaveRootCA = async () => {
     try {
-      const res = await invokeApi("save_root_ca");
+      const res = await commands.saveRootCa().then(unwrap);
       if (res.success) {
         alert(t.certSaved);
       }

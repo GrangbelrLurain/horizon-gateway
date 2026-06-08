@@ -5,7 +5,7 @@ use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::domain_service::DomainService;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistDomainsPayload {
     pub urls: Vec<String>,
@@ -13,6 +13,7 @@ pub struct RegistDomainsPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn regist_domains(
     payload: RegistDomainsPayload,
     domain_service: tauri::State<'_, DomainService>,
@@ -40,6 +41,7 @@ pub fn regist_domains(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domains(
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
@@ -51,13 +53,14 @@ pub fn get_domains(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetDomainByIdPayload {
     pub id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domain_by_id(
     payload: GetDomainByIdPayload,
     domain_service: tauri::State<'_, DomainService>,
@@ -78,7 +81,7 @@ pub fn get_domain_by_id(
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateDomainByIdPayload {
     pub id: u32,
@@ -86,6 +89,7 @@ pub struct UpdateDomainByIdPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_domain_by_id(
     payload: UpdateDomainByIdPayload,
     domain_service: tauri::State<'_, DomainService>,
@@ -107,13 +111,14 @@ pub fn update_domain_by_id(
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDomainsPayload {
     pub id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn remove_domains(
     payload: RemoveDomainsPayload,
     domain_service: tauri::State<'_, DomainService>,
@@ -141,13 +146,14 @@ pub fn remove_domains(
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportDomainsPayload {
     pub domains: Vec<Domain>,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_domains(
     payload: ImportDomainsPayload,
     domain_service: tauri::State<'_, DomainService>,
@@ -163,6 +169,7 @@ pub fn import_domains(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn clear_all_domains(
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,

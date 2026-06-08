@@ -20,10 +20,11 @@ unused_async = "allow"
 
 [package]
 name = "watchtower"
-version = "1.7.4"
+version = "1.7.5"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+default-run = "watchtower"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -39,6 +40,9 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
+tauri-specta = { version = "=2.0.0-rc.25", features = ["typescript"] }
+specta-typescript = "=0.0.12"
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
@@ -71,3 +75,7 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
+
+[[bin]]
+name = "export_bindings"
+path = "src/bin/export_bindings.rs"

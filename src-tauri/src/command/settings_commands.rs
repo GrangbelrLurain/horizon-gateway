@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn save_root_ca(
     app: tauri::AppHandle,
     ca_service: tauri::State<'_, Arc<CaService>>,
@@ -42,6 +43,7 @@ pub async fn save_root_ca(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn export_all_settings(
     domain_service: tauri::State<'_, DomainService>,
     group_service: tauri::State<'_, DomainGroupService>,
@@ -69,6 +71,7 @@ pub fn export_all_settings(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_all_settings(
     payload: SettingsExport,
     domain_service: tauri::State<'_, DomainService>,

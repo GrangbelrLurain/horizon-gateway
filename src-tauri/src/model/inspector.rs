@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct Annotation {
     pub id: String,
     pub selector: String,
@@ -10,6 +10,7 @@ pub struct Annotation {
     pub thumbnail: String,
     pub role: String,
     pub description: String,
+    #[specta(type = f64)]
     pub timestamp: u64,
     #[serde(default)]
     pub domain: String,
@@ -17,7 +18,7 @@ pub struct Annotation {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct InspectorSettings {
     pub enabled: bool,
 }

@@ -9,10 +9,9 @@ import {
   proxyReverseHttpsPortInputAtom,
 } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { ProxySettings, ProxyStatusPayload } from "@/entities/proxy/types/local_route";
-import type { SettingsExport } from "@/entities/settings/types/settings_export";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
-import { invokeApi } from "@/shared/api";
+import type { ProxySettings, ProxyStatusPayload, SettingsExport_Serialize } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -49,7 +48,7 @@ function SettingsPage() {
 
   const fetchProxyStatus = useCallback(async () => {
     try {
-      const res = await invokeApi("get_proxy_status");
+      const res = await commands.getProxyStatus().then(unwrap);
       if (res.success && res.data) {
         setProxyStatus(res.data);
       }
@@ -60,7 +59,7 @@ function SettingsPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const proxyRes = await invokeApi("get_proxy_settings");
+      const proxyRes = await commands.getProxySettings().then(unwrap);
       if (proxyRes.success && proxyRes.data) {
         setProxySettings(proxyRes.data);
         setDnsServerInput(proxyRes.data.dns_server ?? "");
@@ -89,9 +88,9 @@ function SettingsPage() {
     setProxyLoading(true);
     try {
       if (enabled) {
-        await invokeApi("start_local_proxy", { payload: { port: null } });
+        await commands.startLocalProxy(null).then(unwrap);
       } else {
-        await invokeApi("stop_local_proxy");
+        await commands.stopLocalProxy().then(unwrap);
       }
     } catch (e) {
       console.error("toggle proxy:", e);
@@ -108,7 +107,7 @@ function SettingsPage() {
     setProxyPortSaving(true);
     try {
       // Save proxy port
-      const portRes = await invokeApi("set_proxy_port", { payload: { port } });
+      const portRes = await commands.setProxyPort({ port }).then(unwrap);
       if (portRes.success && portRes.data) {
         setProxySettings(portRes.data);
       }
@@ -119,12 +118,12 @@ function SettingsPage() {
         (http === null || (!Number.isNaN(http) && http >= 1 && http <= 65535)) &&
         (https === null || (!Number.isNaN(https) && https >= 1 && https <= 65535))
       ) {
-        const revRes = await invokeApi("set_proxy_reverse_ports", {
-          payload: {
-            reverseHttpPort: http ?? undefined,
-            reverseHttpsPort: https ?? undefined,
-          },
-        });
+        const revRes = await commands
+          .setProxyReversePorts({
+            reverseHttpPort: http,
+            reverseHttpsPort: https,
+          })
+          .then(unwrap);
         if (revRes.success && revRes.data) {
           setProxySettings(revRes.data);
         }
@@ -139,9 +138,11 @@ function SettingsPage() {
   const handleSaveDnsServer = async () => {
     const value = dnsServerInput.trim() || null;
     try {
-      const res = await invokeApi("set_proxy_dns_server", {
-        payload: { dnsServer: value === "" ? null : value },
-      });
+      const res = await commands
+        .setProxyDnsServer({
+          dnsServer: value === "" ? null : value,
+        })
+        .then(unwrap);
       if (res.success && res.data) {
         setProxySettings(res.data);
       }
@@ -152,7 +153,7 @@ function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      const res = await invokeApi("export_all_settings");
+      const res = await commands.exportAllSettings().then(unwrap);
       if (!res.success || !res.data) {
         return;
       }
@@ -184,7 +185,7 @@ function SettingsPage() {
         return;
       }
       const raw = await readTextFile(path);
-      const data = JSON.parse(raw) as SettingsExport;
+      const data = JSON.parse(raw) as SettingsExport_Serialize;
       if (typeof data.version !== "number" || !data.domains || !data.groups) {
         alert(t.alertImportInvalid);
         return;
@@ -192,7 +193,7 @@ function SettingsPage() {
       if (!confirm(t.alertImportConfirm)) {
         return;
       }
-      await invokeApi("import_all_settings", { payload: data });
+      await commands.importAllSettings(data).then(unwrap);
       alert(t.alertImportSuccess);
       fetchSettings();
     } catch (e) {

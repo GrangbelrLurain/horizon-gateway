@@ -34,7 +34,7 @@ import { userProfileAtom } from "@/domain/user/store";
 import { Sidebar } from "@/features/sidebar/ui/Sidebar";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile/ui/UserProfileSetup";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Titlebar } from "@/shared/ui/layout/Titlebar";
@@ -139,7 +139,7 @@ const RootLayout = () => {
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "i") {
         const newState = !proxyInspectorEnabled;
         setProxyInspectorEnabled(newState);
-        invokeApi("set_global_inspector_enabled", { payload: newState });
+        commands.setGlobalInspectorEnabled(newState).then(unwrap);
       }
     };
 

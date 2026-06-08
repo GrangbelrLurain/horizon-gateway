@@ -16,7 +16,7 @@ import { languageAtom } from "@/domain/i18n/store";
 import type { DomainGroupLink } from "@/entities/domain/types/domain";
 import type { DomainGroup } from "@/entities/domain/types/domain_group";
 import type { DomainMonitorWithUrl } from "@/entities/domain/types/domain_monitor";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -148,9 +148,9 @@ function MonitorSettings() {
     setLoading(true);
     try {
       const [monRes, grpRes, linkRes] = await Promise.all([
-        invokeApi("get_domain_monitor_list"),
-        invokeApi("get_groups"),
-        invokeApi("get_domain_group_links"),
+        commands.getDomainMonitorList().then(unwrap),
+        commands.getGroups().then(unwrap),
+        commands.getDomainGroupLinks().then(unwrap),
       ]);
       if (monRes.success && monRes.data) {
         setList(monRes.data);
@@ -273,9 +273,7 @@ function MonitorSettings() {
       return;
     }
     try {
-      await invokeApi("set_domain_monitor_check_enabled", {
-        payload: { domainIds: ids, enabled: false },
-      });
+      await commands.setDomainMonitorCheckEnabled({ domainIds: ids, enabled: false }).then(unwrap);
       // 성공한 것만 제거
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -296,9 +294,7 @@ function MonitorSettings() {
       return;
     }
     try {
-      await invokeApi("set_domain_monitor_check_enabled", {
-        payload: { domainIds: ids, enabled: true },
-      });
+      await commands.setDomainMonitorCheckEnabled({ domainIds: ids, enabled: true }).then(unwrap);
       // 성공한 것만 제거
       setSelectedIds((prev) => {
         const next = new Set(prev);

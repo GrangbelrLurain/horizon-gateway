@@ -58,6 +58,7 @@ fn abort_proxy_handles(handles: &mut Vec<tokio::task::JoinHandle<()>>) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_local_routes(
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<LocalRoute>>, String> {
@@ -69,7 +70,7 @@ pub fn get_local_routes(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AddLocalRoutePayload {
     pub domain: String,
@@ -78,6 +79,7 @@ pub struct AddLocalRoutePayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn add_local_route(
     payload: AddLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
@@ -90,7 +92,7 @@ pub fn add_local_route(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateLocalRoutePayload {
     pub id: u32,
@@ -101,6 +103,7 @@ pub struct UpdateLocalRoutePayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_local_route(
     payload: UpdateLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
@@ -124,13 +127,14 @@ pub fn update_local_route(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveLocalRoutePayload {
     pub id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn remove_local_route(
     payload: RemoveLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
@@ -148,7 +152,7 @@ pub fn remove_local_route(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLocalRouteEnabledPayload {
     pub id: u32,
@@ -156,6 +160,7 @@ pub struct SetLocalRouteEnabledPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_local_route_enabled(
     payload: SetLocalRouteEnabledPayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
@@ -194,6 +199,7 @@ static PROXY_HANDLES: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>> =
 
 /// Returns the auto-start error if proxy failed to start on launch, or null if OK.
 #[tauri::command]
+#[specta::specta]
 pub fn get_proxy_auto_start_error() -> Result<ApiResponse<Option<String>>, String> {
     let err = PROXY_AUTO_START_ERR
         .lock()
@@ -212,6 +218,7 @@ pub fn get_proxy_auto_start_error() -> Result<ApiResponse<Option<String>>, Strin
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_proxy_status() -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let status = current_proxy_status();
     Ok(ApiResponse {
@@ -226,7 +233,7 @@ pub async fn get_proxy_status() -> Result<ApiResponse<ProxyStatusPayload>, Strin
     })
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct ProxyStatusPayload {
     pub running: bool,
     pub port: u16,
@@ -242,6 +249,7 @@ pub const PROXY_STATUS_CHANGED: &str = "proxy-status-changed";
 pub const PROXY_AUTO_START_ERROR: &str = "proxy-auto-start-error";
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_proxy_settings(
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxySettings>, String> {
@@ -253,13 +261,14 @@ pub fn get_proxy_settings(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetProxyDnsServerPayload {
     pub dns_server: Option<String>,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_proxy_dns_server(
     payload: SetProxyDnsServerPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
@@ -272,13 +281,14 @@ pub fn set_proxy_dns_server(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetProxyPortPayload {
     pub port: u16,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_proxy_port(
     payload: SetProxyPortPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
@@ -291,13 +301,14 @@ pub fn set_proxy_port(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StartLocalProxyPayload {
     pub port: Option<u16>,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_local_proxy(
     app: AppHandle,
     payload: Option<StartLocalProxyPayload>,
@@ -457,6 +468,7 @@ pub async fn start_local_proxy(
 /// Returns the setup page URL when proxy is running and a reverse port is configured.
 /// Frontend can open this URL in the browser (e.g. via opener plugin).
 #[tauri::command]
+#[specta::specta]
 pub fn get_proxy_setup_url() -> Result<ApiResponse<String>, String> {
     let port = PROXY_PORT.load(Ordering::Relaxed);
     if port == 0 {
@@ -481,7 +493,7 @@ pub fn get_proxy_setup_url() -> Result<ApiResponse<String>, String> {
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetProxyReversePortsPayload {
     pub reverse_http_port: Option<u16>,
@@ -489,6 +501,7 @@ pub struct SetProxyReversePortsPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_proxy_reverse_ports(
     payload: SetProxyReversePortsPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
@@ -503,6 +516,7 @@ pub fn set_proxy_reverse_ports(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn stop_local_proxy(app: AppHandle) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     for h in guard.drain(..) {
@@ -532,13 +546,14 @@ pub fn stop_local_proxy(app: AppHandle) -> Result<ApiResponse<ProxyStatusPayload
 
 // ── Local routing toggle ───────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetLocalRoutingEnabledPayload {
     pub enabled: bool,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_local_routing_enabled(
     app: AppHandle,
     payload: SetLocalRoutingEnabledPayload,

@@ -8,6 +8,7 @@ use crate::service::domain_service::DomainService;
 use tauri::State;
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domain_group_links(
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<Vec<DomainGroupLink>>, String> {
@@ -19,7 +20,7 @@ pub fn get_domain_group_links(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDomainGroupsPayload {
     pub domain_id: u32,
@@ -27,6 +28,7 @@ pub struct SetDomainGroupsPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_domain_groups(
     payload: SetDomainGroupsPayload,
     link_service: State<'_, DomainGroupLinkService>,
@@ -39,7 +41,7 @@ pub fn set_domain_groups(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetGroupDomainsPayload {
     pub group_id: u32,
@@ -47,6 +49,7 @@ pub struct SetGroupDomainsPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_group_domains(
     payload: SetGroupDomainsPayload,
     link_service: State<'_, DomainGroupLinkService>,
@@ -59,13 +62,14 @@ pub fn set_group_domains(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetDomainsByGroupPayload {
     pub group_id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domains_by_group(
     payload: GetDomainsByGroupPayload,
     domain_service: State<'_, DomainService>,
@@ -84,13 +88,14 @@ pub fn get_domains_by_group(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetGroupsForDomainPayload {
     pub domain_id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_groups_for_domain(
     payload: GetGroupsForDomainPayload,
     group_service: State<'_, DomainGroupService>,
@@ -109,13 +114,14 @@ pub fn get_groups_for_domain(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGroupPayload {
     pub name: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn create_group(
     payload: CreateGroupPayload,
     service: State<'_, DomainGroupService>,
@@ -129,6 +135,7 @@ pub async fn create_group(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_groups(
     service: State<'_, DomainGroupService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
@@ -140,13 +147,14 @@ pub async fn get_groups(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteGroupPayload {
     pub id: u32,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_group(
     payload: DeleteGroupPayload,
     service: State<'_, DomainGroupService>,
@@ -161,7 +169,7 @@ pub async fn delete_group(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateGroupPayload {
     pub id: u32,
@@ -169,6 +177,7 @@ pub struct UpdateGroupPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn update_group(
     payload: UpdateGroupPayload,
     service: State<'_, DomainGroupService>,

@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, Download, Folder, Globe, Loader2Icon, Plus, 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
 import type { DomainGroup } from "@/entities/domain/types/domain_group";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -27,7 +27,7 @@ function RegistDomains() {
 
   const fetchDomains = useCallback(async () => {
     try {
-      const response = await invokeApi("get_domains");
+      const response = await commands.getDomains().then(unwrap);
       if (response.success && response.data) {
         setExistingUrls(new Set(response.data.map((d) => d.url)));
       }
@@ -38,7 +38,7 @@ function RegistDomains() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const response = await invokeApi("get_groups");
+      const response = await commands.getGroups().then(unwrap);
       if (response.success) {
         setGroups(response.data);
       }
@@ -62,12 +62,12 @@ function RegistDomains() {
 
     setStatus("loading");
     try {
-      const response = await invokeApi("regist_domains", {
-        payload: {
+      const response = await commands
+        .registDomains({
           urls,
-          groupId: selectedGroupId ?? undefined,
-        },
-      });
+          groupId: selectedGroupId,
+        })
+        .then(unwrap);
 
       if (response.success) {
         setStatus("success");

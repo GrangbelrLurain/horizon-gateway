@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Domain–Monitor 링크. 체크 대상 도메인 + 옵션 (체크 결과 아님)
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DomainMonitorLink {
     pub domain_id: u32,
@@ -20,7 +20,7 @@ fn default_interval() -> u32 {
 }
 
 /// `DomainMonitorLink` + url (FE 표시용)
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DomainMonitorWithUrl {
     pub domain_id: u32,

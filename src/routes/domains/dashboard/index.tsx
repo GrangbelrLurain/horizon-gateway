@@ -14,10 +14,10 @@ import {
   globalMonitorLinksAtom,
 } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { Domain } from "@/entities/domain/types/domain";
 import type { DomainFeatureState } from "@/features/domains-list/ui";
 import { DomainListEmpty, EditDomainModal, GroupSelectModal, VirtualizedDomainList } from "@/features/domains-list/ui";
-import { invokeApi } from "@/shared/api";
+import type { Domain } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -78,7 +78,7 @@ function RouteComponent() {
   const apiLoggingMap = useMemo(() => {
     const map = new Map<number, boolean>();
     for (const a of apiLoggingLinks) {
-      map.set(a.domainId, a.loggingEnabled);
+      map.set(a.domainId, a.loggingEnabled ?? false);
     }
     return map;
   }, [apiLoggingLinks]);
@@ -99,7 +99,7 @@ function RouteComponent() {
   const fetchDomains = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await invokeApi("get_domains");
+      const response = await commands.getDomains().then(unwrap);
       setDomains(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch domains:", err);
@@ -110,7 +110,7 @@ function RouteComponent() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const response = await invokeApi("get_groups");
+      const response = await commands.getGroups().then(unwrap);
       setGroups(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch groups:", err);
@@ -119,7 +119,7 @@ function RouteComponent() {
 
   const fetchLinks = useCallback(async () => {
     try {
-      const response = await invokeApi("get_domain_group_links");
+      const response = await commands.getDomainGroupLinks().then(unwrap);
       setLinks(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch links:", err);
@@ -129,9 +129,9 @@ function RouteComponent() {
   const fetchFeatureData = useCallback(async () => {
     try {
       const [monitorRes, apiLoggingRes, routesRes] = await Promise.all([
-        invokeApi("get_domain_monitor_list"),
-        invokeApi("get_domain_api_logging_links"),
-        invokeApi("get_local_routes"),
+        commands.getDomainMonitorList().then(unwrap),
+        commands.getDomainApiLoggingLinks().then(unwrap),
+        commands.getLocalRoutes().then(unwrap),
       ]);
       if (monitorRes.success) {
         setMonitorLinks(monitorRes.data ?? []);
@@ -206,12 +206,12 @@ function RouteComponent() {
     async (domain: Domain, newGroupId: number | null) => {
       setUpdatingId(domain.id);
       try {
-        await invokeApi("set_domain_groups", {
-          payload: {
+        await commands
+          .setDomainGroups({
             domainId: domain.id,
             groupIds: newGroupId != null ? [newGroupId] : [],
-          },
-        });
+          })
+          .then(unwrap);
         await fetchLinks();
       } catch (err) {
         console.error("Failed to update domain group:", err);
@@ -224,7 +224,7 @@ function RouteComponent() {
 
   const handleDeleteDomain = useCallback(
     async (id: number) => {
-      await invokeApi("remove_domains", { payload: { id } });
+      await commands.removeDomains({ id }).then(unwrap);
       fetchDomains();
     },
     [fetchDomains],
@@ -235,17 +235,15 @@ function RouteComponent() {
       setUpdatingId(domain.id);
       try {
         if (updates.url !== undefined) {
-          await invokeApi("update_domain_by_id", {
-            payload: { id: domain.id, url: updates.url },
-          });
+          await commands.updateDomainById({ id: domain.id, url: updates.url }).then(unwrap);
         }
         if (updates.groupId !== undefined) {
-          await invokeApi("set_domain_groups", {
-            payload: {
+          await commands
+            .setDomainGroups({
               domainId: domain.id,
               groupIds: updates.groupId != null ? [updates.groupId] : [],
-            },
-          });
+            })
+            .then(unwrap);
         }
         await fetchDomains();
         await fetchLinks();
@@ -261,7 +259,7 @@ function RouteComponent() {
 
   const handleClearAll = async () => {
     try {
-      await invokeApi("clear_all_domains");
+      await commands.clearAllDomains().then(unwrap);
       fetchDomains();
     } catch (err) {
       console.error("Failed to clear domains:", err);

@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
 import type { Domain } from "@/entities/domain/types/domain";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -137,10 +137,10 @@ function ApisSettingsPage() {
     setLoading(true);
     try {
       const [domRes, linkRes, grpRes, glRes] = await Promise.all([
-        invokeApi("get_domains"),
-        invokeApi("get_domain_api_logging_links"),
-        invokeApi("get_groups"),
-        invokeApi("get_domain_group_links"),
+        commands.getDomains().then(unwrap),
+        commands.getDomainApiLoggingLinks().then(unwrap),
+        commands.getGroups().then(unwrap),
+        commands.getDomainGroupLinks().then(unwrap),
       ]);
       if (domRes.success && domRes.data) {
         setDomains(domRes.data);
@@ -280,7 +280,7 @@ function ApisSettingsPage() {
     }
     try {
       for (const id of ids) {
-        await invokeApi("remove_domain_api_logging", { payload: { domainId: id } });
+        await commands.removeDomainApiLogging({ domainId: id }).then(unwrap);
       }
       // 성공한 것만 제거
       setSelectedIds((prev) => {
@@ -306,9 +306,14 @@ function ApisSettingsPage() {
     }
     try {
       for (const id of ids) {
-        await invokeApi("set_domain_api_logging", {
-          payload: { domainId: id, loggingEnabled: true, bodyEnabled: false, schemaUrl: null },
-        });
+        await commands
+          .setDomainApiLogging({
+            domainId: id,
+            loggingEnabled: true,
+            bodyEnabled: false,
+            schemaUrl: null,
+          })
+          .then(unwrap);
       }
       // 성공한 것만 제거
       setSelectedIds((prev) => {

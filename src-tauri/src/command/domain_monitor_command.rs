@@ -8,6 +8,7 @@ use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_latest_status(
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
@@ -20,6 +21,7 @@ pub fn get_latest_status(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn check_domain_status(
     domain_service: tauri::State<'_, DomainService>,
     group_service: tauri::State<'_, DomainGroupService>,
@@ -43,6 +45,7 @@ pub async fn check_domain_status(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domain_monitor_list(
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
@@ -55,7 +58,7 @@ pub fn get_domain_monitor_list(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDomainMonitorCheckEnabledPayload {
     pub domain_ids: Vec<u32>,
@@ -63,6 +66,7 @@ pub struct SetDomainMonitorCheckEnabledPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_domain_monitor_check_enabled(
     payload: SetDomainMonitorCheckEnabledPayload,
     monitor_service: tauri::State<'_, DomainMonitorService>,
@@ -79,13 +83,14 @@ pub fn set_domain_monitor_check_enabled(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetDomainStatusLogsPayload {
     pub date: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_domain_status_logs(
     payload: GetDomainStatusLogsPayload,
     monitor_service: tauri::State<'_, DomainMonitorService>,

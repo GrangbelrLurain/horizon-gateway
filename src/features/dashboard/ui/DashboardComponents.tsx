@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { Activity, ArrowRight, CheckCircle2, FlaskConical, Globe, History, Server, Wifi, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { domainCountAtom, proxyActiveAtom, proxyRunningAtom } from "@/domain/app-status/store";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 
@@ -373,7 +373,9 @@ export function useDashboardData(): DashboardData {
       return;
     }
 
-    invokeApi("get_latest_status")
+    commands
+      .getLatestStatus()
+      .then(unwrap)
       .then((res) => {
         if (res.success && res.data) {
           setMonitorItems(res.data.slice(0, 5));
@@ -382,7 +384,9 @@ export function useDashboardData(): DashboardData {
       .catch(console.error);
 
     const today = new Date().toISOString().split("T")[0];
-    invokeApi("get_api_logs", { payload: { date: today } })
+    commands
+      .getApiLogs({ date: today, domainFilter: null, methodFilter: null, hostFilter: null, exactMatch: null })
+      .then(unwrap)
       .then((res) => {
         if (res.success && res.data) {
           setTodayCount(res.data.length);

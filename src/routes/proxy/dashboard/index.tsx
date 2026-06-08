@@ -6,8 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { proxyRunningAtom } from "@/domain/app-status/store";
 import { globalDomainsAtom, globalLocalRoutesAtom } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { ProxySettings, ProxyStatusPayload } from "@/entities/proxy/types/local_route";
-import { invokeApi } from "@/shared/api";
+import type { ProxySettings, ProxyStatusPayload } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -48,7 +48,7 @@ function ProxyPage() {
 
   const fetchRoutes = useCallback(async () => {
     try {
-      const res = await invokeApi("get_local_routes");
+      const res = await commands.getLocalRoutes().then(unwrap);
       if (res.success) {
         setRoutes(res.data ?? []);
       }
@@ -61,7 +61,7 @@ function ProxyPage() {
 
   const fetchDomains = useCallback(async () => {
     try {
-      const res = await invokeApi("get_domains");
+      const res = await commands.getDomains().then(unwrap);
       if (res.success) {
         setDomains(res.data ?? []);
       }
@@ -72,7 +72,7 @@ function ProxyPage() {
 
   const fetchProxyStatusOnce = useCallback(async () => {
     try {
-      const res = await invokeApi("get_proxy_status");
+      const res = await commands.getProxyStatus().then(unwrap);
       if (res.success) {
         setProxyStatus(
           res.data ?? {
@@ -91,7 +91,7 @@ function ProxyPage() {
 
   const fetchProxySettings = useCallback(async () => {
     try {
-      const res = await invokeApi("get_proxy_settings");
+      const res = await commands.getProxySettings().then(unwrap);
       if (res.success && res.data) {
         setProxySettings(res.data);
       }
@@ -152,7 +152,7 @@ function ProxyPage() {
     setRoutingToggleLoading(true);
     try {
       const newEnabled = !proxyStatus.local_routing_enabled;
-      await invokeApi("set_local_routing_enabled", { payload: { enabled: newEnabled } });
+      await commands.setLocalRoutingEnabled({ enabled: newEnabled }).then(unwrap);
     } catch (e) {
       console.error("set_local_routing_enabled:", e);
     } finally {
@@ -185,13 +185,13 @@ function ProxyPage() {
       return;
     }
     try {
-      await invokeApi("add_local_route", {
-        payload: {
+      await commands
+        .addLocalRoute({
           domain,
           targetHost: newTargetHost.trim() || "127.0.0.1",
           targetPort: port,
-        },
-      });
+        })
+        .then(unwrap);
       setNewDomain("");
       setNewTargetHost("127.0.0.1");
       setNewTargetPort("3000");
@@ -203,7 +203,7 @@ function ProxyPage() {
 
   const handleRemove = async (id: number) => {
     try {
-      await invokeApi("remove_local_route", { payload: { id } });
+      await commands.removeLocalRoute({ id }).then(unwrap);
       await fetchRoutes();
     } catch (e) {
       console.error("remove_local_route:", e);
@@ -212,7 +212,7 @@ function ProxyPage() {
 
   const handleToggleEnabled = async (id: number, enabled: boolean) => {
     try {
-      await invokeApi("set_local_route_enabled", { payload: { id, enabled } });
+      await commands.setLocalRouteEnabled({ id, enabled }).then(unwrap);
       await fetchRoutes();
     } catch (e) {
       console.error("set_local_route_enabled:", e);

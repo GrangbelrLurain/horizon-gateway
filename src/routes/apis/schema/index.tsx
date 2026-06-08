@@ -3,9 +3,8 @@ import { useAtom, useAtomValue } from "jotai";
 import { BookOpen, ChevronDown, ChevronRight, Clock, Globe, Loader2, Play, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
-import type { Domain } from "@/entities/domain/types/domain";
-import type { ApiLogEntry, DomainApiLoggingLink } from "@/entities/proxy/types/local_route";
-import { invokeApi } from "@/shared/api";
+import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { type OpenApiSpec, type ParsedEndpoint, parseOpenApiSpec, type TagGroup } from "@/shared/lib/openapi-parser";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -156,15 +155,15 @@ function LogHistoryModal({
     (async () => {
       try {
         const today = new Date().toISOString().split("T")[0];
-        const res = await invokeApi("get_api_logs", {
-          payload: {
+        const res = await commands
+          .getApiLogs({
             date: today,
+            domainFilter: path,
             methodFilter: method.toUpperCase(),
             hostFilter: host,
-            domainFilter: path,
             exactMatch: true,
-          },
-        });
+          })
+          .then(unwrap);
         if (res.success) {
           setLogs(res.data ?? []);
         }
@@ -341,14 +340,14 @@ function EndpointDetail({
         }
       }
 
-      const res = await invokeApi("send_api_request", {
-        payload: {
+      const res = await commands
+        .sendApiRequest({
           method: endpoint.method.toUpperCase(),
           url,
           headers,
           body: bodyText.trim() || null,
-        },
-      });
+        })
+        .then(unwrap);
 
       if (!res.success) {
         updateForm({ error: res.message, response: res.data ?? null });
@@ -643,7 +642,10 @@ function ApiSchemaPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [dRes, lRes] = await Promise.all([invokeApi("get_domains"), invokeApi("get_domain_api_logging_links")]);
+        const [dRes, lRes] = await Promise.all([
+          commands.getDomains().then(unwrap),
+          commands.getDomainApiLoggingLinks().then(unwrap),
+        ]);
         if (dRes.success) {
           setDomains(dRes.data ?? []);
         }
@@ -699,9 +701,7 @@ function ApiSchemaPage() {
       setSchemaLoading(true);
       setParseError(null);
       try {
-        const res = await invokeApi("get_api_schema_content", {
-          payload: { domainId: selectedDomainId },
-        });
+        const res = await commands.getApiSchemaContent({ domainId: selectedDomainId }).then(unwrap);
         if (res.success && res.data) {
           const { spec, endpoints, tagGroups: tg } = parseOpenApiSpec(res.data);
           setParsedSpec(spec);

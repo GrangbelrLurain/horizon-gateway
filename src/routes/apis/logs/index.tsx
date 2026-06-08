@@ -18,8 +18,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
-import { invokeApi } from "@/shared/api";
+import type { ApiLogEntry } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -71,7 +71,7 @@ function ApiLogs() {
   // 날짜 목록 조회
   const fetchDates = useCallback(async () => {
     try {
-      const res = await invokeApi("list_api_log_dates");
+      const res = await commands.listApiLogDates().then(unwrap);
       if (res.success && res.data) {
         setAvailableDates(res.data);
       }
@@ -85,14 +85,15 @@ function ApiLogs() {
     async (targetDate: string) => {
       setLoading(true);
       try {
-        const res = await invokeApi("get_api_logs", {
-          payload: {
+        const res = await commands
+          .getApiLogs({
             date: targetDate,
-            domainFilter: search.trim() || undefined,
-            methodFilter: methodFilter || undefined,
-            hostFilter: hostFilter.trim() || undefined,
-          },
-        });
+            domainFilter: search.trim() || null,
+            methodFilter: methodFilter || null,
+            hostFilter: hostFilter.trim() || null,
+            exactMatch: null,
+          })
+          .then(unwrap);
         if (res.success && res.data) {
           setLogs(res.data);
         } else {
@@ -131,9 +132,11 @@ function ApiLogs() {
     }
     setClearing(true);
     try {
-      await invokeApi("clear_api_logs", {
-        payload: clearAll ? { date: undefined } : { date },
-      });
+      await commands
+        .clearApiLogs({
+          date: clearAll ? null : date,
+        })
+        .then(unwrap);
       setLogs([]);
       await fetchDates();
     } catch (e) {

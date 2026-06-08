@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ExternalLink, Grid2X2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { DomainStatusLog } from "@/entities/domain/types/domain_monitor";
+import type { DomainStatusLog } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
 
@@ -125,7 +125,7 @@ export function VirtualizedGroupSection({ group, apps }: VirtualizedGroupSection
                                 {app.errorMessage && (
                                   <span
                                     className="text-[10px] italic text-error font-bold truncate max-w-[150px]"
-                                    title={app.errorMessage}
+                                    title={app.errorMessage ?? undefined}
                                   >
                                     {app.errorMessage}
                                   </span>

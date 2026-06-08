@@ -5,6 +5,7 @@ use crate::service::local_proxy;
 use tauri::State;
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_annotations(
     service: State<'_, InspectorService>,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
@@ -16,12 +17,13 @@ pub fn get_annotations(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 pub struct DeleteAnnotationPayload {
     pub id: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn add_annotation(
     service: State<'_, InspectorService>,
     payload: Annotation,
@@ -35,7 +37,7 @@ pub fn add_annotation(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 pub struct UpdateAnnotationPayload {
     pub id: String,
     pub role: String,
@@ -43,6 +45,7 @@ pub struct UpdateAnnotationPayload {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_annotation(
     service: State<'_, InspectorService>,
     payload: UpdateAnnotationPayload,
@@ -57,6 +60,7 @@ pub fn update_annotation(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_annotation(
     service: State<'_, InspectorService>,
     payload: DeleteAnnotationPayload,
@@ -70,12 +74,13 @@ pub fn delete_annotation(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 pub struct ImportAnnotationsPayload {
     pub annotations: Vec<Annotation>,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_annotations(
     service: State<'_, InspectorService>,
     payload: ImportAnnotationsPayload,
@@ -90,6 +95,7 @@ pub fn import_annotations(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_global_inspector_enabled(
     service: State<'_, InspectorService>,
     payload: bool,
@@ -100,6 +106,7 @@ pub fn set_global_inspector_enabled(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_global_inspector_enabled() -> Result<ApiResponse<bool>, String> {
     Ok(ApiResponse {
         message: "인스펙터 상태 조회 완료".to_string(),
@@ -111,6 +118,7 @@ pub fn get_global_inspector_enabled() -> Result<ApiResponse<bool>, String> {
 // ── Injection Domains ──────────────────────────────────────────────────
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_injection_domains(
     service: State<'_, InspectorService>,
 ) -> Result<ApiResponse<Vec<String>>, String> {
@@ -122,12 +130,13 @@ pub fn get_injection_domains(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 pub struct SetInjectionDomainsPayload {
     pub domains: Vec<String>,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn set_injection_domains(
     service: State<'_, InspectorService>,
     payload: SetInjectionDomainsPayload,

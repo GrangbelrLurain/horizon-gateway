@@ -20,10 +20,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { proxyMockingEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { Annotation, CapturedElement } from "@/entities/domain/types/inspector";
-import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
-import type { MockRule } from "@/entities/scenario/types/mocking";
-import { invokeApi } from "@/shared/api";
+import type { CapturedElement } from "@/entities/domain/types/inspector";
+import type { Annotation, ApiLogEntry, MockRule } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -137,23 +136,29 @@ function LiveCapturePage() {
 
   useEffect(() => {
     // 0. Load Initial Data
-    invokeApi("get_annotations").then((res) => {
-      if (res.success && res.data) {
-        setAnnotations(res.data);
-      }
-    });
-    invokeApi("get_domains").then((res) => {
-      if (res.success && res.data) {
-        const urls = res.data.map((d) => {
-          try {
-            return new URL(d.url).host;
-          } catch {
-            return d.url;
-          }
-        });
-        setRegisteredDomains(Array.from(new Set(urls)));
-      }
-    });
+    commands
+      .getAnnotations()
+      .then(unwrap)
+      .then((res) => {
+        if (res.success && res.data) {
+          setAnnotations(res.data);
+        }
+      });
+    commands
+      .getDomains()
+      .then(unwrap)
+      .then((res) => {
+        if (res.success && res.data) {
+          const urls = res.data.map((d) => {
+            try {
+              return new URL(d.url).host;
+            } catch {
+              return d.url;
+            }
+          });
+          setRegisteredDomains(Array.from(new Set(urls)));
+        }
+      });
 
     // 1. Listen for UI Element Capture
     const unlistenCapture = listen<CapturedElement>("annotation-dialog-requested", (event) => {
@@ -180,11 +185,14 @@ function LiveCapturePage() {
       if (event.data.type === "WT_POLICY_SAVED") {
         console.log("Policy saved in browser, refreshing...");
         setCaptured(null); // Clear form
-        invokeApi("get_annotations").then((res) => {
-          if (res.success && res.data) {
-            setAnnotations(res.data);
-          }
-        });
+        commands
+          .getAnnotations()
+          .then(unwrap)
+          .then((res) => {
+            if (res.success && res.data) {
+              setAnnotations(res.data);
+            }
+          });
       }
       if (event.data.type === "WT_ELEMENT_CAPTURED") {
         console.log("Captured element full payload:", event.data.payload);
@@ -268,7 +276,7 @@ function LiveCapturePage() {
       timestamp: Date.now(),
     };
     try {
-      const res = await invokeApi("add_annotation", { payload: newAnnotation });
+      const res = unwrap(await commands.addAnnotation(newAnnotation));
       if (res.success && res.data) {
         setAnnotations(res.data);
         setCaptured(null);
@@ -299,7 +307,7 @@ function LiveCapturePage() {
   };
 
   const checkAndOpenEditor = async (log: ApiLogEntry) => {
-    const res = await invokeApi("get_mock_rules");
+    const res = unwrap(await commands.getMockRules());
     if (res.success && res.data && Array.isArray(res.data)) {
       const existing = res.data.find((r) => r.url_pattern === log.url && r.method === log.method);
       if (existing) {
@@ -317,23 +325,27 @@ function LiveCapturePage() {
     if (!editingMockRule) {
       return;
     }
-    const res = await invokeApi("update_mock_rule", {
-      payload: {
-        id: editingMockRule.id,
-        name: editingMockRule.name,
-        host: editingMockRule.host,
-        method: editingMockRule.method,
-        urlPattern: editingMockRule.url_pattern,
-        responseStatus: editingMockRule.response_status,
-        responseHeaders: editingMockRule.response_headers,
-        responseBody: editMockBody,
-        enabled: editingMockRule.enabled,
-      },
-    });
-    if (res.success) {
-      alert("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");
-      setIsEditMockModalOpen(false);
-      setEditingMockRule(null);
+    try {
+      const res = unwrap(
+        await commands.updateMockRule({
+          id: editingMockRule.id,
+          name: editingMockRule.name,
+          host: editingMockRule.host,
+          method: editingMockRule.method,
+          urlPattern: editingMockRule.url_pattern,
+          responseStatus: editingMockRule.response_status,
+          responseHeaders: editingMockRule.response_headers,
+          responseBody: editMockBody,
+          enabled: editingMockRule.enabled,
+        }),
+      );
+      if (res.success) {
+        alert("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");
+        setIsEditMockModalOpen(false);
+        setEditingMockRule(null);
+      }
+    } catch (err) {
+      console.error("Update mock failed:", err);
     }
   };
 

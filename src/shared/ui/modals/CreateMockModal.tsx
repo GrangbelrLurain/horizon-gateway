@@ -2,7 +2,7 @@ import { useAtom } from "jotai";
 import { Check, Database, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Scenario } from "@/entities/scenario/types/mocking";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -19,11 +19,14 @@ export function CreateMockModal() {
 
   useEffect(() => {
     if (isOpen) {
-      invokeApi("get_scenarios").then((res) => {
-        if (res.success && res.data && Array.isArray(res.data)) {
-          setScenarios(res.data);
-        }
-      });
+      commands
+        .getScenarios()
+        .then(unwrap)
+        .then((res) => {
+          if (res.success && res.data && Array.isArray(res.data)) {
+            setScenarios(res.data);
+          }
+        });
     }
   }, [isOpen]);
 
@@ -44,9 +47,12 @@ export function CreateMockModal() {
     try {
       // 1. Create Scenario if new name provided
       if (!scenarioId && newScenarioName.trim()) {
-        const res = await invokeApi("create_scenario", {
-          payload: { name: newScenarioName, description: "Auto-created from Watchtower Workspace" },
-        });
+        const res = unwrap(
+          await commands.createScenario({
+            name: newScenarioName,
+            description: "Auto-created from Watchtower Workspace",
+          }),
+        );
         if (res.success && res.data) {
           scenarioId = res.data.id;
         } else {
@@ -63,14 +69,14 @@ export function CreateMockModal() {
       }
 
       // 2. Create Mock Rule from Log
-      const res = await invokeApi("create_mock_rule_from_log", {
-        payload: {
+      const res = unwrap(
+        await commands.createMockRuleFromLog({
           logId: logData.id,
           scenarioId: scenarioId,
           name: `${logData.method} ${logData.path}`,
           logDate: logData.timestamp.slice(0, 10),
-        },
-      });
+        }),
+      );
 
       if (res.success) {
         alert("성공적으로 스냅샷이 저장되었습니다.");

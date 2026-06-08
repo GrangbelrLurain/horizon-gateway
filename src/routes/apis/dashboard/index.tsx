@@ -5,9 +5,8 @@ import { Check, Download, Loader2Icon, Search, Settings, Trash2, Wifi } from "lu
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { globalApiLoggingLinksAtom, globalDomainsAtom } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { Domain } from "@/entities/domain/types/domain";
-import type { DomainApiLoggingLink } from "@/entities/proxy/types/local_route";
-import { invokeApi } from "@/shared/api";
+import type { Domain, DomainApiLoggingLink } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -31,7 +30,7 @@ function ApisDashboardPage() {
 
   const fetchDomains = useCallback(async () => {
     try {
-      const res = await invokeApi("get_domains");
+      const res = await commands.getDomains().then(unwrap);
       if (res.success) {
         setDomains(res.data ?? []);
       }
@@ -42,7 +41,7 @@ function ApisDashboardPage() {
 
   const fetchLinks = useCallback(async () => {
     try {
-      const res = await invokeApi("get_domain_api_logging_links");
+      const res = await commands.getDomainApiLoggingLinks().then(unwrap);
       if (res.success) {
         setLinks(res.data ?? []);
       }
@@ -81,9 +80,7 @@ function ApisDashboardPage() {
 
   const handleRemove = async (domainId: number) => {
     try {
-      const res = await invokeApi("remove_domain_api_logging", {
-        payload: { domainId },
-      });
+      const res = await commands.removeDomainApiLogging({ domainId }).then(unwrap);
       if (res.success) {
         setLinks(res.data ?? []);
       }
@@ -96,14 +93,14 @@ function ApisDashboardPage() {
 
   const handleToggleLogging = async (link: DomainApiLoggingLink) => {
     try {
-      const res = await invokeApi("set_domain_api_logging", {
-        payload: {
+      const res = await commands
+        .setDomainApiLogging({
           domainId: link.domainId,
-          loggingEnabled: !link.loggingEnabled,
-          bodyEnabled: link.bodyEnabled,
+          loggingEnabled: !(link.loggingEnabled ?? false),
+          bodyEnabled: link.bodyEnabled ?? false,
           schemaUrl: link.schemaUrl ?? null,
-        },
-      });
+        })
+        .then(unwrap);
       if (res.success) {
         setLinks(res.data ?? []);
       }
@@ -114,14 +111,14 @@ function ApisDashboardPage() {
 
   const handleToggleBody = async (link: DomainApiLoggingLink) => {
     try {
-      const res = await invokeApi("set_domain_api_logging", {
-        payload: {
+      const res = await commands
+        .setDomainApiLogging({
           domainId: link.domainId,
-          loggingEnabled: link.loggingEnabled,
-          bodyEnabled: !link.bodyEnabled,
+          loggingEnabled: link.loggingEnabled ?? false,
+          bodyEnabled: !(link.bodyEnabled ?? false),
           schemaUrl: link.schemaUrl ?? null,
-        },
-      });
+        })
+        .then(unwrap);
       if (res.success) {
         setLinks(res.data ?? []);
       }
@@ -138,14 +135,14 @@ function ApisDashboardPage() {
     }
     setSavingUrlIds((s) => new Set(s).add(link.domainId));
     try {
-      const res = await invokeApi("set_domain_api_logging", {
-        payload: {
+      const res = await commands
+        .setDomainApiLogging({
           domainId: link.domainId,
-          loggingEnabled: link.loggingEnabled,
-          bodyEnabled: link.bodyEnabled,
+          loggingEnabled: link.loggingEnabled ?? false,
+          bodyEnabled: link.bodyEnabled ?? false,
           schemaUrl: newUrl.trim() || null,
-        },
-      });
+        })
+        .then(unwrap);
       if (res.success) {
         setLinks(res.data ?? []);
         // 편집 상태 초기화
@@ -179,13 +176,11 @@ function ApisDashboardPage() {
       return next;
     });
     try {
-      const res = await invokeApi("download_api_schema", {
-        payload: { domainId: link.domainId, url },
-      });
+      const res = await commands.downloadApiSchema({ domainId: link.domainId, url }).then(unwrap);
       if (res.success) {
         setDownloadMessages((prev) => ({
           ...prev,
-          [link.domainId]: { ok: true, msg: t.downloadSuccess(res.data.sizeBytes.toLocaleString()) },
+          [link.domainId]: { ok: true, msg: t.downloadSuccess((res.data.sizeBytes ?? 0).toLocaleString()) },
         }));
       } else {
         setDownloadMessages((prev) => ({

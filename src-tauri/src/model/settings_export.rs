@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub const SETTINGS_EXPORT_VERSION: u32 = 2;
 
 /// Domain monitor settings (check_enabled, interval). Keyed by URL for import matching.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DomainMonitorExport {
     pub url: String,
@@ -23,7 +23,7 @@ fn default_domain_monitor() -> Vec<DomainMonitorExport> {
     Vec::new()
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsExport {
     pub version: u32,

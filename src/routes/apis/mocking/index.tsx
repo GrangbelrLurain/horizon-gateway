@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { proxyMockingEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { MockRule, Scenario } from "@/entities/scenario/types/mocking";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import * as mockingApi from "@/shared/api/mocking";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -93,7 +93,7 @@ function MockingDashboard() {
     }
     setMockingLoading(true);
     try {
-      const res = await invokeApi("set_mocking_enabled", { payload: { enabled } });
+      const res = await commands.setMockingEnabled({ enabled }).then(unwrap);
       if (res.success) {
         setMockingEnabled(enabled);
       }

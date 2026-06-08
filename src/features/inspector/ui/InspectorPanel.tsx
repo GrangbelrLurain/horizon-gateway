@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { proxyInspectorEnabledAtom, proxyRunningAtom } from "@/domain/app-status/store";
 import { languageAtom } from "@/domain/i18n/store";
 import type { Annotation, CapturedElement } from "@/entities/domain/types/inspector";
-import { invokeApi } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -95,11 +95,14 @@ export function InspectorPanel() {
   };
 
   useEffect(() => {
-    invokeApi("get_injection_domains").then((res) => {
-      if (res.success && res.data) {
-        setInjectionDomains(res.data);
-      }
-    });
+    commands
+      .getInjectionDomains()
+      .then(unwrap)
+      .then((res) => {
+        if (res.success && res.data) {
+          setInjectionDomains(res.data);
+        }
+      });
 
     const unlisten = listen<CapturedElement>("annotation-dialog-requested", (event) => {
       setCaptured(event.payload);
@@ -115,14 +118,14 @@ export function InspectorPanel() {
 
   const handleToggleInspector = async (enabled: boolean) => {
     setInspectorEnabled(enabled);
-    await invokeApi("set_global_inspector_enabled", { payload: enabled });
+    await commands.setGlobalInspectorEnabled(enabled).then(unwrap);
   };
 
   const handleAddDomain = async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && newDomain.trim()) {
       const updated = [...injectionDomains, newDomain.trim()];
       setInjectionDomains(updated);
-      await invokeApi("set_injection_domains", { payload: { domains: updated } });
+      await commands.setInjectionDomains({ domains: updated }).then(unwrap);
       setNewDomain("");
     }
   };
@@ -130,7 +133,7 @@ export function InspectorPanel() {
   const handleRemoveDomain = async (domain: string) => {
     const updated = injectionDomains.filter((d) => d !== domain);
     setInjectionDomains(updated);
-    await invokeApi("set_injection_domains", { payload: { domains: updated } });
+    await commands.setInjectionDomains({ domains: updated }).then(unwrap);
   };
 
   const saveAnnotation = async () => {
@@ -145,7 +148,7 @@ export function InspectorPanel() {
       timestamp: Date.now(),
     };
 
-    const res = await invokeApi("add_annotation", { payload: newAnnotation });
+    const res = await commands.addAnnotation(newAnnotation).then(unwrap);
     if (res.success) {
       setLastSavedId(newAnnotation.id);
       setCaptured(null);

@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 /// 모든 도메인 API 로깅 링크 조회.
 #[tauri::command]
+#[specta::specta]
 pub fn get_domain_api_logging_links(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
 ) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
@@ -20,7 +21,7 @@ pub fn get_domain_api_logging_links(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDomainApiLoggingPayload {
     pub domain_id: u32,
@@ -31,6 +32,7 @@ pub struct SetDomainApiLoggingPayload {
 
 /// 도메인 API 로깅 설정 추가/변경.
 #[tauri::command]
+#[specta::specta]
 pub fn set_domain_api_logging(
     payload: SetDomainApiLoggingPayload,
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
@@ -60,7 +62,7 @@ pub fn set_domain_api_logging(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDomainApiLoggingPayload {
     pub domain_id: u32,
@@ -68,6 +70,7 @@ pub struct RemoveDomainApiLoggingPayload {
 
 /// 도메인 API 로깅 설정 제거.
 #[tauri::command]
+#[specta::specta]
 pub fn remove_domain_api_logging(
     payload: RemoveDomainApiLoggingPayload,
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
@@ -95,7 +98,7 @@ fn schemas_dir(app: &tauri::AppHandle) -> PathBuf {
     base.join("schemas")
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadApiSchemaPayload {
     pub domain_id: u32,
@@ -104,11 +107,12 @@ pub struct DownloadApiSchemaPayload {
 }
 
 /// Schema 다운로드 응답: 저장된 파일 내용(텍스트) 반환.
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(serde::Serialize, Clone, Debug, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaDownloadResult {
     pub domain_id: u32,
     pub path: String,
+    #[specta(type = f64)]
     pub size_bytes: usize,
     /// 처음 N 글자 미리보기 (최대 500자).
     pub preview: String,
@@ -116,6 +120,7 @@ pub struct SchemaDownloadResult {
 
 /// Schema URL에서 JSON/YAML을 다운로드하여 로컬 저장.
 #[tauri::command]
+#[specta::specta]
 pub async fn download_api_schema(
     payload: DownloadApiSchemaPayload,
     app: tauri::AppHandle,
@@ -176,6 +181,7 @@ pub async fn download_api_schema(
 
 /// 로컬에 저장된 Schema 내용 조회.
 #[tauri::command]
+#[specta::specta]
 pub fn get_api_schema_content(
     payload: GetApiSchemaPayload,
     app: tauri::AppHandle,
@@ -198,7 +204,7 @@ pub fn get_api_schema_content(
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetApiSchemaPayload {
     pub domain_id: u32,
@@ -206,7 +212,7 @@ pub struct GetApiSchemaPayload {
 
 // ─── Send API request (Try-it-out) ──────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SendApiRequestPayload {
     pub method: String,
@@ -216,12 +222,13 @@ pub struct SendApiRequestPayload {
     pub body: Option<String>,
 }
 
-#[derive(serde::Serialize, Clone, Debug)]
+#[derive(serde::Serialize, Clone, Debug, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiRequestResult {
     pub status_code: u16,
     pub headers: HashMap<String, String>,
     pub body: String,
+    #[specta(type = f64)]
     pub elapsed_ms: u64,
 }
 
@@ -238,6 +245,7 @@ fn empty_request_result() -> ApiRequestResult {
 /// 임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
 /// 네트워크 에러도 ApiResponse로 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
 #[tauri::command]
+#[specta::specta]
 pub async fn send_api_request(
     payload: SendApiRequestPayload,
 ) -> Result<ApiResponse<ApiRequestResult>, String> {
@@ -355,6 +363,7 @@ pub async fn send_api_request(
 
 /// API 로그 날짜 목록 조회. (YYYY-MM-DD)
 #[tauri::command]
+#[specta::specta]
 pub fn list_api_log_dates(
     api_log_service: tauri::State<'_, ApiLogService>,
 ) -> Result<ApiResponse<Vec<String>>, String> {
@@ -366,7 +375,7 @@ pub fn list_api_log_dates(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GetApiLogsPayload {
     pub date: String,
@@ -378,6 +387,7 @@ pub struct GetApiLogsPayload {
 
 /// 특정 날짜의 API 로그 조회.
 #[tauri::command]
+#[specta::specta]
 pub fn get_api_logs(
     payload: GetApiLogsPayload,
     api_log_service: tauri::State<'_, ApiLogService>,
@@ -396,7 +406,7 @@ pub fn get_api_logs(
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearApiLogsPayload {
     pub date: Option<String>,
@@ -404,6 +414,7 @@ pub struct ClearApiLogsPayload {
 
 /// API 로그 삭제 (특정 날짜 또는 전체).
 #[tauri::command]
+#[specta::specta]
 pub fn clear_api_logs(
     payload: ClearApiLogsPayload,
     api_log_service: tauri::State<'_, ApiLogService>,

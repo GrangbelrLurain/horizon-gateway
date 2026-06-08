@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import html2canvas from "html2canvas";
 import { useAtomValue } from "jotai";
 import { jsPDF } from "jspdf";
@@ -23,10 +23,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
-import type { Annotation } from "@/entities/domain/types/inspector";
-import { invokeApi } from "@/shared/api";
+import type { Annotation } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -69,12 +69,12 @@ function PolicyListPage() {
   const documentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const fetchAnnotations = async () => {
-    const res = await invokeApi("get_annotations");
+  const fetchAnnotations = useCallback(async () => {
+    const res = unwrap(await commands.getAnnotations());
     if (res.success && res.data) {
       setAnnotations(res.data);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAnnotations();
@@ -82,7 +82,7 @@ function PolicyListPage() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [fetchAnnotations]);
 
   const domains = useMemo(() => {
     const set = new Set<string>();
@@ -107,7 +107,7 @@ function PolicyListPage() {
   }, [annotations, selectedDomain, search]);
 
   const handleDelete = async (id: string) => {
-    const res = await invokeApi("delete_annotation", { payload: { id } });
+    const res = unwrap(await commands.deleteAnnotation({ id }));
     if (res.success && res.data) {
       setAnnotations(res.data);
     }
@@ -124,9 +124,13 @@ function PolicyListPage() {
     if (!editingPolicy) {
       return;
     }
-    const res = await invokeApi("update_annotation", {
-      payload: { id: editingPolicy.id, role: editForm.role, description: editForm.description },
-    });
+    const res = unwrap(
+      await commands.updateAnnotation({
+        id: editingPolicy.id,
+        role: editForm.role,
+        description: editForm.description,
+      }),
+    );
     if (res.success && res.data) {
       setAnnotations(res.data);
       setIsEditModalOpen(false);
@@ -239,15 +243,15 @@ function PolicyListPage() {
     }
   };
 
-  const openExternalUrl = async (url: string) => {
+  const openExternalUrl = async (url: string | null | undefined) => {
     if (!url) {
       return;
     }
     try {
-      await invoke("plugin:opener|open", { path: url });
+      await openPath(url);
     } catch (_err) {
       try {
-        await invoke("plugin:opener|open_url", { url });
+        await openUrl(url);
       } catch {
         window.open(url, "_blank");
       }
@@ -278,7 +282,7 @@ function PolicyListPage() {
       }
       const content = await readTextFile(selected);
       const imported = JSON.parse(content) as Annotation[];
-      const res = await invokeApi("import_annotations", { payload: { annotations: imported } });
+      const res = unwrap(await commands.importAnnotations({ annotations: imported }));
       if (res.success && res.data) {
         setAnnotations(res.data);
         alert(`${imported.length}${t.importSuccess}`);
@@ -482,7 +486,7 @@ function PolicyListPage() {
                         <Globe className="w-3 h-3" />
                         <span className="font-bold">{ann.domain}</span>
                       </div>
-                      <span>{new Date(ann.timestamp).toLocaleDateString()}</span>
+                      <span>{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -622,7 +626,7 @@ function PolicyListPage() {
                           <Globe style={{ width: "12px", height: "12px" }} />
                           <span style={{ fontFamily: "monospace" }}>{ann.domain}</span>
                           <span>•</span>
-                          <span>{new Date(ann.timestamp).toLocaleDateString()}</span>
+                          <span>{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                         </div>
                       </div>
 

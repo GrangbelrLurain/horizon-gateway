@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { domainCountAtom } from "@/domain/app-status/store";
 import { globalSiteCheckAtom } from "@/domain/global-data/store";
 import { languageAtom } from "@/domain/i18n/store";
-import type { DomainStatusLog } from "@/entities/domain/types/domain_monitor";
 import { VirtualizedGroupSection } from "@/features/domain-monitor/ui/VirtualizedGroupSection";
-import { invokeApi } from "@/shared/api";
+import type { DomainStatusLog } from "@/shared/api";
+import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { EmptyState } from "@/shared/ui/empty-state/EmptyState";
@@ -36,7 +36,7 @@ function MonitorIndex() {
   const fetchLatest = useCallback(async () => {
     setIsFetching(true);
     try {
-      const response = await invokeApi("get_latest_status");
+      const response = await commands.getLatestStatus().then(unwrap);
       if (response.success && response.data.length > 0) {
         setSiteCheck(response.data);
         const latestTime =
@@ -55,7 +55,7 @@ function MonitorIndex() {
   const handleManualRefresh = useCallback(async () => {
     setIsFetching(true);
     try {
-      const response = await invokeApi("check_domain_status");
+      const response = await commands.checkDomainStatus().then(unwrap);
       if (response.success) {
         setSiteCheck(response.data);
         setLastUpdated(new Date().toLocaleTimeString());

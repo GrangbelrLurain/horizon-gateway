@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { ApiLogEntry } from "@/entities/proxy/types/local_route";
+import type { ApiLogEntry } from "@/shared/api";
 
 export interface CreateMockModalState {
   isOpen: boolean;
