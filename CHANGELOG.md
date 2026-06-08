@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.6] - 2026-06-08
+
+### Added
+
+- **Domain Dashboard Copy Button**: Added a copy dropdown to `/domains/dashboard` with two formats:
+  - **도메인 + 그룹명 복사**: Copies domains with their group names in `domain.com (Group A, Group B)` format.
+  - **그룹별 도메인 목록 복사**: Copies domains organized by group sections.
+- **API Logs Copy Dropdown**: Replaced single copy button in the log detail modal with a dropdown offering two copy modes:
+  - **HTML 복사**: Copies rich HTML with inline styling, optimized for Azure DevOps ticket comments.
+  - **Markdown 복사**: Copies dual-clipboard (HTML + Markdown plain text), optimized for Microsoft Teams sharing.
+- **API Schema Copy Dropdown**: Applied the same copy dropdown policy to `/apis/schema` response cards, positioned in the endpoint header bar alongside History/Send buttons.
+- **Promise-based Alert Modal**: Introduced `usePromiseModal` for non-blocking copy confirmation feedback across all copy actions.
+
+### Changed
+
+- **Copy Markdown Format**: Refactored markdown template generation from template literals to `Array.join("\n")` for precise line control, fixing indentation and extra whitespace issues in pasted output.
+- **Log Detail Modal Layout**: Restructured the API log detail modal with block-styled headers and JSON pretty-printing for better readability and copy fidelity.
+
 ## [v1.7.5] - 2026-06-08
 
 ### Added

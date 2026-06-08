@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
-import { Download, Folder, Globe, LayoutGrid, Plus, Search, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, Download, Folder, Globe, LayoutGrid, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { proxyActiveAtom } from "@/domain/app-status/store";
 import {
@@ -48,6 +48,9 @@ function RouteComponent() {
   const [links, setLinks] = useAtom(globalLinksAtom);
   const [deleteDomainId, setDeleteDomainId] = useState<number | null>(null);
   const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Feature data
   const [monitorLinks, setMonitorLinks] = useAtom(globalMonitorLinksAtom);
@@ -159,6 +162,17 @@ function RouteComponent() {
   useEffect(() => {
     fetchFeatureData();
   }, [fetchFeatureData]);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -306,6 +320,62 @@ function RouteComponent() {
     return matchesSearch && matchesGroup;
   });
 
+  const handleCopy = useCallback(
+    async (type: "domain-group" | "group-domains") => {
+      setIsDropdownOpen(false);
+      if (filteredDomains.length === 0) {
+        return;
+      }
+
+      let text = "";
+      if (type === "domain-group") {
+        text = filteredDomains
+          .map((d) => {
+            const ids = domainGroupIds.get(d.id) ?? [];
+            const groupNames = ids.map((id) => groups.find((g) => g.id === id)?.name).filter(Boolean) as string[];
+            const groupStr = groupNames.length > 0 ? groupNames.join(", ") : t.noGroup;
+            return `${d.url} (${groupStr})`;
+          })
+          .join("\n");
+      } else if (type === "group-domains") {
+        const grouped: Record<string, string[]> = {};
+        for (const d of filteredDomains) {
+          const ids = domainGroupIds.get(d.id) ?? [];
+          if (ids.length === 0) {
+            const noGroupName = t.noGroup;
+            if (!grouped[noGroupName]) {
+              grouped[noGroupName] = [];
+            }
+            grouped[noGroupName].push(d.url);
+          } else {
+            for (const id of ids) {
+              const g = groups.find((x) => x.id === id);
+              const groupName = g?.name ?? `Group #${id}`;
+              if (!grouped[groupName]) {
+                grouped[groupName] = [];
+              }
+              grouped[groupName].push(d.url);
+            }
+          }
+        }
+        text = Object.entries(grouped)
+          .map(([groupName, urls]) => `${groupName}:\n${urls.map((url) => `- ${url}`).join("\n")}`)
+          .join("\n\n");
+      }
+
+      if (text) {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+          console.error("Failed to copy text:", err);
+        }
+      }
+    },
+    [filteredDomains, domainGroupIds, groups, t.noGroup],
+  );
+
   const listParentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: filteredDomains.length,
@@ -407,6 +477,49 @@ function RouteComponent() {
           <div className="flex gap-2 items-center">
             {domains.length > 0 && (
               <>
+                <div className="relative inline-block text-left" ref={dropdownRef}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2 h-9 flex items-center font-bold tracking-tight bg-base-100"
+                    onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 text-success" />
+                        <span className="text-success">{t.copied}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        {t.btnCopy}
+                        <ChevronDown className="w-3.5 h-3.5 text-base-content/40" />
+                      </>
+                    )}
+                  </Button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-1.5 w-60 bg-base-100 border border-base-300 rounded-xl shadow-xl z-50 py-1 overflow-hidden backdrop-blur-md bg-base-100/95">
+                      <button
+                        type="button"
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-base-200 text-base-content transition-colors flex flex-col gap-0.5 cursor-pointer"
+                        onClick={() => handleCopy("domain-group")}
+                      >
+                        <span className="font-semibold text-base-content">{t.copyDomainGroup}</span>
+                        <span className="text-[10px] text-base-content/50">domain (Group A, Group B)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-base-200 border-t border-base-200 text-base-content transition-colors flex flex-col gap-0.5 cursor-pointer"
+                        onClick={() => handleCopy("group-domains")}
+                      >
+                        <span className="font-semibold text-base-content">{t.copyGroupDomains}</span>
+                        <span className="text-[10px] text-base-content/50">Group:\n- domain</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <Button
                   variant="secondary"
                   size="sm"

@@ -32,4 +32,9 @@ export const ko: TranslationSchema = {
   noApiLoggingTitle: "API 로깅이 설정된 도메인이 없어요",
   noApiLoggingDesc: "최소 하나의 도메인에서 API 로깅을 활성화하면 트래픽이 여기에 기록됩니다.",
   noApiLoggingAction: "API 설정 바로가기",
+  btnCopy: "복사",
+  copied: "복사 완료!",
+  copiedDesc: "클립보드에 복사되었습니다.",
+  copyHtml: "HTML 복사",
+  copyMarkdown: "Markdown 복사",
 };

@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
-import { BookOpen, ChevronDown, ChevronRight, Clock, Globe, Loader2, Play, Search, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronRight, Clock, Copy, Globe, Loader2, Play, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/domain/i18n/store";
 import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { usePromiseModal } from "@/shared/lib/modal/usePromiseModal";
 import { type OpenApiSpec, type ParsedEndpoint, parseOpenApiSpec, type TagGroup } from "@/shared/lib/openapi-parser";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -39,7 +40,7 @@ function methodStyle(m: string) {
   return METHOD_COLORS[m.toLowerCase()] ?? { color: "slate" as const, bg: "bg-base-200 border-base-300" };
 }
 
-function statusColor(code: number): "green" | "red" | "amber" | "blue" | "slate" {
+function getTextStatusColor(code: number): "green" | "red" | "amber" | "blue" | "slate" {
   if (code < 300) {
     return "green";
   }
@@ -213,7 +214,7 @@ function LogHistoryModal({
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <Badge
-                          variant={{ color: statusColor(log.status_code ?? 0), size: "sm" }}
+                          variant={{ color: getTextStatusColor(log.status_code ?? 0), size: "sm" }}
                           className="font-black tabular-nums"
                         >
                           {log.status_code ?? "ERR"}
@@ -294,6 +295,22 @@ function EndpointDetail({
   // Loading state (not persisted)
   const [sending, setSending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { alert: promiseAlert } = usePromiseModal();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const buildUrl = useCallback(() => {
     let path = endpoint.path;
@@ -395,6 +412,333 @@ function EndpointDetail({
     }
   }, [response?.body]);
 
+  const formatBodyText = useCallback((body: string | null): string => {
+    if (!body) {
+      return "";
+    }
+    try {
+      const parsed = JSON.parse(body);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return body;
+    }
+  }, []);
+
+  const getRequestHeaders = useCallback(() => {
+    const headers: Record<string, string> = {};
+    if (headerText.trim()) {
+      for (const line of headerText.split("\n")) {
+        const idx = line.indexOf(":");
+        if (idx > 0) {
+          headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+        }
+      }
+    }
+    for (const p of endpoint.parameters.filter((param) => param.in === "header")) {
+      const val = paramValues[p.name];
+      if (val) {
+        headers[p.name] = val;
+      }
+    }
+    return headers;
+  }, [headerText, endpoint.parameters, paramValues]);
+
+  const handleCopyHtml = useCallback(async () => {
+    setIsDropdownOpen(false);
+    if (!response) {
+      return;
+    }
+
+    const getMethodBgColor = (method: string) => {
+      const m = method.toUpperCase();
+      if (m === "GET") {
+        return "#0078d4";
+      }
+      if (m === "POST") {
+        return "#107c41";
+      }
+      if (m === "PUT" || m === "PATCH") {
+        return "#d83b01";
+      }
+      if (m === "DELETE") {
+        return "#a80000";
+      }
+      return "#605e5c";
+    };
+
+    const getStatusColor = (status: number | null) => {
+      if (!status) {
+        return "#605e5c";
+      }
+      if (status >= 500) {
+        return "#a80000";
+      }
+      if (status >= 400) {
+        return "#d83b01";
+      }
+      if (status >= 300) {
+        return "#0078d4";
+      }
+      return "#107c41";
+    };
+
+    const reqHeaders = getRequestHeaders();
+    const formattedReqBody = formatBodyText(bodyText);
+    const formattedResBody = formatBodyText(response.body);
+
+    const methodColor = getMethodBgColor(endpoint.method);
+    const statusColor = getStatusColor(response.statusCode);
+
+    let reqHeadersHtml = "";
+    if (Object.keys(reqHeaders).length > 0) {
+      reqHeadersHtml = Object.entries(reqHeaders)
+        .map(
+          ([k, v]) => `
+        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
+          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
+        </div>`,
+        )
+        .join("");
+    } else {
+      reqHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
+    }
+
+    let resHeadersHtml = "";
+    if (response.headers && Object.keys(response.headers).length > 0) {
+      resHeadersHtml = Object.entries(response.headers)
+        .map(
+          ([k, v]) => `
+        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
+          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
+        </div>`,
+        )
+        .join("");
+    } else {
+      resHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
+    }
+
+    const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #323130; max-width: 800px; border: 1px solid #edebe9; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
+  <div style="padding: 12px 16px; background-color: #f3f2f1; border-bottom: 1px solid #edebe9;">
+    <span style="display: inline-block; font-weight: bold; background-color: ${methodColor}; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin-right: 8px;">${endpoint.method.toUpperCase()}</span>
+    <strong style="font-family: monospace; font-size: 12px; word-break: break-all;">${buildUrl()}</strong>
+  </div>
+  
+  <div style="padding: 8px 16px; background-color: #faf9f8; border-bottom: 1px solid #edebe9; font-size: 11px; color: #605e5c;">
+    <strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold; font-family: monospace;">${response.statusCode}</span>
+    <span style="margin: 0 10px; color: #edebe9;">|</span>
+    <strong>Time:</strong> <span style="font-family: monospace;">${response.elapsedMs}ms</span>
+    <span style="margin: 0 10px; color: #edebe9;">|</span>
+    <strong>Time Copied:</strong> <span style="font-family: monospace;">${new Date().toLocaleString()}</span>
+  </div>
+
+  <div style="padding: 16px;">
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Headers</h4>
+    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
+      ${reqHeadersHtml}
+    </div>
+
+    ${
+      formattedReqBody
+        ? `
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Body</h4>
+    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedReqBody}</pre>
+    `
+        : ""
+    }
+
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Headers</h4>
+    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
+      ${resHeadersHtml}
+    </div>
+
+    ${
+      formattedResBody
+        ? `
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Body</h4>
+    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedResBody}</pre>
+    `
+        : ""
+    }
+  </div>
+</div>
+`;
+
+    const plainHeaders = (headers: Record<string, string> | null) => {
+      if (!headers) {
+        return "No headers";
+      }
+      return Object.entries(headers)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+    };
+
+    const plain = `METHOD: ${endpoint.method.toUpperCase()}
+URL: ${buildUrl()}
+Status: ${response.statusCode}
+Time: ${response.elapsedMs}ms
+
+[Request Headers]
+${plainHeaders(reqHeaders)}
+${formattedReqBody ? `\n[Request Body]\n${formattedReqBody}\n` : ""}
+[Response Headers]
+${plainHeaders(response.headers)}
+${formattedResBody ? `\n[Response Body]\n${formattedResBody}\n` : ""}
+`;
+
+    try {
+      const blobHtml = new Blob([html], { type: "text/html" });
+      const blobText = new Blob([plain], { type: "text/plain" });
+      const data = [
+        new ClipboardItem({
+          "text/html": blobHtml,
+          "text/plain": blobText,
+        }),
+      ];
+      await navigator.clipboard.write(data);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      promiseAlert(t.copied, t.copiedDesc);
+    } catch (err) {
+      console.error("Failed to copy HTML, falling back to text:", err);
+      try {
+        await navigator.clipboard.writeText(plain);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        promiseAlert(t.copied, t.copiedDesc);
+      } catch (err2) {
+        console.error("Failed to copy text:", err2);
+      }
+    }
+  }, [response, bodyText, endpoint, buildUrl, getRequestHeaders, formatBodyText, promiseAlert, t.copied, t.copiedDesc]);
+
+  const handleCopyMarkdown = useCallback(async () => {
+    setIsDropdownOpen(false);
+    if (!response) {
+      return;
+    }
+
+    const reqHeaders = getRequestHeaders();
+    const formattedReqBody = formatBodyText(bodyText);
+    const formattedResBody = formatBodyText(response.body);
+
+    const plainHeaders = (headers: Record<string, string> | null) => {
+      if (!headers || Object.keys(headers).length === 0) {
+        return "No headers";
+      }
+      return Object.entries(headers)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+    };
+
+    const reqHeadersStr = plainHeaders(reqHeaders);
+    const resHeadersStr = plainHeaders(response.headers);
+
+    const md = [
+      `### **[${endpoint.method.toUpperCase()}]** \`${buildUrl()}\``,
+      `**Status:** \`${response.statusCode}\` | **Time:** \`${response.elapsedMs}ms\``,
+      "",
+      "#### **Request Headers**",
+      "```http",
+      reqHeadersStr,
+      "```",
+      ...(formattedReqBody ? ["", "#### **Request Body**", "```json", formattedReqBody, "```"] : []),
+      "",
+      "#### **Response Headers**",
+      "```http",
+      resHeadersStr,
+      "```",
+      ...(formattedResBody ? ["", "#### **Response Body**", "```json", formattedResBody, "```"] : []),
+      "",
+    ].join("\n");
+
+    const methodColor =
+      endpoint.method.toUpperCase() === "GET"
+        ? "#0078d4"
+        : endpoint.method.toUpperCase() === "POST"
+          ? "#107c41"
+          : ["PUT", "PATCH"].includes(endpoint.method.toUpperCase())
+            ? "#d83b01"
+            : endpoint.method.toUpperCase() === "DELETE"
+              ? "#a80000"
+              : "#605e5c";
+
+    const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #242424; max-width: 800px;">
+  <div style="margin-bottom: 8px;">
+    <span style="font-weight: bold; font-family: monospace; font-size: 12px; color: ${methodColor};">[${endpoint.method.toUpperCase()}]</span> 
+    <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 12px;">${buildUrl()}</code>
+  </div>
+  <div style="font-size: 12px; color: #616161; margin-bottom: 16px;">
+    <strong>Status:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${response.statusCode}</code>
+    <span style="margin: 0 8px; color: #d2d2d2;">|</span>
+    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${response.elapsedMs}ms</code>
+  </div>
+
+  <div style="margin-bottom: 12px;">
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Headers</div>
+    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${reqHeadersStr}</pre>
+  </div>
+
+  ${
+    formattedReqBody
+      ? `
+  <div style="margin-bottom: 12px;">
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Body</div>
+    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedReqBody}</pre>
+  </div>
+  `
+      : ""
+  }
+
+  <div style="margin-bottom: 12px;">
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Headers</div>
+    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${resHeadersStr}</pre>
+  </div>
+
+  ${
+    formattedResBody
+      ? `
+  <div style="margin-bottom: 12px;">
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Body</div>
+    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedResBody}</pre>
+  </div>
+  `
+      : ""
+  }
+</div>
+`;
+
+    try {
+      const blobHtml = new Blob([html], { type: "text/html" });
+      const blobText = new Blob([md], { type: "text/plain" });
+      const data = [
+        new ClipboardItem({
+          "text/html": blobHtml,
+          "text/plain": blobText,
+        }),
+      ];
+      await navigator.clipboard.write(data);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+      promiseAlert(t.copied, t.copiedDesc);
+    } catch (err) {
+      console.error("Failed to copy Markdown HTML, falling back to plain text:", err);
+      try {
+        await navigator.clipboard.writeText(md);
+        setCopied(true);
+        setTimeout(() => {
+          setCopied(false);
+        }, 2000);
+        promiseAlert(t.copied, t.copiedDesc);
+      } catch (err2) {
+        console.error("Failed to copy text:", err2);
+      }
+    }
+  }, [response, bodyText, endpoint, buildUrl, getRequestHeaders, formatBodyText, promiseAlert, t.copied, t.copiedDesc]);
+
   const pathParams = endpoint.parameters.filter((p) => p.in === "path");
   const queryParams = endpoint.parameters.filter((p) => p.in === "query");
   const headerParams = endpoint.parameters.filter((p) => p.in === "header");
@@ -423,6 +767,50 @@ function EndpointDetail({
             {endpoint.path}
           </code>
           <div className="flex items-center gap-2">
+            {/* Copy Dropdown - only when response exists */}
+            {response && (
+              <div className="relative inline-block text-left" ref={dropdownRef}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  className="gap-1.5 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
+                  type="button"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-success" />
+                      <span className="text-success">{t.copied}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{t.btnCopy}</span>
+                      <ChevronDown className="w-3 h-3 text-base-content/40" />
+                    </>
+                  )}
+                </Button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-1 w-44 bg-base-100 border border-base-300 rounded-xl shadow-xl z-50 py-1 overflow-hidden backdrop-blur-md bg-base-100/95">
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 text-base-content font-bold transition-colors cursor-pointer"
+                      onClick={handleCopyHtml}
+                    >
+                      {t.copyHtml}
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 border-t border-base-200 text-base-content font-bold transition-colors cursor-pointer"
+                      onClick={handleCopyMarkdown}
+                    >
+                      {t.copyMarkdown}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -557,7 +945,7 @@ function EndpointDetail({
         <Card className="p-5 bg-base-100 border-base-300 shadow-xl rounded-2xl animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-3 mb-4 p-3 bg-base-200/50 rounded-xl border border-base-300/50">
             <Badge
-              variant={{ color: statusColor(response.statusCode), size: "md" }}
+              variant={{ color: getTextStatusColor(response.statusCode), size: "md" }}
               className="font-black tabular-nums scale-110"
             >
               {response.statusCode}
@@ -572,14 +960,6 @@ function EndpointDetail({
             <pre className="text-xs font-mono bg-base-200/50 border border-base-300 rounded-xl p-4 overflow-auto max-h-[500px] whitespace-pre-wrap break-all shadow-inner text-base-content/90 selection:bg-primary/30">
               {formattedBody || t.empty}
             </pre>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="absolute top-2 right-2 opacity-0 group-hover/res:opacity-100 transition-opacity h-8 bg-base-100/50 backdrop-blur-sm shadow-sm"
-              onClick={() => navigator.clipboard.writeText(formattedBody || "")}
-            >
-              Copy
-            </Button>
           </div>
         </Card>
       )}

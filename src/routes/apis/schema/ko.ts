@@ -34,4 +34,9 @@ export const ko: TranslationSchema = {
   headers: (count: number) => `헤더 (${count})`,
   historyTitle: (method: string, path: string) => `${method} ${path} 기록`,
   registeredDomains: (count: number) => `${count}개 등록된 도메인`,
+  btnCopy: "복사",
+  copied: "복사 완료!",
+  copiedDesc: "클립보드에 복사되었습니다.",
+  copyHtml: "HTML 복사",
+  copyMarkdown: "Markdown 복사",
 };

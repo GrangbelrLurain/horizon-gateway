@@ -39,6 +39,7 @@ import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Titlebar } from "@/shared/ui/layout/Titlebar";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
+import { PromiseModal } from "@/shared/ui/modal/PromiseModal";
 import { CreateMockModal } from "@/shared/ui/modals/CreateMockModal";
 import { en } from "./root.en";
 import { ko } from "./root.ko";
@@ -357,6 +358,7 @@ const RootLayout = () => {
       </div>
 
       <CreateMockModal />
+      <PromiseModal />
       <TanStackRouterDevtools position="bottom-right" />
     </div>
   );

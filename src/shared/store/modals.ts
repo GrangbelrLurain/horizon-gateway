@@ -20,3 +20,14 @@ export interface ScenarioModalState {
 export const scenarioModalAtom = atom<ScenarioModalState>({
   isOpen: false,
 });
+
+export interface PromiseModalState {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: "info" | "success" | "warning" | "danger";
+  resolve: (value: boolean) => void;
+}
+
+export const promiseModalAtom = atom<PromiseModalState | null>(null);

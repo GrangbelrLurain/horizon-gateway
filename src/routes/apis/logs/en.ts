@@ -26,4 +26,9 @@ export const en = {
   noApiLoggingTitle: "No API logging configured",
   noApiLoggingDesc: "Enable API logging for at least one domain to start capturing traffic.",
   noApiLoggingAction: "Configure API Settings",
+  btnCopy: "Copy",
+  copied: "Copied!",
+  copiedDesc: "Copied to clipboard successfully.",
+  copyHtml: "Copy HTML",
+  copyMarkdown: "Copy Markdown",
 } as const;

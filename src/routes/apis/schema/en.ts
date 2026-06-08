@@ -28,4 +28,9 @@ export const en = {
   headers: (count: number) => `Headers (${count})`,
   historyTitle: (method: string, path: string) => `History for ${method} ${path}`,
   registeredDomains: (count: number) => `${count} registered domains`,
+  btnCopy: "Copy",
+  copied: "Copied!",
+  copiedDesc: "Copied to clipboard successfully.",
+  copyHtml: "Copy HTML",
+  copyMarkdown: "Copy Markdown",
 };
