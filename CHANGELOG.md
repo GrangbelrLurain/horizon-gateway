@@ -4,16 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.7.7] - 2026-06-10
+
+### Added
+
+- **Android USB Connection Tab**: Redesigned the Mobile Connection page (`/proxy/mobile`) into a two-tab layout:
+  - **Wireless Connect (Wi-Fi / VPN)**: Existing Tailscale VPN and Cloudflare tunnel-based handoff flow.
+  - **USB Connect (Android Only)**: New tab for direct USB cable debugging via ADB reverse port forwarding.
+- **ADB Auto-Detection**: Backend automatically finds the `adb` binary by scanning:
+  - System `PATH`.
+  - Standard Android SDK platform-tools locations on Windows (`%LOCALAPPDATA%/Android/Sdk/platform-tools/adb.exe`).
+  - macOS paths including Homebrew (`/opt/homebrew/bin/adb`, `/usr/local/bin/adb`).
+- **USB Device Status Panel**: The USB tab shows ADB installation status (path, version), lists all connected Android devices by serial number, and provides a one-click Refresh button.
+- **ADB Installation Guide**: When ADB is not found, the UI shows platform-specific installation instructions with one-click copy commands (`choco install adb` / `brew install --cask android-platform-tools`).
+- **USB Port Tunneling Switch**: A toggle to activate/deactivate `adb reverse tcp:PORT tcp:PORT` for the configured proxy port.
+- **Automated Android System Proxy Injection**: Upon activating the USB tunnel, Watchtower automatically injects the system-wide proxy settings directly into connected Android devices via ADB, eliminating manual Wi-Fi proxy configuration:
+  - **Enable**: `adb -s <serial> shell settings put global http_proxy 127.0.0.1:PORT`
+  - **Disable**: Clears and deletes all global proxy keys on switch off or page exit.
+- **iOS Unsupported Warning Card**: Explicit notice in the USB tab explaining why iOS does not support USB reverse tunneling (Apple sandbox limitations), with guidance to use the Wireless tab instead.
+
+### Changed
+
+- **Hardcoded Port Cleanup**: Removed all hardcoded `8888` (proxy) and `13030` (Axum handoff server) values across the codebase:
+  - Frontend USB guides now use the live `proxyStatus.port` value dynamically.
+  - `landing.html` now uses a `{{AXUM_PORT}}` template placeholder injected by `tunnel_service.rs` at runtime.
+- **USB Guide Step 3 Rewritten**: Replaced the manual Wi-Fi proxy configuration instruction with a note that proxy settings are now **automatically injected by Watchtower** and advises users to revert any previously set manual proxy to "None".
+
+### Fixed
+
+- **Tauri App "Not Responding" (응답 없음) on Mobile Page**: Resolved a critical deadlock that caused the application window to freeze when navigating to the Mobile Connection page.
+  - **Root cause**: USB Tauri commands (`check_adb_status`, `start_usb_reverse`, `stop_usb_reverse`) were synchronous (`fn`), blocking the main GUI thread. When the ADB daemon was not running, `Command::output()` on `adb devices` would block indefinitely as the spawned background daemon process inherited the piped stdout/stderr file handles.
+  - **Fix 1**: Converted all USB Tauri commands to `async fn` to offload execution to Tokio's thread pool.
+  - **Fix 2**: Implemented an `ensure_adb_server()` helper that runs `adb start-server` with `Stdio::null()` before any command that pipes output, safely starting the daemon without creating a deadlock.
+- **Android "망 접속 안됨" (No Network Access)**: Resolved the issue where the device lost internet access after configuring `127.0.0.1` as a Wi-Fi proxy.
+  - **Root cause**: Android OS ignores or blocks loopback addresses (`127.0.0.1`) entered via the Wi-Fi settings UI, rendering the device network-inaccessible.
+  - **Fix**: Replaced manual proxy configuration instructions with the automated `adb shell settings put global http_proxy` injection approach, which correctly applies the proxy at the system level and bypasses Android UI restrictions.
+
 ## [v1.7.6] - 2026-06-08
 
 ### Added
 
 - **Domain Dashboard Copy Button**: Added a copy dropdown to `/domains/dashboard` with two formats:
-  - **도메인 + 그룹명 복사**: Copies domains with their group names in `domain.com (Group A, Group B)` format.
-  - **그룹별 도메인 목록 복사**: Copies domains organized by group sections.
+  - **Domain + Group Name Copy**: Copies domains with their group names in `domain.com (Group A, Group B)` format.
+  - **Domains by Group Copy**: Copies domains organized by group sections.
 - **API Logs Copy Dropdown**: Replaced single copy button in the log detail modal with a dropdown offering two copy modes:
-  - **HTML 복사**: Copies rich HTML with inline styling, optimized for Azure DevOps ticket comments.
-  - **Markdown 복사**: Copies dual-clipboard (HTML + Markdown plain text), optimized for Microsoft Teams sharing.
+  - **Copy as HTML**: Copies rich HTML with inline styling, optimized for Azure DevOps ticket comments.
+  - **Copy as Markdown**: Copies dual-clipboard (HTML + Markdown plain text), optimized for Microsoft Teams sharing.
 - **API Schema Copy Dropdown**: Applied the same copy dropdown policy to `/apis/schema` response cards, positioned in the endpoint header bar alongside History/Send buttons.
 - **Promise-based Alert Modal**: Introduced `usePromiseModal` for non-blocking copy confirmation feedback across all copy actions.
 
@@ -123,7 +159,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Dark Mode Audit & Polish**: Resolved UI "깨짐" (broken) issues in Proxy Setup, Loading screens, and Empty States by replacing hardcoded slate/white colors with semantic theme variables.
+- **Dark Mode Audit & Polish**: Resolved broken UI rendering issues in Proxy Setup, Loading screens, and Empty States by replacing hardcoded slate/white colors with semantic theme variables.
 - **A11y & Linting**: Resolved sidebar accessibility warnings and fixed missing React hooks and block statement lint errors in monitoring components.
 
 ---
@@ -462,7 +498,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **In-app setup page** (`/proxy/setup`): PAC URL, manual proxy, and HTTPS certificate download. "설정 페이지 열기" now navigates in-app instead of opening in browser.
+- **In-app setup page** (`/proxy/setup`): PAC URL, manual proxy, and HTTPS certificate download. "Open Setup Page" button now navigates in-app instead of opening in browser.
 - **Host-specific certificate**: Shared `HostCertCache` so TLS and download serve the same cert—installing the downloaded cert now correctly trusts the server. Fixed CN (hostname) and validity dates (no more 1975 issue).
 - **Setup page in English**: Both in-app and proxy-served setup pages localized to English.
 - **Window startup**: App starts maximized (`maximized: true` in `tauri.conf.json`).

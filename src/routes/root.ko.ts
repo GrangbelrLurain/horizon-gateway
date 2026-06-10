@@ -23,4 +23,5 @@ export const ko: TranslationSchema = {
   schema: "스키마",
   server_logs: "서버 로그",
   mocking: "모킹",
+  mobileConnect: "모바일 연결",
 } as const;

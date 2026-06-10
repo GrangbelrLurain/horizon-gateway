@@ -40,6 +40,8 @@ mod service {
     pub mod mocking_service;
     pub mod proxy_settings_service;
     pub mod system_proxy_service;
+    pub mod tunnel_service;
+    pub mod usb_service;
 }
 
 use crate::service::api_log_service::ApiLogService;
@@ -65,6 +67,8 @@ mod command {
     pub mod mocking_commands;
     pub mod settings_commands;
     pub mod window_commands;
+    pub mod tunnel_commands;
+    pub mod usb_commands;
 }
 
 use command::inspector_commands::{
@@ -104,6 +108,10 @@ use command::local_route_commands::{
 };
 use command::settings_commands::{export_all_settings, import_all_settings, save_root_ca};
 use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window};
+use command::tunnel_commands::{get_tailscale_ip, start_cloudflare_tunnel, stop_cloudflare_tunnel};
+use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_reverse};
+use crate::service::tunnel_service::TunnelService;
+use crate::service::usb_service::UsbService;
 
 #[tauri::command]
 #[specta::specta]
@@ -189,6 +197,12 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_mocking_status,
             set_mocking_enabled,
             set_scenario_enabled,
+            get_tailscale_ip,
+            start_cloudflare_tunnel,
+            stop_cloudflare_tunnel,
+            check_adb_status,
+            start_usb_reverse,
+            stop_usb_reverse,
         ])
 }
 
@@ -266,6 +280,8 @@ pub fn run() {
                 mocking_settings_path.clone(),
             ));
             let inspector_service = InspectorService::new(inspector_path, injection_domains_path, inspector_settings_path);
+            let tunnel_service = Arc::new(TunnelService::new());
+            let usb_service = Arc::new(UsbService::new());
 
             crate::service::local_proxy::set_mocking_enabled(
                 mocking_service.get_settings().enabled,
@@ -296,6 +312,17 @@ pub fn run() {
             app.manage(api_log_service.clone());
             app.manage(mocking_service);
             app.manage(inspector_service);
+            app.manage(tunnel_service.clone());
+            app.manage(usb_service);
+
+            // Start the Hand-off diagnostic Axum server
+            let app_handle_clone = app.handle().clone();
+            let tunnel_service_for_axum = tunnel_service.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = tunnel_service_for_axum.start_axum_server(app_handle_clone).await {
+                    tracing::error!("Failed to start Hand-off Axum server: {}", e);
+                }
+            });
 
             // ── Auto-start proxy ────────────────────────────────────────────
             {
@@ -382,6 +409,17 @@ pub fn run() {
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
                 // Clear system PAC URL on exit to prevent breaking user's internet
                 let _ = crate::service::system_proxy_service::SystemProxyService::clear_pac_url();
+
+                // Kill cloudflared tunnel if running
+                use tauri::Manager;
+                if let Some(tunnel_svc) = app_handle.try_state::<Arc<TunnelService>>() {
+                    tauri::async_runtime::block_on(async {
+                        let mut child_guard = tunnel_svc.child.lock().await;
+                        if let Some(mut child) = child_guard.take() {
+                            let _ = child.kill().await;
+                        }
+                    });
+                }
             }
             _ => {}
         });

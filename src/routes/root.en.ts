@@ -17,4 +17,5 @@ export const en = {
   schema: "Schema",
   server_logs: "Server Logs",
   mocking: "Mocking",
+  mobileConnect: "Mobile Connect",
 } as const;

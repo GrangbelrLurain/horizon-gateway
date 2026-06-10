@@ -16,6 +16,7 @@ import {
   PlusIcon,
   ServerIcon,
   SettingsIcon,
+  Smartphone,
   WifiIcon,
 } from "lucide-react";
 import { type ComponentProps, useEffect, useMemo, useState } from "react";
@@ -256,6 +257,11 @@ const RootLayout = () => {
             label: t.setup,
             icon: <SettingsIcon className="w-4 h-4" />,
             href: "/proxy/setup",
+          },
+          {
+            label: t.mobileConnect,
+            icon: <Smartphone className="w-4 h-4" />,
+            href: "/proxy/mobile",
           },
         ],
       },

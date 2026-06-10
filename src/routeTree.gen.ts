@@ -21,6 +21,7 @@ import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as UxPoliciesIndexRouteImport } from './routes/ux/policies/index'
 import { Route as UxLiveCaptureIndexRouteImport } from './routes/ux/live-capture/index'
 import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
+import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
 import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
 import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
 import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
@@ -92,6 +93,11 @@ const UxLiveCaptureIndexRoute = UxLiveCaptureIndexRouteImport.update({
 const ProxySetupIndexRoute = ProxySetupIndexRouteImport.update({
   id: '/proxy/setup/',
   path: '/proxy/setup/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProxyMobileIndexRoute = ProxyMobileIndexRouteImport.update({
+  id: '/proxy/mobile/',
+  path: '/proxy/mobile/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProxyInspectorIndexRoute = ProxyInspectorIndexRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
+  '/proxy/mobile/': typeof ProxyMobileIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
   '/ux/policies/': typeof UxPoliciesIndexRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/monitor/settings': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard': typeof ProxyDashboardIndexRoute
   '/proxy/inspector': typeof ProxyInspectorIndexRoute
+  '/proxy/mobile': typeof ProxyMobileIndexRoute
   '/proxy/setup': typeof ProxySetupIndexRoute
   '/ux/live-capture': typeof UxLiveCaptureIndexRoute
   '/ux/policies': typeof UxPoliciesIndexRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
+  '/proxy/mobile/': typeof ProxyMobileIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
   '/ux/policies/': typeof UxPoliciesIndexRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/monitor/settings/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
+    | '/proxy/mobile/'
     | '/proxy/setup/'
     | '/ux/live-capture/'
     | '/ux/policies/'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/monitor/settings'
     | '/proxy/dashboard'
     | '/proxy/inspector'
+    | '/proxy/mobile'
     | '/proxy/setup'
     | '/ux/live-capture'
     | '/ux/policies'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/monitor/settings/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
+    | '/proxy/mobile/'
     | '/proxy/setup/'
     | '/ux/live-capture/'
     | '/ux/policies/'
@@ -337,6 +349,7 @@ export interface RootRouteChildren {
   MonitorSettingsIndexRoute: typeof MonitorSettingsIndexRoute
   ProxyDashboardIndexRoute: typeof ProxyDashboardIndexRoute
   ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
+  ProxyMobileIndexRoute: typeof ProxyMobileIndexRoute
   ProxySetupIndexRoute: typeof ProxySetupIndexRoute
   UxLiveCaptureIndexRoute: typeof UxLiveCaptureIndexRoute
   UxPoliciesIndexRoute: typeof UxPoliciesIndexRoute
@@ -426,6 +439,13 @@ declare module '@tanstack/react-router' {
       path: '/proxy/setup'
       fullPath: '/proxy/setup/'
       preLoaderRoute: typeof ProxySetupIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/mobile/': {
+      id: '/proxy/mobile/'
+      path: '/proxy/mobile'
+      fullPath: '/proxy/mobile/'
+      preLoaderRoute: typeof ProxyMobileIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proxy/inspector/': {
@@ -537,6 +557,7 @@ const rootRouteChildren: RootRouteChildren = {
   MonitorSettingsIndexRoute: MonitorSettingsIndexRoute,
   ProxyDashboardIndexRoute: ProxyDashboardIndexRoute,
   ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
+  ProxyMobileIndexRoute: ProxyMobileIndexRoute,
   ProxySetupIndexRoute: ProxySetupIndexRoute,
   UxLiveCaptureIndexRoute: UxLiveCaptureIndexRoute,
   UxPoliciesIndexRoute: UxPoliciesIndexRoute,

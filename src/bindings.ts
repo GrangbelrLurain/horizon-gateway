@@ -98,9 +98,21 @@ export const commands = {
 	getMockingStatus: () => typedError<ApiResponse<MockingSettings>, string>(__TAURI_INVOKE("get_mocking_status")),
 	setMockingEnabled: (payload: SetMockingEnabledPayload) => typedError<ApiResponse<MockingSettings>, string>(__TAURI_INVOKE("set_mocking_enabled", { payload })),
 	setScenarioEnabled: (id: string, enabled: boolean) => typedError<Scenario[], string>(__TAURI_INVOKE("set_scenario_enabled", { id, enabled })),
+	getTailscaleIp: () => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_tailscale_ip")),
+	startCloudflareTunnel: () => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("start_cloudflare_tunnel")),
+	stopCloudflareTunnel: () => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("stop_cloudflare_tunnel")),
+	checkAdbStatus: () => typedError<ApiResponse<AdbStatus>, string>(__TAURI_INVOKE("check_adb_status")),
+	startUsbReverse: (port: number) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("start_usb_reverse", { port })),
+	stopUsbReverse: (port: number) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("stop_usb_reverse", { port })),
 };
 
 /* Types */
+export type AdbStatus = {
+	found: boolean,
+	path: string | null,
+	devices: string[],
+};
+
 export type AddLocalRoutePayload = {
 	domain: string,
 	targetHost: string,

@@ -690,6 +690,17 @@ async fn handle_connect_tunnel_decrypted(
     let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
 }
 
+fn is_system_connectivity_domain(host: &str) -> bool {
+    let h = host.to_lowercase();
+    h.contains("connectivitycheck")
+        || h.contains("captiveportal")
+        || h.contains("captive.apple.com")
+        || h == "clients3.google.com"
+        || h == "detectportal.firefox.com"
+        || h == "msftconnecttest.com"
+        || h == "msftncsi.com"
+}
+
 async fn handle_connect_tunnel(
     mut client: TcpStream,
     host: String,
@@ -716,7 +727,8 @@ async fn handle_connect_tunnel(
     };
 
     // 2. Selective Decryption for Inspector/Injection
-    let should_decrypt = use_api_logging || {
+    let is_connectivity = is_system_connectivity_domain(&host);
+    let should_decrypt = !is_connectivity && (use_api_logging || {
         if is_inspector_enabled() {
             let domains = state.inspector_service.get_injection_domains();
             if domains.is_empty() {
@@ -730,7 +742,7 @@ async fn handle_connect_tunnel(
         } else {
             false
         }
-    };
+    });
 
     if should_decrypt {
         // Decrypt for API Logging or Inspector
@@ -785,17 +797,41 @@ async fn handle_connect_tunnel(
 const WATCHTOWER_PATH_PREFIX: &str = "/.watchtower/";
 
 /// PAC (Proxy Auto-Config). Returns PROXY for ALL traffic; filtering logic is handled in the proxy itself.
-fn build_pac_js(forward_port: u16) -> String {
-    format!("function FindProxyForURL(url, host) {{ if (host === 'localhost' || host === '127.0.0.1') return 'DIRECT'; return \"PROXY 127.0.0.1:{forward_port}; DIRECT\"; }}")
+fn build_pac_js(proxy_host: &str, forward_port: u16) -> String {
+    format!(
+        "function FindProxyForURL(url, host) {{ \
+            if (host === 'localhost' || \
+                host === '127.0.0.1' || \
+                host.indexOf('tailscale') !== -1 || \
+                host.indexOf('.ts.net') !== -1) {{ \
+                return 'DIRECT'; \
+            }} \
+            return \"PROXY {proxy_host}:{forward_port}; DIRECT\"; \
+         }}"
+    )
 }
 
-async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str) -> Response {
+async fn serve_watchtower_reserved_path(state: Arc<ProxyState>, path: &str, host_h: &str) -> Response {
     if path == "/.watchtower/proxy.pac" || path.starts_with("/.watchtower/proxy.pac") {
         let Some(port) = state.forward_proxy_port else {
             return (StatusCode::NOT_FOUND, "Forward proxy port not configured").into_response();
         };
 
-        let pac = build_pac_js(port);
+        let parsed_host = host_h.split(':').next().unwrap_or("");
+        let is_loopback = parsed_host == "localhost"
+            || parsed_host == "127.0.0.1"
+            || parsed_host == "[::1]";
+
+        let proxy_host = if is_loopback {
+            "127.0.0.1".to_string()
+        } else if parsed_host.ends_with(".trycloudflare.com") || parsed_host == "0.0.0.0" || parsed_host.is_empty() {
+            crate::service::tunnel_service::get_tailscale_ip()
+                .unwrap_or_else(|| "127.0.0.1".to_string())
+        } else {
+            parsed_host.to_string()
+        };
+
+        let pac = build_pac_js(&proxy_host, port);
         return (
             StatusCode::OK,
             [
@@ -1036,6 +1072,21 @@ async fn proxy_handler_inner(
     let method = req.method().to_string();
     let uri = req.uri().clone();
     let path = uri.path();
+
+    // Intercept `/api/ping` directly for Hybrid Handoff Tunnel checks
+    if path == "/api/ping" {
+        let json = serde_json::json!({
+            "app": "watchtower_proxy",
+            "status": "ok"
+        });
+        return (
+            StatusCode::OK,
+            [
+                (CONTENT_TYPE, HeaderValue::from_static("application/json")),
+            ],
+            json.to_string(),
+        ).into_response();
+    }
     let host_h = req
         .headers()
         .get("host")
@@ -1168,7 +1219,7 @@ async fn proxy_handler_inner(
             return (StatusCode::BAD_REQUEST, "Invalid JSON").into_response();
         }
 
-        return serve_watchtower_reserved_path(state, clean_path).await;
+        return serve_watchtower_reserved_path(state, clean_path, &host_h).await;
     }
 
     // --- MOCKING INTERCEPTOR ---
@@ -1939,7 +1990,9 @@ pub async fn run_proxy(
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
 ) -> std::io::Result<JoinHandle<()>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    // Bind to 0.0.0.0 so the proxy is reachable via Tailscale IP (100.x.x.x)
+    // from mobile devices on the same VPN network for cert downloads and PAC access.
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     let state = Arc::new(ProxyState::new(
         app_handle,

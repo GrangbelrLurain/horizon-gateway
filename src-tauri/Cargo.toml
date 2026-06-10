@@ -20,7 +20,7 @@ unused_async = "allow"
 
 [package]
 name = "watchtower"
-version = "1.7.6"
+version = "1.8.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -56,6 +56,8 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3.31"
 axum = { version = "0.7", features = ["macros"] }
 hyper = "1"
+tower-http = { version = "0.6.8", features = ["cors"] }
+get_if_addrs = "0.5.3"
 hyper-util = { version = "0.1", features = ["client-legacy", "service"] }
 hickory-resolver = { version = "0.25", features = ["tokio"] }
 rustls = { version = "0.23", features = ["ring"] }
