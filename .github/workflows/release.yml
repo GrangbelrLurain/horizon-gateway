@@ -6,77 +6,77 @@ on:
       - "v*"
 
 jobs:
+  # 1. Draft Release를 딱 '한 번만' 먼저 생성하는 잡
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: create release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          # 푸시된 태그 이름을 사용하여 Draft를 만듭니다.
+          tag_name: ${{ github.ref_name }}
+          name: "Watchtower v${{ github.ref_name }}"
+          body: "See the assets below to download the latest version of Watchtower."
+          draft: true
+          prerelease: false
+
+  # 2. 빌드 및 에셋 업로드 (매트릭스)
   publish:
+    needs: create-release # 릴리스 생성이 완료될 때까지 대기
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Arm based macs (M1 and above)
+          - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs
+          - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
-          - platform: "ubuntu-22.04" # for Linux
+          - platform: "ubuntu-22.04"
             args: ""
-          - platform: "windows-latest" # for Windows
+          - platform: "windows-latest"
             args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.0
-
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: "pnpm"
+          node-version: 20
 
-      - name: setup rust
+      - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libjavascriptcoregtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: install frontend dependencies
-        run: pnpm install # libwebkit2gtk-4.1-dev is needed for Tauri v2
-
-      - name: build injection script
-        run: pnpm build:injection
-
-      - name: setup signing key
-        shell: bash
-        run: |
-          # Remove newlines - base64 key must be single line (avoid "Invalid symbol 10" error)
-          printf '%s' "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" | tr -d '\n\r' > "$GITHUB_WORKSPACE/signing.key"
-          chmod 600 "$GITHUB_WORKSPACE/signing.key"
+        run: pnpm install # 또는 npm install (사용하시는 패키지 매니저에 맞춰 수정)
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Use file path (avoids env var encoding issues)
-          TAURI_SIGNING_PRIVATE_KEY: ${{ github.workspace }}/signing.key
-          # Required: Add TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret (key must have password)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
-          releaseName: "Watchtower v__VERSION__"
-          releaseBody: "See the assets below to download the latest version of Watchtower."
-          releaseDraft: true
-          prerelease: false
+          # 중요: 위에서 생성된 Release ID를 그대로 사용합니다.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
