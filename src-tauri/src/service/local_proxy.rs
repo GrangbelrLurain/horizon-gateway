@@ -652,7 +652,7 @@ async fn handle_connect_tunnel_local(
     let io = TokioIo::new(tls_stream);
     let app = proxy_app(Arc::clone(&state), "https");
     let svc = TowerToHyperService::new(app);
-    let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
+    let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
 }
 
 /// API 로깅: CONNECT 대상을 TLS 종료한 뒤 proxy_app으로 HTTP 전달 (로깅·포워드 가능).
@@ -687,7 +687,7 @@ async fn handle_connect_tunnel_decrypted(
     let io = TokioIo::new(tls_stream);
     let app = proxy_app(Arc::clone(&state), "https");
     let svc = TowerToHyperService::new(app);
-    let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
+    let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
 }
 
 fn is_system_connectivity_domain(host: &str) -> bool {
@@ -1357,17 +1357,167 @@ async fn proxy_handler_inner(
     if is_upgrade {
         proxy_log!("-> upgrade request (WebSocket) for {}", uri);
 
-        // 1. Prepare request for upstream (Force HTTP/1.1)
-        // Use reqwest_client_direct for pass-through to ensure it doesn't try to use system proxy (itself)
-        let mut req_builder = if local_origin.is_some() {
-            state
-                .reqwest_client
-                .request(req.method().clone(), &target_uri_str)
-        } else {
-            state
-                .reqwest_client_direct
-                .request(req.method().clone(), &target_uri_str)
-        };
+        if let Some((ref target_host, target_port, _)) = local_origin {
+            let target_host_header = format!("{}:{}", target_host, target_port);
+            proxy_log!("-> WS routing (Raw Hyper): Target Host: {}, Original Host: {}", target_host_header, host_h);
+            
+            // 1. Connect directly to target server
+            let stream = match tokio::net::TcpStream::connect(format!("{}:{}", target_host, target_port)).await {
+                Ok(s) => s,
+                Err(e) => {
+                    proxy_log!("❌ [WS] Failed to connect to upstream {}:{}: {}", target_host, target_port, e);
+                    return (StatusCode::BAD_GATEWAY, format!("Proxy WS connect error: {e}")).into_response();
+                }
+            };
+
+            let io = TokioIo::new(stream);
+            let (mut sender, conn) = match hyper::client::conn::http1::handshake(io).await {
+                Ok(c) => c,
+                Err(e) => {
+                    proxy_log!("❌ [WS] Upstream handshake error: {}", e);
+                    return (StatusCode::BAD_GATEWAY, format!("Proxy WS handshake error: {e}")).into_response();
+                }
+            };
+
+            tokio::spawn(async move {
+                if let Err(err) = conn.with_upgrades().await {
+                    proxy_log!("ℹ️ [WS] Upstream connection task error: {:?}", err);
+                }
+            });
+
+            // 2. Prepare request for upstream
+            let mut upstream_req = Request::new(Body::empty());
+            *upstream_req.method_mut() = req.method().clone();
+            if let Some(pq) = target_uri.path_and_query() {
+                if let Ok(uri) = pq.as_str().parse::<Uri>() {
+                    *upstream_req.uri_mut() = uri;
+                }
+            } else {
+                *upstream_req.uri_mut() = target_uri.clone();
+            }
+            *upstream_req.version_mut() = hyper::Version::HTTP_11;
+
+            // Copy headers (excluding hop-by-hop)
+            let hop_by_hop_headers = [
+                "connection",
+                "keep-alive",
+                "proxy-authenticate",
+                "proxy-authorization",
+                "te",
+                "trailers",
+                "transfer-encoding",
+                "proxy-connection",
+                "accept-encoding",
+            ];
+
+            let headers = upstream_req.headers_mut();
+            for (name, value) in req.headers().iter() {
+                let name_str = name.as_str().to_lowercase();
+                if name_str != "host" && !hop_by_hop_headers.contains(&name_str.as_str()) {
+                    headers.insert(name.clone(), value.clone());
+                }
+            }
+
+            // Force Host header to target
+            if let Ok(hv) = HeaderValue::from_str(&target_host_header) {
+                headers.insert(header::HOST, hv);
+            }
+
+            // Force Connection/Upgrade headers for handshake
+            headers.insert(header::UPGRADE, HeaderValue::from_static("websocket"));
+            headers.insert(header::CONNECTION, HeaderValue::from_static("upgrade"));
+
+            // Rewrite Origin to match Next.js dev server's own origin
+            let target_origin = format!("http://{}:{}", target_host, target_port);
+            if let Ok(hv) = HeaderValue::from_str(&target_origin) {
+                headers.insert(header::ORIGIN, hv);
+            }
+
+            // 3. Send request
+            match sender.send_request(upstream_req).await {
+                Ok(res) if res.status() == StatusCode::SWITCHING_PROTOCOLS => {
+                    proxy_log!(
+                        "✅ [WS] Upstream handshake success (101). Headers: {:?}",
+                        res.headers()
+                    );
+
+                    let mut res_builder = Response::builder().status(StatusCode::SWITCHING_PROTOCOLS);
+
+                    // Copy response headers back to client
+                    if let Some(h) = res_builder.headers_mut() {
+                        for (k, v) in res.headers() {
+                            let k_str = k.as_str().to_lowercase();
+                            if !hop_by_hop_headers.contains(&k_str.as_str()) {
+                                h.insert(k, v.clone());
+                            }
+                        }
+                        // Ensure these are set
+                        h.insert(header::UPGRADE, HeaderValue::from_static("websocket"));
+                        h.insert(header::CONNECTION, HeaderValue::from_static("upgrade"));
+                    }
+
+                    // Handle Bidirectional Tunneling
+                    let (parts, _) = req.into_parts();
+                    let upgraded_client =
+                        hyper::upgrade::on(axum::http::Request::from_parts(parts, Body::empty()));
+
+                    tokio::spawn(async move {
+                        proxy_log!("🚀 [WS] Starting bidirectional copy...");
+                        let mut upstream_io = match hyper::upgrade::on(res).await {
+                            Ok(upgraded) => TokioIo::new(upgraded),
+                            Err(e) => {
+                                proxy_log!("❌ [WS] Upstream upgrade failed (after 101): {e}");
+                                return;
+                            }
+                        };
+
+                        let mut client_io = match upgraded_client.await {
+                            Ok(upgraded) => TokioIo::new(upgraded),
+                            Err(e) => {
+                                proxy_log!("❌ [WS] Client upgrade failed (after 101): {e}");
+                                return;
+                            }
+                        };
+
+                        match tokio::io::copy_bidirectional(&mut client_io, &mut upstream_io).await {
+                            Ok(_) => proxy_log!("✅ [WS] Tunnel closed normally."),
+                            Err(e) => proxy_log!("ℹ️ [WS] Tunnel closed: {e}"),
+                        }
+                    });
+
+                    return res_builder
+                        .body(Body::empty())
+                        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+                }
+                Ok(res) => {
+                    proxy_log!(
+                        "❌ [WS] Upstream refused upgrade. Status: {}, Headers: {:?}",
+                        res.status(),
+                        res.headers()
+                    );
+                    let status = res.status();
+                    let mut res_builder = Response::builder().status(status);
+                    if let Some(h) = res_builder.headers_mut() {
+                        for (k, v) in res.headers() {
+                            h.insert(k, v.clone());
+                        }
+                    }
+                    let body_bytes = axum::body::to_bytes(Body::new(res.into_body()), usize::MAX).await.unwrap_or_default();
+                    return res_builder
+                        .body(Body::from(body_bytes))
+                        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+                }
+                Err(e) => {
+                    proxy_log!("❌ [WS] Upstream connection error: {e}");
+                    return (StatusCode::BAD_GATEWAY, format!("Proxy WS error: {e}")).into_response();
+                }
+            }
+        }
+
+        // --- Pass-through fallback (if local_origin is None) ---
+        let mut req_builder = state
+            .reqwest_client_direct
+            .request(req.method().clone(), &target_uri_str);
         req_builder = req_builder.version(reqwest::Version::HTTP_11);
 
         // Copy headers (excluding hop-by-hop)
@@ -1393,9 +1543,7 @@ async fn proxy_handler_inner(
         req_builder = req_builder.header(header::UPGRADE, "websocket");
         req_builder = req_builder.header(header::CONNECTION, "upgrade");
 
-        if local_origin.is_some() {
-            req_builder = req_builder.header("host", host_h.clone());
-        }
+        proxy_log!("-> WS handshake request headers (Pass-through): {:?}", req.headers());
 
         // 2. Perform Handshake
         match req_builder.send().await {
@@ -1535,6 +1683,10 @@ async fn proxy_handler_inner(
         // reqwest automatically sets it from the URL.
         if local_origin.is_some() {
             req_builder = req_builder.header("host", host_h.clone());
+            req_builder = req_builder.header("x-forwarded-proto", scheme);
+            req_builder = req_builder.header("x-forwarded-host", host_h.clone());
+            req_builder = req_builder.header("x-forwarded-for", "127.0.0.1");
+            req_builder = req_builder.header("x-real-ip", "127.0.0.1");
         }
 
         match req_builder.send().await {
@@ -1798,6 +1950,10 @@ async fn proxy_handler_inner(
         // Add Host header if needed (Only for local routes, reqwest handles it for pass-through)
         if local_origin.is_some() {
             req_builder = req_builder.header("host", host_h.clone());
+            req_builder = req_builder.header("x-forwarded-proto", scheme);
+            req_builder = req_builder.header("x-forwarded-host", host_h.clone());
+            req_builder = req_builder.header("x-forwarded-for", "127.0.0.1");
+            req_builder = req_builder.header("x-real-ip", "127.0.0.1");
         }
 
         let start_time = OffsetDateTime::now_utc();
@@ -2030,7 +2186,7 @@ pub async fn run_proxy(
                 } else {
                     let io = TokioIo::new(PrependIo::new(buf, stream));
                     let svc = TowerToHyperService::new(app);
-                    let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
+                    let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
                 }
             });
         }
@@ -2077,7 +2233,7 @@ pub async fn run_reverse_proxy_http(
             tokio::spawn(async move {
                 let io = TokioIo::new(stream);
                 let svc = TowerToHyperService::new(app);
-                let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
+                let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
             });
         }
     });
@@ -2133,7 +2289,7 @@ pub async fn run_reverse_proxy_https(
                 };
                 let io = TokioIo::new(tls_stream);
                 let svc = TowerToHyperService::new(app);
-                let _ = Http1Builder::new().serve_connection(io, svc).await.ok();
+                let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
             });
         }
     });

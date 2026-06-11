@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.8.1] - 2026-06-11
+
+### Fixed
+
+- **Next.js HMR WebSocket Proxy Connection**: Resolved connection failures (such as `400 Bad Request` and `upgrade expected but low level API in use` errors) for Next.js Hot Module Replacement (`/_next/webpack-hmr`) WebSocket connections.
+  - Implemented raw HTTP/1.1 client connection upgrades (`hyper::client::conn::http1::handshake`) for local routing.
+  - Formatted upstream upgrade requests with relative path-and-query URIs compatible with HTTP/1.1 origin servers.
+  - Rewrote target `Host` and `Origin` headers to bypass Next.js CORS and Host verification rejections.
+  - Enabled connection upgrades by calling `.with_upgrades()` on both client-side and server-side connection builders.
+
 ## [v1.8.0] - 2026-06-10
 
 ### Added
