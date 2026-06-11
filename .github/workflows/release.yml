@@ -52,10 +52,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1. pnpm 설치 (새로 추가된 부분!)
+      - name: install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.26.0
+
+      # 2. Node.js 설정 및 pnpm 캐시 활성화
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm' # 매번 다운로드하지 않도록 캐싱 추가
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -68,8 +76,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libjavascriptcoregtk-4.0-dev libayatana-appindicator3-dev librsvg2-dev
 
+      # 3. 이제 정상적으로 실행됩니다!
       - name: install frontend dependencies
-        run: pnpm install # 또는 npm install (사용하시는 패키지 매니저에 맞춰 수정)
+        run: pnpm install
 
       - uses: tauri-apps/tauri-action@v0
         env:
