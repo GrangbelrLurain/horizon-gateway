@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(scenarios[0].id, s1.id);
 
         // Update
-        let updated = service.update_scenario(s1.id.clone(), Some("Updated Scenario".to_string()), None).unwrap();
+        let updated = service.update_scenario(s1.id.clone(), Some("Updated Scenario".to_string()), None, None).unwrap();
         assert_eq!(updated.name, "Updated Scenario");
         assert_eq!(updated.description.as_deref(), Some("Desc 1")); // Unchanged
 
@@ -305,7 +305,9 @@ mod tests {
         headers.insert("Content-Type".to_string(), "application/json".to_string());
 
         let rule = service.create_mock_rule(
+            "Test Rule".to_string(),
             scenario.id.clone(),
+            None,
             "GET".to_string(),
             "/api/test".to_string(),
             200,
@@ -323,6 +325,8 @@ mod tests {
         // Update
         let updated = service.update_mock_rule(
             rule.id.clone(),
+            None,
+            None,
             None,
             Some("/api/test2".to_string()),
             Some(201),

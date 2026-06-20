@@ -5,8 +5,7 @@
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:tauri": "pnpm build:injection && tauri dev",
+    "dev": "node scripts/ensure-injection.mjs && vite",
     "build": "tsc && vite build",
     "build:injection": "vite build --mode injection",
     "watch:injection": "vite build --watch --mode injection",
@@ -24,7 +23,6 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "^1.158.1",
-    "@tanstack/react-router-devtools": "^1.158.1",
     "@tanstack/react-virtual": "^3.13.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
@@ -44,6 +42,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.14",
+    "@tanstack/react-router-devtools": "^1.158.1",
     "@tanstack/router-plugin": "^1.158.1",
     "@tauri-apps/cli": "^2",
     "@types/node": "^25.2.1",

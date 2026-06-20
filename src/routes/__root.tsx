@@ -365,7 +365,7 @@ const RootLayout = () => {
 
       <CreateMockModal />
       <PromiseModal />
-      <TanStackRouterDevtools position="bottom-right" />
+      {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
     </div>
   );
 };

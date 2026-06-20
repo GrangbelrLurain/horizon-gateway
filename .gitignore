@@ -25,6 +25,8 @@ dist-ssr
 *.sw?
 
 tmp
+*.tsbuildinfo
+src-tauri/resources/inspector.js
 
 # Tauri signing keys (never commit private key!)
 ~/

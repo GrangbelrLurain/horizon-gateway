@@ -4,8 +4,6 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	greet: (name: string) => __TAURI_INVOKE<string>("greet", { name }),
-	checkApis: () => __TAURI_INVOKE<void>("check_apis"),
 	registDomains: (payload: RegistDomainsPayload) => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("regist_domains", { payload })),
 	getDomains: () => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("get_domains")),
 	removeDomains: (payload: RemoveDomainsPayload) => typedError<ApiResponse<Domain | null>, string>(__TAURI_INVOKE("remove_domains", { payload })),

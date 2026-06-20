@@ -1,10 +1,3 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-#[specta::specta]
-fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
-}
-
 mod storage {
     pub mod migration;
     pub mod versioned;
@@ -113,17 +106,9 @@ use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_revers
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
 
-#[tauri::command]
-#[specta::specta]
-fn check_apis() {
-    println!("check_apis");
-}
-
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .commands(tauri_specta::collect_commands![
-            greet,
-            check_apis,
             regist_domains,
             get_domains,
             remove_domains,
