@@ -57,16 +57,15 @@ pnpm version:patch   # 또는 version:minor, version:major
 
 ## Architecture Rules
 
-코드 배치·연동 규칙입니다. Phase 4 리팩터링 전까지 이 구조를 기준으로 합니다.
+코드 배치·연동 규칙입니다.
 
 ### Directory Layout
 
 ```
 src/                          # Frontend
-├── routes/                   # TanStack Router (파일 기반, */index.tsx)
-├── features/                 # 기능별 UI (sidebar, dashboard, inspector 등)
-├── entities/                 # FE 타입 (bindings와 중복 — Phase 4에서 정리 예정)
-├── domain/                   # Jotai 전역 상태 (theme, i18n, app-status)
+├── routes/                   # TanStack Router (페이지 조합)
+├── features/                 # 기능별 UI 조립
+├── entities/                 # domain entity (store, api, hooks, ui)
 ├── shared/
 │   ├── api/                  # bindings re-export + unwrap
 │   └── ui/                   # 공통 컴포넌트
@@ -76,9 +75,35 @@ src/                          # Frontend
 src-tauri/src/                # Backend
 ├── command/                  # Tauri Commands (얇은 진입점)
 ├── service/                  # 비즈니스 로직
+│   └── local_proxy/          # HTTP 프록시 런타임 (복합 모듈, 아래 참고)
 ├── model/                    # 데이터 모델
 └── storage/                  # JSON 버전 관리·마이그레이션
 ```
+
+### Frontend layering (FSD)
+
+```
+bindings.ts → entities/{name}/ → features/ → routes/
+```
+
+Biome `noRestrictedImports`로 의존 방향을 강제합니다: `shared` → `entities`/`features`/`routes` 금지, `entities` → `features`/`routes` 금지, `features` → `routes` 금지.
+
+### Backend service unit convention (Tier 2)
+
+복합 service는 unit 폴더마다 동일 구조를 유지합니다.
+
+```
+service/{module}/{unit}/
+├── mod.rs              # wiring + re-export
+├── {role}.rs           # 역할별 구현
+└── tests/
+    ├── mod.rs
+    └── {role}.rs       # 로직 파일과 1:1
+```
+
+`local_proxy/`가 첫 reference module입니다 (`flags`, `routing`, `connect`, `handler`, `server` 등).
+
+단순 CRUD service (`domain_service.rs` 등)는 Tier 1 flat 파일로 유지합니다.
 
 ### Routes (현재)
 
@@ -137,7 +162,7 @@ Tauri `app_data_dir` 아래 JSON (`schema_version` + `data` 래퍼). 앱 시작 
 | 계층 | 방식 |
 |------|------|
 | Rust Command | `ApiResponse<T>`로 비즈니스·네트워크 실패 반환 |
-| Proxy | 요청/응답 단위 처리 (`local_proxy.rs`) |
+| Proxy | 요청/응답 단위 처리 (`service/local_proxy/handler/`) |
 | FE | `typedError` + `unwrap()`. invoke 예외는 거의 없음 |
 | UI | ErrorBoundary 미사용 (Tauri SPA, 에러는 대부분 ApiResponse로 처리) |
 
