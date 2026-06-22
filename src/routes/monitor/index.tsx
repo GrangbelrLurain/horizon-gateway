@@ -6,7 +6,7 @@ import { Activity, AlertTriangle, CheckCircle2, Clock, Copy, Filter, History, Re
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app/i18n/store";
 import { domainCountAtom } from "@/entities/app/status/store";
-import { globalSiteCheckAtom } from "@/entities/domain-monitor/store";
+import { siteCheckAtom } from "@/entities/domain-monitor";
 import { VirtualizedGroupSection } from "@/features/domain-monitor/ui/VirtualizedGroupSection";
 import type { DomainStatusLog } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
@@ -28,7 +28,7 @@ function MonitorIndex() {
   const [isFetching, setIsFetching] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString());
 
-  const [siteCheck, setSiteCheck] = useAtom(globalSiteCheckAtom);
+  const [siteCheck, setSiteCheck] = useAtom(siteCheckAtom);
   const [search, setSearch] = useAtom(monitorSearchAtom);
   const [filterLevel, setFilterLevel] = useAtom(monitorFilterLevelAtom);
   const domainCount = useAtomValue(domainCountAtom);

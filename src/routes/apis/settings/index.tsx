@@ -14,9 +14,9 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app/i18n/store";
 import type { Domain } from "@/entities/domain";
-import { globalDomainsAtom } from "@/entities/domain/store";
-import { globalApiLoggingLinksAtom } from "@/entities/domain-api-logging/store";
-import { globalGroupsAtom, globalLinksAtom } from "@/entities/domain-group/store";
+import { domainsAtom } from "@/entities/domain";
+import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
+import { groupsAtom, linksAtom } from "@/entities/domain-group";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -120,10 +120,10 @@ function GroupSection({
 function ApisSettingsPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const [domains, setDomains] = useAtom(globalDomainsAtom);
-  const [links, setLinks] = useAtom(globalApiLoggingLinksAtom);
-  const [groups, setGroups] = useAtom(globalGroupsAtom);
-  const [groupLinks, setGroupLinks] = useAtom(globalLinksAtom);
+  const [domains, setDomains] = useAtom(domainsAtom);
+  const [links, setLinks] = useAtom(apiLoggingLinksAtom);
+  const [groups, setGroups] = useAtom(groupsAtom);
+  const [groupLinks, setGroupLinks] = useAtom(linksAtom);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useAtom(apiSettingsSearchAtom);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());

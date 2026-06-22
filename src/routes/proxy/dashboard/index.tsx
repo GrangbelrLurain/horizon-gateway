@@ -5,8 +5,8 @@ import { AlertCircle, Globe, Loader2Icon, Plus, Server, Trash2, XCircle } from "
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app/i18n/store";
 import { proxyRunningAtom } from "@/entities/app/status/store";
-import { globalDomainsAtom } from "@/entities/domain/store";
-import { globalLocalRoutesAtom } from "@/entities/proxy/store";
+import { domainsAtom } from "@/entities/domain";
+import { localRoutesAtom } from "@/entities/proxy";
 import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
 import type { ProxySettings, ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
@@ -29,8 +29,8 @@ export const Route = createFileRoute("/proxy/dashboard/")({
 function ProxyPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const [routes, setRoutes] = useAtom(globalLocalRoutesAtom);
-  const [domains, setDomains] = useAtom(globalDomainsAtom);
+  const [routes, setRoutes] = useAtom(localRoutesAtom);
+  const [domains, setDomains] = useAtom(domainsAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
   const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
     running: false,

@@ -4,8 +4,8 @@ import { useAtom, useAtomValue } from "jotai";
 import { Check, Download, Loader2Icon, Search, Settings, Trash2, Wifi } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app/i18n/store";
-import { globalDomainsAtom } from "@/entities/domain/store";
-import { globalApiLoggingLinksAtom } from "@/entities/domain-api-logging/store";
+import { domainsAtom } from "@/entities/domain";
+import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/apis/dashboard/")({
 function ApisDashboardPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const [domains, setDomains] = useAtom(globalDomainsAtom);
-  const [links, setLinks] = useAtom(globalApiLoggingLinksAtom);
+  const [domains, setDomains] = useAtom(domainsAtom);
+  const [links, setLinks] = useAtom(apiLoggingLinksAtom);
   const [loading, setLoading] = useState(true);
   const [removeDomainId, setRemoveDomainId] = useState<number | null>(null);
 

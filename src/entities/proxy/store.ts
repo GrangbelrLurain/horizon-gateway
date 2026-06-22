@@ -9,6 +9,3 @@ export const proxyPortInputAtom = atomWithStorage("watchtower_proxy_port_input",
 export const proxyReverseHttpPortInputAtom = atomWithStorage("watchtower_proxy_reverse_http_port", "");
 export const proxyReverseHttpsPortInputAtom = atomWithStorage("watchtower_proxy_reverse_https_port", "");
 export const setupDismissedAtom = atomWithStorage("watchtower-setup-dismissed", false);
-
-/** @deprecated use localRoutesAtom */
-export const globalLocalRoutesAtom = localRoutesAtom;

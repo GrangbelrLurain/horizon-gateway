@@ -6,13 +6,13 @@ import { Check, ChevronDown, Copy, Download, Folder, Globe, LayoutGrid, Plus, Se
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app/i18n/store";
 import { proxyActiveAtom } from "@/entities/app/status/store";
-import { globalDomainsAtom } from "@/entities/domain/store";
+import { domainsAtom } from "@/entities/domain";
 import type { DomainFeatureState } from "@/entities/domain/ui";
 import { DomainListEmpty, EditDomainModal, GroupSelectModal, VirtualizedDomainList } from "@/entities/domain/ui";
-import { globalApiLoggingLinksAtom } from "@/entities/domain-api-logging/store";
-import { globalGroupsAtom, globalLinksAtom } from "@/entities/domain-group/store";
-import { globalMonitorLinksAtom } from "@/entities/domain-monitor/store";
-import { globalLocalRoutesAtom } from "@/entities/proxy/store";
+import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
+import { groupsAtom, linksAtom } from "@/entities/domain-group";
+import { monitorLinksAtom } from "@/entities/domain-monitor";
+import { localRoutesAtom } from "@/entities/proxy";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
@@ -32,8 +32,8 @@ export const Route = createFileRoute("/domains/dashboard/")({
 const NO_GROUP = 0 as const;
 
 function RouteComponent() {
-  const [domains, setDomains] = useAtom(globalDomainsAtom);
-  const [groups, setGroups] = useAtom(globalGroupsAtom);
+  const [domains, setDomains] = useAtom(domainsAtom);
+  const [groups, setGroups] = useAtom(groupsAtom);
   const [searchQuery, setSearchQuery] = useAtom(dashboardSearchQueryAtom);
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
@@ -42,7 +42,7 @@ function RouteComponent() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [groupSelectDomain, setGroupSelectDomain] = useState<Domain | null>(null);
   const [editDomain, setEditDomain] = useState<Domain | null>(null);
-  const [links, setLinks] = useAtom(globalLinksAtom);
+  const [links, setLinks] = useAtom(linksAtom);
   const [deleteDomainId, setDeleteDomainId] = useState<number | null>(null);
   const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -50,9 +50,9 @@ function RouteComponent() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Feature data
-  const [monitorLinks, setMonitorLinks] = useAtom(globalMonitorLinksAtom);
-  const [apiLoggingLinks, setApiLoggingLinks] = useAtom(globalApiLoggingLinksAtom);
-  const [localRoutes, setLocalRoutes] = useAtom(globalLocalRoutesAtom);
+  const [monitorLinks, setMonitorLinks] = useAtom(monitorLinksAtom);
+  const [apiLoggingLinks, setApiLoggingLinks] = useAtom(apiLoggingLinksAtom);
+  const [localRoutes, setLocalRoutes] = useAtom(localRoutesAtom);
   const proxyActive = useAtomValue(proxyActiveAtom);
 
   // ── Maps ─────────────────────────────────────────────────────────────────────
