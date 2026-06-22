@@ -46,5 +46,67 @@
   "assist": {
     "enabled": true,
     "actions": { "source": { "organizeImports": "on" } }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/entities/**", "@/features/**", "@/routes/**"],
+                    "message": "FSD: shared 레이어는 entities, features, routes를 import할 수 없습니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/entities/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features/**", "@/routes/**"],
+                    "message": "FSD: entities 레이어는 features, routes를 import할 수 없습니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/routes/**"],
+                    "message": "FSD: features 레이어는 routes를 import할 수 없습니다."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

@@ -12,10 +12,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/domain/i18n/store";
-import type { DomainGroupLink } from "@/entities/domain/types/domain";
-import type { DomainGroup } from "@/entities/domain/types/domain_group";
-import type { DomainMonitorWithUrl } from "@/entities/domain/types/domain_monitor";
+import { languageAtom } from "@/entities/app/i18n/store";
+import type { DomainGroup, DomainGroupLink } from "@/entities/domain-group";
+import type { DomainMonitorWithUrl } from "@/entities/domain-monitor";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";

@@ -8,9 +8,9 @@ import {
   proxyInspectorEnabledAtom,
   proxyMockingEnabledAtom,
   proxyRunningAtom,
-} from "@/domain/app-status/store";
-import { mobileSidebarOpenAtom } from "@/domain/ui/store";
-import { getInitials, userProfileAtom } from "@/domain/user/store";
+} from "@/entities/app/status/store";
+import { mobileSidebarOpenAtom } from "@/entities/app/ui/store";
+import { getInitials, userProfileAtom } from "@/entities/app/user/store";
 
 interface SidebarItem {
   label: string;

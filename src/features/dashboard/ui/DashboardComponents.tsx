@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { useAtomValue } from "jotai";
 import { Activity, ArrowRight, CheckCircle2, FlaskConical, Globe, History, Server, Wifi, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { domainCountAtom, proxyActiveAtom, proxyRunningAtom } from "@/domain/app-status/store";
+import { domainCountAtom, proxyActiveAtom, proxyRunningAtom } from "@/entities/app/status/store";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -351,8 +351,8 @@ export function RecentActivityGrid({ monitorItems, apiLogs, mockRules, lang }: R
 
 // ── DashboardDataProvider ────────────────────────────────────────────────────
 
-import type { MockRule } from "@/entities/scenario/types/mocking";
-import { getMockRules } from "@/shared/api/mocking";
+import type { MockRule } from "@/entities/mocking";
+import { getMockRules } from "@/entities/mocking/api-ui";
 
 interface DashboardData {
   monitorItems: RecentMonitorItem[];

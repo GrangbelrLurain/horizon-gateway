@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { proxyRunningAtom } from "@/domain/app-status/store";
-import { languageAtom } from "@/domain/i18n/store";
+import { languageAtom } from "@/entities/app/i18n/store";
+import { proxyRunningAtom } from "@/entities/app/status/store";
+import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
 import type { AdbStatus, ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
-import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, H2, P } from "@/shared/ui/typography/typography";
 

@@ -4,18 +4,15 @@ import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import { Check, ChevronDown, Copy, Download, Folder, Globe, LayoutGrid, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { proxyActiveAtom } from "@/domain/app-status/store";
-import {
-  globalApiLoggingLinksAtom,
-  globalDomainsAtom,
-  globalGroupsAtom,
-  globalLinksAtom,
-  globalLocalRoutesAtom,
-  globalMonitorLinksAtom,
-} from "@/domain/global-data/store";
-import { languageAtom } from "@/domain/i18n/store";
-import type { DomainFeatureState } from "@/features/domains-list/ui";
-import { DomainListEmpty, EditDomainModal, GroupSelectModal, VirtualizedDomainList } from "@/features/domains-list/ui";
+import { languageAtom } from "@/entities/app/i18n/store";
+import { proxyActiveAtom } from "@/entities/app/status/store";
+import { globalDomainsAtom } from "@/entities/domain/store";
+import type { DomainFeatureState } from "@/entities/domain/ui";
+import { DomainListEmpty, EditDomainModal, GroupSelectModal, VirtualizedDomainList } from "@/entities/domain/ui";
+import { globalApiLoggingLinksAtom } from "@/entities/domain-api-logging/store";
+import { globalGroupsAtom, globalLinksAtom } from "@/entities/domain-group/store";
+import { globalMonitorLinksAtom } from "@/entities/domain-monitor/store";
+import { globalLocalRoutesAtom } from "@/entities/proxy/store";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";

@@ -1,11 +1,8 @@
-import clsx from "clsx";
-import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { createContext, useContext, useEffect, useRef } from "react";
+import { cn } from "@/shared/lib/cn";
 
 interface ModalContextProps {
-  isOpen: boolean;
   onClose: () => void;
 }
 
@@ -23,78 +20,77 @@ interface ModalProps {
   children: React.ReactNode;
   isOpen: boolean;
   onClose: () => void;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
 }
 
 const SIZE_CLASSES = {
-  sm: "max-w-sm", // 384px
-  md: "max-w-md", // 448px
-  lg: "max-w-lg", // 512px
-  xl: "max-w-xl", // 576px
-  "2xl": "max-w-2xl", // 672px
-  "4xl": "max-w-4xl", // 896px
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "4xl": "max-w-4xl",
   full: "max-w-[95vw]",
 };
 
 export function Modal({ children, isOpen, onClose, size = "xl" }: ModalProps) {
-  // Handle ESC key
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    },
-    [onClose],
-  );
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const sizeClass = SIZE_CLASSES[size] ?? SIZE_CLASSES.xl;
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      window.addEventListener("keydown", handleKeyDown);
-    } else {
-      document.body.style.overflow = "unset";
+    const dialog = dialogRef.current;
+    if (!dialog) {
+      return;
     }
-    return () => {
-      document.body.style.overflow = "unset";
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, handleKeyDown]);
+    if (isOpen) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
 
-  const sizeClass = SIZE_CLASSES[size as keyof typeof SIZE_CLASSES] || SIZE_CLASSES.xl;
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) {
+      return;
+    }
+    const handleCancel = (event: Event) => {
+      event.preventDefault();
+      onClose();
+    };
+    dialog.addEventListener("cancel", handleCancel);
+    return () => dialog.removeEventListener("cancel", handleCancel);
+  }, [onClose]);
+
+  const handleBackdropClick = (event: React.MouseEvent<HTMLDialogElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
 
   return (
-    <ModalContext.Provider value={{ isOpen, onClose }}>
-      <AnimatePresence>{isOpen && <ModalContent sizeClass={sizeClass}>{children}</ModalContent>}</AnimatePresence>
-    </ModalContext.Provider>
-  );
-}
-
-function ModalContent({ children, sizeClass }: { children: React.ReactNode; sizeClass: string }) {
-  const { onClose } = useModalContext();
-
-  return createPortal(
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 bg-neutral/60 backdrop-blur-md"
-      />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 30 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 30 }}
-        transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
-        className={clsx(
-          "relative w-full bg-base-100 text-base-content rounded-3xl shadow-[0_32px_128px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col border border-base-300/50",
-          sizeClass,
+    <ModalContext.Provider value={{ onClose }}>
+      <dialog
+        ref={dialogRef}
+        onClick={handleBackdropClick}
+        className={cn(
+          "fixed inset-0 z-100 m-0 hidden h-full w-full max-h-none max-w-none border-0 bg-transparent p-4 open:flex open:items-center open:justify-center sm:p-6 lg:p-8",
+          "[&::backdrop]:bg-neutral/60 [&::backdrop]:backdrop-blur-md",
         )}
       >
-        {children}
-      </motion.div>
-    </div>,
-    document.body,
+        <div
+          className={cn(
+            "relative flex w-full max-h-[90vh] flex-col overflow-hidden",
+            "bg-base-100 text-base-content rounded-3xl shadow-[0_32px_128px_rgba(0,0,0,0.4)] border border-base-300/50",
+            sizeClass,
+          )}
+        >
+          {children}
+        </div>
+      </dialog>
+    </ModalContext.Provider>
   );
 }
 
@@ -133,7 +129,7 @@ Modal.Header = function ModalHeader({
 
 Modal.Body = function ModalBody({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={clsx("px-10 py-5 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-base-300", className)}>
+    <div className={cn("px-10 py-5 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-base-300", className)}>
       {children}
     </div>
   );

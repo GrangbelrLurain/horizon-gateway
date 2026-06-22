@@ -19,11 +19,12 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/domain/app-status/store";
-import { languageAtom } from "@/domain/i18n/store";
+import { usePromiseModal } from "@/entities/app/hooks/usePromiseModal";
+import { languageAtom } from "@/entities/app/i18n/store";
+import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/entities/app/status/store";
+import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { usePromiseModal } from "@/shared/lib/modal/usePromiseModal";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -31,7 +32,6 @@ import { Card } from "@/shared/ui/card/card";
 import { EmptyState } from "@/shared/ui/empty-state/EmptyState";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { Modal } from "@/shared/ui/modal/Modal";
-import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { en } from "./en";
 import { ko } from "./ko";
 import { apiLogsDateAtom, apiLogsHostFilterAtom, apiLogsMethodFilterAtom, apiLogsSearchAtom } from "./store";

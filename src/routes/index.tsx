@@ -3,15 +3,16 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useAtom, useAtomValue } from "jotai";
 import { BookOpen, History, Plus, Server } from "lucide-react";
 import { useEffect, useState } from "react";
+import { languageAtom } from "@/entities/app/i18n/store";
 import {
   apiLoggingCountAtom,
   domainCountAtom,
   proxyLocalRoutingEnabledAtom,
   proxyMockingEnabledAtom,
   proxyRunningAtom,
-  setupDismissedAtom,
-} from "@/domain/app-status/store";
-import { languageAtom } from "@/domain/i18n/store";
+} from "@/entities/app/status/store";
+import { setupDismissedAtom } from "@/entities/proxy/store";
+import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
 import {
   buildQuickStats,
   QuickActionsCard,
@@ -21,7 +22,6 @@ import {
 } from "@/features/dashboard/ui/DashboardComponents";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
-import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { en } from "./en";
 import { ko } from "./ko";

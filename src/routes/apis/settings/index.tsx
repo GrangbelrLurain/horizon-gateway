@@ -12,8 +12,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/domain/i18n/store";
-import type { Domain } from "@/entities/domain/types/domain";
+import { languageAtom } from "@/entities/app/i18n/store";
+import type { Domain } from "@/entities/domain";
+import { globalDomainsAtom } from "@/entities/domain/store";
+import { globalApiLoggingLinksAtom } from "@/entities/domain-api-logging/store";
+import { globalGroupsAtom, globalLinksAtom } from "@/entities/domain-group/store";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -113,14 +116,6 @@ function GroupSection({
     </div>
   );
 }
-
-import {
-  globalApiLoggingLinksAtom,
-  globalDomainsAtom,
-  globalGroupsAtom,
-  globalLinksAtom,
-} from "@/domain/global-data/store";
-
 // ── Main ──
 function ApisSettingsPage() {
   const lang = useAtomValue(languageAtom);

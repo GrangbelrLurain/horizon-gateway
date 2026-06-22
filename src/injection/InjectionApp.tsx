@@ -1,6 +1,6 @@
 import html2canvas from "html2canvas";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { Annotation } from "@/entities/domain/types/inspector";
+import type { Annotation } from "@/entities/inspector";
 
 interface EditingElement {
   tagName: string;
@@ -133,6 +133,9 @@ export function InjectionApp() {
   const currentPagePolicies = useMemo(() => {
     const current = normalizeUrl(window.location.href);
     return allAnnotations.filter((ann) => {
+      if (!ann.url) {
+        return false;
+      }
       const target = normalizeUrl(ann.url);
       return target.host === current.host && target.path === current.path;
     });

@@ -1,6 +1,5 @@
 import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
@@ -20,28 +19,21 @@ import {
   WifiIcon,
 } from "lucide-react";
 import { type ComponentProps, useEffect, useMemo, useState } from "react";
-import {
-  apiLoggingCountAtom,
-  domainCountAtom,
-  loadAppStatus,
-  proxyInspectorEnabledAtom,
-  proxyLocalRoutingEnabledAtom,
-  proxyMockingEnabledAtom,
-  proxyRunningAtom,
-} from "@/domain/app-status/store";
-import { languageAtom } from "@/domain/i18n/store";
-import { themeAtom } from "@/domain/theme/store";
-import { userProfileAtom } from "@/domain/user/store";
+import { useAppBootstrap } from "@/entities/app/bootstrap";
+import { languageAtom } from "@/entities/app/i18n/store";
+import { proxyInspectorEnabledAtom } from "@/entities/app/status/store";
+import { themeAtom } from "@/entities/app/theme/store";
+import { Titlebar } from "@/entities/app/ui/Titlebar";
+import { userProfileAtom } from "@/entities/app/user/store";
+import { CreateMockModal } from "@/entities/mocking/ui/CreateMockModal";
 import { Sidebar } from "@/features/sidebar/ui/Sidebar";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile/ui/UserProfileSetup";
 import { commands, unwrap } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
-import { Titlebar } from "@/shared/ui/layout/Titlebar";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { PromiseModal } from "@/shared/ui/modal/PromiseModal";
-import { CreateMockModal } from "@/shared/ui/modals/CreateMockModal";
 import { en } from "./root.en";
 import { ko } from "./root.ko";
 
@@ -67,14 +59,9 @@ const RootLayout = () => {
     return () => window.removeEventListener("message", handleMessage);
   }, [setCreateMockModal]);
 
-  // ── Global App Status ──────────────────────────────────────────────────────
-  const [, setDomainCount] = useAtom(domainCountAtom);
-  const [, setApiLoggingCount] = useAtom(apiLoggingCountAtom);
-  const [, setProxyRunning] = useAtom(proxyRunningAtom);
-  const [, setProxyLocalRouting] = useAtom(proxyLocalRoutingEnabledAtom);
+  useAppBootstrap();
 
-  const [, setProxyMockingEnabled] = useAtom(proxyMockingEnabledAtom);
-  const [proxyInspectorEnabled, setProxyInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
+  const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
 
   const theme = useAtomValue(themeAtom);
   const userProfile = useAtomValue(userProfileAtom);
@@ -127,70 +114,17 @@ const RootLayout = () => {
   }, [userProfile.avatarColor]);
 
   useEffect(() => {
-    loadAppStatus(
-      setDomainCount,
-      setApiLoggingCount,
-      setProxyRunning,
-      setProxyLocalRouting,
-      setProxyMockingEnabled,
-      setProxyInspectorEnabled,
-    );
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle Inspector: Ctrl + Alt + I
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "i") {
-        const newState = !proxyInspectorEnabled;
-        setProxyInspectorEnabled(newState);
+        const newState = !inspectorEnabled;
+        setInspectorEnabled(newState);
         commands.setGlobalInspectorEnabled(newState).then(unwrap);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
-    // Listen for real-time proxy status changes
-    const unlistenProxy = listen<{ running: boolean; local_routing_enabled: boolean }>(
-      "proxy-status-changed",
-      (event) => {
-        if (event.payload) {
-          setProxyRunning(event.payload.running);
-          setProxyLocalRouting(event.payload.local_routing_enabled);
-        }
-      },
-    );
-
-    // Listen for real-time mocking status changes
-    const unlistenMocking = listen<{ enabled: boolean }>("mocking-status-changed", (event) => {
-      if (event.payload) {
-        setProxyMockingEnabled(event.payload.enabled);
-      }
-    });
-
-    const interval = setInterval(() => {
-      loadAppStatus(
-        setDomainCount,
-        setApiLoggingCount,
-        setProxyRunning,
-        setProxyLocalRouting,
-        setProxyMockingEnabled,
-        setProxyInspectorEnabled,
-      );
-    }, 60_000);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      clearInterval(interval);
-      unlistenProxy.then((fn) => fn());
-      unlistenMocking.then((fn) => fn());
-    };
-  }, [
-    setDomainCount,
-    setApiLoggingCount,
-    setProxyRunning,
-    setProxyLocalRouting,
-    setProxyMockingEnabled,
-    setProxyInspectorEnabled,
-    proxyInspectorEnabled,
-  ]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inspectorEnabled, setInspectorEnabled]);
 
   const sidebarItems: ComponentProps<typeof Sidebar>["items"] = useMemo(
     () => [

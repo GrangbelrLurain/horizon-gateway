@@ -3,12 +3,12 @@ import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
 import { Download, RefreshCw, Server, Settings as SettingsIcon, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { languageAtom } from "@/entities/app/i18n/store";
 import {
   proxyPortInputAtom,
   proxyReverseHttpPortInputAtom,
   proxyReverseHttpsPortInputAtom,
-} from "@/domain/app-status/store";
-import { languageAtom } from "@/domain/i18n/store";
+} from "@/entities/proxy/store";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import type { ProxySettings, ProxyStatusPayload, SettingsExport_Serialize } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";

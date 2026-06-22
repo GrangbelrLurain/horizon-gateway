@@ -5,10 +5,10 @@ import clsx from "clsx";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { Copy, Pause, Play, SearchIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { proxyRunningAtom } from "@/domain/app-status/store";
+import { proxyRunningAtom } from "@/entities/app/status/store";
+import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import { Modal } from "@/shared/ui/modal/Modal";
-import { ProxyServerWarning } from "@/shared/ui/proxy-server-warning/ProxyServerWarning";
 
 interface ServerLog {
   timestamp: string;
