@@ -47,7 +47,7 @@ impl StringVisitor {
 impl tracing_core::field::Visit for StringVisitor {
     fn record_debug(&mut self, field: &tracing_core::Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            let s = format!("{:?}", value);
+            let s = format!("{value:?}");
             self.message = s.trim_start_matches('"').trim_end_matches('"').to_string();
         }
     }

@@ -392,11 +392,12 @@ pub fn run() {
                 }
             }
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
+                use tauri::Manager;
+
                 // Clear system PAC URL on exit to prevent breaking user's internet
                 let _ = crate::service::system_proxy_service::SystemProxyService::clear_pac_url();
 
                 // Kill cloudflared tunnel if running
-                use tauri::Manager;
                 if let Some(tunnel_svc) = app_handle.try_state::<Arc<TunnelService>>() {
                     tauri::async_runtime::block_on(async {
                         let mut child_guard = tunnel_svc.child.lock().await;

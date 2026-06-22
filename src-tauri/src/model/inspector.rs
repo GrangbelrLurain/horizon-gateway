@@ -19,12 +19,8 @@ pub struct Annotation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[derive(Default)]
 pub struct InspectorSettings {
     pub enabled: bool,
 }
 
-impl Default for InspectorSettings {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
-}

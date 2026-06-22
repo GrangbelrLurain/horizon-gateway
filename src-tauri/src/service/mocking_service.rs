@@ -108,7 +108,7 @@ impl MockingService {
                     s.name = n;
                 }
                 if description.is_some() {
-                    s.description = description.clone();
+                    s.description.clone_from(&description);
                 }
                 if let Some(e) = enabled {
                     s.enabled = e;
@@ -131,7 +131,9 @@ impl MockingService {
         let initial_len = scenarios.len();
         scenarios.retain(|s| s.id != id);
 
-        if scenarios.len() != initial_len {
+        if scenarios.len() == initial_len {
+            false
+        } else {
             self.save_scenarios(&scenarios);
             // Delete associated mock rules (cascade)
             let rules_initial_len = rules.len();
@@ -140,8 +142,6 @@ impl MockingService {
                 self.save_mock_rules(&rules);
             }
             true
-        } else {
-            false
         }
     }
 
@@ -228,7 +228,7 @@ impl MockingService {
                     r.response_headers = headers;
                 }
                 if response_body.is_some() {
-                    r.response_body = response_body.clone();
+                    r.response_body.clone_from(&response_body);
                 }
                 if let Some(e) = enabled {
                     r.enabled = e;
@@ -247,11 +247,11 @@ impl MockingService {
         let mut list = self.mock_rules.lock().unwrap();
         let initial_len = list.len();
         list.retain(|r| r.id != id);
-        if list.len() != initial_len {
+        if list.len() == initial_len {
+            false
+        } else {
             self.save_mock_rules(&list);
             true
-        } else {
-            false
         }
     }
 }

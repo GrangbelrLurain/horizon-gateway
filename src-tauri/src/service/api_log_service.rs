@@ -34,7 +34,7 @@ impl ApiLogService {
         };
 
         // 파일명: YYYY-MM-DD.jsonl
-        let file_path = self.log_dir.join(format!("{}.jsonl", date_str));
+        let file_path = self.log_dir.join(format!("{date_str}.jsonl"));
 
         let Ok(json) = serde_json::to_string(entry) else {
             return;
@@ -42,7 +42,7 @@ impl ApiLogService {
 
         let _lock = self.write_lock.lock().unwrap();
         if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(file_path) {
-            let _ = writeln!(file, "{}", json);
+            let _ = writeln!(file, "{json}");
         }
     }
 
@@ -71,7 +71,7 @@ impl ApiLogService {
         host_filter: Option<String>,
         exact_match: bool,
     ) -> Vec<ApiLogEntry> {
-        let file_path = self.log_dir.join(format!("{}.jsonl", date));
+        let file_path = self.log_dir.join(format!("{date}.jsonl"));
         if !file_path.exists() {
             return Vec::new();
         }
@@ -79,7 +79,7 @@ impl ApiLogService {
         let mut logs = Vec::new();
         if let Ok(file) = fs::File::open(file_path) {
             let reader = BufReader::new(file);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 if let Ok(entry) = serde_json::from_str::<ApiLogEntry>(&line) {
                     // Filter
                     if exact_match {
@@ -127,7 +127,7 @@ impl ApiLogService {
     pub fn clear_logs(&self, date: Option<String>) -> Result<(), String> {
         let _lock = self.write_lock.lock().unwrap();
         if let Some(d) = date {
-            let file_path = self.log_dir.join(format!("{}.jsonl", d));
+            let file_path = self.log_dir.join(format!("{d}.jsonl"));
             if file_path.exists() {
                 fs::remove_file(file_path).map_err(|e| e.to_string())?;
             }

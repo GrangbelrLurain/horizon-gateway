@@ -21,14 +21,13 @@ fn get_current_version(value: &Value) -> u32 {
     match value {
         Value::Object(map) => map
             .get("schema_version")
-            .and_then(|v| v.as_u64())
-            .map(|n| n as u32)
-            .unwrap_or(1),
+            .and_then(serde_json::Value::as_u64)
+            .map_or(1, |n| n as u32),
         _ => 1, // Array 또는 기타 = v1
     }
 }
 
-/// v1 → v2: { schema_version, data } 래퍼로 감싸기
+/// v1 → v2: { `schema_version`, data } 래퍼로 감싸기
 fn migrate_1_to_2(value: Value) -> Value {
     serde_json::json!({
         "schema_version": 2,
@@ -48,13 +47,11 @@ fn migrate_file(path: &Path, migrations: &[fn(Value) -> Value]) {
     if !path.exists() {
         return;
     }
-    let content = match fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(_) => return,
+    let Ok(content) = fs::read_to_string(path) else {
+        return;
     };
-    let mut value: Value = match serde_json::from_str(&content) {
-        Ok(v) => v,
-        Err(_) => return,
+    let Ok(mut value) = serde_json::from_str::<Value>(&content) else {
+        return;
     };
 
     let mut version = get_current_version(&value);
@@ -86,20 +83,18 @@ fn migrate_file(path: &Path, migrations: &[fn(Value) -> Value]) {
     }
 }
 
-/// domain_status.json → domain_monitor_links.json 파일 마이그레이션 (구조체 변경)
+/// `domain_status.json` → `domain_monitor_links.json` 파일 마이그레이션 (구조체 변경)
 fn migrate_domain_status_to_monitor_links(app_data_dir: &Path) {
     let old_path = app_data_dir.join("domain_status.json");
     let new_path = app_data_dir.join("domain_monitor_links.json");
     if !old_path.exists() {
         return;
     }
-    let content = match fs::read_to_string(&old_path) {
-        Ok(c) => c,
-        Err(_) => return,
+    let Ok(content) = fs::read_to_string(&old_path) else {
+        return;
     };
-    let value: Value = match serde_json::from_str(&content) {
-        Ok(v) => v,
-        Err(_) => return,
+    let Ok(value) = serde_json::from_str::<Value>(&content) else {
+        return;
     };
     backup_if_exists(&old_path);
     let versioned = if get_current_version(&value) < 2 {
@@ -114,7 +109,7 @@ fn migrate_domain_status_to_monitor_links(app_data_dir: &Path) {
     }
 }
 
-/// 모든 저장소 파일에 대해 마이그레이션 실행. 앱 시작 시 setup() 맨 앞에서 호출.
+/// 모든 저장소 파일에 대해 마이그레이션 실행. 앱 시작 시 `setup()` 맨 앞에서 호출.
 pub fn run_all(app_data_dir: &Path) {
     // domain_status.json → domain_monitor_links.json (파일명 변경)
     migrate_domain_status_to_monitor_links(app_data_dir);

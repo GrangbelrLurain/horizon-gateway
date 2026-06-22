@@ -18,7 +18,7 @@ pub fn regist_domains(
     payload: RegistDomainsPayload,
     domain_service: tauri::State<'_, DomainService>,
     link_service: tauri::State<'_, DomainGroupLinkService>,
-    monitor_service: tauri::State<'_, DomainMonitorService>,
+    _monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
     let requested = payload.urls.len();
     let list = domain_service.add_domains(payload.urls);

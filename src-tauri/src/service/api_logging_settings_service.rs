@@ -7,18 +7,18 @@ use std::sync::{Arc, Mutex, RwLock};
 
 /// 도메인별 API 로깅 설정 서비스.
 ///
-/// - `links`: JSON 파일에 저장되는 `DomainApiLoggingLink` 목록 (domain_id 기준)
-/// - `settings_map`: 프록시가 실시간으로 조회하는 호스트 → (logging_enabled, body_enabled) 맵
+/// - `links`: JSON 파일에 저장되는 `DomainApiLoggingLink` 목록 (`domain_id` 기준)
+/// - `settings_map`: 프록시가 실시간으로 조회하는 호스트 → (`logging_enabled`, `body_enabled`) 맵
 ///
 /// `refresh_map`을 호출하면 `links`와 도메인 목록으로부터 `settings_map`을 재구성합니다.
 pub struct ApiLoggingSettingsService {
     storage_path: PathBuf,
     links: Mutex<Vec<DomainApiLoggingLink>>,
-    /// 호스트명(소문자) → (logging_enabled, body_enabled)
+    /// 호스트명(소문자) → (`logging_enabled`, `body_enabled`)
     settings_map: Arc<RwLock<HashMap<String, (bool, bool)>>>,
 }
 
-/// URL → host 추출 (소문자). "https://example.com:8080/path" → "example.com"
+/// URL → host 추출 (소문자). "<https://example.com:8080/path>" → "example.com"
 fn url_to_host(url: &str) -> Option<String> {
     let url = url.trim();
     if url.is_empty() {
@@ -62,8 +62,8 @@ impl ApiLoggingSettingsService {
         Arc::clone(&self.settings_map)
     }
 
-    /// links + domains 정보를 기반으로 settings_map 재구성.
-    /// 도메인 URL 호스트, schema_url 호스트(API 서버), 3단계 이상 호스트의 부모 도메인도 등록.
+    /// links + domains 정보를 기반으로 `settings_map` 재구성.
+    /// 도메인 URL 호스트, `schema_url` 호스트(API 서버), 3단계 이상 호스트의 부모 도메인도 등록.
     pub fn refresh_map(&self, domains: &[Domain]) {
         let links = self.links.lock().unwrap();
         let domain_map: HashMap<u32, &Domain> = domains.iter().map(|d| (d.id, d)).collect();
@@ -97,7 +97,7 @@ impl ApiLoggingSettingsService {
         self.links.lock().unwrap().clone()
     }
 
-    /// 도메인 로깅 설정 추가/변경 후 settings_map 갱신.
+    /// 도메인 로깅 설정 추가/변경 후 `settings_map` 갱신.
     pub fn set_link(
         &self,
         domain_id: u32,
@@ -125,7 +125,7 @@ impl ApiLoggingSettingsService {
         self.links.lock().unwrap().clone()
     }
 
-    /// 도메인 로깅 설정 제거 후 settings_map 갱신.
+    /// 도메인 로깅 설정 제거 후 `settings_map` 갱신.
     pub fn remove_link(&self, domain_id: u32, domains: &[Domain]) {
         let mut links = self.links.lock().unwrap();
         links.retain(|l| l.domain_id != domain_id);

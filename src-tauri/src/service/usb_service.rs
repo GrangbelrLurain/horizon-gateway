@@ -27,7 +27,7 @@ impl UsbService {
 
     pub fn refresh_adb_path(&self) -> Option<PathBuf> {
         let path = find_adb_binary();
-        *self.adb_path.lock().unwrap() = path.clone();
+        self.adb_path.lock().unwrap().clone_from(&path);
         path
     }
 
@@ -72,15 +72,15 @@ impl UsbService {
             return Err("No connected Android devices found".to_string());
         }
 
-        let port_str = format!("tcp:{}", port);
-        let proxy_target = format!("127.0.0.1:{}", port);
+        let port_str = format!("tcp:{port}");
+        let proxy_target = format!("127.0.0.1:{port}");
 
         for serial in &devices {
             // 1. reverse port mapping: adb -s <serial> reverse tcp:PORT tcp:PORT
             let output = Command::new(&path)
-                .args(&["-s", serial, "reverse", &port_str, &port_str])
+                .args(["-s", serial, "reverse", &port_str, &port_str])
                 .output()
-                .map_err(|e| format!("Failed to execute adb reverse for {}: {}", serial, e))?;
+                .map_err(|e| format!("Failed to execute adb reverse for {serial}: {e}"))?;
 
             if !output.status.success() {
                 let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
@@ -89,9 +89,9 @@ impl UsbService {
 
             // 2. inject global proxy: adb -s <serial> shell settings put global http_proxy 127.0.0.1:PORT
             let output_proxy = Command::new(&path)
-                .args(&["-s", serial, "shell", "settings", "put", "global", "http_proxy", &proxy_target])
+                .args(["-s", serial, "shell", "settings", "put", "global", "http_proxy", &proxy_target])
                 .output()
-                .map_err(|e| format!("Failed to set proxy for {}: {}", serial, e))?;
+                .map_err(|e| format!("Failed to set proxy for {serial}: {e}"))?;
 
             if !output_proxy.status.success() {
                 let err_msg = String::from_utf8_lossy(&output_proxy.stderr).to_string();
@@ -110,14 +110,14 @@ impl UsbService {
         ensure_adb_server(&path);
 
         let devices = list_devices(&path).unwrap_or_default();
-        let port_str = format!("tcp:{}", port);
+        let port_str = format!("tcp:{port}");
 
         for serial in &devices {
             // 1. remove reverse port mapping: adb -s <serial> reverse --remove tcp:PORT
             let output = Command::new(&path)
-                .args(&["-s", serial, "reverse", "--remove", &port_str])
+                .args(["-s", serial, "reverse", "--remove", &port_str])
                 .output()
-                .map_err(|e| format!("Failed to execute adb reverse remove for {}: {}", serial, e))?;
+                .map_err(|e| format!("Failed to execute adb reverse remove for {serial}: {e}"))?;
 
             if !output.status.success() {
                 let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
@@ -126,18 +126,18 @@ impl UsbService {
 
             // 2. clear global proxy: adb -s <serial> shell settings put global http_proxy :0
             let _ = Command::new(&path)
-                .args(&["-s", serial, "shell", "settings", "put", "global", "http_proxy", ":0"])
+                .args(["-s", serial, "shell", "settings", "put", "global", "http_proxy", ":0"])
                 .status();
 
             // 3. delete proxy keys completely
             let _ = Command::new(&path)
-                .args(&["-s", serial, "shell", "settings", "delete", "global", "http_proxy"])
+                .args(["-s", serial, "shell", "settings", "delete", "global", "http_proxy"])
                 .status();
             let _ = Command::new(&path)
-                .args(&["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_host"])
+                .args(["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_host"])
                 .status();
             let _ = Command::new(&path)
-                .args(&["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_port"])
+                .args(["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_port"])
                 .status();
         }
 
@@ -218,7 +218,7 @@ fn list_devices(adb_path: &PathBuf) -> Result<Vec<String>, String> {
     let output = Command::new(adb_path)
         .arg("devices")
         .output()
-        .map_err(|e| format!("Failed to run adb devices: {}", e))?;
+        .map_err(|e| format!("Failed to run adb devices: {e}"))?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());

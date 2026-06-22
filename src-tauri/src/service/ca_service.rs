@@ -46,7 +46,7 @@ impl CaService {
         // Use a fixed start date and serial number for determinism.
         // This ensures the same root.crt is generated from the same root.key.
         params.not_before =
-            OffsetDateTime::from_unix_timestamp(1704067200).map_err(|e| e.to_string())?; // 2024-01-01
+            OffsetDateTime::from_unix_timestamp(1_704_067_200).map_err(|e| e.to_string())?; // 2024-01-01
         params.not_after = params.not_before + time::Duration::days(365 * 10); // 10 years
         params.serial_number = Some(SerialNumber::from(1u64));
 

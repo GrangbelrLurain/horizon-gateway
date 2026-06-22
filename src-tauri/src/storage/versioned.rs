@@ -1,7 +1,7 @@
 //! JSON 스키마 버전 및 마이그레이션. docs/plans/10-json-schema-migration.md 참고.
 //!
-//! - schema_version 없음 → v1으로 취급, 최신 형식으로 마이그레이션 후 저장
-//! - schema_version < 현재 → 마이그레이션 후 저장
+//! - `schema_version` 없음 → v1으로 취급, 최신 형식으로 마이그레이션 후 저장
+//! - `schema_version` < 현재 → 마이그레이션 후 저장
 //! - 마이그레이션 전 기존 파일 백업 (.json.bak)
 
 use serde::{Deserialize, Serialize};
@@ -32,9 +32,8 @@ where
     if !path.exists() {
         return T::default();
     }
-    let content = match fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(_) => return T::default(),
+    let Ok(content) = fs::read_to_string(path) else {
+        return T::default();
     };
 
     // Try versioned format first

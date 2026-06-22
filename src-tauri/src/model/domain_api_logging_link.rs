@@ -11,7 +11,7 @@ pub struct DomainApiLoggingLink {
     pub logging_enabled: bool,
     #[serde(default)]
     pub body_enabled: bool,
-    /// OpenAPI/Swagger 스키마 다운로드 URL (예: https://api.example.com/swagger.json).
+    /// OpenAPI/Swagger 스키마 다운로드 URL (예: <https://api.example.com/swagger.json>).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schema_url: Option<String>,
 }

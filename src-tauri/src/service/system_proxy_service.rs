@@ -8,23 +8,23 @@ impl SystemProxyService {
     pub fn set_pac_url(url: &str) -> Result<(), String> {
         #[cfg(target_os = "windows")]
         {
-            use winreg::enums::*;
+            use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
             use winreg::RegKey;
 
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
             let key = hkcu
                 .open_subkey_with_flags(path, KEY_SET_VALUE)
-                .map_err(|e| format!("Failed to open registry key: {}", e))?;
+                .map_err(|e| format!("Failed to open registry key: {e}"))?;
 
             // 1. Set AutoConfigURL (PAC)
             key.set_value("AutoConfigURL", &url)
-                .map_err(|e| format!("Failed to set AutoConfigURL: {}", e))?;
+                .map_err(|e| format!("Failed to set AutoConfigURL: {e}"))?;
 
             // 2. Disable Manual Proxy to avoid conflicts
             // ProxyEnable = 0
             if let Err(e) = key.set_value("ProxyEnable", &0u32) {
-                eprintln!("Warning: Failed to disable ProxyEnable: {}", e);
+                eprintln!("Warning: Failed to disable ProxyEnable: {e}");
             }
             // Clear ProxyServer and ProxyOverride to be safe
             let _ = key.delete_value("ProxyServer");
@@ -61,21 +61,21 @@ impl SystemProxyService {
     pub fn clear_pac_url() -> Result<(), String> {
         #[cfg(target_os = "windows")]
         {
-            use winreg::enums::*;
+            use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
             use winreg::RegKey;
 
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
             let key = hkcu
                 .open_subkey_with_flags(path, KEY_SET_VALUE)
-                .map_err(|e| format!("Failed to open registry key: {}", e))?;
+                .map_err(|e| format!("Failed to open registry key: {e}"))?;
 
             // Remove AutoConfigURL to disable PAC
             let _ = key.delete_value("AutoConfigURL");
 
             // Ensure ProxyEnable is 0
             if let Err(e) = key.set_value("ProxyEnable", &0u32) {
-                eprintln!("Warning: Failed to disable ProxyEnable on clear: {}", e);
+                eprintln!("Warning: Failed to disable ProxyEnable on clear: {e}");
             }
 
             Ok(())

@@ -13,12 +13,12 @@ use std::io;
 use std::sync::atomic::{AtomicU16, Ordering};
 use tauri::{AppHandle, Emitter};
 
-/// Build a ProxyStatusPayload from the current global state. Public for use in setup hook.
+/// Build a `ProxyStatusPayload` from the current global state. Public for use in setup hook.
 pub fn get_proxy_status_payload() -> ProxyStatusPayload {
     current_proxy_status()
 }
 
-/// Helper: build a ProxyStatusPayload from the current global state.
+/// Helper: build a `ProxyStatusPayload` from the current global state.
 fn current_proxy_status() -> ProxyStatusPayload {
     let port = PROXY_PORT.load(Ordering::Relaxed);
     let rh = PROXY_REVERSE_HTTP.load(Ordering::Relaxed);
@@ -309,6 +309,7 @@ pub struct StartLocalProxyPayload {
 
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments)]
 pub async fn start_local_proxy(
     app: AppHandle,
     payload: Option<StartLocalProxyPayload>,
@@ -438,9 +439,9 @@ pub async fn start_local_proxy(
     *guard = handles;
 
     // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{}/.watchtower/proxy.pac", port);
+    let pac_url = format!("http://127.0.0.1:{port}/.watchtower/proxy.pac");
     if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
-        eprintln!("Failed to set system proxy: {}", e);
+        eprintln!("Failed to set system proxy: {e}");
     }
 
     let payload = ProxyStatusPayload {
@@ -583,6 +584,7 @@ pub fn set_local_routing_enabled(
 // ── Auto-start (called from setup hook) ────────────────────────────────
 
 /// Start the proxy using persisted settings. Designed to be called once from the Tauri setup hook.
+#[allow(clippy::too_many_arguments)]
 pub async fn auto_start_proxy(
     app_handle: tauri::AppHandle,
     route_service: std::sync::Arc<LocalRouteService>,
@@ -695,9 +697,9 @@ pub async fn auto_start_proxy(
     *guard = handles;
 
     // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{}/.watchtower/proxy.pac", port);
+    let pac_url = format!("http://127.0.0.1:{port}/.watchtower/proxy.pac");
     if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
-        eprintln!("[auto-start] Failed to set system proxy: {}", e);
+        eprintln!("[auto-start] Failed to set system proxy: {e}");
     }
 
     let mut msg = format!("[auto-start] Proxy on 127.0.0.1:{port}");

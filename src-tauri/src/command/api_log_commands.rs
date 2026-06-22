@@ -243,7 +243,7 @@ fn empty_request_result() -> ApiRequestResult {
 }
 
 /// 임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
-/// 네트워크 에러도 ApiResponse로 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
+/// 네트워크 에러도 `ApiResponse로` 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
 #[tauri::command]
 #[specta::specta]
 pub async fn send_api_request(
@@ -348,7 +348,7 @@ pub async fn send_api_request(
     };
 
     Ok(ApiResponse {
-        message: format!("HTTP {} ({elapsed}ms)", status_code),
+        message: format!("HTTP {status_code} ({elapsed}ms)"),
         success: (200..300).contains(&(status_code as usize)),
         data: ApiRequestResult {
             status_code,

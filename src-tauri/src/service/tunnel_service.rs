@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::process::Child;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use axum::{Router, routing::get, response::Html, response::IntoResponse, extract::State};
 use tower_http::cors::CorsLayer;
 
@@ -24,6 +24,7 @@ impl TunnelService {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub fn get_tailscale_ip(&self) -> Option<String> {
         get_tailscale_ip()
     }
@@ -66,25 +67,24 @@ impl TunnelService {
 
         // Spawn cloudflared
         let mut command = tokio::process::Command::new(&binary_path);
-        command.args(&["tunnel", "--url", "http://127.0.0.1:13030"]);
+        command.args(["tunnel", "--url", "http://127.0.0.1:13030"]);
         command.stdout(std::process::Stdio::piped());
         command.stderr(std::process::Stdio::piped());
 
         // For Windows, run silently without popping up console windows
         #[cfg(windows)]
         {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             command.creation_flags(CREATE_NO_WINDOW);
         }
 
         let mut child = command.spawn().map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 format!(
-                    "cloudflared binary not found. Searched PATH and common install locations (tried: \"{}\"). Please install cloudflared first.",
-                    binary_path
+                    "cloudflared binary not found. Searched PATH and common install locations (tried: \"{binary_path}\"). Please install cloudflared first."
                 )
             } else {
-                format!("Failed to spawn cloudflared: {}", e)
+                format!("Failed to spawn cloudflared: {e}")
             }
         })?;
 
@@ -121,7 +121,7 @@ impl TunnelService {
                         break;
                     }
                 }
-                _ = &mut timeout_fut => {
+                () = &mut timeout_fut => {
                     break;
                 }
             }
@@ -272,7 +272,6 @@ async fn connect_handler(
 ) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
-    use tauri::Manager;
     let proxy_port = if let Some(settings_svc) = state.app_handle.try_state::<crate::service::proxy_settings_service::ProxySettingsService>() {
         settings_svc.get().proxy_port
     } else {
@@ -294,7 +293,6 @@ async fn setup_handler(
 ) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
-    use tauri::Manager;
     let proxy_port = if let Some(settings_svc) = state.app_handle.try_state::<crate::service::proxy_settings_service::ProxySettingsService>() {
         settings_svc.get().proxy_port
     } else {
