@@ -5,8 +5,8 @@ import clsx from "clsx";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { Copy, Pause, Play, SearchIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { proxyRunningAtom } from "@/entities/app/status/store";
-import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
+import { proxyRunningAtom } from "@/entities/app";
+import { ProxyServerWarning } from "@/entities/proxy";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import { Modal } from "@/shared/ui/modal/Modal";
 

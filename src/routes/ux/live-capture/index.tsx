@@ -18,8 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { proxyMockingEnabledAtom, proxyRunningAtom } from "@/entities/app/status/store";
+import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/entities/app";
 import type { CapturedElement } from "@/entities/inspector";
 import type { Annotation, ApiLogEntry, MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";

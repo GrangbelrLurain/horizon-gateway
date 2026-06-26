@@ -19,16 +19,18 @@ import {
   WifiIcon,
 } from "lucide-react";
 import { type ComponentProps, useEffect, useMemo, useState } from "react";
-import { useAppBootstrap } from "@/entities/app/bootstrap";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { proxyInspectorEnabledAtom } from "@/entities/app/status/store";
-import { themeAtom } from "@/entities/app/theme/store";
-import { Titlebar } from "@/entities/app/ui/Titlebar";
-import { userProfileAtom } from "@/entities/app/user/store";
-import { CreateMockModal } from "@/entities/mocking/ui/CreateMockModal";
-import { Sidebar } from "@/features/sidebar/ui/Sidebar";
+import {
+  languageAtom,
+  proxyInspectorEnabledAtom,
+  Titlebar,
+  themeAtom,
+  useAppBootstrap,
+  userProfileAtom,
+} from "@/entities/app";
+import { CreateMockModal } from "@/entities/mocking";
+import { Sidebar } from "@/features/sidebar";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
-import { UserProfileSetup } from "@/features/user-profile/ui/UserProfileSetup";
+import { UserProfileSetup } from "@/features/user-profile";
 import { commands, unwrap } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";

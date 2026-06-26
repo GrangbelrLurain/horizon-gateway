@@ -12,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
+import { languageAtom } from "@/entities/app";
 import type { DomainGroup, DomainGroupLink } from "@/entities/domain-group";
 import type { DomainMonitorWithUrl } from "@/entities/domain-monitor";
 import { commands, unwrap } from "@/shared/api";

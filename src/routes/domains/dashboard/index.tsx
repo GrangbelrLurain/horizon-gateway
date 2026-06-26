@@ -4,11 +4,15 @@ import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import { Check, ChevronDown, Copy, Download, Folder, Globe, LayoutGrid, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { proxyActiveAtom } from "@/entities/app/status/store";
-import { domainsAtom } from "@/entities/domain";
-import type { DomainFeatureState } from "@/entities/domain/ui";
-import { DomainListEmpty, EditDomainModal, GroupSelectModal, VirtualizedDomainList } from "@/entities/domain/ui";
+import { languageAtom, proxyActiveAtom } from "@/entities/app";
+import type { DomainFeatureState } from "@/entities/domain";
+import {
+  DomainListEmpty,
+  domainsAtom,
+  EditDomainModal,
+  GroupSelectModal,
+  VirtualizedDomainList,
+} from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import { groupsAtom, linksAtom } from "@/entities/domain-group";
 import { monitorLinksAtom } from "@/entities/domain-monitor";

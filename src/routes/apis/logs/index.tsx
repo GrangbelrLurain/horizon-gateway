@@ -19,10 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePromiseModal } from "@/entities/app/hooks/usePromiseModal";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { apiLoggingCountAtom, domainCountAtom, proxyRunningAtom } from "@/entities/app/status/store";
-import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
+import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
+import { ProxyServerWarning } from "@/entities/proxy";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";

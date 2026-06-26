@@ -4,13 +4,14 @@ import { useAtom, useAtomValue } from "jotai";
 import { ChevronRight, Settings, X } from "lucide-react";
 import {
   domainCountAtom,
+  getInitials,
+  mobileSidebarOpenAtom,
   proxyActiveAtom,
   proxyInspectorEnabledAtom,
   proxyMockingEnabledAtom,
   proxyRunningAtom,
-} from "@/entities/app/status/store";
-import { mobileSidebarOpenAtom } from "@/entities/app/ui/store";
-import { getInitials, userProfileAtom } from "@/entities/app/user/store";
+  userProfileAtom,
+} from "@/entities/app";
 
 interface SidebarItem {
   label: string;

@@ -3,23 +3,22 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useAtom, useAtomValue } from "jotai";
 import { BookOpen, History, Plus, Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
 import {
   apiLoggingCountAtom,
   domainCountAtom,
+  languageAtom,
   proxyLocalRoutingEnabledAtom,
   proxyMockingEnabledAtom,
   proxyRunningAtom,
-} from "@/entities/app/status/store";
-import { setupDismissedAtom } from "@/entities/proxy/store";
-import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
+} from "@/entities/app";
+import { ProxyServerWarning, setupDismissedAtom } from "@/entities/proxy";
 import {
   buildQuickStats,
   QuickActionsCard,
   QuickStatsRow,
   RecentActivityGrid,
   SetupProgressCard,
-} from "@/features/dashboard/ui/DashboardComponents";
+} from "@/features/dashboard";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";

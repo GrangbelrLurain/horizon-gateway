@@ -15,9 +15,8 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { proxyRunningAtom } from "@/entities/app/status/store";
-import { ProxyServerWarning } from "@/entities/proxy/ui/ProxyServerWarning";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
+import { ProxyServerWarning } from "@/entities/proxy";
 import type { AdbStatus, ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";

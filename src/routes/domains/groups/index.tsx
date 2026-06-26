@@ -3,13 +3,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import { Grid, Loader2Icon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
+import { languageAtom } from "@/entities/app";
 import type { Domain } from "@/entities/domain";
 import { domainsAtom } from "@/entities/domain";
-import type { DomainGroup } from "@/entities/domain-group";
-import { groupsAtom, linksAtom } from "@/entities/domain-group";
-import { AssignDomainsModal, CreateGroupCard, EditGroupModal, GroupCard } from "@/entities/domain-group/ui";
-import type { DomainWithGroupMeta } from "@/entities/domain-group/ui/AssignDomainsModal";
+import type { DomainGroup, DomainWithGroupMeta } from "@/entities/domain-group";
+import {
+  AssignDomainsModal,
+  CreateGroupCard,
+  EditGroupModal,
+  GroupCard,
+  groupsAtom,
+  linksAtom,
+} from "@/entities/domain-group";
 import { commands, unwrap } from "@/shared/api";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { H1, P } from "@/shared/ui/typography/typography";

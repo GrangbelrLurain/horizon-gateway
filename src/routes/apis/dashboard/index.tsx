@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { Check, Download, Loader2Icon, Search, Settings, Trash2, Wifi } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
+import { languageAtom } from "@/entities/app";
 import { domainsAtom } from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain, DomainApiLoggingLink } from "@/shared/api";

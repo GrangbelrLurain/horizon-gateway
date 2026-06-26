@@ -2,8 +2,7 @@ import clsx from "clsx";
 import { useAtom } from "jotai";
 import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { AVATAR_COLORS, getInitials, userProfileAtom } from "@/entities/app/user/store";
+import { AVATAR_COLORS, getInitials, languageAtom, userProfileAtom } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 

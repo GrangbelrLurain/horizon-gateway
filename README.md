@@ -86,7 +86,16 @@ src-tauri/src/                # Backend
 bindings.ts → entities/{name}/ → features/ → routes/
 ```
 
-Biome `noRestrictedImports`로 의존 방향을 강제합니다: `shared` → `entities`/`features`/`routes` 금지, `entities` → `features`/`routes` 금지, `features` → `routes` 금지.
+Biome `noRestrictedImports`로 의존 방향과 barrel import를 강제합니다.
+
+| 레이어 | 금지 import |
+|--------|-------------|
+| `shared` | `@/entities/**`, `@/features/**`, `@/routes/**` |
+| `entities` | `@/features/**`, `@/routes/**`, `@/entities/*/**` (deep) |
+| `features` | `@/routes/**`, `@/entities/*/**`, `@/features/*/**` (deep) |
+| `routes` | `@/entities/*/**`, `@/features/*/**` (deep) |
+
+entity/feature는 `@/entities/{name}`, `@/features/{name}` barrel만 사용합니다. entity 내부 구현 파일 간에는 relative import(`../store`)를 사용합니다.
 
 ### Backend service unit convention (Tier 2)
 

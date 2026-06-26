@@ -17,7 +17,7 @@ import {
   Server,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app/i18n/store";
+import { languageAtom } from "@/entities/app";
 import type { DomainStatusLog } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";

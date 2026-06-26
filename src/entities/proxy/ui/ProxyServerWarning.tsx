@@ -1,8 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useAtomValue } from "jotai";
 import { AlertCircle, ArrowRight, Settings } from "lucide-react";
-import { languageAtom } from "@/entities/app/i18n/store";
-import { proxyRunningAtom } from "@/entities/app/status/store";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 

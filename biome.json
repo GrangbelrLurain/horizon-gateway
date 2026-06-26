@@ -80,6 +80,10 @@
                   {
                     "group": ["@/features/**", "@/routes/**"],
                     "message": "FSD: entities 레이어는 features, routes를 import할 수 없습니다."
+                  },
+                  {
+                    "group": ["@/entities/*/**"],
+                    "message": "entity deep import 금지 — @/entities/{name} barrel만 사용하세요."
                   }
                 ]
               }
@@ -100,6 +104,38 @@
                   {
                     "group": ["@/routes/**"],
                     "message": "FSD: features 레이어는 routes를 import할 수 없습니다."
+                  },
+                  {
+                    "group": ["@/entities/*/**"],
+                    "message": "entity deep import 금지 — @/entities/{name} barrel만 사용하세요."
+                  },
+                  {
+                    "group": ["@/features/*/**"],
+                    "message": "feature deep import 금지 — @/features/{name} barrel만 사용하세요."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/routes/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/entities/*/**"],
+                    "message": "entity deep import 금지 — @/entities/{name} barrel만 사용하세요."
+                  },
+                  {
+                    "group": ["@/features/*/**"],
+                    "message": "feature deep import 금지 — @/features/{name} barrel만 사용하세요."
                   }
                 ]
               }
