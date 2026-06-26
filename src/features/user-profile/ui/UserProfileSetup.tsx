@@ -1,38 +1,34 @@
 import clsx from "clsx";
-import { useAtom } from "jotai";
 import { Check, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { AVATAR_COLORS, getInitials, languageAtom, userProfileAtom } from "@/entities/app";
+import { AVATAR_COLORS } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 
-export function UserProfileSetup() {
-  const [profile, setProfile] = useAtom(userProfileAtom);
-  const [lang, setLang] = useAtom(languageAtom);
+export interface UserProfileSetupViewProps {
+  tempName: string;
+  tempRole: string;
+  tempColor: string;
+  lang: "ko" | "en";
+  initials: string;
+  onTempNameChange: (value: string) => void;
+  onTempRoleChange: (value: string) => void;
+  onTempColorChange: (value: string) => void;
+  onLangChange: (lang: "ko" | "en") => void;
+  onSave: () => void;
+}
 
-  const [tempName, setTempName] = useState(profile.name || "");
-  const [tempRole, setTempRole] = useState(profile.role || "");
-  const [tempColor, setTempColor] = useState(profile.avatarColor || AVATAR_COLORS[0]);
-
-  // Don't render anything if setup is complete
-  if (profile.isSetupComplete) {
-    return null;
-  }
-
-  const initials = getInitials(tempName || "KY");
-
-  const saveProfile = () => {
-    if (!tempName.trim()) {
-      return;
-    }
-    setProfile({
-      name: tempName.trim(),
-      role: tempRole.trim() || "User",
-      avatarColor: tempColor,
-      isSetupComplete: true,
-    });
-  };
-
+export function UserProfileSetupView({
+  tempName,
+  tempRole,
+  tempColor,
+  lang,
+  initials,
+  onTempNameChange,
+  onTempRoleChange,
+  onTempColorChange,
+  onLangChange,
+  onSave,
+}: UserProfileSetupViewProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
       <div className="bg-white rounded-3xl overflow-hidden w-full max-w-md shadow-2xl flex flex-col mx-4 animate-in zoom-in-95 duration-500">
@@ -70,11 +66,11 @@ export function UserProfileSetup() {
                 id="setup-name"
                 placeholder="e.g. Alex"
                 value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
+                onChange={(e) => onTempNameChange(e.target.value)}
                 maxLength={20}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveProfile();
+                    onSave();
                   }
                 }}
               />
@@ -88,11 +84,11 @@ export function UserProfileSetup() {
                 id="setup-role"
                 placeholder="e.g. Developer, Administrator"
                 value={tempRole}
-                onChange={(e) => setTempRole(e.target.value)}
+                onChange={(e) => onTempRoleChange(e.target.value)}
                 maxLength={30}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveProfile();
+                    onSave();
                   }
                 }}
               />
@@ -105,7 +101,7 @@ export function UserProfileSetup() {
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setTempColor(c)}
+                    onClick={() => onTempColorChange(c)}
                     className={clsx(
                       "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
                       c,
@@ -123,7 +119,7 @@ export function UserProfileSetup() {
               <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => setLang("en")}
+                  onClick={() => onLangChange("en")}
                   className={clsx(
                     "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all",
                     lang === "en" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700",
@@ -133,7 +129,7 @@ export function UserProfileSetup() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setLang("ko")}
+                  onClick={() => onLangChange("ko")}
                   className={clsx(
                     "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all",
                     lang === "ko" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700",
@@ -148,7 +144,7 @@ export function UserProfileSetup() {
           <Button
             type="button"
             variant="primary"
-            onClick={saveProfile}
+            onClick={onSave}
             disabled={!tempName.trim()}
             className="w-full mt-4 h-12 text-base font-bold shadow-lg shadow-indigo-500/20"
           >

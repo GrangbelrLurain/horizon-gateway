@@ -1,132 +1,47 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import clsx from "clsx";
-import { useAtom, useAtomValue } from "jotai";
 import { ChevronRight, Settings, X } from "lucide-react";
-import {
-  domainCountAtom,
-  getInitials,
-  mobileSidebarOpenAtom,
-  proxyActiveAtom,
-  proxyInspectorEnabledAtom,
-  proxyMockingEnabledAtom,
-  proxyRunningAtom,
-  userProfileAtom,
-} from "@/entities/app";
+import { useMemo } from "react";
+import type { SidebarBadgeContext, SidebarItem, SidebarProfile } from "../types";
+import { augmentSidebarItems } from "./augmentSidebarItems";
 
-interface SidebarItem {
-  label: string;
-  icon: React.ReactNode;
-  href: string;
-  children?: SidebarItem[];
-  badge?: React.ReactNode;
-}
-
-interface SidebarProps {
+export interface SidebarProps {
   items: SidebarItem[];
+  pathname: string;
+  profile: SidebarProfile;
+  initials: string;
+  mobileSidebarOpen: boolean;
+  onMobileSidebarOpenChange: (open: boolean) => void;
+  badgeContext: SidebarBadgeContext;
 }
 
-/** Small badge pill for sidebar items */
-function SidebarBadge({
-  children,
-  variant = "default",
-}: {
-  children: React.ReactNode;
-  variant?: "default" | "green" | "amber";
-}) {
-  return (
-    <span
-      className={clsx(
-        "text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none",
-        variant === "green" && "bg-green-500/20 text-green-400",
-        variant === "amber" && "bg-amber-500/20 text-amber-400",
-        variant === "default" && "bg-slate-700 text-slate-400",
-      )}
-    >
-      {children}
-    </span>
+export function Sidebar({
+  items,
+  pathname,
+  profile,
+  initials,
+  mobileSidebarOpen,
+  onMobileSidebarOpenChange,
+  badgeContext,
+}: SidebarProps) {
+  const augmentedItems = useMemo(
+    () => augmentSidebarItems(items, pathname, badgeContext),
+    [items, pathname, badgeContext],
   );
-}
 
-/** Proxy active indicator dot */
-function ProxyDot({ active, colorClass = "bg-green-500" }: { active: boolean | null; colorClass?: string }) {
-  if (active === null) {
-    return null;
-  }
-  return (
-    <div
-      className={clsx("w-1.5 h-1.5 rounded-full shrink-0", active ? `${colorClass} animate-pulse` : "bg-slate-600")}
-    />
-  );
-}
-
-export function Sidebar({ items }: SidebarProps) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const profile = useAtomValue(userProfileAtom);
-  const initials = getInitials(profile.name || "User");
-  const domainCount = useAtomValue(domainCountAtom);
-  const proxyActive = useAtomValue(proxyActiveAtom);
-  const proxyRunning = useAtomValue(proxyRunningAtom);
-  const mockingEnabled = useAtomValue(proxyMockingEnabledAtom);
-  const inspectorEnabled = useAtomValue(proxyInspectorEnabledAtom);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useAtom(mobileSidebarOpenAtom);
-
-  // Augment items with live badges
-  const augmentedItems = items.map((item) => {
-    const isParentActive = pathname === item.href || item.children?.some((child) => pathname === child.href);
-
-    // Domains parent badge: show count
-    if (item.href === "/domains/dashboard" && domainCount !== null) {
-      return { ...item, badge: <SidebarBadge>{domainCount}</SidebarBadge> };
-    }
-    // Proxy parent badge: show active status dot
-    if (item.href === "/proxy/dashboard") {
-      return {
-        ...item,
-        badge: !isParentActive ? <ProxyDot active={proxyActive} /> : undefined,
-        children: item.children?.map((child) =>
-          child.href === "/proxy/dashboard" ? { ...child, badge: <ProxyDot active={proxyActive} /> } : child,
-        ),
-      };
-    }
-    // APIs parent badge: show dot if mocking is active
-    if (item.href === "/apis/dashboard") {
-      return {
-        ...item,
-        badge: !isParentActive ? <ProxyDot active={mockingEnabled && proxyRunning} /> : undefined,
-        children: item.children?.map((child) =>
-          child.href === "/apis/mocking"
-            ? { ...child, badge: <ProxyDot active={mockingEnabled && proxyRunning} /> }
-            : child,
-        ),
-      };
-    }
-    // UX Policies parent badge: show dot if inspector is active
-    if (item.href === "/ux/policies") {
-      return {
-        ...item,
-        badge: !isParentActive ? <ProxyDot active={!!inspectorEnabled && !!proxyRunning} /> : undefined,
-        children: item.children?.map((child) =>
-          child.href === "/proxy/inspector"
-            ? { ...child, badge: <ProxyDot active={!!inspectorEnabled && !!proxyRunning} /> }
-            : child,
-        ),
-      };
-    }
-    return item;
-  });
+  const closeMobile = () => onMobileSidebarOpenChange(false);
 
   return (
     <>
-      {/* Mobile Overlay */}
       {mobileSidebarOpen && (
         <div
           role="button"
           tabIndex={0}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 tablet:hidden animate-in fade-in duration-300"
-          onClick={() => setMobileSidebarOpen(false)}
+          onClick={closeMobile}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
-              setMobileSidebarOpen(false);
+              closeMobile();
             }
           }}
           aria-label="Close sidebar"
@@ -147,7 +62,7 @@ export function Sidebar({ items }: SidebarProps) {
           </div>
           <button
             type="button"
-            onClick={() => setMobileSidebarOpen(false)}
+            onClick={closeMobile}
             className="p-1.5 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-white"
           >
             <X className="w-4 h-4" />
@@ -164,7 +79,7 @@ export function Sidebar({ items }: SidebarProps) {
               <div key={item.href} className="flex flex-col">
                 <Link
                   to={item.href}
-                  onClick={() => setMobileSidebarOpen(false)}
+                  onClick={closeMobile}
                   className={clsx(
                     "group flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 outline-none",
                     isParentActive
@@ -204,7 +119,7 @@ export function Sidebar({ items }: SidebarProps) {
                         <Link
                           key={child.href}
                           to={child.href}
-                          onClick={() => setMobileSidebarOpen(false)}
+                          onClick={closeMobile}
                           className={clsx(
                             "flex items-center justify-between gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200",
                             isActive
@@ -236,7 +151,7 @@ export function Sidebar({ items }: SidebarProps) {
           <div className="flex items-center justify-between gap-2">
             <Link
               to="/profile"
-              onClick={() => setMobileSidebarOpen(false)}
+              onClick={closeMobile}
               className="flex items-center gap-3 min-w-0 group/profile flex-1 outline-none"
             >
               <div
@@ -249,15 +164,15 @@ export function Sidebar({ items }: SidebarProps) {
               </div>
               <div className="flex flex-col min-w-0 gap-1">
                 <span className="text-sm font-bold text-white leading-none truncate group-hover/profile:text-primary transition-colors">
-                  {profile.name || "Watchtower"}
+                  {profile.name}
                 </span>
-                <span className="text-[10px] font-medium text-slate-400 truncate">{profile.role || "User"}</span>
+                <span className="text-[10px] font-medium text-slate-400 truncate">{profile.role}</span>
               </div>
             </Link>
 
             <Link
               to="/settings"
-              onClick={() => setMobileSidebarOpen(false)}
+              onClick={closeMobile}
               className={clsx(
                 "flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-all outline-none",
                 pathname === "/settings"

@@ -28,7 +28,7 @@ import {
   userProfileAtom,
 } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
-import { Sidebar } from "@/features/sidebar";
+import { Sidebar, useSidebar } from "@/features/sidebar";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
 import { commands, unwrap } from "@/shared/api";
@@ -269,6 +269,7 @@ const RootLayout = () => {
   const showUpdateBanner = update && !dismissedUpdate;
 
   const isDetached = useIsDetached();
+  const sidebar = useSidebar();
 
   return (
     <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
@@ -277,7 +278,17 @@ const RootLayout = () => {
         {/* Global Loading Overlay */}
         <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
 
-        {!isDetached && <Sidebar items={sidebarItems} />}
+        {!isDetached && (
+          <Sidebar
+            items={sidebarItems}
+            pathname={sidebar.pathname}
+            profile={sidebar.profile}
+            initials={sidebar.initials}
+            mobileSidebarOpen={sidebar.mobileSidebarOpen}
+            onMobileSidebarOpenChange={sidebar.setMobileSidebarOpen}
+            badgeContext={sidebar.badgeContext}
+          />
+        )}
         <UserProfileSetup />
 
         <main

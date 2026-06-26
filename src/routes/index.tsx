@@ -18,6 +18,7 @@ import {
   QuickStatsRow,
   RecentActivityGrid,
   SetupProgressCard,
+  useDashboardData,
 } from "@/features/dashboard";
 import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
@@ -43,11 +44,7 @@ function Dashboard() {
   const [setupDismissed, setSetupDismissed] = useAtom(setupDismissedAtom);
   const [mockingLoading, setMockingLoading] = useState(false);
   const [proxyRoutingLoading, setProxyRoutingLoading] = useState(false);
-
-  // monitorItems: mocked later or fetched
-  const monitorItems: never[] = [];
-  const apiLogs: never[] = [];
-  const mockRules: never[] = [];
+  const { monitorItems, apiLogs, todayCount, mockRules } = useDashboardData();
 
   useEffect(() => {
     getVersion().then(setVersion).catch(console.error);
@@ -112,7 +109,7 @@ function Dashboard() {
   }, [domainCount, proxyRunning, proxyLocalRouting, apiLoggingCount, setupDismissed, setSetupDismissed]);
 
   // ── Quick stats ─────────────────────────────────────────────────────────────
-  const stats = buildQuickStats(domainCount, apiLoggingCount, proxyRunning, proxyLocalRouting, 0, langKey);
+  const stats = buildQuickStats(domainCount, apiLoggingCount, proxyRunning, proxyLocalRouting, todayCount, langKey);
 
   // ── Quick actions ───────────────────────────────────────────────────────────
   const quickActions = [
