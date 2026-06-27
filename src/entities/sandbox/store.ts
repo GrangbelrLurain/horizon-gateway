@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import type { PipelineFlow } from "./types";
+import type { PipelineFlow, SavedComponent } from "./types";
 
 export interface ApiClientHistoryItem {
   id: string;
@@ -168,3 +168,51 @@ export const savedJsonSchemasAtom = atomWithStorage<SavedJsonSchema[]>("watchtow
     updatedAt: Date.now(),
   },
 ]);
+
+export const savedComponentsAtom = atomWithStorage<SavedComponent[]>("watchtower-saved-components", [
+  {
+    id: "welcome-card",
+    name: "WelcomeCard",
+    description: "Default welcome card for Watchtower Sandbox",
+    code: `import React from 'react';
+
+export default function Preview({ title, message, items }) {
+  // Try sending a request in the pipeline or API client
+  // And map the response here!
+  const displayTitle = title || "Welcome to Watchtower Sandbox";
+  const displayMessage = message || "Connect an API node or pipeline output to bind dynamic props.";
+  const displayItems = items || ["Base64 Encoding", "AES-256-GCM Encryption", "Promise Pipelines"];
+
+  return (
+    <div className="p-6 max-w-md mx-auto bg-base-100 rounded-xl shadow-lg border border-base-300">
+      <div className="flex items-center space-x-4">
+        <div>
+          <div className="text-xl font-medium text-primary">{displayTitle}</div>
+          <p className="text-base-content/70 text-sm mt-1">{displayMessage}</p>
+        </div>
+      </div>
+      {displayItems && (
+        <ul className="mt-4 space-y-1 text-xs text-base-content/80 list-disc list-inside">
+          {displayItems.map((item, idx) => (
+            <li key={idx}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}`,
+    mockData: `{
+  "title": "Welcome to Watchtower Sandbox",
+  "message": "Connect an API node or pipeline output to bind dynamic props.",
+  "items": [
+    "Base64 Encoding",
+    "AES-256-GCM Encryption",
+    "Promise Pipelines"
+  ]
+}`,
+    createdAt: 1719500000000,
+    updatedAt: 1719500000000,
+  },
+]);
+
+export const selectedComponentIdAtom = atomWithStorage<string>("watchtower-selected-component-id", "welcome-card");

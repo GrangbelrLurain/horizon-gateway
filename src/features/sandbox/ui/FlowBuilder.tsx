@@ -39,6 +39,7 @@ import {
   type PipelineExecutionReport,
   type PipelineFlow,
   type PipelineNode,
+  savedComponentsAtom,
   savedJsonSchemasAtom,
 } from "@/entities/sandbox";
 import { LivePreviewer } from "./LivePreviewer";
@@ -193,6 +194,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const apiClientHistory = useAtomValue(apiClientHistoryAtom);
   const cryptoToolCurrentConfig = useAtomValue(cryptoToolCurrentConfigAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+  const savedComponents = useAtomValue(savedComponentsAtom);
 
   // Map persisted data into React Flow state
   const initialNodes = useMemo(() => {
@@ -331,8 +333,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       config = { payload: "{{api_node_id.body}}", schema: "{}", errorPolicy: "fastFail" };
     } else {
       config = {
-        code: `export default function Preview({ data }) {
-  const display = data || { text: "No input data" };
+        code: `export default function Preview(props) {
+  const hasProps = props && Object.keys(props).length > 0;
+  const display = hasProps ? props : { text: "No input data" };
   return (
     <div className="p-4 bg-secondary/10 border border-secondary/20 rounded-xl">
       <h3 className="font-bold text-secondary">React Live Preview</h3>
@@ -770,6 +773,35 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
               {activeNode.type === "preview" && (
                 <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
+                  {/* Load from Saved Component Registry */}
+                  <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg">
+                    <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                      저장된 컴포넌트 불러오기
+                    </label>
+                    <select
+                      className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const found = savedComponents.find((c) => c.id === selectedId);
+                        if (found) {
+                          updateNodeConfig(activeNode.id, {
+                            ...activeNode.data.config,
+                            code: found.code,
+                          });
+                        }
+                        e.target.value = ""; // reset
+                      }}
+                    >
+                      <option value="">-- 컴포넌트 선택 --</option>
+                      {savedComponents.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="flex flex-col gap-1 shrink-0">
                     <label className="font-semibold text-base-content/75">React 컴포넌트 소스코드</label>
                     <textarea

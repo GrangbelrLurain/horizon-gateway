@@ -48,3 +48,13 @@ export interface SchemaValidationResult {
   valid: boolean;
   errors: string | null;
 }
+
+export interface SavedComponent {
+  id: string;
+  name: string;
+  description: string;
+  code: string;
+  mockData: string;
+  createdAt: number;
+  updatedAt: number;
+}
