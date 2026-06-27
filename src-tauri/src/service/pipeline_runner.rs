@@ -362,6 +362,19 @@ impl PipelineRunner {
             "preview" => {
                 Ok(config.clone())
             }
+            "mapper" => {
+                let mut out_obj = serde_json::Map::new();
+                if let Some(mappings) = config.get("mappings").and_then(|v| v.as_array()) {
+                    for m in mappings {
+                        if let (Some(k), Some(v)) = (m.get("targetKey").and_then(|v| v.as_str()), m.get("sourceValue")) {
+                            if !k.trim().is_empty() {
+                                out_obj.insert(k.trim().to_string(), v.clone());
+                            }
+                        }
+                    }
+                }
+                Ok(serde_json::Value::Object(out_obj))
+            }
             other => Err(format!("Unsupported node type: {}", other)),
         }
     }

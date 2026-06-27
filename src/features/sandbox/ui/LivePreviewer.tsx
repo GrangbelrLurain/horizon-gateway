@@ -1,18 +1,26 @@
 import * as Babel from "@babel/standalone";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Check, Copy, Play, Plus, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { type SavedComponent, savedComponentsAtom, selectedComponentIdAtom } from "@/entities/sandbox";
+import {
+  type SavedComponent,
+  savedComponentsAtom,
+  savedJsonSchemasAtom,
+  selectedComponentIdAtom,
+  validateJsonSchema,
+} from "@/entities/sandbox";
 
 export interface LivePreviewerProps {
   initialData?: any;
   code?: string;
+  schemaText?: string;
 }
 
-export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProps) {
+export function LivePreviewer({ initialData, code: propCode, schemaText }: LivePreviewerProps) {
   // Standalone CRUD atoms
   const [savedComponents, setSavedComponents] = useAtom(savedComponentsAtom);
   const [selectedId, setSelectedId] = useAtom(selectedComponentIdAtom);
+  const savedSchemas = useAtomValue(savedJsonSchemasAtom);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [justSaved, setJustSaved] = useState(false);
@@ -34,8 +42,10 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
   const [editedMockData, setEditedMockData] = useState("");
   const [editedName, setEditedName] = useState("");
   const [editedDesc, setEditedDesc] = useState("");
+  const [editedSchemaId, setEditedSchemaId] = useState("");
 
   const [compileError, setCompileError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string | null>(null);
   const [iframeSrcDoc, setIframeSrcDoc] = useState("");
 
   // Sync editors when switching active component (only when standalone)
@@ -45,6 +55,7 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
       setEditedMockData(activeComponent.mockData);
       setEditedName(activeComponent.name);
       setEditedDesc(activeComponent.description);
+      setEditedSchemaId(activeComponent.schemaId || "");
     }
   }, [activeComponent, propCode]);
 
@@ -61,6 +72,59 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
       (c) => c.name.toLowerCase().includes(query) || c.description.toLowerCase().includes(query),
     );
   }, [savedComponents, searchQuery]);
+
+  // Determine active schema text for validation
+  const activeSchemaText = useMemo(() => {
+    if (propCode !== undefined) {
+      return schemaText || "";
+    }
+    const found = savedSchemas.find((s) => s.id === editedSchemaId);
+    return found ? found.schemaText : "";
+  }, [editedSchemaId, savedSchemas, propCode, schemaText]);
+
+  // Real-time JSON Schema Validation
+  useEffect(() => {
+    let active = true;
+    if (!activeSchemaText) {
+      setValidationErrors(null);
+      return;
+    }
+
+    const runValidation = async () => {
+      try {
+        let payloadStr = "";
+        if (propCode !== undefined) {
+          payloadStr = JSON.stringify(initialData || {});
+        } else {
+          // Check JSON syntax first
+          try {
+            JSON.parse(editedMockData || "{}");
+            payloadStr = editedMockData || "{}";
+          } catch {
+            return; // Let compiler handle syntax error
+          }
+        }
+
+        const res = await validateJsonSchema(payloadStr, activeSchemaText);
+        if (active) {
+          if (res.valid) {
+            setValidationErrors(null);
+          } else {
+            setValidationErrors(res.errors || "JSON Schema validation failed");
+          }
+        }
+      } catch (err: any) {
+        if (active) {
+          setValidationErrors(err.message || "Schema validation error");
+        }
+      }
+    };
+
+    runValidation();
+    return () => {
+      active = false;
+    };
+  }, [activeSchemaText, editedMockData, initialData, propCode]);
 
   // Compile and load to iframe
   const handleRender = useCallback(() => {
@@ -224,6 +288,7 @@ export default function Preview({ message }) {
       mockData: `{
   "message": "안녕하세요! 새 컴포넌트입니다."
 }`,
+      schemaId: undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -245,6 +310,7 @@ export default function Preview({ message }) {
           description: editedDesc.trim(),
           code: editedCode,
           mockData: editedMockData,
+          schemaId: editedSchemaId || undefined,
           updatedAt: Date.now(),
         };
       }
@@ -288,26 +354,36 @@ export default function Preview({ message }) {
   // Conditionally render ONLY the preview iframe if code was passed as a prop
   if (propCode !== undefined) {
     return (
-      <div className="w-full h-full relative bg-white">
-        {compileError ? (
-          <div className="absolute inset-0 p-4 bg-error/5 text-error font-mono text-xs overflow-auto flex flex-col space-y-2">
-            <span className="font-bold flex items-center gap-1">
-              <AlertCircle className="w-4 h-4" /> 컴파일 에러:
-            </span>
-            <pre className="whitespace-pre-wrap">{compileError}</pre>
-          </div>
-        ) : iframeSrcDoc ? (
-          <iframe
-            title="Live Render Sandbox"
-            srcDoc={iframeSrcDoc}
-            sandbox="allow-scripts"
-            className="w-full h-full border-none bg-transparent"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-base-content/40 italic">
-            코드 컴파일을 기다리는 중...
+      <div className="w-full h-full flex flex-col relative bg-white">
+        {schemaText && validationErrors && (
+          <div className="bg-error/10 border-b border-error/20 text-error px-3 py-1.5 font-mono text-[9px] shrink-0 flex items-start gap-1">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div className="flex-1 overflow-auto max-h-[60px] whitespace-pre-wrap leading-normal">
+              <strong>Props 스키마 검증 실패:</strong> {validationErrors}
+            </div>
           </div>
         )}
+        <div className="flex-1 relative">
+          {compileError ? (
+            <div className="absolute inset-0 p-4 bg-error/5 text-error font-mono text-xs overflow-auto flex flex-col space-y-2">
+              <span className="font-bold flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" /> 컴파일 에러:
+              </span>
+              <pre className="whitespace-pre-wrap">{compileError}</pre>
+            </div>
+          ) : iframeSrcDoc ? (
+            <iframe
+              title="Live Render Sandbox"
+              srcDoc={iframeSrcDoc}
+              sandbox="allow-scripts"
+              className="w-full h-full border-none bg-transparent"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-base-content/40 italic">
+              코드 컴파일을 기다리는 중...
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -387,8 +463,8 @@ export default function Preview({ message }) {
       <div className="lg:col-span-5 flex flex-col h-full overflow-hidden">
         {/* Component Meta Panel */}
         <div className="bg-base-200/60 p-3 rounded-2xl border border-base-300 mb-3.5 flex flex-col gap-2 shrink-0">
-          <div className="flex gap-2.5 items-end">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
+            <div>
               <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">컴포넌트명</label>
               <input
                 type="text"
@@ -398,8 +474,27 @@ export default function Preview({ message }) {
               />
             </div>
             <div>
+              <label className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                검증용 스키마
+              </label>
+              <select
+                className="select select-bordered select-xs w-full mt-0.5 text-xs font-semibold focus:outline-none"
+                value={editedSchemaId || ""}
+                onChange={(e) => setEditedSchemaId(e.target.value)}
+              >
+                <option value="">-- 스키마 미지정 --</option>
+                {savedSchemas.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <button
-                className={`btn btn-xs btn-primary flex items-center gap-1 font-bold ${justSaved ? "btn-success" : ""}`}
+                className={`btn btn-xs btn-primary w-full flex items-center justify-center gap-1 font-bold ${
+                  justSaved ? "btn-success" : ""
+                }`}
                 onClick={handleSaveComponent}
                 disabled={!activeComponent}
               >
@@ -442,9 +537,22 @@ export default function Preview({ message }) {
         </div>
 
         {/* Mock JSON Input */}
-        <div className="h-[180px] card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col shrink-0">
+        <div className="h-[210px] card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col shrink-0 overflow-hidden">
           <div className="flex items-center justify-between border-b border-base-200 pb-2 mb-2 shrink-0">
             <span className="font-semibold text-xs text-base-content/70">Props 데이터 (JSON Mock Data)</span>
+            {editedSchemaId &&
+              (validationErrors ? (
+                <span
+                  className="badge badge-error badge-xs font-bold text-white px-2 py-1.5 flex items-center gap-1 cursor-help"
+                  title={validationErrors}
+                >
+                  ✗ 스키마 불일치
+                </span>
+              ) : (
+                <span className="badge badge-success badge-xs font-bold text-white px-2 py-1.5 flex items-center gap-1">
+                  ✓ 스키마 일치
+                </span>
+              ))}
           </div>
           <textarea
             className="flex-1 font-mono text-[11px] p-2.5 bg-base-200 border border-base-300 rounded-xl focus:outline-none resize-none text-base-content"
@@ -452,6 +560,11 @@ export default function Preview({ message }) {
             value={editedMockData}
             onChange={(e) => setEditedMockData(e.target.value)}
           />
+          {editedSchemaId && validationErrors && (
+            <div className="mt-2 p-2 bg-error/5 border border-error/20 text-error rounded-xl font-mono text-[9px] max-h-[60px] overflow-y-auto whitespace-pre-wrap leading-tight shrink-0">
+              {validationErrors}
+            </div>
+          )}
         </div>
       </div>
 

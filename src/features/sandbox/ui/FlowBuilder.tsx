@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   Settings,
+  Shuffle,
   Trash2,
   Tv,
 } from "lucide-react";
@@ -172,12 +173,44 @@ function PreviewNodeComponent({ data }: { data: any }) {
   );
 }
 
+// 5. Mapper Node Component
+function MapperNodeComponent({ data }: { data: any }) {
+  const isRunning = data.isRunning;
+  const isSuccess = data.isSuccess;
+  const isError = data.isError;
+
+  return (
+    <div
+      className={`p-3 rounded-xl border bg-base-100 shadow-md min-w-[180px] transition-all ${
+        isRunning
+          ? "border-primary ring-2 ring-primary/20 animate-pulse"
+          : isSuccess
+            ? "border-success ring-1 ring-success/30"
+            : isError
+              ? "border-error ring-1 ring-error/30"
+              : "border-base-300 hover:border-primary/40"
+      }`}
+    >
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
+      <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
+        <Shuffle className="w-4 h-4 text-info" />
+        <span className="text-xs font-bold text-base-content/80">Data Mapper</span>
+      </div>
+      <div className="text-[10px] font-semibold text-base-content/60">
+        {data.config?.mappings?.length || 0} mappings defined
+      </div>
+      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
+    </div>
+  );
+}
+
 // Node registrations object for React Flow
 const nodeTypes = {
   api: ApiNodeComponent as any,
   crypto: CryptoNodeComponent as any,
   schema: SchemaNodeComponent as any,
   preview: PreviewNodeComponent as any,
+  mapper: MapperNodeComponent as any,
 };
 
 // ── Main FlowBuilder Component ──────────────────────────────────────────────
@@ -301,16 +334,18 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   };
 
   // Node Insertion
-  const addNode = (type: "api" | "crypto" | "schema" | "preview") => {
-    const id = `${type}_${Math.random().toString(36).substring(2, 7)}`;
+  const addNode = (type: "api" | "crypto" | "schema" | "preview" | "mapper") => {
+    const id = `${type}_${Math.random().toString(36).substring(2, 9)}`;
     const label =
       type === "api"
-        ? "API Node"
+        ? "API Request"
         : type === "crypto"
           ? "Crypto Node"
           : type === "schema"
             ? "Schema Node"
-            : "UI Preview Node";
+            : type === "mapper"
+              ? "Mapper Node"
+              : "UI Preview Node";
 
     let config: any = {};
     if (type === "api") {
@@ -331,6 +366,11 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       };
     } else if (type === "schema") {
       config = { payload: "{{api_node_id.body}}", schema: "{}", errorPolicy: "fastFail" };
+    } else if (type === "mapper") {
+      config = {
+        mappings: [{ targetKey: "title", sourceValue: "" }],
+        errorPolicy: "fastFail",
+      };
     } else {
       config = {
         code: `export default function Preview(props) {
@@ -495,6 +535,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               onClick={() => addNode("schema")}
             >
               <Plus className="w-3.5 h-3.5 text-warning" /> Schema 노드
+            </button>
+            <button
+              className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
+              onClick={() => addNode("mapper")}
+            >
+              <Plus className="w-3.5 h-3.5 text-info" /> Mapper 노드
             </button>
             <button
               className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
@@ -771,35 +817,146 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 </div>
               )}
 
-              {activeNode.type === "preview" && (
+              {activeNode.type === "mapper" && (
                 <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
-                  {/* Load from Saved Component Registry */}
-                  <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg">
-                    <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                      저장된 컴포넌트 불러오기
+                  <div className="flex items-center justify-between shrink-0">
+                    <label className="font-semibold text-base-content/75 flex items-center gap-1">
+                      <Shuffle className="w-3.5 h-3.5 text-info" /> Mappings 정의 (Target ➔ Source)
                     </label>
-                    <select
-                      className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const selectedId = e.target.value;
-                        const found = savedComponents.find((c) => c.id === selectedId);
-                        if (found) {
-                          updateNodeConfig(activeNode.id, {
-                            ...activeNode.data.config,
-                            code: found.code,
-                          });
-                        }
-                        e.target.value = ""; // reset
+                    <button
+                      className="btn btn-xs btn-outline btn-primary flex items-center gap-1"
+                      onClick={() => {
+                        const currentMappings = activeNode.data.config.mappings || [];
+                        updateNodeConfig(activeNode.id, {
+                          ...activeNode.data.config,
+                          mappings: [...currentMappings, { targetKey: "", sourceValue: "" }],
+                        });
                       }}
                     >
-                      <option value="">-- 컴포넌트 선택 --</option>
-                      {savedComponents.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      <Plus className="w-3 h-3" /> 추가
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[350px]">
+                    {((activeNode.data.config.mappings || []) as Array<{ targetKey: string; sourceValue: string }>).map(
+                      (m, idx) => (
+                        <div
+                          key={idx}
+                          className="flex gap-2 items-center p-2.5 bg-base-200/50 rounded-xl border border-base-300 relative group"
+                        >
+                          <div className="flex-1 space-y-1.5 min-w-0">
+                            <div>
+                              <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                                Target Key (속성명)
+                              </span>
+                              <input
+                                type="text"
+                                className="input input-bordered input-xs w-full mt-0.5 focus:outline-none"
+                                placeholder="e.g. title"
+                                value={m.targetKey}
+                                onChange={(e) => {
+                                  const newMappings = [...(activeNode.data.config.mappings || [])];
+                                  newMappings[idx] = { ...newMappings[idx], targetKey: e.target.value };
+                                  updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                                Source Value (표현식)
+                              </span>
+                              <input
+                                type="text"
+                                className="input input-bordered input-xs w-full mt-0.5 focus:outline-none font-mono text-[10px]"
+                                placeholder="e.g. {{api_1.body.title}}"
+                                value={m.sourceValue}
+                                onChange={(e) => {
+                                  const newMappings = [...(activeNode.data.config.mappings || [])];
+                                  newMappings[idx] = { ...newMappings[idx], sourceValue: e.target.value };
+                                  updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <button
+                            className="btn btn-ghost btn-xs text-error/70 p-0 w-6 h-6 hover:bg-error/15 shrink-0 self-end mb-1"
+                            onClick={() => {
+                              const newMappings = (activeNode.data.config.mappings || []).filter(
+                                (_: any, i: number) => i !== idx,
+                              );
+                              updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ),
+                    )}
+                    {(activeNode.data.config.mappings || []).length === 0 && (
+                      <div className="text-center py-6 text-base-content/40 italic">
+                        정의된 매핑이 없습니다. 상단의 추가 버튼을 눌러 속성을 매핑해 보세요.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeNode.type === "preview" && (
+                <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
+                  <div className="grid grid-cols-2 gap-2 bg-base-200/50 p-2 rounded-xl shrink-0">
+                    {/* Load from Saved Component Registry */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                        컴포넌트 불러오기
+                      </label>
+                      <select
+                        className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          const found = savedComponents.find((c) => c.id === selectedId);
+                          if (found) {
+                            updateNodeConfig(activeNode.id, {
+                              ...activeNode.data.config,
+                              code: found.code,
+                              schemaId: found.schemaId || "",
+                            });
+                          }
+                          e.target.value = ""; // reset
+                        }}
+                      >
+                        <option value="">-- 컴포넌트 선택 --</option>
+                        {savedComponents.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* JSON Schema validation selection */}
+                    <div className="flex flex-col gap-1">
+                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                        검증용 스키마 선택
+                      </label>
+                      <select
+                        className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
+                        value={activeNode.data.config.schemaId || ""}
+                        onChange={(e) => {
+                          updateNodeConfig(activeNode.id, {
+                            ...activeNode.data.config,
+                            schemaId: e.target.value,
+                          });
+                        }}
+                      >
+                        <option value="">-- 스키마 미지정 --</option>
+                        {savedJsonSchemas.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1 shrink-0">
@@ -839,11 +996,21 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           }
                         }
 
+                        // Retrieve active JSON Schema raw text for validation warning
+                        let schemaText = "";
+                        if (activeNode.data.config.schemaId) {
+                          const foundSchema = savedJsonSchemas.find((s) => s.id === activeNode.data.config.schemaId);
+                          if (foundSchema) {
+                            schemaText = foundSchema.schemaText;
+                          }
+                        }
+
                         return (
                           <LivePreviewer
                             key={activeNode.id + (report ? "_ran" : "")}
                             code={activeNode.data.config.code || ""}
                             initialData={previewData}
+                            schemaText={schemaText}
                           />
                         );
                       })()}

@@ -14,7 +14,7 @@ export type CryptoAction =
 export interface PipelineNode {
   id: string;
   label: string;
-  type: "api" | "crypto" | "schema" | "preview";
+  type: "api" | "crypto" | "schema" | "preview" | "mapper";
   config: string;
 }
 
@@ -55,6 +55,7 @@ export interface SavedComponent {
   description: string;
   code: string;
   mockData: string;
+  schemaId?: string;
   createdAt: number;
   updatedAt: number;
 }

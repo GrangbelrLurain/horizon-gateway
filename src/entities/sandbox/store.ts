@@ -212,6 +212,7 @@ export default function Preview({ title, message, items }) {
 }`,
     createdAt: 1719500000000,
     updatedAt: 1719500000000,
+    schemaId: undefined,
   },
 ]);
 
