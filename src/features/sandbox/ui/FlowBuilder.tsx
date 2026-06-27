@@ -196,28 +196,48 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
   // Map persisted data into React Flow state
   const initialNodes = useMemo(() => {
-    return persistedFlow.nodes.map((node) => ({
-      id: node.id,
-      type: node.type,
-      position: (node as any).position || { x: Math.random() * 200 + 100, y: Math.random() * 150 + 100 },
-      data: {
-        label: node.label,
-        config: typeof node.config === "string" ? JSON.parse(node.config) : node.config || {},
-        isRunning: false,
-        isSuccess: false,
-        isError: false,
-        elapsedMs: null as number | null,
-      },
-    }));
-  }, [persistedFlow.nodes]);
+    if (!persistedFlow || !Array.isArray(persistedFlow.nodes)) {
+      return [];
+    }
+    return persistedFlow.nodes.map((node) => {
+      let parsedConfig: any = {};
+      if (node.config) {
+        if (typeof node.config === "string") {
+          try {
+            parsedConfig = JSON.parse(node.config);
+          } catch (e) {
+            console.error("Failed to parse node config", e);
+          }
+        } else {
+          parsedConfig = node.config;
+        }
+      }
+      return {
+        id: node.id,
+        type: node.type,
+        position: (node as any).position || { x: Math.random() * 200 + 100, y: Math.random() * 150 + 100 },
+        data: {
+          label: node.label || "",
+          config: parsedConfig,
+          isRunning: false,
+          isSuccess: false,
+          isError: false,
+          elapsedMs: null as number | null,
+        },
+      };
+    });
+  }, [persistedFlow]);
 
   const initialEdges = useMemo(() => {
+    if (!persistedFlow || !Array.isArray(persistedFlow.edges)) {
+      return [];
+    }
     return persistedFlow.edges.map((edge) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
     }));
-  }, [persistedFlow.edges]);
+  }, [persistedFlow]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

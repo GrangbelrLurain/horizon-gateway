@@ -1,7 +1,7 @@
 import * as Babel from "@babel/standalone";
 import { useAtom } from "jotai";
 import { AlertCircle, Play, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { livePreviewCodeAtom } from "@/entities/sandbox";
 
 export interface LivePreviewerProps {
@@ -36,7 +36,7 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
     }
   }, [initialData]);
 
-  const handleRender = () => {
+  const handleRender = useCallback(() => {
     setCompileError(null);
     try {
       // 1. Validate mock data JSON
@@ -83,9 +83,10 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
         }
       }
 
-      // Transpile using Babel
+      // Transpile using Babel with classic React runtime and CommonJS module support
       const compiled = Babel.transform(cleanCode, {
-        presets: ["react", "typescript"],
+        presets: [["react", { runtime: "classic" }], "typescript"],
+        plugins: ["transform-modules-commonjs"],
         filename: "preview.tsx",
       }).code;
 
@@ -99,8 +100,8 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
         <html>
           <head>
             <meta charset="utf-8">
-            <script src="https://unpkg.com/react@19/umd/react.development.js" crossorigin></script>
-            <script src="https://unpkg.com/react-dom@19/umd/react-dom.development.js" crossorigin></script>
+            <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+            <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
             <script src="https://cdn.tailwindcss.com"></script>
             <style>
               body {
@@ -113,6 +114,15 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
           <body>
             <div id="root"></div>
             <script>
+              // Set up CommonJS environment in global scope
+              window.exports = {};
+              window.module = { exports: window.exports };
+              window.require = function(moduleName) {
+                if (moduleName === 'react') return window.React;
+                if (moduleName === 'react-dom') return window.ReactDOM;
+                throw new Error('Module not found in sandbox: ' + moduleName);
+              };
+
               const React = window.React;
               const ReactDOM = window.ReactDOM;
               const data = ${JSON.stringify(parsedData)};
@@ -125,11 +135,13 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
                 const container = document.getElementById('root');
                 const root = ReactDOM.createRoot(container);
                 
-                if (!window.GeneratedComponent) {
+                const Component = window.GeneratedComponent || (window.exports && window.exports.default) || (window.module && window.module.exports);
+                
+                if (!Component) {
                   throw new Error("컴포넌트를 찾을 수 없습니다. 'export default function Preview' 형태의 선언이 존재하는지 확인해 주세요.");
                 }
                 
-                root.render(React.createElement(window.GeneratedComponent, { data }));
+                root.render(React.createElement(Component, { data }));
               } catch (err) {
                 document.getElementById('root').innerHTML = \`
                   <div style="color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px;">
@@ -148,7 +160,7 @@ export function LivePreviewer({ initialData, code: propCode }: LivePreviewerProp
       setCompileError(err.message || "Compilation failed");
       setIframeSrcDoc("");
     }
-  };
+  }, [code, propCode, mockDataStr, initialData]);
 
   // Trigger render on source code or data change
   useEffect(() => {

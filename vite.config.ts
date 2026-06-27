@@ -36,6 +36,9 @@ export default defineConfig(() => ({
     tailwindcss(),
     copyInjectionPlugin(),
   ],
+  define: {
+    "process.env": {},
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
