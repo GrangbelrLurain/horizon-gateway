@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Check, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, CornerDownRight, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
 
@@ -9,6 +9,7 @@ interface SchemaProperty {
   type: "string" | "number" | "integer" | "boolean" | "object" | "array";
   description: string;
   required: boolean;
+  parentId?: string; // Links to parent property's ID for nesting
 }
 
 interface SchemaEditorModalProps {
@@ -58,40 +59,87 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     }
   }, [isOpen, schemaId, savedSchemas]);
 
-  // Generate JSON Schema Draft-07 live
+  // Generate JSON Schema Draft-07 recursively
   const generatedSchemaText = useMemo(() => {
-    const propsObj: Record<string, any> = {};
-    const requiredList: string[] = [];
+    const buildSchemaForNode = (props: SchemaProperty[], nodeId: string | undefined): any => {
+      const children = props.filter((p) => p.parentId === nodeId);
+      if (children.length === 0) {
+        return null;
+      }
 
-    for (const prop of properties) {
-      if (!prop.name.trim()) {
-        continue;
+      const propertiesObj: Record<string, any> = {};
+      const requiredList: string[] = [];
+
+      for (const child of children) {
+        if (!child.name.trim()) {
+          continue;
+        }
+
+        let childSchema: any = {
+          type: child.type,
+          description: child.description.trim() || undefined,
+        };
+
+        if (child.type === "object") {
+          const subProperties = buildSchemaForNode(props, child.id);
+          if (subProperties) {
+            childSchema = {
+              ...childSchema,
+              properties: subProperties.properties,
+              required: subProperties.required,
+            };
+          } else {
+            childSchema.properties = {};
+          }
+        } else if (child.type === "array") {
+          const subProperties = buildSchemaForNode(props, child.id);
+          if (subProperties && Object.keys(subProperties.properties || {}).length > 0) {
+            childSchema.items = {
+              type: "object",
+              properties: subProperties.properties,
+              required: subProperties.required,
+            };
+          } else {
+            childSchema.items = { type: "string" };
+          }
+        }
+
+        propertiesObj[child.name.trim()] = childSchema;
+        if (child.required) {
+          requiredList.push(child.name.trim());
+        }
       }
-      propsObj[prop.name.trim()] = {
-        type: prop.type,
-        description: prop.description.trim() || undefined,
+
+      const res: any = {
+        type: "object",
+        properties: propertiesObj,
       };
-      if (prop.required) {
-        requiredList.push(prop.name.trim());
+
+      if (requiredList.length > 0) {
+        res.required = requiredList;
       }
-    }
+
+      return res;
+    };
+
+    const rootSchema = buildSchemaForNode(properties, undefined);
 
     const schemaObj: Record<string, any> = {
       $schema: "http://json-schema.org/draft-07/schema#",
       title: title.trim() || undefined,
       description: description.trim() || undefined,
       type: "object",
-      properties: propsObj,
+      properties: rootSchema?.properties || {},
     };
 
-    if (requiredList.length > 0) {
-      schemaObj.required = requiredList;
+    if (rootSchema?.required && rootSchema.required.length > 0) {
+      schemaObj.required = rootSchema.required;
     }
 
     return JSON.stringify(schemaObj, null, 2);
   }, [title, description, properties]);
 
-  // JSON property extractor helper
+  // JSON property recursive extractor helper
   const importFromJson = (json: any) => {
     if (!json || typeof json !== "object") {
       alert("추출할 수 있는 올바른 JSON 객체가 아닙니다.");
@@ -99,44 +147,91 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     }
 
     const parsedProps: SchemaProperty[] = [];
-    let targetObj = json;
 
-    if (Array.isArray(json)) {
-      if (json.length > 0 && typeof json[0] === "object") {
-        targetObj = json[0];
-      } else {
-        alert("비어있거나 원시 타입 배열로부터는 속성을 추출할 수 없습니다.");
+    const parseJsonToSchemaProperties = (jsonVal: any, parentId: string | undefined) => {
+      if (!jsonVal || typeof jsonVal !== "object") {
         return;
       }
-    }
 
-    Object.entries(targetObj).forEach(([key, val]) => {
-      let type: SchemaProperty["type"] = "string";
-      if (typeof val === "number") {
-        type = Number.isInteger(val) ? "integer" : "number";
-      } else if (typeof val === "boolean") {
-        type = "boolean";
-      } else if (Array.isArray(val)) {
-        type = "array";
-      } else if (val === null) {
-        type = "string";
-      } else if (typeof val === "object") {
-        type = "object";
+      let targetObj = jsonVal;
+
+      if (Array.isArray(jsonVal)) {
+        if (jsonVal.length > 0 && typeof jsonVal[0] === "object") {
+          targetObj = jsonVal[0];
+        } else {
+          return;
+        }
       }
 
-      parsedProps.push({
-        id: Math.random().toString(36).substring(2, 9),
-        name: key,
-        type,
-        description: `Imported field: ${key}`,
-        required: false,
-      });
-    });
+      Object.entries(targetObj).forEach(([key, val]) => {
+        const propId = Math.random().toString(36).substring(2, 9);
+        let type: SchemaProperty["type"] = "string";
 
+        if (typeof val === "number") {
+          type = Number.isInteger(val) ? "integer" : "number";
+        } else if (typeof val === "boolean") {
+          type = "boolean";
+        } else if (Array.isArray(val)) {
+          type = "array";
+        } else if (val === null) {
+          type = "string";
+        } else if (typeof val === "object") {
+          type = "object";
+        }
+
+        parsedProps.push({
+          id: propId,
+          name: key,
+          type,
+          description: `Imported field: ${key}`,
+          required: false,
+          parentId,
+        });
+
+        // Recursively extract child properties
+        if (type === "object") {
+          parseJsonToSchemaProperties(val, propId);
+        } else if (type === "array" && Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
+          parseJsonToSchemaProperties(val[0], propId);
+        }
+      });
+    };
+
+    parseJsonToSchemaProperties(json, undefined);
     setProperties(parsedProps);
   };
 
-  // Add a new property row
+  // Order properties in tree hierarchy
+  const orderedProperties = useMemo(() => {
+    const orderTree = (props: SchemaProperty[], parentId: string | undefined): SchemaProperty[] => {
+      const children = props.filter((p) => p.parentId === parentId);
+      const result: SchemaProperty[] = [];
+      for (const child of children) {
+        result.push(child);
+        const descendants = orderTree(props, child.id);
+        result.push(...descendants);
+      }
+      return result;
+    };
+    return orderTree(properties, undefined);
+  }, [properties]);
+
+  // Compute indentation depth
+  const getPropertyDepth = (prop: SchemaProperty): number => {
+    let depth = 0;
+    let current = prop;
+    while (current.parentId) {
+      const parent = properties.find((p) => p.id === current.parentId);
+      if (!parent) {
+        break;
+      }
+      depth += 1;
+      current = parent;
+    }
+    return depth;
+  };
+
+  // Add a new property row at root
   const addProperty = () => {
     const newProp: SchemaProperty = {
       id: Math.random().toString(36).substring(2, 9),
@@ -148,8 +243,32 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     setProperties([...properties, newProp]);
   };
 
+  // Add a nested sub-property row
+  const addSubProperty = (parentId: string) => {
+    const newProp: SchemaProperty = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: "",
+      type: "string",
+      description: "",
+      required: false,
+      parentId,
+    };
+    setProperties([...properties, newProp]);
+  };
+
+  // Delete row recursively (deletes child nodes under it)
   const removeProperty = (id: string) => {
-    setProperties(properties.filter((p) => p.id !== id));
+    const getDescendantIds = (parentId: string): string[] => {
+      const children = properties.filter((p) => p.parentId === parentId);
+      const ids = children.map((c) => c.id);
+      for (const child of children) {
+        ids.push(...getDescendantIds(child.id));
+      }
+      return ids;
+    };
+
+    const idsToRemove = [id, ...getDescendantIds(id)];
+    setProperties(properties.filter((p) => !idsToRemove.includes(p.id)));
   };
 
   const updateProperty = (id: string, field: keyof SchemaProperty, val: any) => {
@@ -272,7 +391,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                   <textarea
                     rows={4}
                     className="textarea textarea-bordered textarea-xs font-mono w-full focus:outline-none leading-relaxed"
-                    placeholder='{ "id": 1, "name": "Alice", "active": true }'
+                    placeholder='{ "id": 1, "name": "Alice", "meta": { "active": true } }'
                     value={rawJsonInput}
                     onChange={(e) => setRawJsonInput(e.target.value)}
                   />
@@ -310,81 +429,106 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
 
             {/* Properties Builder Title */}
             <div className="flex items-center justify-between border-b border-base-200 pb-2 shrink-0">
-              <span className="font-semibold text-xs text-base-content/70">속성 정의 (Properties)</span>
+              <span className="font-semibold text-xs text-base-content/70">속성 정의 (Properties Tree)</span>
               <button onClick={addProperty} className="btn btn-xs btn-outline btn-primary flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> 속성 추가
+                <Plus className="w-3.5 h-3.5" /> 최상위 속성 추가
               </button>
             </div>
 
             {/* Properties Rows */}
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
-              {properties.map((prop) => (
-                <div
-                  key={prop.id}
-                  className="grid grid-cols-12 gap-2 p-3 bg-base-200/40 rounded-2xl border border-base-300 items-center relative animate-fadeIn"
-                >
-                  {/* Name (4 cols) */}
-                  <div className="col-span-4">
-                    <input
-                      type="text"
-                      className="input input-bordered input-xs w-full text-xs focus:outline-none font-mono font-semibold"
-                      placeholder="속성명 (e.g. title)"
-                      value={prop.name}
-                      onChange={(e) => updateProperty(prop.id, "name", e.target.value)}
-                    />
-                  </div>
+              {orderedProperties.map((prop) => {
+                const depth = getPropertyDepth(prop);
+                const isObjectOrArray = prop.type === "object" || prop.type === "array";
 
-                  {/* Type (3 cols) */}
-                  <div className="col-span-3">
-                    <select
-                      className="select select-bordered select-xs w-full text-xs font-semibold focus:outline-none"
-                      value={prop.type}
-                      onChange={(e) => updateProperty(prop.id, "type", e.target.value)}
-                    >
-                      <option value="string">string</option>
-                      <option value="number">number</option>
-                      <option value="integer">integer</option>
-                      <option value="boolean">boolean</option>
-                      <option value="object">object</option>
-                      <option value="array">array</option>
-                    </select>
-                  </div>
+                return (
+                  <div
+                    key={prop.id}
+                    className="grid grid-cols-12 gap-2 p-3 bg-base-200/40 rounded-2xl border border-base-300 items-center relative animate-fadeIn"
+                    style={{ marginLeft: `${depth * 1.5}rem` }}
+                  >
+                    {/* Visual Connection Guide for Nested Children */}
+                    {depth > 0 && (
+                      <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center -ml-5 text-base-content/30 select-none pointer-events-none">
+                        <CornerDownRight className="w-3.5 h-3.5" />
+                      </div>
+                    )}
 
-                  {/* Required (1.5 cols) */}
-                  <div className="col-span-1.5 flex items-center justify-center">
-                    <label className="label cursor-pointer flex items-center gap-1.5 p-0">
+                    {/* Name (4.5 cols) */}
+                    <div className="col-span-4.5 flex items-center gap-1">
                       <input
-                        type="checkbox"
-                        className="checkbox checkbox-primary checkbox-xs rounded"
-                        checked={prop.required}
-                        onChange={(e) => updateProperty(prop.id, "required", e.target.checked)}
+                        type="text"
+                        className="input input-bordered input-xs w-full text-xs focus:outline-none font-mono font-semibold"
+                        placeholder="속성명 (e.g. user)"
+                        value={prop.name}
+                        onChange={(e) => updateProperty(prop.id, "name", e.target.value)}
                       />
-                      <span className="text-[10px] font-bold text-base-content/60">필수</span>
-                    </label>
-                  </div>
+                    </div>
 
-                  {/* Description (2.5 cols) */}
-                  <div className="col-span-2.5">
-                    <input
-                      type="text"
-                      className="input input-bordered input-xs w-full text-xs focus:outline-none"
-                      placeholder="설명"
-                      value={prop.description}
-                      onChange={(e) => updateProperty(prop.id, "description", e.target.value)}
-                    />
-                  </div>
+                    {/* Type & Sub-adder (3 cols) */}
+                    <div className="col-span-3 flex items-center gap-1">
+                      <select
+                        className="select select-bordered select-xs w-full text-xs font-semibold focus:outline-none"
+                        value={prop.type}
+                        onChange={(e) => updateProperty(prop.id, "type", e.target.value)}
+                      >
+                        <option value="string">string</option>
+                        <option value="number">number</option>
+                        <option value="integer">integer</option>
+                        <option value="boolean">boolean</option>
+                        <option value="object">object</option>
+                        <option value="array">array</option>
+                      </select>
 
-                  {/* Delete Button (1 col) */}
-                  <div className="col-span-1 flex justify-end">
-                    <button
-                      onClick={() => removeProperty(prop.id)}
-                      className="btn btn-ghost btn-xs text-error/70 hover:bg-error/15 p-0 w-6 h-6 rounded-circle"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      {isObjectOrArray && (
+                        <button
+                          type="button"
+                          onClick={() => addSubProperty(prop.id)}
+                          className="btn btn-primary btn-xs btn-square shrink-0 text-white"
+                          title="하위 속성 추가"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Required (1.5 cols) */}
+                    <div className="col-span-1.5 flex items-center justify-center">
+                      <label className="label cursor-pointer flex items-center gap-1.5 p-0">
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-primary checkbox-xs rounded"
+                          checked={prop.required}
+                          onChange={(e) => updateProperty(prop.id, "required", e.target.checked)}
+                        />
+                        <span className="text-[10px] font-bold text-base-content/60">필수</span>
+                      </label>
+                    </div>
+
+                    {/* Description (2 cols) */}
+                    <div className="col-span-2">
+                      <input
+                        type="text"
+                        className="input input-bordered input-xs w-full text-xs focus:outline-none"
+                        placeholder="설명"
+                        value={prop.description}
+                        onChange={(e) => updateProperty(prop.id, "description", e.target.value)}
+                      />
+                    </div>
+
+                    {/* Delete Button (1 col) */}
+                    <div className="col-span-1 flex justify-end">
+                      <button
+                        onClick={() => removeProperty(prop.id)}
+                        className="btn btn-ghost btn-xs text-error/70 hover:bg-error/15 p-0 w-6 h-6 rounded-circle"
+                        title="속성 삭제 (하위 속성도 포함하여 함께 삭제됩니다)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {properties.length === 0 && (
                 <div className="text-center py-12 text-xs text-base-content/40 italic">
                   정의된 속성이 없습니다. '속성 추가'를 눌러 스키마 빌드를 시작해 보세요.
