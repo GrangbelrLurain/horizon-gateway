@@ -44,6 +44,7 @@ import {
   savedJsonSchemasAtom,
 } from "@/entities/sandbox";
 import { LivePreviewer } from "./LivePreviewer";
+import { SchemaEditorModal } from "./SchemaEditorModal";
 
 // ── Custom Node Components ──────────────────────────────────────────────────
 
@@ -281,6 +282,17 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
   const [report, setReport] = useState<PipelineExecutionReport | null>(null);
+
+  // JSON Schema Editor Modal State
+  const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
+  const [schemaModalTargetId, setSchemaModalTargetId] = useState<string | undefined>(undefined);
+  const [schemaModalCallback, setSchemaModalCallback] = useState<((savedId: string) => void) | undefined>(undefined);
+
+  const openSchemaEditor = (isNew: boolean, currentId?: string, onSaveCallback?: (savedId: string) => void) => {
+    setSchemaModalTargetId(isNew ? undefined : currentId);
+    setSchemaModalCallback(() => onSaveCallback);
+    setIsSchemaModalOpen(true);
+  };
 
   // Save changes back to Jotai
   const saveFlowToStorage = (updatedNodes: any[], updatedEdges: any[]) => {
@@ -767,9 +779,30 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               {activeNode.type === "schema" && (
                 <div className="space-y-3 text-xs">
                   <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg">
-                    <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                      저장된 JSON 스키마에서 가져오기
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                        저장된 JSON 스키마에서 가져오기
+                      </label>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
+                          onClick={() =>
+                            openSchemaEditor(true, undefined, (savedId) => {
+                              const found = savedJsonSchemas.find((s) => s.id === savedId);
+                              if (found) {
+                                updateNodeConfig(activeNode.id, {
+                                  ...activeNode.data.config,
+                                  schema: found.schemaText,
+                                });
+                              }
+                            })
+                          }
+                        >
+                          [+ 생성]
+                        </button>
+                      </div>
+                    </div>
                     <select
                       className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
                       value=""
@@ -904,7 +937,6 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               {activeNode.type === "preview" && (
                 <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
                   <div className="grid grid-cols-2 gap-2 bg-base-200/50 p-2 rounded-xl shrink-0">
-                    {/* Load from Saved Component Registry */}
                     <div className="flex flex-col gap-1">
                       <label className="font-semibold text-[10px] text-base-content/65 uppercase">
                         컴포넌트 불러오기
@@ -936,9 +968,43 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
                     {/* JSON Schema validation selection */}
                     <div className="flex flex-col gap-1">
-                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
-                        검증용 스키마 선택
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                          검증용 스키마 선택
+                        </label>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
+                            onClick={() =>
+                              openSchemaEditor(true, undefined, (savedId) => {
+                                updateNodeConfig(activeNode.id, {
+                                  ...activeNode.data.config,
+                                  schemaId: savedId,
+                                });
+                              })
+                            }
+                          >
+                            [+ 생성]
+                          </button>
+                          {activeNode.data.config.schemaId && (
+                            <button
+                              type="button"
+                              className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
+                              onClick={() =>
+                                openSchemaEditor(false, activeNode.data.config.schemaId, (savedId) => {
+                                  updateNodeConfig(activeNode.id, {
+                                    ...activeNode.data.config,
+                                    schemaId: savedId,
+                                  });
+                                })
+                              }
+                            >
+                              [/ 편집]
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       <select
                         className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
                         value={activeNode.data.config.schemaId || ""}
@@ -1158,6 +1224,16 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           </div>
         )}
       </div>
+      <SchemaEditorModal
+        isOpen={isSchemaModalOpen}
+        onClose={() => setIsSchemaModalOpen(false)}
+        schemaId={schemaModalTargetId}
+        onSave={(savedId) => {
+          if (schemaModalCallback) {
+            schemaModalCallback(savedId);
+          }
+        }}
+      />
     </div>
   );
 }
