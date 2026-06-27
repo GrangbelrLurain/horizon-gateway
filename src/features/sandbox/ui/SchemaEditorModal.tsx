@@ -1,7 +1,7 @@
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Check, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
+import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
 
 interface SchemaProperty {
   id: string;
@@ -20,11 +20,16 @@ interface SchemaEditorModalProps {
 
 export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaEditorModalProps) {
   const [savedSchemas, setSavedSchemas] = useAtom(savedJsonSchemasAtom);
+  const apiClientLastResponse = useAtomValue(apiClientLastResponseAtom);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [properties, setProperties] = useState<SchemaProperty[]>([]);
   const [justSaved, setJustSaved] = useState(false);
+
+  // Import JSON Parser states
+  const [isRawJsonInputOpen, setIsRawJsonInputOpen] = useState(false);
+  const [rawJsonInput, setRawJsonInput] = useState("");
 
   // Load existing schema if schemaId is passed
   useEffect(() => {
@@ -85,6 +90,51 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
 
     return JSON.stringify(schemaObj, null, 2);
   }, [title, description, properties]);
+
+  // JSON property extractor helper
+  const importFromJson = (json: any) => {
+    if (!json || typeof json !== "object") {
+      alert("추출할 수 있는 올바른 JSON 객체가 아닙니다.");
+      return;
+    }
+
+    const parsedProps: SchemaProperty[] = [];
+    let targetObj = json;
+
+    if (Array.isArray(json)) {
+      if (json.length > 0 && typeof json[0] === "object") {
+        targetObj = json[0];
+      } else {
+        alert("비어있거나 원시 타입 배열로부터는 속성을 추출할 수 없습니다.");
+        return;
+      }
+    }
+
+    Object.entries(targetObj).forEach(([key, val]) => {
+      let type: SchemaProperty["type"] = "string";
+      if (typeof val === "number") {
+        type = Number.isInteger(val) ? "integer" : "number";
+      } else if (typeof val === "boolean") {
+        type = "boolean";
+      } else if (Array.isArray(val)) {
+        type = "array";
+      } else if (val === null) {
+        type = "string";
+      } else if (typeof val === "object") {
+        type = "object";
+      }
+
+      parsedProps.push({
+        id: Math.random().toString(36).substring(2, 9),
+        name: key,
+        type,
+        description: `Imported field: ${key}`,
+        required: false,
+      });
+    });
+
+    setProperties(parsedProps);
+  };
 
   // Add a new property row
   const addProperty = () => {
@@ -187,6 +237,77 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
               </div>
             </div>
 
+            {/* Import tools section */}
+            <div className="bg-base-200/50 p-3 rounded-2xl border border-base-300 flex flex-col gap-2 shrink-0">
+              <span className="text-[9px] font-bold text-base-content/65 uppercase tracking-wider">
+                외부 데이터에서 가져오기 (Import schema)
+              </span>
+              <div className="flex gap-2 items-center">
+                <button
+                  type="button"
+                  className="btn btn-xs btn-outline flex items-center gap-1 font-semibold hover:bg-base-200"
+                  disabled={!apiClientLastResponse}
+                  onClick={() => apiClientLastResponse && importFromJson(apiClientLastResponse)}
+                  title={
+                    apiClientLastResponse
+                      ? "최근 API 클라이언트 응답 값에서 속성 자동 파싱"
+                      : "최근 응답 값이 존재하지 않습니다."
+                  }
+                >
+                  🌐 최근 API 응답에서 추출
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-xs btn-outline flex items-center gap-1 font-semibold hover:bg-base-200"
+                  onClick={() => setIsRawJsonInputOpen(!isRawJsonInputOpen)}
+                >
+                  📋 JSON 직접 붙여넣기
+                </button>
+              </div>
+
+              {isRawJsonInputOpen && (
+                <div className="flex flex-col gap-1.5 mt-2 border-t border-base-300/60 pt-2.5 animate-fadeIn">
+                  <span className="text-[9px] font-bold text-base-content/50 uppercase">JSON 문자열 입력</span>
+                  <textarea
+                    rows={4}
+                    className="textarea textarea-bordered textarea-xs font-mono w-full focus:outline-none leading-relaxed"
+                    placeholder='{ "id": 1, "name": "Alice", "active": true }'
+                    value={rawJsonInput}
+                    onChange={(e) => setRawJsonInput(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-1.5 mt-1">
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-ghost hover:bg-base-300"
+                      onClick={() => {
+                        setIsRawJsonInputOpen(false);
+                        setRawJsonInput("");
+                      }}
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-primary font-bold"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(rawJsonInput || "{}");
+                          importFromJson(parsed);
+                          setIsRawJsonInputOpen(false);
+                          setRawJsonInput("");
+                        } catch (err: any) {
+                          alert(`JSON 문법 에러: ${err.message}`);
+                        }
+                      }}
+                    >
+                      추출 완료
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Properties Builder Title */}
             <div className="flex items-center justify-between border-b border-base-200 pb-2 shrink-0">
               <span className="font-semibold text-xs text-base-content/70">속성 정의 (Properties)</span>
@@ -196,11 +317,11 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
             </div>
 
             {/* Properties Rows */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[200px]">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px]">
               {properties.map((prop) => (
                 <div
                   key={prop.id}
-                  className="grid grid-cols-12 gap-2 p-3 bg-base-200/40 rounded-2xl border border-base-300 items-center relative"
+                  className="grid grid-cols-12 gap-2 p-3 bg-base-200/40 rounded-2xl border border-base-300 items-center relative animate-fadeIn"
                 >
                   {/* Name (4 cols) */}
                   <div className="col-span-4">
@@ -292,7 +413,9 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
           </button>
           <button
             onClick={handleSave}
-            className={`btn btn-sm btn-primary flex items-center gap-1 font-bold ${justSaved ? "btn-success text-white" : ""}`}
+            className={`btn btn-sm btn-primary flex items-center gap-1 font-bold ${
+              justSaved ? "btn-success text-white" : ""
+            }`}
           >
             {justSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
             {justSaved ? "저장 완료" : "저장"}
