@@ -21,6 +21,7 @@
     "version:major": "node scripts/bump-version.mjs major"
   },
   "dependencies": {
+    "@babel/standalone": "^8.0.2",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "^1.158.1",
     "@tanstack/react-virtual": "^3.13.18",
@@ -30,6 +31,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.0",
+    "@xyflow/react": "^12.11.1",
     "framer-motion": "^12.33.0",
     "html2canvas": "^1.4.1",
     "jotai": "^2.19.0",
@@ -46,6 +48,7 @@
     "@tanstack/react-router-devtools": "^1.158.1",
     "@tanstack/router-plugin": "^1.158.1",
     "@tauri-apps/cli": "^2",
+    "@types/babel__standalone": "^7.1.9",
     "@types/node": "^25.2.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

@@ -6,16 +6,21 @@ import { useAtom, useAtomValue } from "jotai";
 import {
   ActivityIcon,
   Camera,
+  FileCode,
   FileTextIcon,
   FlaskConical,
+  GitBranch,
   GlobeIcon,
   History,
   HomeIcon,
   LayoutGrid,
+  Lock,
+  Play,
   PlusIcon,
   ServerIcon,
   SettingsIcon,
   Smartphone,
+  Tv,
   WifiIcon,
 } from "lucide-react";
 import { type ComponentProps, useEffect, useMemo, useState } from "react";
@@ -244,14 +249,46 @@ const RootLayout = () => {
             href: "/apis/mocking",
           },
           {
-            label: t.schema,
+            label: t.apiSchema,
             icon: <FileTextIcon className="w-4 h-4" />,
             href: "/apis/schema",
+          },
+          {
+            label: t.jsonSchema,
+            icon: <FileCode className="w-4 h-4" />,
+            href: "/apis/json-schema",
           },
           {
             label: t.logs,
             icon: <History className="w-4 h-4" />,
             href: "/apis/logs",
+          },
+          {
+            label: t.apiClient,
+            icon: <Play className="w-4 h-4" />,
+            href: "/apis/client",
+          },
+        ],
+      },
+      {
+        label: t.sandbox,
+        icon: <FlaskConical className="w-4 h-4" />,
+        href: "/sandbox/pipeline",
+        children: [
+          {
+            label: t.sandboxPipeline,
+            icon: <GitBranch className="w-4 h-4" />,
+            href: "/sandbox/pipeline",
+          },
+          {
+            label: t.sandboxCrypto,
+            icon: <Lock className="w-4 h-4" />,
+            href: "/sandbox/crypto",
+          },
+          {
+            label: t.sandboxPreview,
+            icon: <Tv className="w-4 h-4" />,
+            href: "/sandbox/preview",
           },
         ],
       },

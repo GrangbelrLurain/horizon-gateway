@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
@@ -18,9 +19,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
+import { ApiLogExchangeDetail, formatHttpBody, savedJsonSchemasAtom, validateJsonSchema } from "@/entities/sandbox";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -38,13 +40,84 @@ export const Route = createFileRoute("/apis/logs/")({
   component: ApiLogs,
 });
 
+// ─── LogRow: memoized row to avoid full-list re-renders on updates ────────────
+interface LogRowProps {
+  entry: ApiLogEntry;
+  formattedTime: string;
+  onClick: (entry: ApiLogEntry) => void;
+}
+
+const LogRow = React.memo(function LogRowItem({ entry, formattedTime, onClick }: LogRowProps) {
+  return (
+    <button
+      type="button"
+      className="w-full grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50"
+      onClick={() => onClick(entry)}
+    >
+      <div className="flex shrink-0">
+        <Badge
+          variant={{
+            color:
+              (entry.status_code ?? 0) >= 500
+                ? "red"
+                : (entry.status_code ?? 0) >= 400
+                  ? "amber"
+                  : (entry.status_code ?? 0) >= 300
+                    ? "blue"
+                    : "green",
+            size: "sm",
+          }}
+          className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
+        >
+          {entry.status_code ?? "-"}
+        </Badge>
+      </div>
+      <span
+        className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
+          entry.method === "GET"
+            ? "text-success"
+            : entry.method === "POST"
+              ? "text-info"
+              : entry.method === "PUT"
+                ? "text-warning"
+                : entry.method === "DELETE"
+                  ? "text-error"
+                  : "text-base-content/60"
+        }`}
+      >
+        {entry.method}
+      </span>
+
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <span
+          className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+          title={entry.url}
+        >
+          {entry.path}
+        </span>
+        <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
+          {entry.host}
+        </span>
+      </div>
+
+      <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
+        {formattedTime}
+      </span>
+    </button>
+  );
+});
+
+// ─── Main component ───────────────────────────────────────────────────────────
 function ApiLogs() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const [date, setDate] = useAtom(apiLogsDateAtom);
   const [, setAvailableDates] = useState<string[]>([]);
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
   const [search, setSearch] = useAtom(apiLogsSearchAtom);
   const [localSearch, setLocalSearch] = useState(search);
   const [hostFilter, setHostFilter] = useAtom(apiLogsHostFilterAtom);
@@ -57,22 +130,74 @@ function ApiLogs() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
   const { alert: promiseAlert } = usePromiseModal();
+  const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+
+  // Schema validation state for log detail modal
+  const [logSchemaEnabled, setLogSchemaEnabled] = useState(false);
+  const [logSchemaText, setLogSchemaText] = useState("");
+  const [logSchemaResult, setLogSchemaResult] = useState<{ valid: boolean; errors: string | null } | null>(null);
+
+  // Run schema validation when enabled/response/schema changes in modal
+  // Guards: payload size limit (500 KB) + debounce 600ms to prevent hammering
+  // the Rust backend on every keystroke or large log body.
+  useEffect(() => {
+    if (!logSchemaEnabled || !selectedLog?.response_body) {
+      setLogSchemaResult(null);
+      return;
+    }
+    const body = selectedLog.response_body ?? "";
+    if (body.length > 500_000) {
+      setLogSchemaResult({
+        valid: false,
+        errors: `Payload too large for validation (${(body.length / 1024).toFixed(0)} KB). Limit: 500 KB.`,
+      });
+      return;
+    }
+    if (!logSchemaText.trim()) {
+      setLogSchemaResult(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const result = await validateJsonSchema(body, logSchemaText);
+        setLogSchemaResult(result);
+      } catch (err: any) {
+        setLogSchemaResult({ valid: false, errors: err.message || "Validation failed" });
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [logSchemaEnabled, selectedLog, logSchemaText]);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(localSearch), 400);
+    const timer = setTimeout(() => setSearch(localSearch), 600);
     return () => clearTimeout(timer);
   }, [localSearch, setSearch]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setHostFilter(localHostFilter), 400);
+    const timer = setTimeout(() => setHostFilter(localHostFilter), 600);
     return () => clearTimeout(timer);
   }, [localHostFilter, setHostFilter]);
 
   const domainCount = useAtomValue(domainCountAtom);
   const apiLoggingCount = useAtomValue(apiLoggingCountAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
+
+  // ── Filter refs: always up-to-date inside the polling interval without ──────
+  // ── recreating fetchLogs (and therefore the interval) on every change. ──────
+  const searchRef = useRef(search);
+  const methodFilterRef = useRef(methodFilter);
+  const hostFilterRef = useRef(hostFilter);
+  useEffect(() => {
+    searchRef.current = search;
+  }, [search]);
+  useEffect(() => {
+    methodFilterRef.current = methodFilter;
+  }, [methodFilter]);
+  useEffect(() => {
+    hostFilterRef.current = hostFilter;
+  }, [hostFilter]);
 
   // 날짜 목록 조회
   const fetchDates = useCallback(async () => {
@@ -86,44 +211,142 @@ function ApiLogs() {
     }
   }, []);
 
-  // 로그 목록 조회
-  const fetchLogs = useCallback(
-    async (targetDate: string) => {
-      setLoading(true);
-      try {
-        const res = await commands
-          .getApiLogs({
-            date: targetDate,
-            domainFilter: search.trim() || null,
-            methodFilter: methodFilter || null,
-            hostFilter: hostFilter.trim() || null,
-            exactMatch: null,
-          })
-          .then(unwrap);
-        if (res.success && res.data) {
-          setLogs(res.data);
-        } else {
-          setLogs([]);
-        }
-      } catch (e) {
-        console.error("get_api_logs:", e);
-        setLogs([]);
-      } finally {
-        setLoading(false);
+  // Abort ref: cancels stale in-flight data writes — does NOT gate loading state
+  const fetchAbortRef = useRef<AbortController | null>(null);
+  const activeRequestRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
+
+  const logMatchesCurrentFilters = useCallback((entry: ApiLogEntry) => {
+    const domainFilter = searchRef.current.trim();
+    const method = methodFilterRef.current;
+    const host = hostFilterRef.current.trim();
+    if (method && entry.method !== method) {
+      return false;
+    }
+    if (host && !entry.host.includes(host)) {
+      return false;
+    }
+    if (domainFilter && !entry.url.includes(domainFilter)) {
+      return false;
+    }
+    return true;
+  }, []);
+
+  // 로그 목록 조회 — stable function reference; reads filters from refs
+  type FetchMode = "initial" | "silent" | "refresh";
+
+  const fetchLogs = useCallback(async (targetDate: string, mode: FetchMode = "silent") => {
+    const requestId = ++activeRequestRef.current;
+
+    // Abort the previous request so its result doesn't overwrite ours
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
+    if (mode === "initial") {
+      setInitialLoading(true);
+    }
+    if (mode === "refresh") {
+      setRefreshing(true);
+    }
+    if (mode === "silent") {
+      setIsFetching(true);
+    }
+
+    try {
+      const res = await commands
+        .getApiLogs({
+          date: targetDate,
+          domainFilter: searchRef.current.trim() || null,
+          methodFilter: methodFilterRef.current || null,
+          hostFilter: hostFilterRef.current.trim() || null,
+          exactMatch: null,
+        })
+        .then(unwrap);
+
+      // Don't update state with a stale response
+      if (controller.signal.aborted || requestId !== activeRequestRef.current) {
+        return;
       }
-    },
-    [search, methodFilter, hostFilter],
-  );
+
+      if (res.success && res.data) {
+        setLogs(res.data);
+      } else {
+        setLogs([]);
+      }
+    } catch (e: unknown) {
+      if (controller.signal.aborted || requestId !== activeRequestRef.current) {
+        return;
+      }
+      console.error("get_api_logs:", e);
+      setLogs([]);
+    } finally {
+      if (requestId === activeRequestRef.current) {
+        if (mode === "initial") {
+          setInitialLoading(false);
+        }
+        if (mode === "refresh") {
+          setRefreshing(false);
+        }
+        if (mode === "silent") {
+          setIsFetching(false);
+        }
+      }
+    }
+  }, []);
+
+  // Guard: prevent the filter effect from firing on the very first mount.
+  // The date effect below already does the initial fetch.
+  const isMountedRef = useRef(false);
+  const dateRef = useRef(date);
+  useEffect(() => {
+    dateRef.current = date;
+  }, [date]);
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    setHasPendingUpdates(false);
+    fetchLogs(dateRef.current, "silent");
+  }, [fetchLogs]);
 
   useEffect(() => {
     fetchDates();
   }, [fetchDates]);
 
   useEffect(() => {
-    fetchLogs(date);
-    // 폴링 대신 수동 새로고침 버튼을 두거나, 필요시 5초 주기 폴링 추가 가능
-    const interval = setInterval(() => fetchLogs(date), 5000);
-    return () => clearInterval(interval);
+    setHasPendingUpdates(false);
+    if (hasLoadedOnceRef.current) {
+      setLogs([]);
+    }
+    const mode: FetchMode = hasLoadedOnceRef.current ? "silent" : "initial";
+    void fetchLogs(date, mode).finally(() => {
+      hasLoadedOnceRef.current = true;
+    });
+  }, [date, fetchLogs]);
+
+  // Proxy captures a log → notify when it matches the selected date + filters
+  useEffect(() => {
+    const unlisten = listen<ApiLogEntry>("api-log-captured", (event) => {
+      const entry = event.payload;
+      const logDate = entry.timestamp.length >= 10 ? entry.timestamp.slice(0, 10) : "";
+      if (logDate !== dateRef.current) {
+        return;
+      }
+      if (!logMatchesCurrentFilters(entry)) {
+        return;
+      }
+      setHasPendingUpdates(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [logMatchesCurrentFilters]);
+
+  const handleRefresh = useCallback(() => {
+    setHasPendingUpdates(false);
+    void fetchLogs(date, "refresh");
   }, [date, fetchLogs]);
 
   useEffect(() => {
@@ -167,20 +390,29 @@ function ApiLogs() {
   const rowVirtualizer = useVirtualizer({
     count: logs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 52, // Height of the row (py-3 approx + content)
-    overscan: 10,
+    estimateSize: () => 52,
+    overscan: 5,
   });
 
+  // Pre-format all timestamps once when logs change — avoids calling new Date() per virtualised row render
+  const formattedTimestamps = useMemo(() => {
+    return logs.map((log) =>
+      new Date(log.timestamp).toLocaleTimeString([], {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    );
+  }, [logs]);
+
+  // Stable row click handler — does not change between renders
+  const handleRowClick = useCallback((log: ApiLogEntry) => {
+    setSelectedLog(log);
+  }, []);
+
   const formatBody = useCallback((body: string | null): string => {
-    if (!body) {
-      return "";
-    }
-    try {
-      const parsed = JSON.parse(body);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return body;
-    }
+    return formatHttpBody(body);
   }, []);
 
   const handleCopyHtml = useCallback(async () => {
@@ -515,7 +747,9 @@ ${formattedResBody}
   return (
     <div className="flex flex-col gap-6 pb-20 h-[calc(100vh-6rem)] overflow-hidden">
       <AnimatePresence>
-        {loading && logs.length === 0 && <LoadingScreen key="logs-loader" onCancel={() => setLoading(false)} />}
+        {initialLoading && logs.length === 0 && (
+          <LoadingScreen key="logs-loader" onCancel={() => setInitialLoading(false)} />
+        )}
       </AnimatePresence>
 
       {/* Header */}
@@ -533,13 +767,13 @@ ${formattedResBody}
         {isProxyRunning && (
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="secondary"
+              variant={hasPendingUpdates ? "primary" : "secondary"}
               size="sm"
-              onClick={() => fetchLogs(date)}
-              disabled={loading}
+              onClick={handleRefresh}
+              disabled={refreshing}
               className="flex items-center gap-2 h-9 tablet:h-10 px-3 tablet:px-4 whitespace-nowrap shrink-0"
             >
-              <History className={clsx("w-3.5 h-3.5 tablet:w-4 tablet:h-4", loading && "animate-spin")} />
+              <History className={clsx("w-3.5 h-3.5 tablet:w-4 tablet:h-4", refreshing && "animate-spin")} />
               <span className="text-xs tablet:text-sm">{t.refresh}</span>
             </Button>
 
@@ -580,6 +814,15 @@ ${formattedResBody}
 
       {isProxyRunning && (
         <>
+          {hasPendingUpdates && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-info/10 border border-info/30 rounded-xl shrink-0">
+              <p className="text-xs tablet:text-sm font-bold text-info">{t.newLogsAvailable}</p>
+              <Button variant="primary" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                {t.refreshNow}
+              </Button>
+            </div>
+          )}
+
           {/* Filters & Actions */}
           <div className="flex flex-col tablet:flex-row gap-3 shrink-0">
             <div className="flex flex-1 gap-3">
@@ -700,7 +943,7 @@ ${formattedResBody}
                 <div className="flex flex-col items-center justify-center h-64 gap-3 opacity-30 grayscale">
                   <FileText className="w-12 h-12 text-base-content" />
                   <p className="text-sm font-black uppercase tracking-widest text-base-content">
-                    {loading ? t.loadingLogs : t.noLogsFound}
+                    {initialLoading || refreshing || isFetching ? t.loadingLogs : t.noLogsFound}
                   </p>
                 </div>
               ) : (
@@ -713,12 +956,12 @@ ${formattedResBody}
                 >
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const log = logs[virtualRow.index];
+                    if (!log) {
+                      return null;
+                    }
                     return (
-                      <button
-                        type="button"
+                      <div
                         key={log.id}
-                        className="w-full grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50"
-                        onClick={() => setSelectedLog(log)}
                         style={{
                           position: "absolute",
                           top: 0,
@@ -728,61 +971,12 @@ ${formattedResBody}
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
                       >
-                        <div className="flex shrink-0">
-                          <Badge
-                            variant={{
-                              color:
-                                (log.status_code ?? 0) >= 500
-                                  ? "red"
-                                  : (log.status_code ?? 0) >= 400
-                                    ? "amber"
-                                    : (log.status_code ?? 0) >= 300
-                                      ? "blue"
-                                      : "green",
-                              size: "sm",
-                            }}
-                            className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
-                          >
-                            {log.status_code ?? "-"}
-                          </Badge>
-                        </div>
-                        <span
-                          className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
-                            log.method === "GET"
-                              ? "text-success"
-                              : log.method === "POST"
-                                ? "text-info"
-                                : log.method === "PUT"
-                                  ? "text-warning"
-                                  : log.method === "DELETE"
-                                    ? "text-error"
-                                    : "text-base-content/60"
-                          }`}
-                        >
-                          {log.method}
-                        </span>
-
-                        <div className="min-w-0 flex flex-col gap-0.5">
-                          <span
-                            className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-                            title={log.url}
-                          >
-                            {log.path}
-                          </span>
-                          <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
-                            {log.host}
-                          </span>
-                        </div>
-
-                        <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
-                          {new Date(log.timestamp).toLocaleTimeString([], {
-                            hour12: false,
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })}
-                        </span>
-                      </button>
+                        <LogRow
+                          entry={log}
+                          formattedTime={formattedTimestamps[virtualRow.index] ?? ""}
+                          onClick={handleRowClick}
+                        />
+                      </div>
                     );
                   })}
                 </div>
@@ -793,15 +987,30 @@ ${formattedResBody}
       )}
 
       {/* Log Detail Modal */}
-      <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)}>
+      <Modal
+        isOpen={!!selectedLog}
+        onClose={() => {
+          setSelectedLog(null);
+          setLogSchemaEnabled(false);
+          setLogSchemaResult(null);
+        }}
+        size="4xl"
+      >
         <Modal.Header title={t.logDetails} description={selectedLog?.id} />
         <Modal.Body className="flex flex-col gap-6 py-4 max-h-[70vh] overflow-y-auto px-6">
           {selectedLog && (
-            <>
-              {/* Summary */}
-              <div className="flex flex-col gap-3 p-5 bg-base-200/50 rounded-2xl border border-base-300 shadow-inner relative">
-                <div className="absolute top-4 right-4 flex gap-2">
-                  {/* Copy Dropdown */}
+            <ApiLogExchangeDetail
+              log={selectedLog}
+              labels={{
+                request: t.request,
+                requestBody: t.requestBody,
+                requestHeaders: t.requestHeaders,
+                status: t.status,
+                time: t.time,
+                empty: t.empty,
+              }}
+              actions={
+                <>
                   <div className="relative inline-block text-left" ref={dropdownRef}>
                     <Button
                       variant="secondary"
@@ -857,98 +1066,22 @@ ${formattedResBody}
                     <FlaskConical className="w-3.5 h-3.5" />
                     <span>Save as Mock</span>
                   </Button>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant={{ color: "slate", size: "sm" }}
-                    className="font-black bg-base-300 text-base-content/80"
-                  >
-                    {selectedLog.method}
-                  </Badge>
-                  <span className="font-mono text-sm font-bold text-base-content break-all leading-tight pr-56">
-                    {selectedLog.url}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider text-base-content/40 mt-1">
-                  <span className="flex items-center gap-1.5">
-                    {t.status}:{" "}
-                    <b className={(selectedLog.status_code ?? 0) >= 400 ? "text-error" : "text-success"}>
-                      {selectedLog.status_code ?? "-"}
-                    </b>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    {t.time}:{" "}
-                    <span className="text-base-content/80">{new Date(selectedLog.timestamp).toLocaleString()}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Request Headers */}
-              {selectedLog.request_headers && Object.keys(selectedLog.request_headers).length > 0 && (
-                <div>
-                  <h3 className="text-xs font-bold text-base-content/50 uppercase tracking-wider mb-2">
-                    {t.requestHeaders}
-                  </h3>
-                  <div className="bg-base-200/50 rounded-xl border border-base-300 p-4 shadow-inner">
-                    <div className="flex flex-col gap-1.5">
-                      {Object.entries(selectedLog.request_headers).map(([k, v]) => (
-                        <div key={k} className="text-xs font-mono flex items-start gap-1">
-                          <span className="text-base-content/50 font-semibold shrink-0 select-all">{k}:</span>
-                          <span className="text-base-content/85 select-all break-all">{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Request Body */}
-              {selectedLog.request_body && (
-                <div>
-                  <h3 className="text-xs font-bold text-base-content/50 uppercase tracking-wider mb-2">
-                    {t.requestBody}
-                  </h3>
-                  <div className="bg-base-200/50 rounded-xl border border-base-300 p-4 overflow-x-auto max-h-48 relative shadow-inner">
-                    <pre className="text-xs font-mono text-base-content/85 whitespace-pre-wrap break-all">
-                      {formatBody(selectedLog.request_body)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Response Headers */}
-              {selectedLog.response_headers && Object.keys(selectedLog.response_headers).length > 0 && (
-                <div>
-                  <h3 className="text-xs font-bold text-base-content/50 uppercase tracking-wider mb-2 mt-2">
-                    {t.responseHeaders}
-                  </h3>
-                  <div className="bg-base-200/50 rounded-xl border border-base-300 p-4 shadow-inner">
-                    <div className="flex flex-col gap-1.5">
-                      {Object.entries(selectedLog.response_headers).map(([k, v]) => (
-                        <div key={k} className="text-xs font-mono flex items-start gap-1">
-                          <span className="text-base-content/50 font-semibold shrink-0 select-all">{k}:</span>
-                          <span className="text-base-content/85 select-all break-all">{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Response Body */}
-              {selectedLog.response_body && (
-                <div>
-                  <h3 className="text-xs font-bold text-base-content/50 uppercase tracking-wider mb-2">
-                    {t.responseBody}
-                  </h3>
-                  <div className="bg-base-200/50 rounded-xl border border-base-300 p-4 overflow-x-auto max-h-60 shadow-inner">
-                    <pre className="text-xs font-mono text-base-content/85 whitespace-pre-wrap break-all">
-                      {formatBody(selectedLog.response_body)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </>
+                </>
+              }
+              responseViewerProps={{
+                t,
+                showSchemaTab: true,
+                enableSchemaValidation: logSchemaEnabled,
+                onToggleSchemaValidation: setLogSchemaEnabled,
+                schemaText: logSchemaText,
+                onChangeSchemaText: setLogSchemaText,
+                schemaValidationResult: logSchemaResult,
+                savedJsonSchemas,
+                heightClass: "",
+                bodyPanelHeightClass: "min-h-[280px] max-h-[50vh]",
+                hideOnEmpty: false,
+              }}
+            />
           )}
         </Modal.Body>
         <Modal.Footer>

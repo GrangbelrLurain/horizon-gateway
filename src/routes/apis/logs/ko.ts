@@ -6,8 +6,10 @@ type TranslationSchema = {
 
 export const ko: TranslationSchema = {
   title: "API 로그",
-  subtitle: "프록시를 통과한 API 요청/응답 이력입니다. (5초 자동 갱신)",
+  subtitle: "프록시를 통과한 API 요청/응답 이력입니다.",
   refresh: "새로고침",
+  refreshNow: "지금 새로고침",
+  newLogsAvailable: "선택한 날짜에 새 로그가 기록되었습니다. 새로고침을 눌러 확인하세요.",
   filterPath: "경로로 필터링...",
   filterHost: "호스트로 필터링...",
   allMethods: "전체",
@@ -22,6 +24,7 @@ export const ko: TranslationSchema = {
   loadingLogs: "로그를 불러오는 중...",
   noLogsFound: "로그가 없습니다.",
   logDetails: "로그 상세 정보",
+  request: "요청",
   requestHeaders: "요청 헤더",
   requestBody: "요청 본문",
   responseHeaders: "응답 헤더",
@@ -37,4 +40,13 @@ export const ko: TranslationSchema = {
   copiedDesc: "클립보드에 복사되었습니다.",
   copyHtml: "HTML 복사",
   copyMarkdown: "Markdown 복사",
+  response: "응답",
+  sending: "전송 중...",
+  responseStatus: "상태 코드",
+  responseTime: "응답 시간",
+  validateSchema: "스키마 검증",
+  schemaText: "스키마 JSON",
+  schemaPassed: "응답이 스키마와 일치합니다!",
+  schemaFailed: "불일치: ",
+  empty: "(본문 없음)",
 };

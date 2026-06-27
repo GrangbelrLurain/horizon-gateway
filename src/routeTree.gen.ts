@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ServerLogsIndexRouteImport } from './routes/server-logs/index'
+import { Route as SandboxIndexRouteImport } from './routes/sandbox/index'
 import { Route as ProxyIndexRouteImport } from './routes/proxy/index'
 import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as MonitorIndexRouteImport } from './routes/monitor/index'
@@ -20,6 +21,9 @@ import { Route as ApisIndexRouteImport } from './routes/apis/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as UxPoliciesIndexRouteImport } from './routes/ux/policies/index'
 import { Route as UxLiveCaptureIndexRouteImport } from './routes/ux/live-capture/index'
+import { Route as SandboxPreviewIndexRouteImport } from './routes/sandbox/preview/index'
+import { Route as SandboxPipelineIndexRouteImport } from './routes/sandbox/pipeline/index'
+import { Route as SandboxCryptoIndexRouteImport } from './routes/sandbox/crypto/index'
 import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
 import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
 import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
@@ -33,7 +37,9 @@ import { Route as ApisSettingsIndexRouteImport } from './routes/apis/settings/in
 import { Route as ApisSchemaIndexRouteImport } from './routes/apis/schema/index'
 import { Route as ApisMockingIndexRouteImport } from './routes/apis/mocking/index'
 import { Route as ApisLogsIndexRouteImport } from './routes/apis/logs/index'
+import { Route as ApisJsonSchemaIndexRouteImport } from './routes/apis/json-schema/index'
 import { Route as ApisDashboardIndexRouteImport } from './routes/apis/dashboard/index'
+import { Route as ApisClientIndexRouteImport } from './routes/apis/client/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -48,6 +54,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const ServerLogsIndexRoute = ServerLogsIndexRouteImport.update({
   id: '/server-logs/',
   path: '/server-logs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxIndexRoute = SandboxIndexRouteImport.update({
+  id: '/sandbox/',
+  path: '/sandbox/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProxyIndexRoute = ProxyIndexRouteImport.update({
@@ -88,6 +99,21 @@ const UxPoliciesIndexRoute = UxPoliciesIndexRouteImport.update({
 const UxLiveCaptureIndexRoute = UxLiveCaptureIndexRouteImport.update({
   id: '/ux/live-capture/',
   path: '/ux/live-capture/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxPreviewIndexRoute = SandboxPreviewIndexRouteImport.update({
+  id: '/sandbox/preview/',
+  path: '/sandbox/preview/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxPipelineIndexRoute = SandboxPipelineIndexRouteImport.update({
+  id: '/sandbox/pipeline/',
+  path: '/sandbox/pipeline/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxCryptoIndexRoute = SandboxCryptoIndexRouteImport.update({
+  id: '/sandbox/crypto/',
+  path: '/sandbox/crypto/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProxySetupIndexRoute = ProxySetupIndexRouteImport.update({
@@ -155,9 +181,19 @@ const ApisLogsIndexRoute = ApisLogsIndexRouteImport.update({
   path: '/apis/logs/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApisJsonSchemaIndexRoute = ApisJsonSchemaIndexRouteImport.update({
+  id: '/apis/json-schema/',
+  path: '/apis/json-schema/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApisDashboardIndexRoute = ApisDashboardIndexRouteImport.update({
   id: '/apis/dashboard/',
   path: '/apis/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApisClientIndexRoute = ApisClientIndexRouteImport.update({
+  id: '/apis/client/',
+  path: '/apis/client/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -169,9 +205,12 @@ export interface FileRoutesByFullPath {
   '/monitor/': typeof MonitorIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/proxy/': typeof ProxyIndexRoute
+  '/sandbox/': typeof SandboxIndexRoute
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
+  '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
   '/apis/logs/': typeof ApisLogsIndexRoute
   '/apis/mocking/': typeof ApisMockingIndexRoute
   '/apis/schema/': typeof ApisSchemaIndexRoute
@@ -185,6 +224,9 @@ export interface FileRoutesByFullPath {
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
+  '/sandbox/crypto/': typeof SandboxCryptoIndexRoute
+  '/sandbox/pipeline/': typeof SandboxPipelineIndexRoute
+  '/sandbox/preview/': typeof SandboxPreviewIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
   '/ux/policies/': typeof UxPoliciesIndexRoute
 }
@@ -196,9 +238,12 @@ export interface FileRoutesByTo {
   '/monitor': typeof MonitorIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/proxy': typeof ProxyIndexRoute
+  '/sandbox': typeof SandboxIndexRoute
   '/server-logs': typeof ServerLogsIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/apis/client': typeof ApisClientIndexRoute
   '/apis/dashboard': typeof ApisDashboardIndexRoute
+  '/apis/json-schema': typeof ApisJsonSchemaIndexRoute
   '/apis/logs': typeof ApisLogsIndexRoute
   '/apis/mocking': typeof ApisMockingIndexRoute
   '/apis/schema': typeof ApisSchemaIndexRoute
@@ -212,6 +257,9 @@ export interface FileRoutesByTo {
   '/proxy/inspector': typeof ProxyInspectorIndexRoute
   '/proxy/mobile': typeof ProxyMobileIndexRoute
   '/proxy/setup': typeof ProxySetupIndexRoute
+  '/sandbox/crypto': typeof SandboxCryptoIndexRoute
+  '/sandbox/pipeline': typeof SandboxPipelineIndexRoute
+  '/sandbox/preview': typeof SandboxPreviewIndexRoute
   '/ux/live-capture': typeof UxLiveCaptureIndexRoute
   '/ux/policies': typeof UxPoliciesIndexRoute
 }
@@ -224,9 +272,12 @@ export interface FileRoutesById {
   '/monitor/': typeof MonitorIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/proxy/': typeof ProxyIndexRoute
+  '/sandbox/': typeof SandboxIndexRoute
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
+  '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
   '/apis/logs/': typeof ApisLogsIndexRoute
   '/apis/mocking/': typeof ApisMockingIndexRoute
   '/apis/schema/': typeof ApisSchemaIndexRoute
@@ -240,6 +291,9 @@ export interface FileRoutesById {
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
   '/proxy/setup/': typeof ProxySetupIndexRoute
+  '/sandbox/crypto/': typeof SandboxCryptoIndexRoute
+  '/sandbox/pipeline/': typeof SandboxPipelineIndexRoute
+  '/sandbox/preview/': typeof SandboxPreviewIndexRoute
   '/ux/live-capture/': typeof UxLiveCaptureIndexRoute
   '/ux/policies/': typeof UxPoliciesIndexRoute
 }
@@ -253,9 +307,12 @@ export interface FileRouteTypes {
     | '/monitor/'
     | '/profile/'
     | '/proxy/'
+    | '/sandbox/'
     | '/server-logs/'
     | '/settings/'
+    | '/apis/client/'
     | '/apis/dashboard/'
+    | '/apis/json-schema/'
     | '/apis/logs/'
     | '/apis/mocking/'
     | '/apis/schema/'
@@ -269,6 +326,9 @@ export interface FileRouteTypes {
     | '/proxy/inspector/'
     | '/proxy/mobile/'
     | '/proxy/setup/'
+    | '/sandbox/crypto/'
+    | '/sandbox/pipeline/'
+    | '/sandbox/preview/'
     | '/ux/live-capture/'
     | '/ux/policies/'
   fileRoutesByTo: FileRoutesByTo
@@ -280,9 +340,12 @@ export interface FileRouteTypes {
     | '/monitor'
     | '/profile'
     | '/proxy'
+    | '/sandbox'
     | '/server-logs'
     | '/settings'
+    | '/apis/client'
     | '/apis/dashboard'
+    | '/apis/json-schema'
     | '/apis/logs'
     | '/apis/mocking'
     | '/apis/schema'
@@ -296,6 +359,9 @@ export interface FileRouteTypes {
     | '/proxy/inspector'
     | '/proxy/mobile'
     | '/proxy/setup'
+    | '/sandbox/crypto'
+    | '/sandbox/pipeline'
+    | '/sandbox/preview'
     | '/ux/live-capture'
     | '/ux/policies'
   id:
@@ -307,9 +373,12 @@ export interface FileRouteTypes {
     | '/monitor/'
     | '/profile/'
     | '/proxy/'
+    | '/sandbox/'
     | '/server-logs/'
     | '/settings/'
+    | '/apis/client/'
     | '/apis/dashboard/'
+    | '/apis/json-schema/'
     | '/apis/logs/'
     | '/apis/mocking/'
     | '/apis/schema/'
@@ -323,6 +392,9 @@ export interface FileRouteTypes {
     | '/proxy/inspector/'
     | '/proxy/mobile/'
     | '/proxy/setup/'
+    | '/sandbox/crypto/'
+    | '/sandbox/pipeline/'
+    | '/sandbox/preview/'
     | '/ux/live-capture/'
     | '/ux/policies/'
   fileRoutesById: FileRoutesById
@@ -335,9 +407,12 @@ export interface RootRouteChildren {
   MonitorIndexRoute: typeof MonitorIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
   ProxyIndexRoute: typeof ProxyIndexRoute
+  SandboxIndexRoute: typeof SandboxIndexRoute
   ServerLogsIndexRoute: typeof ServerLogsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  ApisClientIndexRoute: typeof ApisClientIndexRoute
   ApisDashboardIndexRoute: typeof ApisDashboardIndexRoute
+  ApisJsonSchemaIndexRoute: typeof ApisJsonSchemaIndexRoute
   ApisLogsIndexRoute: typeof ApisLogsIndexRoute
   ApisMockingIndexRoute: typeof ApisMockingIndexRoute
   ApisSchemaIndexRoute: typeof ApisSchemaIndexRoute
@@ -351,6 +426,9 @@ export interface RootRouteChildren {
   ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
   ProxyMobileIndexRoute: typeof ProxyMobileIndexRoute
   ProxySetupIndexRoute: typeof ProxySetupIndexRoute
+  SandboxCryptoIndexRoute: typeof SandboxCryptoIndexRoute
+  SandboxPipelineIndexRoute: typeof SandboxPipelineIndexRoute
+  SandboxPreviewIndexRoute: typeof SandboxPreviewIndexRoute
   UxLiveCaptureIndexRoute: typeof UxLiveCaptureIndexRoute
   UxPoliciesIndexRoute: typeof UxPoliciesIndexRoute
 }
@@ -376,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/server-logs'
       fullPath: '/server-logs/'
       preLoaderRoute: typeof ServerLogsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/': {
+      id: '/sandbox/'
+      path: '/sandbox'
+      fullPath: '/sandbox/'
+      preLoaderRoute: typeof SandboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proxy/': {
@@ -432,6 +517,27 @@ declare module '@tanstack/react-router' {
       path: '/ux/live-capture'
       fullPath: '/ux/live-capture/'
       preLoaderRoute: typeof UxLiveCaptureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/preview/': {
+      id: '/sandbox/preview/'
+      path: '/sandbox/preview'
+      fullPath: '/sandbox/preview/'
+      preLoaderRoute: typeof SandboxPreviewIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/pipeline/': {
+      id: '/sandbox/pipeline/'
+      path: '/sandbox/pipeline'
+      fullPath: '/sandbox/pipeline/'
+      preLoaderRoute: typeof SandboxPipelineIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox/crypto/': {
+      id: '/sandbox/crypto/'
+      path: '/sandbox/crypto'
+      fullPath: '/sandbox/crypto/'
+      preLoaderRoute: typeof SandboxCryptoIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proxy/setup/': {
@@ -525,11 +631,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApisLogsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/apis/json-schema/': {
+      id: '/apis/json-schema/'
+      path: '/apis/json-schema'
+      fullPath: '/apis/json-schema/'
+      preLoaderRoute: typeof ApisJsonSchemaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/apis/dashboard/': {
       id: '/apis/dashboard/'
       path: '/apis/dashboard'
       fullPath: '/apis/dashboard/'
       preLoaderRoute: typeof ApisDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/apis/client/': {
+      id: '/apis/client/'
+      path: '/apis/client'
+      fullPath: '/apis/client/'
+      preLoaderRoute: typeof ApisClientIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -543,9 +663,12 @@ const rootRouteChildren: RootRouteChildren = {
   MonitorIndexRoute: MonitorIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
   ProxyIndexRoute: ProxyIndexRoute,
+  SandboxIndexRoute: SandboxIndexRoute,
   ServerLogsIndexRoute: ServerLogsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  ApisClientIndexRoute: ApisClientIndexRoute,
   ApisDashboardIndexRoute: ApisDashboardIndexRoute,
+  ApisJsonSchemaIndexRoute: ApisJsonSchemaIndexRoute,
   ApisLogsIndexRoute: ApisLogsIndexRoute,
   ApisMockingIndexRoute: ApisMockingIndexRoute,
   ApisSchemaIndexRoute: ApisSchemaIndexRoute,
@@ -559,6 +682,9 @@ const rootRouteChildren: RootRouteChildren = {
   ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
   ProxyMobileIndexRoute: ProxyMobileIndexRoute,
   ProxySetupIndexRoute: ProxySetupIndexRoute,
+  SandboxCryptoIndexRoute: SandboxCryptoIndexRoute,
+  SandboxPipelineIndexRoute: SandboxPipelineIndexRoute,
+  SandboxPreviewIndexRoute: SandboxPreviewIndexRoute,
   UxLiveCaptureIndexRoute: UxLiveCaptureIndexRoute,
   UxPoliciesIndexRoute: UxPoliciesIndexRoute,
 }

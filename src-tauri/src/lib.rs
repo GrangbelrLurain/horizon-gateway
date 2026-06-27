@@ -35,6 +35,8 @@ mod service {
     pub mod system_proxy_service;
     pub mod tunnel_service;
     pub mod usb_service;
+    pub mod crypto_service;
+    pub mod pipeline_runner;
 }
 
 use crate::service::api_log_service::ApiLogService;
@@ -62,6 +64,8 @@ mod command {
     pub mod window_commands;
     pub mod tunnel_commands;
     pub mod usb_commands;
+    pub mod crypto_commands;
+    pub mod pipeline_commands;
 }
 
 use command::inspector_commands::{
@@ -103,6 +107,8 @@ use command::settings_commands::{export_all_settings, import_all_settings, save_
 use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window};
 use command::tunnel_commands::{get_tailscale_ip, start_cloudflare_tunnel, stop_cloudflare_tunnel};
 use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_reverse};
+use command::crypto_commands::{process_crypto, validate_json_schema};
+use command::pipeline_commands::execute_pipeline;
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
 
@@ -188,6 +194,9 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             check_adb_status,
             start_usb_reverse,
             stop_usb_reverse,
+            process_crypto,
+            validate_json_schema,
+            execute_pipeline,
         ])
 }
 

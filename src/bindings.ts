@@ -59,7 +59,7 @@ export const commands = {
 	getApiSchemaContent: (payload: GetApiSchemaPayload) => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_api_schema_content", { payload })),
 	/**
 	 *  임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
-	 *  네트워크 에러도 ApiResponse로 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
+	 *  네트워크 에러도 `ApiResponse로` 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
 	 */
 	sendApiRequest: (payload: SendApiRequestPayload) => typedError<ApiResponse<ApiRequestResult>, string>(__TAURI_INVOKE("send_api_request", { payload })),
 	setLocalRoutingEnabled: (payload: SetLocalRoutingEnabledPayload) => typedError<ApiResponse<ProxyStatusPayload>, string>(__TAURI_INVOKE("set_local_routing_enabled", { payload })),
@@ -102,6 +102,9 @@ export const commands = {
 	checkAdbStatus: () => typedError<ApiResponse<AdbStatus>, string>(__TAURI_INVOKE("check_adb_status")),
 	startUsbReverse: (port: number) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("start_usb_reverse", { port })),
 	stopUsbReverse: (port: number) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("stop_usb_reverse", { port })),
+	processCrypto: (payload: ProcessCryptoPayload) => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("process_crypto", { payload })),
+	validateJsonSchema: (payload: ValidateSchemaPayload) => typedError<ApiResponse<SchemaValidationResult>, string>(__TAURI_INVOKE("validate_json_schema", { payload })),
+	executePipeline: (payload: PipelineFlow) => typedError<ApiResponse<PipelineExecutionReport>, string>(__TAURI_INVOKE("execute_pipeline", { payload })),
 };
 
 /* Types */
@@ -189,6 +192,8 @@ export type CreateScenarioPayload = {
 	description: string | null,
 };
 
+export type CryptoAction = "base64Encode" | "base64Decode" | "urlEncode" | "urlDecode" | "hexEncode" | "hexDecode" | "jwtDecode" | "aesEncrypt" | "aesDecrypt" | "sha256" | "hmacSha256";
+
 export type DeleteAnnotationPayload = {
 	id: string,
 };
@@ -218,7 +223,7 @@ export type DomainApiLoggingLink_Deserialize = {
 	domainId: number,
 	loggingEnabled?: boolean,
 	bodyEnabled?: boolean,
-	/**  OpenAPI/Swagger 스키마 다운로드 URL (예: https://api.example.com/swagger.json). */
+	/**  OpenAPI/Swagger 스키마 다운로드 URL (예: <https://api.example.com/swagger.json>). */
 	schemaUrl?: string | null,
 };
 
@@ -231,7 +236,7 @@ export type DomainApiLoggingLink_Serialize = {
 	domainId: number,
 	loggingEnabled: boolean,
 	bodyEnabled: boolean,
-	/**  OpenAPI/Swagger 스키마 다운로드 URL (예: https://api.example.com/swagger.json). */
+	/**  OpenAPI/Swagger 스키마 다운로드 URL (예: <https://api.example.com/swagger.json>). */
 	schemaUrl?: string | null,
 };
 
@@ -245,7 +250,7 @@ export type DomainGroupLink = {
 	group_id: number,
 };
 
-/**  Domain monitor settings (check_enabled, interval). Keyed by URL for import matching. */
+/**  Domain monitor settings (`check_enabled`, interval). Keyed by URL for import matching. */
 export type DomainMonitorExport = {
 	url: string,
 	checkEnabled: boolean,
@@ -346,6 +351,46 @@ export type MockingSettings = {
 	enabled: boolean,
 };
 
+export type NodeExecutionResult = {
+	nodeId: string,
+	success: boolean,
+	elapsedMs: number | null,
+	output: string,
+	error: string | null,
+};
+
+export type PipelineEdge = {
+	id: string,
+	source: string,
+	target: string,
+};
+
+export type PipelineExecutionReport = {
+	success: boolean,
+	elapsedMs: number | null,
+	results: NodeExecutionResult[],
+	error: string | null,
+};
+
+export type PipelineFlow = {
+	nodes: PipelineNode[],
+	edges: PipelineEdge[],
+};
+
+export type PipelineNode = {
+	id: string,
+	label: string,
+	type: string,
+	config: string,
+};
+
+export type ProcessCryptoPayload = {
+	action: CryptoAction,
+	payload: string,
+	key: string | null,
+	iv: string | null,
+};
+
 export type ProxySettings = {
 	/**
 	 *  Optional DNS server for pass-through resolution (e.g. "8.8.8.8" or "1.1.1.1:53").
@@ -407,6 +452,11 @@ export type SchemaDownloadResult = {
 	sizeBytes: number | null,
 	/**  처음 N 글자 미리보기 (최대 500자). */
 	preview: string,
+};
+
+export type SchemaValidationResult = {
+	valid: boolean,
+	errors: string | null,
 };
 
 export type SendApiRequestPayload = {
@@ -479,10 +529,10 @@ export type SettingsExport_Deserialize = {
 	localRoutes: LocalRoute[],
 	proxySettings: ProxySettings,
 } & {
-	/**  Monitor settings per domain (check_enabled, interval). Status logs are excluded. */
+	/**  Monitor settings per domain (`check_enabled`, interval). Status logs are excluded. */
 	domainMonitor?: DomainMonitorExport[],
 } | {
-	/**  Monitor settings per domain (check_enabled, interval). Status logs are excluded. */
+	/**  Monitor settings per domain (`check_enabled`, interval). Status logs are excluded. */
 	domain_status?: DomainMonitorExport[],
 };
 
@@ -494,7 +544,7 @@ export type SettingsExport_Serialize = {
 	domainGroupLinks: DomainGroupLink[],
 	localRoutes: LocalRoute[],
 	proxySettings: ProxySettings,
-	/**  Monitor settings per domain (check_enabled, interval). Status logs are excluded. */
+	/**  Monitor settings per domain (`check_enabled`, interval). Status logs are excluded. */
 	domainMonitor: DomainMonitorExport[],
 };
 
@@ -536,6 +586,11 @@ export type UpdateMockRulePayload = {
 	responseHeaders: { [key in string]: string } | null,
 	responseBody: string | null,
 	enabled: boolean | null,
+};
+
+export type ValidateSchemaPayload = {
+	payload: string,
+	schema: string,
 };
 
 /* Tauri Specta runtime */

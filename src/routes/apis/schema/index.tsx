@@ -1,8 +1,55 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useAtom, useAtomValue } from "jotai";
-import { BookOpen, Check, ChevronDown, ChevronRight, Clock, Copy, Globe, Loader2, Play, Search, X } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Copy,
+  ExternalLink,
+  Globe,
+  Loader2,
+  Play,
+  Search,
+  Settings2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ApiRequestDraft,
+  type ApiRequestFieldConfig,
+  ApiRequestForm,
+  type ApiRequestSuggestionContext,
+  autocompleteBodiesAtom,
+  autocompleteHeadersAtom,
+  autocompleteHeaderValuesAtom,
+  autocompleteOriginsAtom,
+  autocompleteParamValuesAtom,
+  autocompletePathnamesAtom,
+  autocompletePathnamesByOriginAtom,
+  buildRequestUrl,
+  collectDraftHeaders,
+  createDefaultDraft,
+  type FieldControl,
+  FieldPermissionsCard,
+  mergeFieldConfig,
+  mergeSuggestionLists,
+  methodStyle,
+  pathnamesForOrigin,
+  SCHEMA_FIELD_CONFIG,
+  useRecordApiRequestAutocomplete,
+} from "@/entities/api-request";
 import { languageAtom, usePromiseModal } from "@/entities/app";
+import {
+  ApiResponseViewer,
+  apiClientPrefillAtom,
+  buildApiResponseViewerLabels,
+  copyApiExchangeAsCardHtml,
+  copyApiExchangeAsMarkdown,
+  savedJsonSchemasAtom,
+  validateJsonSchema,
+} from "@/entities/sandbox";
 import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { type OpenApiSpec, type ParsedEndpoint, parseOpenApiSpec, type TagGroup } from "@/shared/lib/openapi-parser";
@@ -14,6 +61,7 @@ import { H1, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
 import { ko } from "./ko";
 import {
+  apiSchemaFieldOverridesAtom,
   apiSchemaFormsAtom,
   apiSchemaSearchAtom,
   apiSchemaSelectedDomainIdAtom,
@@ -26,18 +74,6 @@ export const Route = createFileRoute("/apis/schema/")({
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-const METHOD_COLORS: Record<string, { color: "green" | "blue" | "amber" | "red" | "slate"; bg: string }> = {
-  get: { color: "green", bg: "bg-success/10 border-success/20" },
-  post: { color: "blue", bg: "bg-info/10 border-info/20" },
-  put: { color: "amber", bg: "bg-warning/10 border-warning/20" },
-  delete: { color: "red", bg: "bg-error/10 border-error/20" },
-  patch: { color: "amber", bg: "bg-warning/10 border-warning/20" },
-};
-
-function methodStyle(m: string) {
-  return METHOD_COLORS[m.toLowerCase()] ?? { color: "slate" as const, bg: "bg-base-200 border-base-300" };
-}
 
 function getTextStatusColor(code: number): "green" | "red" | "amber" | "blue" | "slate" {
   if (code < 300) {
@@ -248,51 +284,107 @@ function EndpointDetail({
   baseUrl,
   host,
   domainId,
+  allEndpoints,
+  serverOrigins,
 }: {
   endpoint: ParsedEndpoint;
   baseUrl: string;
   host: string;
   domainId: number;
+  allEndpoints: ParsedEndpoint[];
+  serverOrigins: string[];
 }) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const ms = methodStyle(endpoint.method);
 
   const [allForms, setAllForms] = useAtom(apiSchemaFormsAtom);
+  const storedOrigins = useAtomValue(autocompleteOriginsAtom);
+  const storedPathnames = useAtomValue(autocompletePathnamesAtom);
+  const storedPathnamesByOrigin = useAtomValue(autocompletePathnamesByOriginAtom);
+  const storedBodies = useAtomValue(autocompleteBodiesAtom);
+  const storedParamValues = useAtomValue(autocompleteParamValuesAtom);
+  const storedHeaderKeys = useAtomValue(autocompleteHeadersAtom);
+  const storedHeaderValues = useAtomValue(autocompleteHeaderValuesAtom);
+  const recordAutocomplete = useRecordApiRequestAutocomplete(endpoint);
+  const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+
   const endpointKey = `${domainId}:${endpoint.method}:${endpoint.path}`;
 
-  // Current state helper
-  const formState = useMemo<EndpointFormState>(() => {
+  const draft = useMemo<ApiRequestDraft>(() => {
     const saved = allForms[endpointKey];
-    if (saved) {
-      return saved;
-    }
-    return {
-      paramValues: {},
-      bodyText: endpoint.requestBody?.example ? JSON.stringify(endpoint.requestBody.example, null, 2) : "",
-      headerText: "",
-      response: null,
-      error: null,
-    };
-  }, [allForms, endpointKey, endpoint.requestBody]);
+    return createDefaultDraft(endpoint, baseUrl, saved);
+  }, [allForms, endpointKey, endpoint, baseUrl]);
 
-  const updateForm = useCallback(
-    (updates: Partial<EndpointFormState>) => {
+  const updateDraft = useCallback(
+    (updates: Partial<ApiRequestDraft>) => {
       setAllForms((prev) => ({
         ...prev,
         [endpointKey]: {
-          ...formState,
+          ...prev[endpointKey],
+          paramValues: draft.paramValues,
+          bodyText: draft.bodyText,
+          headers: draft.headers,
+          origin: draft.origin,
+          pathname: draft.pathname,
+          response: prev[endpointKey]?.response ?? null,
+          error: prev[endpointKey]?.error ?? null,
           ...updates,
         },
       }));
     },
-    [endpointKey, formState, setAllForms],
+    [draft, endpointKey, setAllForms],
   );
 
-  const { paramValues, bodyText, headerText, response, error } = formState;
+  const formState = allForms[endpointKey];
+  const response = formState?.response ?? null;
+  const error = formState?.error ?? null;
+  const fieldOverrides = useAtomValue(apiSchemaFieldOverridesAtom);
+
+  const fieldConfig = useMemo(() => mergeFieldConfig(SCHEMA_FIELD_CONFIG, fieldOverrides), [fieldOverrides]);
+
+  const navigate = useNavigate();
+  const setClientPrefill = useSetAtom(apiClientPrefillAtom);
+
+  const suggestions = useMemo<ApiRequestSuggestionContext>(
+    () => ({
+      origins: mergeSuggestionLists([baseUrl], serverOrigins, storedOrigins),
+      pathnames: mergeSuggestionLists(
+        allEndpoints.map((item) => item.path),
+        [endpoint.path],
+        storedPathnames,
+        pathnamesForOrigin(storedPathnamesByOrigin, draft.origin),
+      ),
+      paramValues: storedParamValues,
+      headerKeys: storedHeaderKeys,
+      headerValues: storedHeaderValues,
+      bodies: mergeSuggestionLists(storedBodies, draft.bodyText ? [draft.bodyText] : []),
+    }),
+    [
+      allEndpoints,
+      baseUrl,
+      draft.bodyText,
+      draft.origin,
+      endpoint.path,
+      serverOrigins,
+      storedBodies,
+      storedHeaderKeys,
+      storedHeaderValues,
+      storedOrigins,
+      storedParamValues,
+      storedPathnames,
+      storedPathnamesByOrigin,
+    ],
+  );
 
   // Loading state (not persisted)
   const [sending, setSending] = useState(false);
+  const [enableSchemaValidation, setEnableSchemaValidation] = useState(false);
+  const [schemaText, setSchemaText] = useState("");
+  const [schemaValidationResult, setSchemaValidationResult] = useState<{
+    valid: boolean;
+    errors: string | null;
+  } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -311,67 +403,93 @@ function EndpointDetail({
     };
   }, []);
 
-  const buildUrl = useCallback(() => {
-    let path = endpoint.path;
-    for (const p of endpoint.parameters.filter((param) => param.in === "path")) {
-      const val = paramValues[p.name] ?? "";
-      path = path.replace(`{${p.name}}`, encodeURIComponent(val));
+  useEffect(() => {
+    if (!enableSchemaValidation || !response?.body) {
+      setSchemaValidationResult(null);
+      return;
     }
-    const queryParams = endpoint.parameters.filter((p) => p.in === "query");
-    const qs = queryParams
-      .map((p) => {
-        const val = paramValues[p.name];
-        if (val === undefined || val === "") {
-          return null;
-        }
-        return `${encodeURIComponent(p.name)}=${encodeURIComponent(val)}`;
-      })
-      .filter(Boolean)
-      .join("&");
 
-    const base = baseUrl.replace(/\/+$/, "");
-    return qs ? `${base}${path}?${qs}` : `${base}${path}`;
-  }, [endpoint, paramValues, baseUrl]);
+    const bodyStr = typeof response.body === "string" ? response.body : JSON.stringify(response.body);
+    if (bodyStr.length > 500_000) {
+      setSchemaValidationResult({
+        valid: false,
+        errors: `Payload too large for validation (${(bodyStr.length / 1024).toFixed(0)} KB). Limit: 500 KB.`,
+      });
+      return;
+    }
+    if (!schemaText.trim()) {
+      setSchemaValidationResult(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await validateJsonSchema(bodyStr, schemaText);
+        setSchemaValidationResult(result);
+      } catch (err: unknown) {
+        setSchemaValidationResult({
+          valid: false,
+          errors: err instanceof Error ? err.message : "Schema validation execution failed",
+        });
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [enableSchemaValidation, response, schemaText]);
+
+  const buildUrl = useCallback(() => buildRequestUrl(draft, endpoint), [draft, endpoint]);
+
+  const updateFormMeta = useCallback(
+    (updates: Partial<Pick<EndpointFormState, "response" | "error">>) => {
+      setAllForms((prev) => ({
+        ...prev,
+        [endpointKey]: {
+          ...draft,
+          response: prev[endpointKey]?.response ?? null,
+          error: prev[endpointKey]?.error ?? null,
+          ...updates,
+        },
+      }));
+    },
+    [draft, endpointKey, setAllForms],
+  );
 
   const handleSend = async () => {
     setSending(true);
-    updateForm({ response: null, error: null });
+    updateFormMeta({ response: null, error: null });
     try {
       const url = buildUrl();
-      const headers: Record<string, string> = {};
-
-      if (headerText.trim()) {
-        for (const line of headerText.split("\n")) {
-          const idx = line.indexOf(":");
-          if (idx > 0) {
-            headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
-          }
-        }
-      }
-
-      for (const p of endpoint.parameters.filter((param) => param.in === "header")) {
-        const val = paramValues[p.name];
-        if (val) {
-          headers[p.name] = val;
-        }
-      }
+      const headers = collectDraftHeaders(draft, endpoint);
 
       const res = await commands
         .sendApiRequest({
           method: endpoint.method.toUpperCase(),
           url,
           headers,
-          body: bodyText.trim() || null,
+          body: draft.bodyText.trim() || null,
         })
         .then(unwrap);
 
-      if (!res.success) {
-        updateForm({ error: res.message, response: res.data ?? null });
-      } else if (res.data) {
-        updateForm({ response: res.data, error: null });
+      const parseResponseBody = (raw: string) => {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return raw;
+        }
+      };
+
+      if (res.success && res.data) {
+        recordAutocomplete(draft, {
+          responseBody: parseResponseBody(res.data.body),
+          responseHeaders: res.data.headers,
+        });
+        updateFormMeta({ response: res.data, error: null });
+      } else {
+        recordAutocomplete(draft);
+        updateFormMeta({ error: res.message, response: res.data ?? null });
       }
     } catch (e) {
-      updateForm({ error: String(e), response: null });
+      updateFormMeta({ error: String(e), response: null });
     } finally {
       setSending(false);
     }
@@ -380,370 +498,81 @@ function EndpointDetail({
   const handleLoadLog = (log: ApiLogEntry) => {
     setHistoryOpen(false);
 
-    let newBodyText = "";
-    if (log.request_body) {
-      newBodyText = log.request_body;
-    }
+    const headerRows = log.request_headers
+      ? Object.entries(log.request_headers)
+          .filter(([key]) => !["host", "content-length", "connection"].includes(key.toLowerCase()))
+          .map(([key, value]) => ({ key, value }))
+      : [{ key: "", value: "" }];
 
-    let newHeaderText = "";
-    if (log.request_headers) {
-      const lines = [];
-      for (const [k, v] of Object.entries(log.request_headers)) {
-        if (["host", "content-length", "connection"].includes(k.toLowerCase())) {
-          continue;
-        }
-        lines.push(`${k}: ${v}`);
-      }
-      newHeaderText = lines.join("\n");
-    }
-
-    updateForm({ bodyText: newBodyText, headerText: newHeaderText });
+    updateDraft({
+      bodyText: log.request_body ?? draft.bodyText,
+      headers: headerRows.length > 0 ? headerRows : [{ key: "", value: "" }],
+    });
   };
 
-  const formattedBody = useMemo(() => {
-    if (!response?.body) {
-      return "";
-    }
-    try {
-      return JSON.stringify(JSON.parse(response.body), null, 2);
-    } catch {
-      return response.body;
-    }
-  }, [response?.body]);
+  const getRequestHeaders = useCallback(() => collectDraftHeaders(draft, endpoint), [draft, endpoint]);
 
-  const formatBodyText = useCallback((body: string | null): string => {
-    if (!body) {
-      return "";
-    }
-    try {
-      const parsed = JSON.parse(body);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return body;
-    }
-  }, []);
+  const handleOpenInClient = useCallback(() => {
+    setClientPrefill({
+      method: endpoint.method.toUpperCase(),
+      url: buildUrl(),
+      headers: getRequestHeaders(),
+      body: draft.bodyText,
+    });
+    navigate({ to: "/apis/client" });
+  }, [buildUrl, draft.bodyText, endpoint.method, getRequestHeaders, navigate, setClientPrefill]);
 
-  const getRequestHeaders = useCallback(() => {
-    const headers: Record<string, string> = {};
-    if (headerText.trim()) {
-      for (const line of headerText.split("\n")) {
-        const idx = line.indexOf(":");
-        if (idx > 0) {
-          headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
-        }
-      }
+  const buildCopyInput = useCallback(() => {
+    if (!response) {
+      return null;
     }
-    for (const p of endpoint.parameters.filter((param) => param.in === "header")) {
-      const val = paramValues[p.name];
-      if (val) {
-        headers[p.name] = val;
-      }
-    }
-    return headers;
-  }, [headerText, endpoint.parameters, paramValues]);
+    return {
+      method: endpoint.method,
+      url: buildUrl(),
+      requestHeaders: getRequestHeaders(),
+      requestBody: draft.bodyText,
+      response: {
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: response.body,
+        elapsedMs: response.elapsedMs,
+      },
+    };
+  }, [buildUrl, draft.bodyText, endpoint.method, getRequestHeaders, response]);
 
   const handleCopyHtml = useCallback(async () => {
     setIsDropdownOpen(false);
-    if (!response) {
+    const input = buildCopyInput();
+    if (!input) {
       return;
     }
-
-    const getMethodBgColor = (method: string) => {
-      const m = method.toUpperCase();
-      if (m === "GET") {
-        return "#0078d4";
-      }
-      if (m === "POST") {
-        return "#107c41";
-      }
-      if (m === "PUT" || m === "PATCH") {
-        return "#d83b01";
-      }
-      if (m === "DELETE") {
-        return "#a80000";
-      }
-      return "#605e5c";
-    };
-
-    const getStatusColor = (status: number | null) => {
-      if (!status) {
-        return "#605e5c";
-      }
-      if (status >= 500) {
-        return "#a80000";
-      }
-      if (status >= 400) {
-        return "#d83b01";
-      }
-      if (status >= 300) {
-        return "#0078d4";
-      }
-      return "#107c41";
-    };
-
-    const reqHeaders = getRequestHeaders();
-    const formattedReqBody = formatBodyText(bodyText);
-    const formattedResBody = formatBodyText(response.body);
-
-    const methodColor = getMethodBgColor(endpoint.method);
-    const statusColor = getStatusColor(response.statusCode);
-
-    let reqHeadersHtml = "";
-    if (Object.keys(reqHeaders).length > 0) {
-      reqHeadersHtml = Object.entries(reqHeaders)
-        .map(
-          ([k, v]) => `
-        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
-          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
-        </div>`,
-        )
-        .join("");
-    } else {
-      reqHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
-    }
-
-    let resHeadersHtml = "";
-    if (response.headers && Object.keys(response.headers).length > 0) {
-      resHeadersHtml = Object.entries(response.headers)
-        .map(
-          ([k, v]) => `
-        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
-          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
-        </div>`,
-        )
-        .join("");
-    } else {
-      resHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
-    }
-
-    const html = `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #323130; max-width: 800px; border: 1px solid #edebe9; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
-  <div style="padding: 12px 16px; background-color: #f3f2f1; border-bottom: 1px solid #edebe9;">
-    <span style="display: inline-block; font-weight: bold; background-color: ${methodColor}; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin-right: 8px;">${endpoint.method.toUpperCase()}</span>
-    <strong style="font-family: monospace; font-size: 12px; word-break: break-all;">${buildUrl()}</strong>
-  </div>
-  
-  <div style="padding: 8px 16px; background-color: #faf9f8; border-bottom: 1px solid #edebe9; font-size: 11px; color: #605e5c;">
-    <strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold; font-family: monospace;">${response.statusCode}</span>
-    <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time:</strong> <span style="font-family: monospace;">${response.elapsedMs}ms</span>
-    <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time Copied:</strong> <span style="font-family: monospace;">${new Date().toLocaleString()}</span>
-  </div>
-
-  <div style="padding: 16px;">
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Headers</h4>
-    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
-      ${reqHeadersHtml}
-    </div>
-
-    ${
-      formattedReqBody
-        ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Body</h4>
-    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedReqBody}</pre>
-    `
-        : ""
-    }
-
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Headers</h4>
-    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
-      ${resHeadersHtml}
-    </div>
-
-    ${
-      formattedResBody
-        ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Body</h4>
-    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedResBody}</pre>
-    `
-        : ""
-    }
-  </div>
-</div>
-`;
-
-    const plainHeaders = (headers: Record<string, string> | null) => {
-      if (!headers) {
-        return "No headers";
-      }
-      return Object.entries(headers)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-    };
-
-    const plain = `METHOD: ${endpoint.method.toUpperCase()}
-URL: ${buildUrl()}
-Status: ${response.statusCode}
-Time: ${response.elapsedMs}ms
-
-[Request Headers]
-${plainHeaders(reqHeaders)}
-${formattedReqBody ? `\n[Request Body]\n${formattedReqBody}\n` : ""}
-[Response Headers]
-${plainHeaders(response.headers)}
-${formattedResBody ? `\n[Response Body]\n${formattedResBody}\n` : ""}
-`;
-
     try {
-      const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([plain], { type: "text/plain" });
-      const data = [
-        new ClipboardItem({
-          "text/html": blobHtml,
-          "text/plain": blobText,
-        }),
-      ];
-      await navigator.clipboard.write(data);
+      await copyApiExchangeAsCardHtml(input);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       promiseAlert(t.copied, t.copiedDesc);
     } catch (err) {
-      console.error("Failed to copy HTML, falling back to text:", err);
-      try {
-        await navigator.clipboard.writeText(plain);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        promiseAlert(t.copied, t.copiedDesc);
-      } catch (err2) {
-        console.error("Failed to copy text:", err2);
-      }
+      console.error("Failed to copy HTML:", err);
     }
-  }, [response, bodyText, endpoint, buildUrl, getRequestHeaders, formatBodyText, promiseAlert, t.copied, t.copiedDesc]);
+  }, [buildCopyInput, promiseAlert, t.copied, t.copiedDesc]);
 
   const handleCopyMarkdown = useCallback(async () => {
     setIsDropdownOpen(false);
-    if (!response) {
+    const input = buildCopyInput();
+    if (!input) {
       return;
     }
-
-    const reqHeaders = getRequestHeaders();
-    const formattedReqBody = formatBodyText(bodyText);
-    const formattedResBody = formatBodyText(response.body);
-
-    const plainHeaders = (headers: Record<string, string> | null) => {
-      if (!headers || Object.keys(headers).length === 0) {
-        return "No headers";
-      }
-      return Object.entries(headers)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-    };
-
-    const reqHeadersStr = plainHeaders(reqHeaders);
-    const resHeadersStr = plainHeaders(response.headers);
-
-    const md = [
-      `### **[${endpoint.method.toUpperCase()}]** \`${buildUrl()}\``,
-      `**Status:** \`${response.statusCode}\` | **Time:** \`${response.elapsedMs}ms\``,
-      "",
-      "#### **Request Headers**",
-      "```http",
-      reqHeadersStr,
-      "```",
-      ...(formattedReqBody ? ["", "#### **Request Body**", "```json", formattedReqBody, "```"] : []),
-      "",
-      "#### **Response Headers**",
-      "```http",
-      resHeadersStr,
-      "```",
-      ...(formattedResBody ? ["", "#### **Response Body**", "```json", formattedResBody, "```"] : []),
-      "",
-    ].join("\n");
-
-    const methodColor =
-      endpoint.method.toUpperCase() === "GET"
-        ? "#0078d4"
-        : endpoint.method.toUpperCase() === "POST"
-          ? "#107c41"
-          : ["PUT", "PATCH"].includes(endpoint.method.toUpperCase())
-            ? "#d83b01"
-            : endpoint.method.toUpperCase() === "DELETE"
-              ? "#a80000"
-              : "#605e5c";
-
-    const html = `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #242424; max-width: 800px;">
-  <div style="margin-bottom: 8px;">
-    <span style="font-weight: bold; font-family: monospace; font-size: 12px; color: ${methodColor};">[${endpoint.method.toUpperCase()}]</span> 
-    <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 12px;">${buildUrl()}</code>
-  </div>
-  <div style="font-size: 12px; color: #616161; margin-bottom: 16px;">
-    <strong>Status:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${response.statusCode}</code>
-    <span style="margin: 0 8px; color: #d2d2d2;">|</span>
-    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${response.elapsedMs}ms</code>
-  </div>
-
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Headers</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${reqHeadersStr}</pre>
-  </div>
-
-  ${
-    formattedReqBody
-      ? `
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Body</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedReqBody}</pre>
-  </div>
-  `
-      : ""
-  }
-
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Headers</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${resHeadersStr}</pre>
-  </div>
-
-  ${
-    formattedResBody
-      ? `
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Body</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedResBody}</pre>
-  </div>
-  `
-      : ""
-  }
-</div>
-`;
-
     try {
-      const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([md], { type: "text/plain" });
-      const data = [
-        new ClipboardItem({
-          "text/html": blobHtml,
-          "text/plain": blobText,
-        }),
-      ];
-      await navigator.clipboard.write(data);
+      await copyApiExchangeAsMarkdown(input);
       setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
+      setTimeout(() => setCopied(false), 2000);
       promiseAlert(t.copied, t.copiedDesc);
     } catch (err) {
-      console.error("Failed to copy Markdown HTML, falling back to plain text:", err);
-      try {
-        await navigator.clipboard.writeText(md);
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-        promiseAlert(t.copied, t.copiedDesc);
-      } catch (err2) {
-        console.error("Failed to copy text:", err2);
-      }
+      console.error("Failed to copy Markdown:", err);
     }
-  }, [response, bodyText, endpoint, buildUrl, getRequestHeaders, formatBodyText, promiseAlert, t.copied, t.copiedDesc]);
+  }, [buildCopyInput, promiseAlert, t.copied, t.copiedDesc]);
 
-  const pathParams = endpoint.parameters.filter((p) => p.in === "path");
-  const queryParams = endpoint.parameters.filter((p) => p.in === "query");
-  const headerParams = endpoint.parameters.filter((p) => p.in === "header");
-
-  const [headersOpen, setHeadersOpen] = useState(false);
-  const hasParams = pathParams.length > 0 || queryParams.length > 0 || headerParams.length > 0;
+  const openApiParams = endpoint.parameters.filter((p) => p.in !== "cookie");
 
   return (
     <div className="space-y-3 relative">
@@ -757,244 +586,193 @@ ${formattedResBody ? `\n[Response Body]\n${formattedResBody}\n` : ""}
         />
       )}
 
-      <div className={`rounded-xl border p-4 shadow-sm ${ms.bg}`}>
-        <div className="flex items-center gap-4">
-          <Badge variant={{ color: ms.color, size: "md" }} className="font-black tracking-tight">
-            {endpoint.method.toUpperCase()}
-          </Badge>
-          <code className="font-mono text-sm font-black text-base-content flex-1 min-w-0 truncate tracking-tight">
-            {endpoint.path}
-          </code>
-          <div className="flex items-center gap-2">
-            {/* Copy Dropdown - only when response exists */}
-            {response && (
-              <div className="relative inline-block text-left" ref={dropdownRef}>
+      <ApiRequestForm
+        draft={draft}
+        onChange={updateDraft}
+        suggestions={suggestions}
+        endpoint={endpoint}
+        method={endpoint.method}
+        labels={{ origin: t.origin, pathname: t.pathname }}
+        config={fieldConfig}
+        className="space-y-3"
+      >
+        <div className={`rounded-xl border p-4 shadow-sm ${ms.bg}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <Badge variant={{ color: ms.color, size: "md" }} className="font-black tracking-tight shrink-0">
+              {endpoint.method.toUpperCase()}
+            </Badge>
+            <span className="text-xs font-black text-base-content/50 uppercase tracking-widest">
+              {endpoint.summary ?? endpoint.path}
+            </span>
+          </div>
+
+          <ApiRequestForm.Header
+            method={endpoint.method}
+            actions={
+              <>
+                {response && (
+                  <div className="relative inline-block text-left" ref={dropdownRef}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsDropdownOpen((prev) => !prev)}
+                      className="gap-1.5 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
+                      type="button"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-success" />
+                          <span className="text-success">{t.copied}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{t.btnCopy}</span>
+                          <ChevronDown className="w-3 h-3 text-base-content/40" />
+                        </>
+                      )}
+                    </Button>
+
+                    {isDropdownOpen && (
+                      <div className="absolute right-0 mt-1 w-44 bg-base-100 border border-base-300 rounded-xl shadow-xl z-50 py-1 overflow-hidden backdrop-blur-md bg-base-100/95">
+                        <button
+                          type="button"
+                          className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 text-base-content font-bold transition-colors cursor-pointer"
+                          onClick={handleCopyHtml}
+                        >
+                          {t.copyHtml}
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 border-t border-base-200 text-base-content font-bold transition-colors cursor-pointer"
+                          onClick={handleCopyMarkdown}
+                        >
+                          {t.copyMarkdown}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => setIsDropdownOpen((prev) => !prev)}
-                  className="gap-1.5 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
+                  className="gap-2 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
+                  onClick={handleOpenInClient}
+                  title={t.openInClient}
                   type="button"
                 >
-                  {copied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-success" />
-                      <span className="text-success">{t.copied}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>{t.btnCopy}</span>
-                      <ChevronDown className="w-3 h-3 text-base-content/40" />
-                    </>
-                  )}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {t.openInClient}
                 </Button>
-
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-1 w-44 bg-base-100 border border-base-300 rounded-xl shadow-xl z-50 py-1 overflow-hidden backdrop-blur-md bg-base-100/95">
-                    <button
-                      type="button"
-                      className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 text-base-content font-bold transition-colors cursor-pointer"
-                      onClick={handleCopyHtml}
-                    >
-                      {t.copyHtml}
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 border-t border-base-200 text-base-content font-bold transition-colors cursor-pointer"
-                      onClick={handleCopyMarkdown}
-                    >
-                      {t.copyMarkdown}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="gap-2 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
-              onClick={() => setHistoryOpen(true)}
-              title={t.history}
-              type="button"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              {t.history}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              className="gap-2 shrink-0 flex items-center font-bold tracking-tight shadow-lg shadow-primary/20"
-              disabled={sending}
-              onClick={handleSend}
-              type="button"
-            >
-              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              {t.send}
-            </Button>
-          </div>
-        </div>
-        {endpoint.summary && (
-          <p className="text-sm font-medium text-base-content/60 mt-3 border-t border-base-content/5 pt-3 leading-relaxed">
-            {endpoint.summary}
-          </p>
-        )}
-        <p className="text-[10px] text-base-content/30 mt-2 font-mono truncate bg-base-100/50 px-2 py-1 rounded border border-base-content/5">
-          {buildUrl()}
-        </p>
-      </div>
-
-      {hasParams && (
-        <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl">
-          <h3 className="text-[10px] font-black text-base-content/40 mb-4 uppercase tracking-widest">{t.parameters}</h3>
-          <div className="space-y-2">
-            {[...pathParams, ...queryParams, ...headerParams].map((p) => (
-              <div
-                key={`${p.in}-${p.name}`}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-base-200/50 transition-colors"
-              >
-                <span
-                  className={`text-[9px] font-black uppercase w-12 text-center shrink-0 p-1 rounded border overflow-hidden ${
-                    p.in === "path"
-                      ? "text-warning bg-warning/10 border-warning/20"
-                      : p.in === "header"
-                        ? "text-info bg-info/10 border-info/20"
-                        : "text-base-content/40 bg-base-200 border-base-300"
-                  }`}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-2 shrink-0 flex items-center bg-base-100 border-base-300 font-bold tracking-tight"
+                  onClick={() => setHistoryOpen(true)}
+                  title={t.history}
+                  type="button"
                 >
-                  {p.in}
-                </span>
-                <span
-                  className="text-xs font-bold text-base-content w-40 shrink-0 truncate tracking-tight"
-                  title={p.description ? `${p.name} — ${p.description}` : p.name}
+                  <Clock className="w-3.5 h-3.5" />
+                  {t.history}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="gap-2 shrink-0 flex items-center font-bold tracking-tight shadow-lg shadow-primary/20"
+                  disabled={sending}
+                  onClick={handleSend}
+                  type="button"
                 >
-                  {p.name}
-                  {p.required && <span className="text-error ml-0.5">*</span>}
-                </span>
-                <Input
-                  className="flex-1 h-8 text-xs font-bold tracking-tight bg-base-200 border-transparent focus:bg-base-100"
-                  placeholder={p.type}
-                  aria-label={p.name}
-                  value={paramValues[p.name] ?? ""}
-                  onChange={(e) =>
-                    updateForm({
-                      paramValues: { ...paramValues, [p.name]: e.target.value },
-                    })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {endpoint.requestBody && (
-        <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl">
-          <h3 className="text-[10px] font-black text-base-content/40 mb-3 uppercase tracking-widest flex items-center justify-between">
-            {t.body}
-            <span className="text-[9px] font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-full">
-              {endpoint.requestBody.contentType}
-            </span>
-          </h3>
-          <textarea
-            className="w-full border border-base-300 rounded-xl px-4 py-3 text-xs font-mono bg-base-200/50 focus:ring-2 focus:ring-primary focus:bg-base-100 focus:border-transparent outline-none resize-y min-h-[120px] transition-all shadow-inner text-base-content"
-            value={bodyText}
-            onChange={(e) => updateForm({ bodyText: e.target.value })}
-            spellCheck={false}
+                  {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                  {t.send}
+                </Button>
+              </>
+            }
           />
-        </Card>
-      )}
+        </div>
 
-      <div className="border border-base-300 rounded-2xl bg-base-100 overflow-hidden shadow-sm">
-        <button
-          type="button"
-          className="flex items-center gap-3 w-full text-left px-4 py-3 text-[10px] font-black text-base-content/40 hover:text-base-content/80 hover:bg-base-200 transition-all uppercase tracking-widest"
-          onClick={() => setHeadersOpen((o) => !o)}
-        >
-          {headersOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          {t.customHeaders}
-          {headerText.trim() && (
-            <span className="text-[9px] bg-primary text-primary-content px-2 py-0.5 rounded-full font-black animate-in zoom-in">
-              {headerText.trim().split("\n").length}
-            </span>
-          )}
-        </button>
-        {headersOpen && (
-          <div className="px-4 pb-4 animate-in slide-in-from-top-2">
-            <textarea
-              className="w-full border border-base-300 rounded-xl px-4 py-3 text-xs font-mono bg-base-200/50 focus:ring-2 focus:ring-primary focus:bg-base-100 focus:border-transparent outline-none resize-y min-h-[80px] transition-all shadow-inner text-base-content"
-              placeholder={"Authorization: Bearer token\nAccept: application/json"}
-              value={headerText}
-              onChange={(e) => updateForm({ headerText: e.target.value })}
-              spellCheck={false}
-              rows={2}
-            />
-          </div>
-        )}
-      </div>
+        <ApiRequestForm.Params parameters={openApiParams} title={t.parameters} />
 
-      {error && (
-        <Card className="p-3 bg-red-50 border-red-200">
-          <h3 className="text-xs font-bold text-red-700 mb-1">{t.error}</h3>
-          <p className="text-xs text-red-600 font-mono whitespace-pre-wrap break-all">{error}</p>
-        </Card>
-      )}
+        <ApiRequestForm.When when={!!endpoint.requestBody}>
+          <ApiRequestForm.Body title={t.body} contentType={endpoint.requestBody?.contentType} />
+        </ApiRequestForm.When>
 
-      {response && (
-        <Card className="p-5 bg-base-100 border-base-300 shadow-xl rounded-2xl animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-3 mb-4 p-3 bg-base-200/50 rounded-xl border border-base-300/50">
-            <Badge
-              variant={{ color: getTextStatusColor(response.statusCode), size: "md" }}
-              className="font-black tabular-nums scale-110"
-            >
-              {response.statusCode}
-            </Badge>
-            <span className="text-xs font-black text-base-content/40 uppercase tracking-widest tabular-nums">
-              {response.elapsedMs}ms
-            </span>
-            <div className="flex-1" />
-            <ResponseHeaders headers={response.headers} />
-          </div>
-          <div className="relative group/res">
-            <pre className="text-xs font-mono bg-base-200/50 border border-base-300 rounded-xl p-4 overflow-auto max-h-[500px] whitespace-pre-wrap break-all shadow-inner text-base-content/90 selection:bg-primary/30">
-              {formattedBody || t.empty}
-            </pre>
-          </div>
-        </Card>
-      )}
+        <ApiRequestForm.Headers
+          title={t.customHeaders}
+          labels={{
+            addHeader: t.addHeader,
+            key: t.headerKey,
+            value: t.headerValue,
+          }}
+        />
+      </ApiRequestForm>
+
+      {/* Reusable Response Viewer Component */}
+      <ApiResponseViewer
+        loading={sending}
+        response={response}
+        error={error}
+        t={buildApiResponseViewerLabels(t)}
+        showSchemaTab={true}
+        enableSchemaValidation={enableSchemaValidation}
+        onToggleSchemaValidation={setEnableSchemaValidation}
+        schemaText={schemaText}
+        onChangeSchemaText={setSchemaText}
+        schemaValidationResult={schemaValidationResult}
+        savedJsonSchemas={savedJsonSchemas}
+        hideOnEmpty={true}
+        heightClass="min-h-[560px] mt-4"
+      />
     </div>
   );
 }
 
-function ResponseHeaders({ headers }: { headers: Record<string, string> }) {
+// ── Schema Options ───────────────────────────────────────────────────────────
+
+type SchemaPageTab = "endpoints" | "options";
+
+function SchemaOptionsPanel() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const [open, setOpen] = useState(false);
-  const entries = Object.entries(headers);
-  if (entries.length === 0) {
-    return null;
-  }
+  const [fieldOverrides, setFieldOverrides] = useAtom(apiSchemaFieldOverridesAtom);
+  const fieldConfig = useMemo(() => mergeFieldConfig(SCHEMA_FIELD_CONFIG, fieldOverrides), [fieldOverrides]);
+
+  const handleConfigChange = useCallback(
+    (field: keyof ApiRequestFieldConfig, control: Partial<FieldControl>) => {
+      setFieldOverrides((prev) => ({
+        ...prev,
+        [field]: { ...prev[field], ...control },
+      }));
+    },
+    [setFieldOverrides],
+  );
 
   return (
-    <div>
-      <button
-        type="button"
-        className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        {t.headers(entries.length)}
-      </button>
-      {open && (
-        <div className="mt-2 text-xs font-mono text-base-content/80 bg-base-200/80 backdrop-blur-sm rounded-xl p-3 border border-base-300 max-h-[250px] overflow-auto shadow-xl animate-in zoom-in-95 origin-top-right">
-          {entries.map(([k, v]) => (
-            <div key={k} className="py-1 border-b border-base-content/5 last:border-0 truncate">
-              <span className="text-base-content/40 font-bold uppercase text-[9px] mr-2">{k}:</span> {v}
-            </div>
-          ))}
+    <Card className="p-6 max-w-2xl bg-base-100 border-base-300 shadow-xl rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex items-start gap-3 mb-6">
+        <div className="p-2 bg-secondary/10 text-secondary rounded-lg shrink-0">
+          <Settings2 className="w-5 h-5" />
         </div>
-      )}
-    </div>
+        <div>
+          <h2 className="text-lg font-black tracking-tight text-base-content">{t.optionsTitle}</h2>
+          <p className="text-sm text-base-content/60 mt-1">{t.optionsSubtitle}</p>
+        </div>
+      </div>
+
+      <FieldPermissionsCard
+        title={t.fieldSettings}
+        labels={{
+          method: t.fieldMethod,
+          origin: t.origin,
+          pathname: t.pathname,
+          params: t.parameters,
+          body: t.body,
+          headers: t.customHeaders,
+        }}
+        config={fieldConfig}
+        onConfigChange={handleConfigChange}
+      />
+    </Card>
   );
 }
 
@@ -1017,6 +795,7 @@ function ApiSchemaPage() {
 
   const [search, setSearch] = useAtom(apiSchemaSearchAtom);
   const [selectedEndpoint, setSelectedEndpoint] = useAtom(apiSchemaSelectedEndpointAtom);
+  const [activeTab, setActiveTab] = useState<SchemaPageTab>("endpoints");
 
   useEffect(() => {
     (async () => {
@@ -1126,147 +905,185 @@ function ApiSchemaPage() {
     return domainOrigin;
   }, [selectedDomainId, domainMap, parsedSpec]);
 
+  const serverOrigins = useMemo(
+    () => parsedSpec?.servers?.map((server) => server.url).filter(Boolean) ?? [],
+    [parsedSpec],
+  );
+
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-10rem)] overflow-hidden">
       {/* Header */}
-      <header className="shrink-0">
-        <div className="flex items-center gap-3 mb-2">
+      <header className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between border-b border-base-200 pb-3">
+        <div className="flex items-center gap-3">
           <div className="p-2 bg-secondary/10 text-secondary rounded-lg">
             <BookOpen className="w-5 h-5" />
           </div>
-          <H1 className="text-3xl font-black tracking-tight text-base-content">{t.title}</H1>
+          <div>
+            <H1 className="text-2xl font-bold tracking-tight text-base-content">{t.title}</H1>
+            <P className="text-base-content/60 text-xs font-medium">{t.subtitle}</P>
+          </div>
         </div>
-        <P className="text-base-content/60 text-sm font-medium">{t.subtitle}</P>
       </header>
 
-      {/* Domain selector */}
-      <Card className="p-1 items-center gap-2 flex flex-wrap bg-base-100 border-base-300 shadow-xl rounded-2xl mb-6 relative z-10">
-        <div className="pl-4 pr-3 py-2 flex items-center gap-3 border-r border-base-300 shrink-0">
-          <Globe className="w-4 h-4 text-primary" />
-          <span className="text-xs font-black text-base-content/40 whitespace-nowrap hidden sm:inline-block uppercase tracking-widest">
-            {t.targetApi}
-          </span>
-        </div>
-
-        <div className="relative flex-1 min-w-[200px] group/sel">
-          <select
-            id="domain-select"
-            className="appearance-none w-full bg-transparent border-none py-2.5 pl-3 pr-10 text-sm font-bold text-base-content focus:ring-0 cursor-pointer outline-none transition-all"
-            value={selectedDomainId ?? ""}
-            onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="" className="bg-base-100">
-              {t.selectDomain}
-            </option>
-            {schemaLinks.map((link) => {
-              const domain = domainMap.get(link.domainId);
-              return (
-                <option key={link.domainId} value={link.domainId} className="bg-base-100">
-                  {domain?.url ?? `Domain #${link.domainId}`}
-                </option>
-              );
-            })}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 pointer-events-none group-hover/sel:text-primary transition-colors" />
-        </div>
-
-        {schemaLoading ? (
-          <div className="flex items-center gap-3 mr-5 p-2 px-4 bg-primary/5 text-primary rounded-xl text-xs font-black uppercase tracking-widest shadow-inner">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {t.parsingSchema}
+      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+        {/* Domain selector */}
+        <Card className="p-1 items-center gap-2 flex flex-wrap bg-base-100 border-base-300 shadow-xl rounded-2xl mb-6 relative z-10">
+          <div className="pl-4 pr-3 py-2 flex items-center gap-3 border-r border-base-300 shrink-0">
+            <Globe className="w-4 h-4 text-primary" />
+            <span className="text-xs font-black text-base-content/40 whitespace-nowrap hidden sm:inline-block uppercase tracking-widest">
+              {t.targetApi}
+            </span>
           </div>
-        ) : (
-          parsedSpec && (
-            <div className="hidden md:flex items-center gap-4 mr-4 p-2 px-4 bg-primary/10 text-primary rounded-xl text-xs font-bold border border-primary/20 animate-in fade-in slide-in-from-right-4 shrink-0 shadow-sm">
-              <span className="font-black uppercase tracking-tight">{parsedSpec.info.title}</span>
-              <span className="w-px h-3 bg-primary/20" />
-              <span className="font-mono tabular-nums">v{parsedSpec.info.version}</span>
-              <span className="w-px h-3 bg-primary/20" />
-              <span className="font-black uppercase tracking-tighter">{t.endpointsCount(allEndpoints.length)}</span>
-            </div>
-          )
-        )}
-      </Card>
 
-      {/* Parse error */}
-      {parseError && (
-        <Card className="p-4 bg-red-50 border-red-200">
-          <p className="text-sm text-red-700">{parseError}</p>
-        </Card>
-      )}
-
-      {/* Main content: 2 panel */}
-      {parsedSpec && (
-        <div className="flex gap-4 flex-1 min-h-0">
-          {/* Left: endpoint list */}
-          <Card className="w-80 shrink-0 bg-base-100 border-base-300 flex flex-col shadow-xl overflow-hidden min-h-0 rounded-2xl transition-all">
-            <div className="p-4 border-b border-base-300 bg-base-200/50">
-              <div className="relative group/sch">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30 group-focus-within/sch:text-primary transition-colors" />
-                <Input
-                  className="pl-10 h-10 text-xs w-full bg-base-100 border-base-300 focus:border-primary/50 font-bold tracking-tight"
-                  placeholder={t.searchEndpoints}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
-              {tagGroups.map((g) => (
-                <TagSection
-                  key={g.tag}
-                  group={g}
-                  selected={selectedEndpoint}
-                  onSelect={setSelectedEndpoint}
-                  search={search}
-                />
-              ))}
-            </div>
-          </Card>
-
-          {/* Right: detail + request form (independently scrollable) */}
-          <div className="flex-1 overflow-y-auto">
-            {selectedEndpoint && selectedDomainId ? (
-              <EndpointDetail
-                endpoint={selectedEndpoint}
-                baseUrl={baseUrl}
-                host={baseUrl.replace(/^https?:\/\//, "").split("/")[0]}
-                domainId={selectedDomainId}
-              />
-            ) : (
-              <Card className="p-12 flex flex-col items-center justify-center text-center min-h-[400px] bg-base-100 border-base-300 shadow-xl rounded-[2.5rem] animate-in fade-in zoom-in-95 duration-500">
-                <BookOpen className="w-16 h-16 text-base-content/10 mb-6 drop-shadow-xl" />
-                <p className="text-base-content/60 text-lg font-black tracking-tight uppercase">{t.selectEndpoint}</p>
-                <p className="text-base-content/20 text-xs mt-2 font-black uppercase tracking-[0.2em]">
-                  {t.endpointsInfo(allEndpoints.length, tagGroups.length)}
-                </p>
-              </Card>
-            )}
+          <div className="relative flex-1 min-w-[200px] group/sel">
+            <select
+              id="domain-select"
+              className="appearance-none w-full bg-transparent border-none py-2.5 pl-3 pr-10 text-sm font-bold text-base-content focus:ring-0 cursor-pointer outline-none transition-all"
+              value={selectedDomainId ?? ""}
+              onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading}
+            >
+              <option value="" className="bg-base-100">
+                {t.selectDomain}
+              </option>
+              {schemaLinks.map((link) => {
+                const domain = domainMap.get(link.domainId);
+                return (
+                  <option key={link.domainId} value={link.domainId} className="bg-base-100">
+                    {domain?.url ?? `Domain #${link.domainId}`}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 pointer-events-none group-hover/sel:text-primary transition-colors" />
           </div>
-        </div>
-      )}
 
-      {/* Empty state when no domain selected */}
-      {!parsedSpec && !schemaLoading && !parseError && (
-        <Card className="flex-1 flex flex-col items-center justify-center text-center bg-base-100/50 backdrop-blur-sm border-base-300 shadow-2xl rounded-[3rem] animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <div className="p-8 bg-primary/5 rounded-[2.5rem] mb-8 ring-1 ring-primary/10">
-            <BookOpen className="w-24 h-24 text-primary/40" />
-          </div>
-          <p className="text-base-content/60 text-xl font-black tracking-tighter uppercase mb-2">
-            {t.chooseDomainToStart}
-          </p>
-          {schemaLinks.length === 0 ? (
-            <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em] max-w-sm leading-relaxed">
-              No domains with Schema URL found. Register them in the Dashboard first.
-            </p>
+          {schemaLoading ? (
+            <div className="flex items-center gap-3 mr-5 p-2 px-4 bg-primary/5 text-primary rounded-xl text-xs font-black uppercase tracking-widest shadow-inner">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t.parsingSchema}
+            </div>
           ) : (
-            <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em]">
-              {t.registeredDomains(schemaLinks.length)} available
-            </p>
+            parsedSpec && (
+              <div className="hidden md:flex items-center gap-4 mr-4 p-2 px-4 bg-primary/10 text-primary rounded-xl text-xs font-bold border border-primary/20 animate-in fade-in slide-in-from-right-4 shrink-0 shadow-sm">
+                <span className="font-black uppercase tracking-tight">{parsedSpec.info.title}</span>
+                <span className="w-px h-3 bg-primary/20" />
+                <span className="font-mono tabular-nums">v{parsedSpec.info.version}</span>
+                <span className="w-px h-3 bg-primary/20" />
+                <span className="font-black uppercase tracking-tighter">{t.endpointsCount(allEndpoints.length)}</span>
+              </div>
+            )
           )}
         </Card>
-      )}
+
+        <div className="tabs tabs-boxed w-fit shrink-0">
+          <button
+            type="button"
+            className={`tab gap-1.5 font-bold text-xs uppercase tracking-wider ${activeTab === "endpoints" ? "tab-active" : ""}`}
+            onClick={() => setActiveTab("endpoints")}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            {t.tabEndpoints}
+          </button>
+          <button
+            type="button"
+            className={`tab gap-1.5 font-bold text-xs uppercase tracking-wider ${activeTab === "options" ? "tab-active" : ""}`}
+            onClick={() => setActiveTab("options")}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            {t.tabOptions}
+          </button>
+        </div>
+
+        {activeTab === "options" && <SchemaOptionsPanel />}
+
+        {activeTab === "endpoints" && (
+          <>
+            {/* Parse error */}
+            {parseError && (
+              <Card className="p-4 bg-red-50 border-red-200">
+                <p className="text-sm text-red-700">{parseError}</p>
+              </Card>
+            )}
+
+            {/* Main content: 2 panel */}
+            {parsedSpec && (
+              <div className="flex gap-4 flex-1 min-h-0">
+                {/* Left: endpoint list */}
+                <Card className="w-80 shrink-0 bg-base-100 border-base-300 flex flex-col shadow-xl overflow-hidden min-h-0 rounded-2xl transition-all">
+                  <div className="p-4 border-b border-base-300 bg-base-200/50">
+                    <div className="relative group/sch">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/30 group-focus-within/sch:text-primary transition-colors" />
+                      <Input
+                        className="pl-10 h-10 text-xs w-full bg-base-100 border-base-300 focus:border-primary/50 font-bold tracking-tight"
+                        placeholder={t.searchEndpoints}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
+                    {tagGroups.map((g) => (
+                      <TagSection
+                        key={g.tag}
+                        group={g}
+                        selected={selectedEndpoint}
+                        onSelect={setSelectedEndpoint}
+                        search={search}
+                      />
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Right: detail + request form (independently scrollable) */}
+                <div className="flex-1 overflow-y-auto">
+                  {selectedEndpoint && selectedDomainId ? (
+                    <EndpointDetail
+                      endpoint={selectedEndpoint}
+                      baseUrl={baseUrl}
+                      host={baseUrl.replace(/^https?:\/\//, "").split("/")[0]}
+                      domainId={selectedDomainId}
+                      allEndpoints={allEndpoints}
+                      serverOrigins={serverOrigins}
+                    />
+                  ) : (
+                    <Card className="p-12 flex flex-col items-center justify-center text-center min-h-[400px] bg-base-100 border-base-300 shadow-xl rounded-[2.5rem] animate-in fade-in zoom-in-95 duration-500">
+                      <BookOpen className="w-16 h-16 text-base-content/10 mb-6 drop-shadow-xl" />
+                      <p className="text-base-content/60 text-lg font-black tracking-tight uppercase">
+                        {t.selectEndpoint}
+                      </p>
+                      <p className="text-base-content/20 text-xs mt-2 font-black uppercase tracking-[0.2em]">
+                        {t.endpointsInfo(allEndpoints.length, tagGroups.length)}
+                      </p>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when no domain selected */}
+            {!parsedSpec && !schemaLoading && !parseError && (
+              <Card className="flex-1 flex flex-col items-center justify-center text-center bg-base-100/50 backdrop-blur-sm border-base-300 shadow-2xl rounded-[3rem] animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div className="p-8 bg-primary/5 rounded-[2.5rem] mb-8 ring-1 ring-primary/10">
+                  <BookOpen className="w-24 h-24 text-primary/40" />
+                </div>
+                <p className="text-base-content/60 text-xl font-black tracking-tighter uppercase mb-2">
+                  {t.chooseDomainToStart}
+                </p>
+                {schemaLinks.length === 0 ? (
+                  <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em] max-w-sm leading-relaxed">
+                    No domains with Schema URL found. Register them in the Dashboard first.
+                  </p>
+                ) : (
+                  <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em]">
+                    {t.registeredDomains(schemaLinks.length)} available
+                  </p>
+                )}
+              </Card>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

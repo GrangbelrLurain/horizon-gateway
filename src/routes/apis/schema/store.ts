@@ -1,14 +1,25 @@
+import type { ApiRequestFieldConfig, HeaderRow } from "@/entities/api-request";
 import type { ApiRequestResult } from "@/shared/api";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
 import type { ParsedEndpoint } from "@/shared/lib/openapi-parser";
 
 export interface EndpointFormState {
+  origin?: string;
+  pathname?: string;
   paramValues: Record<string, string>;
   bodyText: string;
-  headerText: string;
+  /** @deprecated migrated to headers rows */
+  headerText?: string;
+  headers?: HeaderRow[];
   response: ApiRequestResult | null;
   error: string | null;
 }
+
+/** Global field edit permissions for API Schema request forms */
+export const apiSchemaFieldOverridesAtom = atomWithWindowStorage<Partial<ApiRequestFieldConfig>>(
+  "api_schema_field_overrides",
+  {},
+);
 
 export const apiSchemaSelectedDomainIdAtom = atomWithWindowStorage<number | null>(
   "api_schema_selected_domain_id",
