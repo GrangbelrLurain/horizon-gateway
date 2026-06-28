@@ -154,10 +154,13 @@ function PreviewNodeComponent({ data }: { data: any }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
+  const config = data.config || {};
+  const code = config.code || "";
+  const previewData = data.previewData;
 
   return (
     <div
-      className={`p-3 rounded-xl border bg-base-100 shadow-md min-w-[180px] transition-all ${
+      className={`p-3 rounded-xl border bg-base-100 shadow-md w-[320px] transition-all ${
         isRunning
           ? "border-primary ring-2 ring-primary/20 animate-pulse"
           : isSuccess
@@ -172,7 +175,15 @@ function PreviewNodeComponent({ data }: { data: any }) {
         <Tv className="w-4 h-4 text-secondary" />
         <span className="text-xs font-bold text-base-content/80">UI Preview</span>
       </div>
-      <div className="text-[10px] font-semibold text-base-content/60">React Live Preview</div>
+      {isSuccess && code ? (
+        <div className="w-full h-[200px] border border-base-200 rounded-lg overflow-hidden bg-white mt-1.5 relative">
+          <LivePreviewer code={code} initialData={previewData} />
+        </div>
+      ) : (
+        <div className="text-[10px] font-semibold text-base-content/60 py-8 text-center italic bg-base-200/30 rounded-lg border border-dashed border-base-300 mt-1.5">
+          {isRunning ? "실행 중..." : "파이프라인 실행 후 UI 렌더링"}
+        </div>
+      )}
     </div>
   );
 }
@@ -627,12 +638,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     let order: string[] = [];
     try {
       order = sortDag(nodes, edges);
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       setReport({
         success: false,
         elapsedMs: Date.now() - startTime,
         results: [],
-        error: e.message || String(e),
+        error: err.message || String(e),
       });
       setExecuting(false);
       return;
@@ -657,9 +669,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
         try {
           interpolatedConfig = resolveInterpolatedValue(node.data.config, results);
-        } catch (e: any) {
+        } catch (e) {
+          const err = e as Error;
           const elapsed = Date.now() - nodeStart;
-          const errorMsg = `변수 치환 오류: ${e.message || String(e)}`;
+          const errorMsg = `변수 치환 오류: ${err.message || String(e)}`;
           results.push({
             nodeId,
             success: false,
@@ -703,12 +716,27 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             output = { valid: res.valid, errors: res.errors };
             nodeSuccess = true;
           } else if (node.type === "preview") {
-            output = interpolatedConfig;
+            const incomingEdge = edges.find((e) => e.target === node.id);
+            let parentData: any = null;
+            if (incomingEdge) {
+              const parentResult = results.find((r) => r.nodeId === incomingEdge.source);
+              if (parentResult?.success) {
+                try {
+                  parentData = JSON.parse(parentResult.output);
+                  if (parentData && parentData.result !== undefined) {
+                    parentData = parentData.result;
+                  }
+                } catch {
+                  parentData = parentResult.output;
+                }
+              }
+            }
+            output = parentData;
             nodeSuccess = true;
           } else if (node.type === "mapper") {
             const mappedObj: Record<string, any> = {};
             if (Array.isArray(interpolatedConfig.mappings)) {
-              interpolatedConfig.mappings.forEach((m: any) => {
+              (interpolatedConfig.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach((m) => {
                 if (m.targetKey && m.targetKey.trim() !== "") {
                   mappedObj[m.targetKey.trim()] = m.sourceValue;
                 }
@@ -719,9 +747,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           } else {
             throw new Error(`지원하지 않는 노드 유형입니다: ${node.type}`);
           }
-        } catch (e: any) {
+        } catch (e) {
+          const err = e as Error;
           nodeSuccess = false;
-          nodeError = e.message || String(e);
+          nodeError = err.message || String(e);
         }
 
         const elapsed = Date.now() - nodeStart;
@@ -738,6 +767,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     isSuccess: nodeSuccess,
                     isError: !nodeSuccess,
                     elapsedMs: elapsed,
+                    ...(node.type === "preview" ? { previewData: output } : {}),
                   },
                 }
               : n,
@@ -769,9 +799,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           });
         }
       }
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as Error;
       pipelineSuccess = false;
-      pipelineError = e.message || String(e);
+      pipelineError = err.message || String(e);
     }
 
     setReport({
@@ -1230,9 +1261,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               {activeNode.type === "mapper" &&
                 (() => {
                   // 1. Create context object for editor from previous node execution results
-                  const editorContext: Record<string, any> = {};
+                  const editorContext: Record<string, unknown> = {};
                   if (report) {
-                    report.results.forEach((res: any) => {
+                    report.results.forEach((res) => {
                       try {
                         editorContext[res.nodeId] = JSON.parse(res.output);
                       } catch {
@@ -1349,7 +1380,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               className="btn btn-ghost btn-xs text-error/70 p-0 w-6 h-6 hover:bg-error/15 shrink-0 self-end mb-1"
                               onClick={() => {
                                 const newMappings = (activeNode.data.config.mappings || []).filter(
-                                  (_: any, i: number) => i !== idx,
+                                  (_: unknown, i: number) => i !== idx,
                                 );
                                 updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
                               }}
@@ -1376,9 +1407,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                               { mappings: activeNode.data.config.mappings || [] },
                               report.results,
                             );
-                            const mappedObj: any = {};
+                            const mappedObj: Record<string, unknown> = {};
                             if (Array.isArray(previewResult.mappings)) {
-                              previewResult.mappings.forEach((m: any) => {
+                              (previewResult.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach((m) => {
                                 if (m.targetKey && m.targetKey.trim() !== "") {
                                   mappedObj[m.targetKey.trim()] = m.sourceValue;
                                 }
@@ -1489,16 +1520,67 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1 shrink-0">
+                  <div className="flex flex-col gap-1 shrink-0 h-[260px]">
                     <label className="font-semibold text-base-content/75">React 컴포넌트 소스코드</label>
-                    <textarea
-                      rows={8}
-                      className="textarea textarea-bordered textarea-xs font-mono w-full focus:outline-none"
-                      value={activeNode.data.config.code || ""}
-                      onChange={(e) =>
-                        updateNodeConfig(activeNode.id, { ...activeNode.data.config, code: e.target.value })
+                    {(() => {
+                      let schemaText = "";
+                      if (activeNode.data.config.schemaId) {
+                        const foundSchema = savedJsonSchemas.find((s) => s.id === activeNode.data.config.schemaId);
+                        if (foundSchema) {
+                          schemaText = foundSchema.schemaText;
+                        }
                       }
-                    />
+
+                      const incomingEdge = edges.find((e) => e.target === activeNode.id);
+                      let previewData: any = null;
+
+                      if (incomingEdge && report) {
+                        const parentResult = report.results.find((r) => r.nodeId === incomingEdge.source);
+                        if (parentResult?.success) {
+                          try {
+                            previewData = JSON.parse(parentResult.output);
+                            if (previewData && previewData.result !== undefined) {
+                              previewData = previewData.result;
+                            }
+                          } catch {
+                            previewData = parentResult.output;
+                          }
+                        }
+                      }
+
+                      let mockDataObj: Record<string, any> = {};
+                      if (previewData && typeof previewData === "object" && !Array.isArray(previewData)) {
+                        mockDataObj = previewData;
+                      } else if (schemaText) {
+                        try {
+                          const schemaObj = JSON.parse(schemaText);
+                          if (schemaObj && typeof schemaObj.properties === "object") {
+                            Object.keys(schemaObj.properties).forEach((k) => {
+                              mockDataObj[k] = "";
+                            });
+                          }
+                        } catch {}
+                      }
+
+                      const editorContext = { props: mockDataObj };
+                      const customSuggestions = Object.keys(mockDataObj).map((key) => ({
+                        label: key,
+                        insertText: key,
+                        detail: `prop (${typeof mockDataObj[key]})`,
+                      }));
+
+                      return (
+                        <TsCodeEditor
+                          value={activeNode.data.config.code || ""}
+                          onChange={(val) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code: val })}
+                          language="typescript"
+                          context={editorContext}
+                          customSuggestions={customSuggestions}
+                          theme={theme}
+                          className="flex-1 min-h-[220px]"
+                        />
+                      );
+                    })()}
                   </div>
 
                   {/* Inline Live Previewer inside config panel */}

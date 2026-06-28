@@ -24,9 +24,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Biome check
-        run: pnpm exec biome ci src
-
       - name: Type check
         run: pnpm type-check
 

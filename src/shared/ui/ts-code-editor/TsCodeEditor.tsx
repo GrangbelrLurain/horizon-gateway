@@ -126,6 +126,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
   onEvaluate,
   theme = "watchtower-light",
 }) => {
+  const [editorKey] = useState(() => Math.random().toString(36).substring(2, 9));
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const extraLibRef = useRef<any>(null);
   const customSuggestRef = useRef<any>(null);
@@ -139,8 +140,9 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
       try {
         const res = evaluateTsCode(value, context);
         onEvaluate(res, null);
-      } catch (err: any) {
-        onEvaluate(null, err.message || String(err));
+      } catch (err) {
+        const error = err as Error;
+        onEvaluate(null, error.message || String(err));
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -162,7 +164,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
     if (dts) {
       extraLibRef.current = monacoInstance.languages.typescript.typescriptDefaults.addExtraLib(
         dts,
-        "ts:filename/watchtower-context.d.ts",
+        `ts:filename/watchtower-context-${editorKey}.d.ts`,
       );
     }
 
@@ -175,6 +177,19 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
     if (customSuggestions.length > 0) {
       customSuggestRef.current = monacoInstance.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: (model: any, position: any) => {
+          const expectedUri =
+            language === "typescript"
+              ? `file:///preview_${editorKey}.tsx`
+              : language === "javascript"
+                ? `file:///preview_${editorKey}.jsx`
+                : language === "json"
+                  ? `file:///mock_${editorKey}.json`
+                  : "";
+
+          if (expectedUri && model.uri.toString() !== expectedUri) {
+            return { suggestions: [] };
+          }
+
           // Verify we are at the root level or typing a key, not inside a dot path
           const textUntilPosition = model.getValueInRange({
             startLineNumber: 1,
@@ -217,7 +232,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
         customSuggestRef.current.dispose();
       }
     };
-  }, [context, customSuggestions, monacoInstance, language]);
+  }, [context, customSuggestions, monacoInstance, language, editorKey]);
 
   const handleEditorWillMount = (monaco: Monaco) => {
     setMonacoInstance(monaco);
@@ -344,10 +359,12 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
         language={language}
         path={
           language === "typescript"
-            ? "file:///preview.tsx"
+            ? `file:///preview_${editorKey}.tsx`
             : language === "javascript"
-              ? "file:///preview.jsx"
-              : undefined
+              ? `file:///preview_${editorKey}.jsx`
+              : language === "json"
+                ? `file:///mock_${editorKey}.json`
+                : undefined
         }
         theme={theme === "watchtower-light" ? "watchtower-light" : "watchtower-dark"}
         value={value}

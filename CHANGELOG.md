@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.0.0] - 2026-06-28
+
+### Added
+
+- **Sandbox Data Pipeline JSX/TSX Monaco Editor Integration**: Upgraded the plain `textarea` React Component code editor in the Sandbox Data Pipeline properties panel to use the high-performance `TsCodeEditor` (Monaco).
+  - Enables full TSX/JSX syntax highlighting, auto-formatting, and autocomplete suggestions.
+  - Dynamically resolves properties and structures based on either the pipeline's runtime output data (dynamic props from parent nodes) or the selected JSON validation schema.
+- **Dynamic Live Rendering Canvas Nodes**: Upgraded the Preview Node (`PreviewNodeComponent`) on the ReactFlow canvas to compile and render your JSX code inside a nested live rendering iframe directly inside the graph layout after successful pipeline execution.
+
+### Fixed
+
+- **Monaco Multi-Editor Input Collision**: Resolved a critical bug where having multiple Monaco editors (e.g. Target Keys, Source Expressions, and Preview code) active simultaneously would cause keyboard inputs to freeze or values to overwrite each other.
+  - Generates unique in-memory model paths (`file:///preview_${editorKey}.tsx` etc.) for each editor instance to isolate Monaco text buffers.
+  - Scopes global autocomplete providers and type definitions (`.d.ts` declarations) to their respective editor instance to prevent token bleeding.
+
 ## [v1.8.1] - 2026-06-11
 
 ### Fixed
