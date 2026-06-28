@@ -3,6 +3,7 @@ import { Check, CornerDownRight, Globe, Plus, Save, Trash2, X } from "lucide-rea
 import { useEffect, useMemo, useState } from "react";
 import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
 import { commands, unwrap } from "@/shared/api";
+import { parseOpenApiSpec } from "@/shared/lib/openapi-parser";
 
 interface SchemaProperty {
   id: string;
@@ -43,6 +44,12 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
   const [openApiActiveTab, setOpenApiActiveTab] = useState<"project" | "paste">("project");
   const [rawOpenApiInput, setRawOpenApiInput] = useState<string>("");
   const [isOpenApiImportOpen, setIsOpenApiImportOpen] = useState(false);
+
+  // New States for Endpoint imports
+  const [openApiImportType, setOpenApiImportType] = useState<"component" | "endpoint">("component");
+  const [openApiEndpoints, setOpenApiEndpoints] = useState<any[]>([]);
+  const [selectedEndpointKey, setSelectedEndpointKey] = useState<string>(""); // "method:path"
+  const [openApiIoType, setOpenApiIoType] = useState<"request" | "response">("response");
 
   // Load existing schema if schemaId is passed
   useEffect(() => {
@@ -219,12 +226,42 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     return m;
   }, [domains]);
 
+  // Populate schema and endpoint dropdown lists
+  const populateOpenApiOptions = (spec: any) => {
+    setOpenApiSpecJson(spec);
+    if (spec.components?.schemas) {
+      const schemaNames = Object.keys(spec.components.schemas).sort();
+      setAvailableOpenApiSchemas(schemaNames);
+      if (schemaNames.length > 0) {
+        setSelectedOpenApiSchema(schemaNames[0]);
+      }
+    } else {
+      setAvailableOpenApiSchemas([]);
+      setSelectedOpenApiSchema("");
+    }
+
+    try {
+      const { endpoints } = parseOpenApiSpec(JSON.stringify(spec));
+      setOpenApiEndpoints(endpoints || []);
+      if (endpoints && endpoints.length > 0) {
+        setSelectedEndpointKey(`${endpoints[0].method}:${endpoints[0].path}`);
+      } else {
+        setSelectedEndpointKey("");
+      }
+    } catch (_e) {
+      setOpenApiEndpoints([]);
+      setSelectedEndpointKey("");
+    }
+  };
+
   // Load schema when domain is selected
   useEffect(() => {
     if (!selectedDomainId) {
       setOpenApiSpecJson(null);
       setAvailableOpenApiSchemas([]);
       setSelectedOpenApiSchema("");
+      setOpenApiEndpoints([]);
+      setSelectedEndpointKey("");
       return;
     }
 
@@ -233,18 +270,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
         const res = await commands.getApiSchemaContent({ domainId: Number(selectedDomainId) }).then(unwrap);
         if (res.success && res.data) {
           const spec = JSON.parse(res.data);
-          setOpenApiSpecJson(spec);
-          if (spec.components?.schemas) {
-            const schemaNames = Object.keys(spec.components.schemas).sort();
-            setAvailableOpenApiSchemas(schemaNames);
-            if (schemaNames.length > 0) {
-              setSelectedOpenApiSchema(schemaNames[0]);
-            }
-          } else {
-            setAvailableOpenApiSchemas([]);
-            setSelectedOpenApiSchema("");
-            alert("선택한 OpenAPI 스펙에 components.schemas가 존재하지 않습니다.");
-          }
+          populateOpenApiOptions(spec);
         } else {
           alert("OpenAPI 스키마 콘텐츠를 가져오는데 실패했습니다.");
         }
@@ -252,36 +278,92 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
         alert(`OpenAPI 스펙 파싱 실패: ${e}`);
       }
     })();
-  }, [selectedDomainId]);
+  }, [selectedDomainId, populateOpenApiOptions]);
 
   // Parse pasted OpenAPI input
   useEffect(() => {
     if (openApiActiveTab === "paste" && rawOpenApiInput.trim()) {
       try {
         const spec = JSON.parse(rawOpenApiInput);
-        setOpenApiSpecJson(spec);
-        if (spec.components?.schemas) {
-          const schemaNames = Object.keys(spec.components.schemas).sort();
-          setAvailableOpenApiSchemas(schemaNames);
-          if (schemaNames.length > 0) {
-            setSelectedOpenApiSchema(schemaNames[0]);
-          }
-        } else {
-          setAvailableOpenApiSchemas([]);
-          setSelectedOpenApiSchema("");
-        }
+        populateOpenApiOptions(spec);
       } catch (_e) {
         setOpenApiSpecJson(null);
         setAvailableOpenApiSchemas([]);
         setSelectedOpenApiSchema("");
+        setOpenApiEndpoints([]);
+        setSelectedEndpointKey("");
       }
     }
-  }, [rawOpenApiInput, openApiActiveTab]);
+  }, [rawOpenApiInput, openApiActiveTab, populateOpenApiOptions]);
+
+  // Helper to extract nested schema block from endpoints
+  const getEndpointSchema = (spec: any, path: string, method: string, type: "request" | "response"): any => {
+    const operation = spec.paths?.[path]?.[method];
+    if (!operation) {
+      return null;
+    }
+
+    if (type === "request") {
+      const requestBody = operation.requestBody;
+      if (!requestBody) {
+        return null;
+      }
+      let rb = requestBody;
+      if (requestBody.$ref) {
+        const prefix = "#/components/requestBodies/";
+        if (requestBody.$ref.startsWith(prefix)) {
+          const name = requestBody.$ref.slice(prefix.length);
+          rb = spec.components?.requestBodies?.[name];
+        }
+      }
+      const content = rb?.content;
+      const mediaType =
+        content?.["application/json"] ||
+        content?.["*/*"] ||
+        content?.["application/x-www-form-urlencoded"] ||
+        Object.values(content || {})[0];
+      return mediaType?.schema || null;
+    } else {
+      const responses = operation.responses || {};
+      const successCode = Object.keys(responses).find((code) => code.startsWith("2")) || "default";
+      let resp = responses[successCode];
+      if (resp?.$ref) {
+        const prefix = "#/components/responses/";
+        if (resp.$ref.startsWith(prefix)) {
+          const name = resp.$ref.slice(prefix.length);
+          resp = spec.components?.responses?.[name];
+        }
+      }
+      const content = resp?.content;
+      const mediaType = content?.["application/json"] || content?.["*/*"] || Object.values(content || {})[0];
+      return mediaType?.schema || null;
+    }
+  };
 
   // Recursive OpenAPI Schema to SchemaProperty list parser
-  const importFromOpenApiSpec = (spec: any, selectedSchemaName: string) => {
-    if (!spec || !spec.components || !spec.components.schemas) {
-      alert("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
+  const importFromOpenApiSpec = (
+    spec: any,
+    target:
+      | { type: "component"; name: string }
+      | { type: "endpoint"; path: string; method: string; io: "request" | "response" },
+  ) => {
+    if (!spec) {
+      return null;
+    }
+
+    let rootSchema: any = null;
+    if (target.type === "component") {
+      if (!spec.components || !spec.components.schemas) {
+        alert("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
+        return null;
+      }
+      rootSchema = spec.components.schemas[target.name];
+    } else {
+      rootSchema = getEndpointSchema(spec, target.path, target.method, target.io);
+    }
+
+    if (!rootSchema) {
+      alert("선택한 대상 스키마가 존재하지 않거나 바디 정의가 비어 있습니다.");
       return null;
     }
 
@@ -289,12 +371,6 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     const processedDefs = new Set<string>();
     const defsToProcess: string[] = [];
     const genId = () => Math.random().toString(36).substring(2, 9);
-
-    const rootSchema = spec.components.schemas[selectedSchemaName];
-    if (!rootSchema) {
-      alert(`선택한 스키마 ${selectedSchemaName}를 찾을 수 없습니다.`);
-      return null;
-    }
 
     const parseNode = (schema: any, name: string, parentId: string | undefined, isRequired: boolean) => {
       const propId = genId();
@@ -348,7 +424,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
         parseNode(schema, name, undefined, requiredFields.includes(name));
       });
     } else {
-      parseNode(rootSchema, selectedSchemaName, undefined, false);
+      parseNode(rootSchema, target.type === "component" ? target.name : "root", undefined, false);
     }
 
     let definitionsId: string | undefined;
@@ -360,7 +436,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       }
       processedDefs.add(defName);
 
-      const defSchema = spec.components.schemas[defName];
+      const defSchema = spec.components?.schemas?.[defName];
       if (!defSchema) {
         continue;
       }
@@ -399,12 +475,28 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
   };
 
   const handleImportFromOpenApi = () => {
-    if (!openApiSpecJson || !selectedOpenApiSchema) {
-      alert("가져올 OpenAPI 스펙 또는 스키마가 로드되지 않았습니다.");
+    if (!openApiSpecJson) {
+      alert("가져올 OpenAPI 스펙이 로드되지 않았습니다.");
       return;
     }
 
-    const imported = importFromOpenApiSpec(openApiSpecJson, selectedOpenApiSchema);
+    let target: any = null;
+    if (openApiImportType === "component") {
+      if (!selectedOpenApiSchema) {
+        alert("선택된 컴포넌트 스키마가 없습니다.");
+        return;
+      }
+      target = { type: "component", name: selectedOpenApiSchema };
+    } else {
+      if (!selectedEndpointKey) {
+        alert("선택된 엔드포인트가 없습니다.");
+        return;
+      }
+      const [method, path] = selectedEndpointKey.split(":");
+      target = { type: "endpoint", path, method, io: openApiIoType };
+    }
+
+    const imported = importFromOpenApiSpec(openApiSpecJson, target);
     if (imported) {
       setProperties(imported);
       setIsOpenApiImportOpen(false);
@@ -413,6 +505,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       setOpenApiSpecJson(null);
       setAvailableOpenApiSchemas([]);
       setSelectedOpenApiSchema("");
+      setSelectedEndpointKey("");
     }
   };
 
@@ -729,7 +822,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                   {openApiActiveTab === "project" ? (
                     <div className="flex flex-col gap-1.5">
                       <select
-                        className="select select-bordered select-xs w-full text-xs"
+                        className="select select-bordered select-xs w-full text-xs font-semibold"
                         value={selectedDomainId}
                         onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : "")}
                       >
@@ -754,20 +847,114 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                     />
                   )}
 
-                  {availableOpenApiSchemas.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-base-content/40 uppercase">대상 스키마 선택</label>
-                      <select
-                        className="select select-bordered select-xs w-full text-xs font-mono font-semibold"
-                        value={selectedOpenApiSchema}
-                        onChange={(e) => setSelectedOpenApiSchema(e.target.value)}
-                      >
-                        {availableOpenApiSchemas.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
+                  {openApiSpecJson && (
+                    <div className="flex flex-col gap-2 bg-base-300/20 p-2.5 rounded-lg border border-base-300/40">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-base-content/50 uppercase">가져올 대상 구분</span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                              openApiImportType === "component"
+                                ? "bg-secondary text-white"
+                                : "bg-base-200 hover:bg-base-300 text-base-content/70"
+                            }`}
+                            onClick={() => setOpenApiImportType("component")}
+                          >
+                            컴포넌트 스키마
+                          </button>
+                          <button
+                            type="button"
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                              openApiImportType === "endpoint"
+                                ? "bg-secondary text-white"
+                                : "bg-base-200 hover:bg-base-300 text-base-content/70"
+                            }`}
+                            onClick={() => setOpenApiImportType("endpoint")}
+                          >
+                            엔드포인트 바디
+                          </button>
+                        </div>
+                      </div>
+
+                      {openApiImportType === "component" ? (
+                        availableOpenApiSchemas.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] font-bold text-base-content/40 uppercase">
+                              대상 스키마 선택
+                            </label>
+                            <select
+                              className="select select-bordered select-xs w-full text-xs font-mono font-semibold"
+                              value={selectedOpenApiSchema}
+                              onChange={(e) => setSelectedOpenApiSchema(e.target.value)}
+                            >
+                              {availableOpenApiSchemas.map((name) => (
+                                <option key={name} value={name}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-base-content/40 italic">
+                            컴포넌트 스키마 목록이 존재하지 않습니다.
+                          </span>
+                        )
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {openApiEndpoints.length > 0 ? (
+                            <>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[9px] font-bold text-base-content/40 uppercase">
+                                  엔드포인트 선택
+                                </label>
+                                <select
+                                  className="select select-bordered select-xs w-full text-xs font-mono font-semibold"
+                                  value={selectedEndpointKey}
+                                  onChange={(e) => setSelectedEndpointKey(e.target.value)}
+                                >
+                                  {openApiEndpoints.map((ep) => (
+                                    <option key={`${ep.method}:${ep.path}`} value={`${ep.method}:${ep.path}`}>
+                                      {ep.method.toUpperCase()} {ep.path} {ep.summary ? `- ${ep.summary}` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[9px] font-bold text-base-content/40 uppercase">
+                                  데이터 종류
+                                </label>
+                                <div className="flex gap-1.5">
+                                  <label className="label cursor-pointer flex items-center gap-1.5 p-0">
+                                    <input
+                                      type="radio"
+                                      name="modal-openapi-io"
+                                      className="radio radio-primary radio-xs"
+                                      checked={openApiIoType === "request"}
+                                      onChange={() => setOpenApiIoType("request")}
+                                    />
+                                    <span className="text-[10px] font-semibold">요청 바디 (Request)</span>
+                                  </label>
+                                  <label className="label cursor-pointer flex items-center gap-1.5 p-0">
+                                    <input
+                                      type="radio"
+                                      name="modal-openapi-io"
+                                      className="radio radio-primary radio-xs"
+                                      checked={openApiIoType === "response"}
+                                      onChange={() => setOpenApiIoType("response")}
+                                    />
+                                    <span className="text-[10px] font-semibold">응답 바디 (Response 200)</span>
+                                  </label>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-base-content/40 italic">
+                              엔드포인트 목록이 존재하지 않습니다.
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -782,6 +969,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                         setOpenApiSpecJson(null);
                         setAvailableOpenApiSchemas([]);
                         setSelectedOpenApiSchema("");
+                        setSelectedEndpointKey("");
                       }}
                     >
                       취소
@@ -789,7 +977,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                     <button
                       type="button"
                       className="btn btn-xs btn-primary font-bold"
-                      disabled={!selectedOpenApiSchema}
+                      disabled={openApiImportType === "component" ? !selectedOpenApiSchema : !selectedEndpointKey}
                       onClick={handleImportFromOpenApi}
                     >
                       스키마 가져오기
