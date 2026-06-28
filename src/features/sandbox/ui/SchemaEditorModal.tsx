@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Check, CornerDownRight, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, CornerDownRight, Globe, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
 
@@ -140,7 +140,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
   }, [title, description, properties]);
 
   // JSON property recursive extractor helper
-  const importFromJson = (json: any) => {
+  const importFromJson = (json: any, parentId?: string) => {
     if (!json || typeof json !== "object") {
       alert("추출할 수 있는 올바른 JSON 객체가 아닙니다.");
       return;
@@ -148,7 +148,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
 
     const parsedProps: SchemaProperty[] = [];
 
-    const parseJsonToSchemaProperties = (jsonVal: any, parentId: string | undefined) => {
+    const parseJsonToSchemaProperties = (jsonVal: any, currentParentId: string | undefined) => {
       if (!jsonVal || typeof jsonVal !== "object") {
         return;
       }
@@ -185,7 +185,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
           type,
           description: `Imported field: ${key}`,
           required: false,
-          parentId,
+          parentId: currentParentId,
         });
 
         // Recursively extract child properties
@@ -197,8 +197,18 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       });
     };
 
-    parseJsonToSchemaProperties(json, undefined);
-    setProperties(parsedProps);
+    parseJsonToSchemaProperties(json, parentId);
+
+    if (parentId) {
+      // Append mode: filter out duplicate sibling names under the parent
+      const siblingNames = properties.filter((p) => p.parentId === parentId).map((p) => p.name);
+      const uniqueNewProps = parsedProps.filter((np) => !siblingNames.includes(np.name));
+
+      setProperties([...properties, ...uniqueNewProps]);
+    } else {
+      // Overwrite mode
+      setProperties(parsedProps);
+    }
   };
 
   // Order properties in tree hierarchy
@@ -481,14 +491,25 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                       </select>
 
                       {isObjectOrArray && (
-                        <button
-                          type="button"
-                          onClick={() => addSubProperty(prop.id)}
-                          className="btn btn-primary btn-xs btn-square shrink-0 text-white"
-                          title="하위 속성 추가"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => addSubProperty(prop.id)}
+                            className="btn btn-primary btn-xs btn-square text-white"
+                            title="하위 속성 추가"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-xs btn-square hover:bg-base-200"
+                            disabled={!apiClientLastResponse}
+                            onClick={() => apiClientLastResponse && importFromJson(apiClientLastResponse, prop.id)}
+                            title="API 응답에서 하위 속성 추출하여 추가"
+                          >
+                            <Globe className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
 
