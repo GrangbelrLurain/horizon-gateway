@@ -51,6 +51,11 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
   const [selectedEndpointKey, setSelectedEndpointKey] = useState<string>(""); // "method:path"
   const [openApiIoType, setOpenApiIoType] = useState<"request" | "response">("response");
 
+  // API Log Autocomplete import states
+  const [apiLogs, setApiLogs] = useState<any[]>([]);
+  const [apiLogSearchQuery, setApiLogSearchQuery] = useState("");
+  const [isApiLogSearchOpen, setIsApiLogSearchOpen] = useState(false);
+
   // Load existing schema if schemaId is passed
   useEffect(() => {
     if (isOpen) {
@@ -279,6 +284,68 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       }
     })();
   }, [selectedDomainId, populateOpenApiOptions]);
+
+  // Fetch API logs when log search panel is opened
+  useEffect(() => {
+    if (isApiLogSearchOpen) {
+      (async () => {
+        try {
+          const today = new Date().toISOString().split("T")[0];
+          const res = await commands
+            .getApiLogs({
+              date: today,
+              domainFilter: null,
+              methodFilter: null,
+              hostFilter: null,
+              exactMatch: false,
+            })
+            .then(unwrap);
+          if (res.success) {
+            setApiLogs(res.data ?? []);
+          }
+        } catch (e) {
+          console.error("Failed to load API logs for import:", e);
+        }
+      })();
+    }
+  }, [isApiLogSearchOpen]);
+
+  const filteredApiLogs = useMemo(() => {
+    const q = apiLogSearchQuery.toLowerCase().trim();
+    if (!q) {
+      return apiLogs.slice(0, 30);
+    }
+    return apiLogs.filter(
+      (log) =>
+        (log.method || "").toLowerCase().includes(q) ||
+        (log.path || "").toLowerCase().includes(q) ||
+        (log.status_code?.toString() || "").includes(q) ||
+        (log.url || "").toLowerCase().includes(q),
+    );
+  }, [apiLogs, apiLogSearchQuery]);
+
+  const isValidJson = (str: string | null | undefined): boolean => {
+    if (!str) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(str);
+      return typeof parsed === "object" && parsed !== null;
+    } catch (_e) {
+      return false;
+    }
+  };
+
+  const handleImportJsonStr = (str: string) => {
+    try {
+      const parsed = JSON.parse(str);
+      importFromJson(parsed);
+      setIsApiLogSearchOpen(false);
+      setApiLogSearchQuery("");
+    } catch (_e) {
+      alert("JSON 파싱에 실패했습니다.");
+    }
+  };
 
   // Parse pasted OpenAPI input
   useEffect(() => {
@@ -744,16 +811,16 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
               <div className="flex gap-2 items-center">
                 <button
                   type="button"
-                  className="btn btn-xs btn-outline flex items-center gap-1 font-semibold hover:bg-base-200"
-                  disabled={!apiClientLastResponse}
-                  onClick={() => apiClientLastResponse && importFromJson(apiClientLastResponse)}
-                  title={
-                    apiClientLastResponse
-                      ? "최근 API 클라이언트 응답 값에서 속성 자동 파싱"
-                      : "최근 응답 값이 존재하지 않습니다."
-                  }
+                  className={`btn btn-xs btn-outline flex items-center gap-1 font-semibold transition-all ${
+                    isApiLogSearchOpen ? "bg-base-300" : "hover:bg-base-200"
+                  }`}
+                  onClick={() => {
+                    setIsApiLogSearchOpen(!isApiLogSearchOpen);
+                    setIsRawJsonInputOpen(false);
+                    setIsOpenApiImportOpen(false);
+                  }}
                 >
-                  🌐 최근 API 응답에서 추출
+                  🌐 최근 API 로그에서 추출
                 </button>
 
                 <button
@@ -778,6 +845,95 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                   📁 OpenAPI에서 가져오기
                 </button>
               </div>
+
+              {isApiLogSearchOpen && (
+                <div className="flex flex-col gap-2 mt-2 border-t border-base-300/60 pt-2.5 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-base-content/50 uppercase">
+                      최근 API 로그에서 가져오기
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    className="input input-bordered input-xs w-full text-xs font-semibold focus:outline-none"
+                    placeholder="API 로그 검색 (메서드, 경로, 응답코드)..."
+                    value={apiLogSearchQuery}
+                    onChange={(e) => setApiLogSearchQuery(e.target.value)}
+                  />
+                  <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto border border-base-300/60 rounded-lg bg-base-100 p-1 divide-y divide-base-200/50 shadow-inner">
+                    {filteredApiLogs.length > 0 ? (
+                      filteredApiLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex items-center justify-between p-1.5 hover:bg-base-200/50 rounded transition-colors text-[10px] gap-2"
+                        >
+                          <div className="flex items-center gap-1.5 truncate flex-1">
+                            <span
+                              className={`px-1 py-0.5 rounded font-black text-[8px] ${
+                                log.method === "GET"
+                                  ? "bg-blue-500/10 text-blue-500"
+                                  : log.method === "POST"
+                                    ? "bg-green-500/10 text-green-500"
+                                    : log.method === "PUT"
+                                      ? "bg-yellow-500/10 text-yellow-500"
+                                      : "bg-red-500/10 text-red-500"
+                              }`}
+                            >
+                              {log.method}
+                            </span>
+                            <span className="font-semibold text-base-content/85 truncate font-mono" title={log.url}>
+                              {log.path}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className={`font-semibold ${log.status_code && log.status_code >= 200 && log.status_code < 300 ? "text-success" : "text-error"}`}
+                            >
+                              {log.status_code || "---"}
+                            </span>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                disabled={!log.request_body || !isValidJson(log.request_body)}
+                                onClick={() => log.request_body && handleImportJsonStr(log.request_body)}
+                                className="btn btn-primary btn-[8px] btn-xs px-1.5 py-0.5 h-auto min-h-0 text-[8px] font-bold disabled:opacity-40"
+                                title="요청 바디에서 스키마 추출"
+                              >
+                                요청
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!log.response_body || !isValidJson(log.response_body)}
+                                onClick={() => log.response_body && handleImportJsonStr(log.response_body)}
+                                className="btn btn-secondary btn-[8px] btn-xs px-1.5 py-0.5 h-auto min-h-0 text-[8px] font-bold disabled:opacity-40"
+                                title="응답 바디에서 스키마 추출"
+                              >
+                                응답
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-base-content/40 italic p-2 text-center">
+                        검색된 최근 API 로그가 없습니다.
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-ghost hover:bg-base-300"
+                      onClick={() => {
+                        setIsApiLogSearchOpen(false);
+                        setApiLogSearchQuery("");
+                      }}
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {isOpenApiImportOpen && (
                 <div className="flex flex-col gap-2 mt-2 border-t border-base-300/60 pt-2.5 animate-fadeIn">
