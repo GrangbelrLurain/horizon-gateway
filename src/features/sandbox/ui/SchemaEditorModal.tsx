@@ -6,7 +6,7 @@ import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom }
 interface SchemaProperty {
   id: string;
   name: string;
-  type: "string" | "number" | "integer" | "boolean" | "object" | "array";
+  type: "string" | "number" | "integer" | "boolean" | "object" | "array" | "ref";
   description: string;
   required: boolean;
   parentId?: string; // Links to parent property's ID for nesting
@@ -75,32 +75,46 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
           continue;
         }
 
-        let childSchema: any = {
-          type: child.type,
-          description: child.description.trim() || undefined,
-        };
+        let childSchema: any = {};
 
-        if (child.type === "object") {
-          const subProperties = buildSchemaForNode(props, child.id);
-          if (subProperties) {
-            childSchema = {
-              ...childSchema,
-              properties: subProperties.properties,
-              required: subProperties.required,
-            };
-          } else {
-            childSchema.properties = {};
-          }
-        } else if (child.type === "array") {
-          const subProperties = buildSchemaForNode(props, child.id);
-          if (subProperties && Object.keys(subProperties.properties || {}).length > 0) {
-            childSchema.items = {
-              type: "object",
-              properties: subProperties.properties,
-              required: subProperties.required,
-            };
-          } else {
-            childSchema.items = { type: "string" };
+        if (child.type === "ref") {
+          childSchema = {
+            $ref: child.description.trim() || "#",
+          };
+        } else {
+          childSchema = {
+            type: child.type,
+            description: child.description.trim() || undefined,
+          };
+
+          if (child.type === "object") {
+            const subProperties = buildSchemaForNode(props, child.id);
+            if (subProperties) {
+              childSchema = {
+                ...childSchema,
+                properties: subProperties.properties,
+                required: subProperties.required,
+              };
+            } else {
+              childSchema.properties = {};
+            }
+          } else if (child.type === "array") {
+            const subProperties = buildSchemaForNode(props, child.id);
+            const subChildren = props.filter((p) => p.parentId === child.id);
+
+            if (subChildren.length === 1 && subChildren[0].type === "ref") {
+              childSchema.items = {
+                $ref: subChildren[0].description.trim() || "#",
+              };
+            } else if (subProperties && Object.keys(subProperties.properties || {}).length > 0) {
+              childSchema.items = {
+                type: "object",
+                properties: subProperties.properties,
+                required: subProperties.required,
+              };
+            } else {
+              childSchema.items = { type: "string" };
+            }
           }
         }
 
@@ -124,6 +138,20 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
 
     const rootSchema = buildSchemaForNode(properties, undefined);
 
+    let definitionsObj: any;
+    let defsObj: any;
+
+    if (rootSchema?.properties) {
+      if (rootSchema.properties.definitions) {
+        definitionsObj = rootSchema.properties.definitions.properties;
+        delete rootSchema.properties.definitions;
+      }
+      if (rootSchema.properties.$defs) {
+        defsObj = rootSchema.properties.$defs.properties;
+        delete rootSchema.properties.$defs;
+      }
+    }
+
     const schemaObj: Record<string, any> = {
       $schema: "http://json-schema.org/draft-07/schema#",
       title: title.trim() || undefined,
@@ -131,6 +159,13 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       type: "object",
       properties: rootSchema?.properties || {},
     };
+
+    if (definitionsObj) {
+      schemaObj.definitions = definitionsObj;
+    }
+    if (defsObj) {
+      schemaObj.$defs = defsObj;
+    }
 
     if (rootSchema?.required && rootSchema.required.length > 0) {
       schemaObj.required = rootSchema.required;
@@ -488,6 +523,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                         <option value="boolean">boolean</option>
                         <option value="object">object</option>
                         <option value="array">array</option>
+                        <option value="ref">ref (참조)</option>
                       </select>
 
                       {isObjectOrArray && (
@@ -531,7 +567,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
                       <input
                         type="text"
                         className="input input-bordered input-xs w-full text-xs focus:outline-none"
-                        placeholder="설명"
+                        placeholder={prop.type === "ref" ? "#/definitions/Category" : "설명"}
                         value={prop.description}
                         onChange={(e) => updateProperty(prop.id, "description", e.target.value)}
                       />

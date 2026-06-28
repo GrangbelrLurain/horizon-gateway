@@ -110,9 +110,10 @@ export interface SavedJsonSchema {
   properties: Array<{
     id: string;
     name: string;
-    type: "string" | "number" | "integer" | "boolean" | "object" | "array";
+    type: "string" | "number" | "integer" | "boolean" | "object" | "array" | "ref";
     description: string;
     required: boolean;
+    parentId?: string;
   }>;
   schemaText: string;
   createdAt: number;
