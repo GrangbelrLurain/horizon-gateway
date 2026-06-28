@@ -10,7 +10,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import { useAtom, useAtomValue } from "jotai";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { useCallback, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -789,10 +789,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
                           onClick={() =>
                             openSchemaEditor(true, undefined, (savedId) => {
-                              const found = savedJsonSchemas.find((s) => s.id === savedId);
+                              const store = getDefaultStore();
+                              const latestSchemas = store.get(savedJsonSchemasAtom);
+                              const found = latestSchemas.find((s) => s.id === savedId);
                               if (found) {
                                 updateNodeConfig(activeNode.id, {
                                   ...activeNode.data.config,
+                                  schemaId: savedId,
                                   schema: found.schemaText,
                                 });
                               }
@@ -801,18 +804,46 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         >
                           [+ 생성]
                         </button>
+                        {activeNode.data.config.schemaId && (
+                          <button
+                            type="button"
+                            className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
+                            onClick={() =>
+                              openSchemaEditor(false, activeNode.data.config.schemaId, (savedId) => {
+                                const store = getDefaultStore();
+                                const latestSchemas = store.get(savedJsonSchemasAtom);
+                                const found = latestSchemas.find((s) => s.id === savedId);
+                                if (found) {
+                                  updateNodeConfig(activeNode.id, {
+                                    ...activeNode.data.config,
+                                    schemaId: savedId,
+                                    schema: found.schemaText,
+                                  });
+                                }
+                              })
+                            }
+                          >
+                            [/ 편집]
+                          </button>
+                        )}
                       </div>
                     </div>
                     <select
                       className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
-                      value=""
+                      value={activeNode.data.config.schemaId || ""}
                       onChange={(e) => {
                         const selectedId = e.target.value;
                         const found = savedJsonSchemas.find((s) => s.id === selectedId);
                         if (found) {
                           updateNodeConfig(activeNode.id, {
                             ...activeNode.data.config,
+                            schemaId: selectedId,
                             schema: found.schemaText,
+                          });
+                        } else {
+                          updateNodeConfig(activeNode.id, {
+                            ...activeNode.data.config,
+                            schemaId: "",
                           });
                         }
                       }}
