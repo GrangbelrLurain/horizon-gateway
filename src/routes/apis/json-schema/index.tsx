@@ -21,6 +21,7 @@ import {
   savedJsonSchemasAtom,
   schemaBuilderCurrentSchemaAtom,
 } from "@/entities/sandbox";
+import { commands, unwrap } from "@/shared/api";
 
 export const Route = createFileRoute("/apis/json-schema/")({
   component: JsonSchemaPage,
@@ -107,6 +108,21 @@ function JsonSchemaPage() {
   const [properties, setProperties] = useState<SchemaProperty[]>([]);
   const [copied, setCopied] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+
+  // Import JSON Parser states
+  const [isRawJsonInputOpen, setIsRawJsonInputOpen] = useState(false);
+  const [rawJsonInput, setRawJsonInput] = useState("");
+
+  // OpenAPI Import states
+  const [domains, setDomains] = useState<any[]>([]);
+  const [links, setLinks] = useState<any[]>([]);
+  const [selectedDomainId, setSelectedDomainId] = useState<number | "">("");
+  const [openApiSpecJson, setOpenApiSpecJson] = useState<any>(null);
+  const [availableOpenApiSchemas, setAvailableOpenApiSchemas] = useState<string[]>([]);
+  const [selectedOpenApiSchema, setSelectedOpenApiSchema] = useState<string>("");
+  const [openApiActiveTab, setOpenApiActiveTab] = useState<"project" | "paste">("project");
+  const [rawOpenApiInput, setRawOpenApiInput] = useState<string>("");
+  const [isOpenApiImportOpen, setIsOpenApiImportOpen] = useState(false);
 
   // Load selected schema
   useEffect(() => {
@@ -249,6 +265,231 @@ function JsonSchemaPage() {
 
     return JSON.stringify(schemaObj, null, 2);
   }, [title, description, properties]);
+
+  // Load project domains for OpenAPI import
+  useEffect(() => {
+    if (isOpenApiImportOpen && openApiActiveTab === "project") {
+      (async () => {
+        try {
+          const [dRes, lRes] = await Promise.all([
+            commands.getDomains().then(unwrap),
+            commands.getDomainApiLoggingLinks().then(unwrap),
+          ]);
+          if (dRes.success) {
+            setDomains(dRes.data ?? []);
+          }
+          if (lRes.success) {
+            setLinks(lRes.data ?? []);
+          }
+        } catch (e) {
+          console.error("Failed to load domains for OpenAPI import:", e);
+        }
+      })();
+    }
+  }, [isOpenApiImportOpen, openApiActiveTab]);
+
+  // Filter domains that have schema links
+  const domainsWithSchemas = useMemo(() => {
+    const validDomainIds = new Set(links.filter((l) => l.schemaUrl).map((l) => l.domainId));
+    return domains.filter((d) => validDomainIds.has(d.id));
+  }, [domains, links]);
+
+  // Load schema when domain is selected
+  useEffect(() => {
+    if (!selectedDomainId) {
+      setOpenApiSpecJson(null);
+      setAvailableOpenApiSchemas([]);
+      setSelectedOpenApiSchema("");
+      return;
+    }
+
+    (async () => {
+      try {
+        const res = await commands.getApiSchemaContent({ domainId: Number(selectedDomainId) }).then(unwrap);
+        if (res.success && res.data) {
+          const spec = JSON.parse(res.data);
+          setOpenApiSpecJson(spec);
+          if (spec.components?.schemas) {
+            const schemaNames = Object.keys(spec.components.schemas).sort();
+            setAvailableOpenApiSchemas(schemaNames);
+            if (schemaNames.length > 0) {
+              setSelectedOpenApiSchema(schemaNames[0]);
+            }
+          } else {
+            setAvailableOpenApiSchemas([]);
+            setSelectedOpenApiSchema("");
+            alert("선택한 OpenAPI 스펙에 components.schemas가 존재하지 않습니다.");
+          }
+        } else {
+          alert("OpenAPI 스키마 콘텐츠를 가져오는데 실패했습니다.");
+        }
+      } catch (e) {
+        alert(`OpenAPI 스펙 파싱 실패: ${e}`);
+      }
+    })();
+  }, [selectedDomainId]);
+
+  // Parse pasted OpenAPI input
+  useEffect(() => {
+    if (openApiActiveTab === "paste" && rawOpenApiInput.trim()) {
+      try {
+        const spec = JSON.parse(rawOpenApiInput);
+        setOpenApiSpecJson(spec);
+        if (spec.components?.schemas) {
+          const schemaNames = Object.keys(spec.components.schemas).sort();
+          setAvailableOpenApiSchemas(schemaNames);
+          if (schemaNames.length > 0) {
+            setSelectedOpenApiSchema(schemaNames[0]);
+          }
+        } else {
+          setAvailableOpenApiSchemas([]);
+          setSelectedOpenApiSchema("");
+        }
+      } catch (_e) {
+        setOpenApiSpecJson(null);
+        setAvailableOpenApiSchemas([]);
+        setSelectedOpenApiSchema("");
+      }
+    }
+  }, [rawOpenApiInput, openApiActiveTab]);
+
+  // Recursive OpenAPI Schema to SchemaProperty list parser
+  const importFromOpenApiSpec = (spec: any, selectedSchemaName: string) => {
+    if (!spec || !spec.components || !spec.components.schemas) {
+      alert("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
+      return null;
+    }
+
+    const parsedProps: SchemaProperty[] = [];
+    const processedDefs = new Set<string>();
+    const defsToProcess: string[] = [];
+    const genId = () => Math.random().toString(36).substring(2, 9);
+
+    const rootSchema = spec.components.schemas[selectedSchemaName];
+    if (!rootSchema) {
+      alert(`선택한 스키마 ${selectedSchemaName}를 찾을 수 없습니다.`);
+      return null;
+    }
+
+    const parseNode = (schema: any, name: string, parentId: string | undefined, isRequired: boolean) => {
+      const propId = genId();
+
+      if (schema?.$ref) {
+        const refPath = schema.$ref;
+        let targetRef = refPath;
+        if (refPath.startsWith("#/components/schemas/")) {
+          const modelName = refPath.replace("#/components/schemas/", "");
+          targetRef = `#/definitions/${modelName}`;
+          if (!processedDefs.has(modelName)) {
+            defsToProcess.push(modelName);
+          }
+        }
+        parsedProps.push({
+          id: propId,
+          name,
+          type: "ref",
+          description: targetRef,
+          required: isRequired,
+          parentId,
+        });
+        return;
+      }
+
+      const type = schema?.type || "string";
+      const desc = schema?.description || "";
+
+      parsedProps.push({
+        id: propId,
+        name,
+        type: type === "integer" ? "integer" : (type as any),
+        description: desc,
+        required: isRequired,
+        parentId,
+      });
+
+      if (type === "object" && schema.properties) {
+        const requiredFields = schema.required || [];
+        Object.entries(schema.properties).forEach(([childName, childSchema]) => {
+          parseNode(childSchema, childName, propId, requiredFields.includes(childName));
+        });
+      } else if (type === "array" && schema.items) {
+        parseNode(schema.items, "", propId, false);
+      }
+    };
+
+    if (rootSchema.type === "object" && rootSchema.properties) {
+      const requiredFields = rootSchema.required || [];
+      Object.entries(rootSchema.properties).forEach(([name, schema]) => {
+        parseNode(schema, name, undefined, requiredFields.includes(name));
+      });
+    } else {
+      parseNode(rootSchema, selectedSchemaName, undefined, false);
+    }
+
+    let definitionsId: string | undefined;
+
+    while (defsToProcess.length > 0) {
+      const defName = defsToProcess.shift()!;
+      if (processedDefs.has(defName)) {
+        continue;
+      }
+      processedDefs.add(defName);
+
+      const defSchema = spec.components.schemas[defName];
+      if (!defSchema) {
+        continue;
+      }
+
+      if (!definitionsId) {
+        definitionsId = genId();
+        parsedProps.push({
+          id: definitionsId,
+          name: "definitions",
+          type: "object",
+          description: "Schema definitions block",
+          required: false,
+          parentId: undefined,
+        });
+      }
+
+      const modelNodeId = genId();
+      parsedProps.push({
+        id: modelNodeId,
+        name: defName,
+        type: "object",
+        description: defSchema.description || `Definition for ${defName}`,
+        required: false,
+        parentId: definitionsId,
+      });
+
+      if (defSchema.properties) {
+        const requiredFields = defSchema.required || [];
+        Object.entries(defSchema.properties).forEach(([name, schema]) => {
+          parseNode(schema, name, modelNodeId, requiredFields.includes(name));
+        });
+      }
+    }
+
+    return parsedProps;
+  };
+
+  const handleImportFromOpenApi = () => {
+    if (!openApiSpecJson || !selectedOpenApiSchema) {
+      alert("가져올 OpenAPI 스펙 또는 스키마가 로드되지 않았습니다.");
+      return;
+    }
+
+    const imported = importFromOpenApiSpec(openApiSpecJson, selectedOpenApiSchema);
+    if (imported) {
+      setProperties(imported);
+      setIsOpenApiImportOpen(false);
+      setRawOpenApiInput("");
+      setSelectedDomainId("");
+      setOpenApiSpecJson(null);
+      setAvailableOpenApiSchemas([]);
+      setSelectedOpenApiSchema("");
+    }
+  };
 
   // Sync to shared schema for pipeline nodes
   useEffect(() => {
@@ -616,6 +857,24 @@ function JsonSchemaPage() {
                     <span className="font-bold text-xs text-base-content/65 uppercase">{t.properties}</span>
                     <div className="flex gap-2">
                       <button
+                        className="btn btn-xs btn-outline flex items-center gap-1 hover:bg-base-200"
+                        onClick={() => {
+                          setIsOpenApiImportOpen(!isOpenApiImportOpen);
+                          setIsRawJsonInputOpen(false);
+                        }}
+                      >
+                        📁 {lang === "ko" ? "OpenAPI 가져오기" : "Import OpenAPI"}
+                      </button>
+                      <button
+                        className="btn btn-xs btn-outline flex items-center gap-1 hover:bg-base-200"
+                        onClick={() => {
+                          setIsRawJsonInputOpen(!isRawJsonInputOpen);
+                          setIsOpenApiImportOpen(false);
+                        }}
+                      >
+                        📋 {lang === "ko" ? "JSON 붙여넣기" : "Paste JSON"}
+                      </button>
+                      <button
                         className="btn btn-xs btn-outline btn-primary flex items-center gap-1"
                         onClick={() => importFromJson(apiClientLastResponse)}
                         disabled={!apiClientLastResponse}
@@ -627,6 +886,161 @@ function JsonSchemaPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Collapsible Panels */}
+                  {isOpenApiImportOpen && (
+                    <div className="flex flex-col gap-2 border border-base-300 bg-base-200/20 rounded-xl p-3.5 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-base-content/50 uppercase">
+                          OpenAPI 스키마 가져오기
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                              openApiActiveTab === "project"
+                                ? "bg-primary text-white"
+                                : "bg-base-200 hover:bg-base-300 text-base-content/70"
+                            }`}
+                            onClick={() => {
+                              setOpenApiActiveTab("project");
+                              setOpenApiSpecJson(null);
+                              setAvailableOpenApiSchemas([]);
+                              setSelectedOpenApiSchema("");
+                            }}
+                          >
+                            프로젝트 OpenAPI
+                          </button>
+                          <button
+                            type="button"
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                              openApiActiveTab === "paste"
+                                ? "bg-primary text-white"
+                                : "bg-base-200 hover:bg-base-300 text-base-content/70"
+                            }`}
+                            onClick={() => {
+                              setOpenApiActiveTab("paste");
+                              setOpenApiSpecJson(null);
+                              setAvailableOpenApiSchemas([]);
+                              setSelectedOpenApiSchema("");
+                            }}
+                          >
+                            직접 붙여넣기
+                          </button>
+                        </div>
+                      </div>
+
+                      {openApiActiveTab === "project" ? (
+                        <div className="flex flex-col gap-1.5">
+                          <select
+                            className="select select-bordered select-xs w-full text-xs"
+                            value={selectedDomainId}
+                            onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : "")}
+                          >
+                            <option value="">도메인 선택...</option>
+                            {domainsWithSchemas.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name} ({d.origin})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <textarea
+                          rows={4}
+                          className="textarea textarea-bordered textarea-xs font-mono w-full focus:outline-none leading-relaxed"
+                          placeholder="OpenAPI JSON 스펙을 여기에 붙여넣으세요..."
+                          value={rawOpenApiInput}
+                          onChange={(e) => setOpenApiSpecJson(e.target.value)}
+                        />
+                      )}
+
+                      {availableOpenApiSchemas.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] font-bold text-base-content/40 uppercase">
+                            대상 스키마 선택
+                          </label>
+                          <select
+                            className="select select-bordered select-xs w-full text-xs font-mono font-semibold"
+                            value={selectedOpenApiSchema}
+                            onChange={(e) => setSelectedOpenApiSchema(e.target.value)}
+                          >
+                            {availableOpenApiSchemas.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-1.5 mt-1">
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-ghost hover:bg-base-300"
+                          onClick={() => {
+                            setIsOpenApiImportOpen(false);
+                            setRawOpenApiInput("");
+                            setSelectedDomainId("");
+                            setOpenApiSpecJson(null);
+                            setAvailableOpenApiSchemas([]);
+                            setSelectedOpenApiSchema("");
+                          }}
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-primary font-bold"
+                          disabled={!selectedOpenApiSchema}
+                          onClick={handleImportFromOpenApi}
+                        >
+                          스키마 가져오기
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isRawJsonInputOpen && (
+                    <div className="flex flex-col gap-2 border border-base-300 bg-base-200/20 rounded-xl p-3.5 animate-fadeIn">
+                      <span className="text-[10px] font-bold text-base-content/50 uppercase">JSON 직접 붙여넣기</span>
+                      <textarea
+                        rows={4}
+                        className="textarea textarea-bordered textarea-xs font-mono w-full focus:outline-none leading-relaxed"
+                        placeholder='{ "id": 1, "name": "Alice", "meta": { "active": true } }'
+                        value={rawJsonInput}
+                        onChange={(e) => setRawJsonInput(e.target.value)}
+                      />
+                      <div className="flex justify-end gap-1.5 mt-1">
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-ghost hover:bg-base-300"
+                          onClick={() => {
+                            setIsRawJsonInputOpen(false);
+                            setRawJsonInput("");
+                          }}
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-primary font-bold"
+                          onClick={() => {
+                            try {
+                              const parsed = JSON.parse(rawJsonInput || "{}");
+                              importFromJson(parsed);
+                              setIsRawJsonInputOpen(false);
+                              setRawJsonInput("");
+                            } catch (err: any) {
+                              alert(`JSON 문법 에러: ${err.message}`);
+                            }
+                          }}
+                        >
+                          추출 완료
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Properties Grid Rows */}
                   <div className="space-y-4">
