@@ -289,10 +289,15 @@ function JsonSchemaPage() {
   }, [isOpenApiImportOpen, openApiActiveTab]);
 
   // Filter domains that have schema links
-  const domainsWithSchemas = useMemo(() => {
-    const validDomainIds = new Set(links.filter((l) => l.schemaUrl).map((l) => l.domainId));
-    return domains.filter((d) => validDomainIds.has(d.id));
-  }, [domains, links]);
+  const schemaLinks = useMemo(() => links.filter((l) => l.schemaUrl), [links]);
+
+  const domainMap = useMemo(() => {
+    const m = new Map<number, any>();
+    for (const d of domains) {
+      m.set(d.id, d);
+    }
+    return m;
+  }, [domains]);
 
   // Load schema when domain is selected
   useEffect(() => {
@@ -938,11 +943,14 @@ function JsonSchemaPage() {
                             onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : "")}
                           >
                             <option value="">도메인 선택...</option>
-                            {domainsWithSchemas.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name} ({d.origin})
-                              </option>
-                            ))}
+                            {schemaLinks.map((link) => {
+                              const d = domainMap.get(link.domainId);
+                              return (
+                                <option key={link.domainId} value={link.domainId}>
+                                  {d?.url ?? `Domain #${link.domainId}`}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       ) : (
