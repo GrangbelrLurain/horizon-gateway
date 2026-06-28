@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Check, CornerDownRight, Globe, Plus, Save, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClientLastResponseAtom, type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
 import { commands, unwrap } from "@/shared/api";
 import { parseOpenApiSpec } from "@/shared/lib/openapi-parser";
@@ -227,7 +227,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
   }, [domains]);
 
   // Populate schema and endpoint dropdown lists
-  const populateOpenApiOptions = (spec: any) => {
+  const populateOpenApiOptions = useCallback((spec: any) => {
     setOpenApiSpecJson(spec);
     if (spec.components?.schemas) {
       const schemaNames = Object.keys(spec.components.schemas).sort();
@@ -252,7 +252,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       setOpenApiEndpoints([]);
       setSelectedEndpointKey("");
     }
-  };
+  }, []);
 
   // Load schema when domain is selected
   useEffect(() => {

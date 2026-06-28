@@ -13,7 +13,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import {
   apiClientLastResponseAtom,
@@ -307,7 +307,7 @@ function JsonSchemaPage() {
   }, [domains]);
 
   // Populate schema and endpoint dropdown lists
-  const populateOpenApiOptions = (spec: any) => {
+  const populateOpenApiOptions = useCallback((spec: any) => {
     setOpenApiSpecJson(spec);
     if (spec.components?.schemas) {
       const schemaNames = Object.keys(spec.components.schemas).sort();
@@ -332,7 +332,7 @@ function JsonSchemaPage() {
       setOpenApiEndpoints([]);
       setSelectedEndpointKey("");
     }
-  };
+  }, []);
 
   // Load schema when domain is selected
   useEffect(() => {
