@@ -36,3 +36,12 @@ export async function executePipeline(flow: PipelineFlow): Promise<PipelineExecu
   }
   return res.data;
 }
+
+export async function executePipelineApiNode(config: any): Promise<any> {
+  const configJson = JSON.stringify(config);
+  const res = unwrap(await commands.executePipelineApiNode(configJson));
+  if (!res.success) {
+    throw new Error(res.message);
+  }
+  return JSON.parse(res.data);
+}

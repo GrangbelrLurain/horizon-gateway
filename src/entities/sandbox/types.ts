@@ -59,3 +59,15 @@ export interface SavedComponent {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface SavedCryptoPreset {
+  id: string;
+  name: string;
+  description: string;
+  action: CryptoAction;
+  payload: string;
+  key: string;
+  iv: string;
+  createdAt: number;
+  updatedAt: number;
+}

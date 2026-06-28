@@ -2,6 +2,7 @@ import * as Babel from "@babel/standalone";
 import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Check, Copy, Play, Plus, Save, Search, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { themeAtom } from "@/entities/app";
 import {
   type SavedComponent,
   savedComponentsAtom,
@@ -9,6 +10,7 @@ import {
   selectedComponentIdAtom,
   validateJsonSchema,
 } from "@/entities/sandbox";
+import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
 export interface LivePreviewerProps {
@@ -18,6 +20,7 @@ export interface LivePreviewerProps {
 }
 
 export function LivePreviewer({ initialData, code: propCode, schemaText }: LivePreviewerProps) {
+  const theme = useAtomValue(themeAtom);
   // Standalone CRUD atoms
   const [savedComponents, setSavedComponents] = useAtom(savedComponentsAtom);
   const [selectedId, setSelectedId] = useAtom(selectedComponentIdAtom);
@@ -95,6 +98,57 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
     const found = savedSchemas.find((s) => s.id === editedSchemaId);
     return found ? found.schemaText : "";
   }, [editedSchemaId, savedSchemas, propCode, schemaText]);
+
+  // Context object for Monaco editor autocompletion (props path autocomplete)
+  const mockDataObj = useMemo(() => {
+    try {
+      return JSON.parse(editedMockData || "{}");
+    } catch {
+      // Fallback: parse fields from active schema if JSON is invalid or empty
+      try {
+        const schemaObj = JSON.parse(activeSchemaText || "{}");
+        const fallback: Record<string, any> = {};
+        if (schemaObj && typeof schemaObj.properties === "object") {
+          Object.keys(schemaObj.properties).forEach((k) => {
+            fallback[k] = "";
+          });
+        }
+        return fallback;
+      } catch {
+        return {};
+      }
+    }
+  }, [editedMockData, activeSchemaText]);
+
+  const editorContext = useMemo(() => {
+    return { props: mockDataObj };
+  }, [mockDataObj]);
+
+  // Standalone suggestions for destructured props (e.g. { title, message })
+  const componentCustomSuggestions = useMemo(() => {
+    return Object.keys(mockDataObj).map((key) => ({
+      label: key,
+      insertText: key,
+      detail: `prop (${typeof mockDataObj[key]})`,
+    }));
+  }, [mockDataObj]);
+
+  // Custom suggestions for JSON mock data keys based on active schema properties
+  const jsonCustomSuggestions = useMemo(() => {
+    try {
+      const schemaObj = JSON.parse(activeSchemaText || "{}");
+      if (schemaObj && typeof schemaObj.properties === "object") {
+        return Object.keys(schemaObj.properties).map((key) => ({
+          label: `"${key}"`,
+          insertText: `"${key}": `,
+          detail: `schema: ${schemaObj.properties[key].type || "any"}`,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  }, [activeSchemaText]);
 
   // Real-time JSON Schema Validation
   useEffect(() => {
@@ -206,17 +260,62 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       // 3. Construct srcDoc with react, react-dom and tailwind injection
       const srcDoc = `
         <!DOCTYPE html>
-        <html>
+        <html data-theme="${theme}">
           <head>
             <meta charset="utf-8">
             <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
             <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-            <script src="https://cdn.tailwindcss.com"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+            <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
             <style>
+              [data-theme="watchtower-light"] {
+                --color-base-100: #ffffff;
+                --color-base-200: #f8fafc;
+                --color-base-300: #f1f5f9;
+                --color-base-content: #0f172a;
+                --color-primary: #3b82f6;
+                --color-secondary: #4f46e5;
+                --color-accent: #0ea5e9;
+                --color-neutral: #1e293b;
+                --color-info: #0ea5e9;
+                --color-success: #10b981;
+                --color-warning: #f59e0b;
+                --color-error: #ef4444;
+              }
+              [data-theme="watchtower-dark"] {
+                --color-base-100: #0f172a;
+                --color-base-200: #020617;
+                --color-base-300: #1e293b;
+                --color-base-content: #f8fafc;
+                --color-primary: #60a5fa;
+                --color-secondary: #818cf8;
+                --color-accent: #38bdf8;
+                --color-neutral: #1e293b;
+                --color-info: #38bdf8;
+                --color-success: #34d399;
+                --color-warning: #fbbf24;
+                --color-error: #f87171;
+              }
               body {
                 margin: 0;
                 font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                 background-color: transparent;
+              }
+            </style>
+            <style type="text/tailwindcss">
+              @theme {
+                --color-primary: var(--color-primary);
+                --color-secondary: var(--color-secondary);
+                --color-accent: var(--color-accent);
+                --color-neutral: var(--color-neutral);
+                --color-base-100: var(--color-base-100);
+                --color-base-200: var(--color-base-200);
+                --color-base-300: var(--color-base-300);
+                --color-base-content: var(--color-base-content);
+                --color-info: var(--color-info);
+                --color-success: var(--color-success);
+                --color-warning: var(--color-warning);
+                --color-error: var(--color-error);
               }
             </style>
           </head>
@@ -274,7 +373,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       setCompileError(err.message || "Compilation failed");
       setIframeSrcDoc("");
     }
-  }, [codeToCompile, propCode, editedMockData, initialData]);
+  }, [codeToCompile, propCode, editedMockData, initialData, theme]);
 
   // Trigger render on source code or data change
   useEffect(() => {
@@ -290,7 +389,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       description: "새로운 커스텀 React 컴포넌트",
       code: `import React from 'react';
 
-export default function Preview({ message }) {
+export default function Preview({ message }: Props) {
   const display = message || "안녕하세요! 새 컴포넌트입니다.";
   return (
     <div className="p-6 bg-base-100 border border-base-300 rounded-xl shadow-md text-center max-w-sm mx-auto">
@@ -565,12 +664,17 @@ export default function Preview({ message }) {
                 <Play className="w-3 h-3 text-primary" /> 실행 (Render)
               </button>
             </div>
-            <textarea
-              className="flex-1 font-mono text-[11px] p-3 bg-base-200 border border-base-300 rounded-xl focus:outline-none resize-none leading-relaxed text-base-content"
-              placeholder="React Component code..."
-              value={editedCode}
-              onChange={(e) => setEditedCode(e.target.value)}
-            />
+            <div className="flex-1 min-h-[350px]">
+              <TsCodeEditor
+                value={editedCode}
+                onChange={setEditedCode}
+                language="typescript"
+                context={editorContext}
+                customSuggestions={componentCustomSuggestions}
+                theme={theme}
+                className="w-full h-full"
+              />
+            </div>
           </div>
 
           {/* Mock JSON Input */}
@@ -591,12 +695,16 @@ export default function Preview({ message }) {
                   </span>
                 ))}
             </div>
-            <textarea
-              className="flex-1 font-mono text-[11px] p-2.5 bg-base-200 border border-base-300 rounded-xl focus:outline-none resize-none text-base-content"
-              placeholder="{}"
-              value={editedMockData}
-              onChange={(e) => setEditedMockData(e.target.value)}
-            />
+            <div className="flex-1 min-h-[120px] overflow-hidden">
+              <TsCodeEditor
+                value={editedMockData}
+                onChange={setEditedMockData}
+                language="json"
+                customSuggestions={jsonCustomSuggestions}
+                theme={theme}
+                className="w-full h-full"
+              />
+            </div>
             {editedSchemaId && validationErrors && (
               <div className="mt-2 p-2 bg-error/5 border border-error/20 text-error rounded-xl font-mono text-[9px] max-h-[60px] overflow-y-auto whitespace-pre-wrap leading-tight shrink-0">
                 {validationErrors}

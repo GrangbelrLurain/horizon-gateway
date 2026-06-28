@@ -229,7 +229,7 @@ impl PipelineRunner {
     }
 
     /// Execute individual node type logic
-    async fn execute_node(&self, node_type: &str, config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    pub async fn execute_node(&self, node_type: &str, config: &serde_json::Value) -> Result<serde_json::Value, String> {
         match node_type {
             "api" => {
                 let method_str = config.get("method").and_then(|v| v.as_str()).unwrap_or("GET");

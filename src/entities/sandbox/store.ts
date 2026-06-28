@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import type { PipelineFlow, SavedComponent } from "./types";
+import type { PipelineFlow, SavedComponent, SavedCryptoPreset } from "./types";
 
 export interface ApiClientHistoryItem {
   id: string;
@@ -53,7 +53,7 @@ export const livePreviewCodeAtom = atomWithStorage<string>(
   "watchtower-live-preview-code",
   `import React from 'react';
 
-export default function Preview({ data }) {
+export default function Preview({ data }: Props) {
   // Try sending a request in the pipeline or API client
   // And map the response here!
   const displayData = data || {
@@ -177,7 +177,7 @@ export const savedComponentsAtom = atomWithStorage<SavedComponent[]>("watchtower
     description: "Default welcome card for Watchtower Sandbox",
     code: `import React from 'react';
 
-export default function Preview({ title, message, items }) {
+export default function Preview({ title, message, items }: Props) {
   // Try sending a request in the pipeline or API client
   // And map the response here!
   const displayTitle = title || "Welcome to Watchtower Sandbox";
@@ -218,3 +218,39 @@ export default function Preview({ title, message, items }) {
 ]);
 
 export const selectedComponentIdAtom = atomWithStorage<string>("watchtower-selected-component-id", "welcome-card");
+
+export const savedCryptoPresetsAtom = atomWithStorage<SavedCryptoPreset[]>("watchtower-saved-crypto-presets", [
+  {
+    id: "default-base64-encode",
+    name: "Base64 Encode Default",
+    description: "Standard Base64 encoding preset",
+    action: "base64Encode",
+    payload: "Hello, Watchtower!",
+    key: "",
+    iv: "",
+    createdAt: 1719500000000,
+    updatedAt: 1719500000000,
+  },
+  {
+    id: "default-aes-encrypt",
+    name: "AES Encrypt Default",
+    description: "AES-256-GCM symmetric encryption preset",
+    action: "aesEncrypt",
+    payload: "Secret message here",
+    key: "my-secret-key-must-be-32-bytes-long",
+    iv: "my-custom-iv-12",
+    createdAt: 1719500000000,
+    updatedAt: 1719500000000,
+  },
+  {
+    id: "default-sha256",
+    name: "SHA-256 Hash Default",
+    description: "SHA-256 cryptographic hash preset",
+    action: "sha256",
+    payload: "Input payload to hash",
+    key: "",
+    iv: "",
+    createdAt: 1719500000000,
+    updatedAt: 1719500000000,
+  },
+]);

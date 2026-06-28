@@ -18,3 +18,21 @@ pub async fn execute_pipeline(
         data: report,
     })
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn execute_pipeline_api_node(
+    config_json: String,
+) -> Result<ApiResponse<String>, String> {
+    let runner = PipelineRunner::new();
+    let config: serde_json::Value = serde_json::from_str(&config_json)
+        .map_err(|e| format!("Failed to parse config JSON: {}", e))?;
+    let result = runner.execute_node("api", &config).await?;
+    let result_str = serde_json::to_string(&result)
+        .map_err(|e| format!("Failed to serialize result: {}", e))?;
+    Ok(ApiResponse {
+        message: "API Node executed successfully".to_string(),
+        success: true,
+        data: result_str,
+    })
+}

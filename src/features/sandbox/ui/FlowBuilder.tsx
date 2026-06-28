@@ -11,7 +11,7 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import {
   AlertCircle,
@@ -28,21 +28,24 @@ import {
   Trash2,
   Tv,
 } from "lucide-react";
+import { themeAtom } from "@/entities/app";
 import {
   activeFlowAtom,
   apiClientCurrentRequestAtom,
   apiClientHistoryAtom,
   CryptoNode,
-  cryptoToolCurrentConfigAtom,
-  executePipeline,
+  executePipelineApiNode,
   type NodeExecutionResult,
   type PipelineEdge,
   type PipelineExecutionReport,
-  type PipelineFlow,
   type PipelineNode,
+  processCrypto,
   savedComponentsAtom,
+  savedCryptoPresetsAtom,
   savedJsonSchemasAtom,
+  validateJsonSchema,
 } from "@/entities/sandbox";
+import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { LivePreviewer } from "./LivePreviewer";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
@@ -214,6 +217,115 @@ const nodeTypes = {
   mapper: MapperNodeComponent as any,
 };
 
+const resolveInterpolatedValue = (val: any, results: NodeExecutionResult[]): any => {
+  // Construct evaluation context from previous nodes' outputs
+  const context: Record<string, any> = {};
+  results.forEach((res) => {
+    try {
+      context[res.nodeId] = JSON.parse(res.output);
+    } catch {
+      context[res.nodeId] = res.output;
+    }
+  });
+
+  const keys = Object.keys(context);
+  const values = Object.values(context);
+
+  const evalExpr = (expr: string) => {
+    try {
+      const fn = new Function(...keys, `return (${expr.trim()});`);
+      return fn(...values);
+    } catch (e) {
+      console.error("Expression evaluation error:", expr, e);
+      return `{{${expr}}}`;
+    }
+  };
+
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    // Check if the entire string is a single expression like `{{api_1.body}}`
+    // If so, preserve original resolved type (Object, Array, Boolean, etc.)
+    const fullMatch = trimmed.match(/^\{\{([^}]+)\}\}$/);
+    if (fullMatch) {
+      return evalExpr(fullMatch[1]);
+    }
+
+    // Inline expression string templating, e.g. `Bearer {{auth.token}}`
+    return val.replace(/\{\{([^}]+)\}\}/g, (_, expr) => {
+      const res = evalExpr(expr);
+      if (res === null || res === undefined) {
+        return "";
+      }
+      return typeof res === "object" ? JSON.stringify(res) : String(res);
+    });
+  } else if (Array.isArray(val)) {
+    return val.map((item) => resolveInterpolatedValue(item, results));
+  } else if (val !== null && typeof val === "object") {
+    const res: any = {};
+    for (const key of Object.keys(val)) {
+      res[key] = resolveInterpolatedValue(val[key], results);
+    }
+    return res;
+  }
+  return val;
+};
+
+/*
+const getPrecedingNodePaths = (nodes: any[], report: any, selectedNodeId: string) => {
+  if (!report) return [];
+  const list: Array<{ nodeId: string; nodeLabel: string; paths: Array<{ path: string; valStr: string }> }> = [];
+
+  nodes.forEach((n) => {
+    if (n.id === selectedNodeId) return;
+    const runRes = report.results.find((r: any) => r.nodeId === n.id);
+    if (!runRes || !runRes.success) return;
+
+    try {
+      const outputObj = JSON.parse(runRes.output);
+      const paths: Array<{ path: string; valStr: string }> = [];
+
+      const traverse = (obj: any, prefix = "") => {
+        if (obj === null || obj === undefined) return;
+        if (typeof obj !== "object") return;
+
+        for (const key of Object.keys(obj)) {
+          const val = obj[key];
+          const path = prefix ? `${prefix}.${key}` : key;
+
+          let valStr = "";
+          if (val === null) valStr = "null";
+          else if (typeof val === "object") valStr = Array.isArray(val) ? "[Array]" : "{Object}";
+          else valStr = String(val);
+
+          paths.push({ path, valStr });
+
+          if (val !== null && typeof val === "object" && !Array.isArray(val)) {
+            traverse(val, path);
+          }
+        }
+      };
+
+      traverse(outputObj);
+      if (paths.length > 0) {
+        list.push({
+          nodeId: n.id,
+          nodeLabel: n.data.label,
+          paths,
+        });
+      }
+    } catch {
+      list.push({
+        nodeId: n.id,
+        nodeLabel: n.data.label,
+        paths: [{ path: n.type === "crypto" ? "result" : "output", valStr: runRes.output }],
+      });
+    }
+  });
+
+  return list;
+};
+*/
+
 // ── Main FlowBuilder Component ──────────────────────────────────────────────
 
 export interface FlowBuilderProps {
@@ -226,9 +338,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
   const apiClientCurrentRequest = useAtomValue(apiClientCurrentRequestAtom);
   const apiClientHistory = useAtomValue(apiClientHistoryAtom);
-  const cryptoToolCurrentConfig = useAtomValue(cryptoToolCurrentConfigAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+  const savedCryptoPresets = useAtomValue(savedCryptoPresetsAtom);
   const savedComponents = useAtomValue(savedComponentsAtom);
+  const theme = useAtomValue(themeAtom);
 
   // Map persisted data into React Flow state
   const initialNodes = useMemo(() => {
@@ -282,6 +395,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
   const [report, setReport] = useState<PipelineExecutionReport | null>(null);
+  const [resultTab, setResultTab] = useState<"input" | "output">("output");
+  // const [focusedMappingIdx, setFocusedMappingIdx] = useState<number | null>(null);
 
   // JSON Schema Editor Modal State
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
@@ -295,55 +410,58 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   };
 
   // Save changes back to Jotai
-  const saveFlowToStorage = (updatedNodes: any[], updatedEdges: any[]) => {
-    const serializedNodes: PipelineNode[] = updatedNodes.map(
-      (n) =>
-        ({
-          id: n.id,
-          label: n.data.label,
-          type: n.type as any,
-          config: JSON.stringify(n.data.config),
-          position: n.position,
-        }) as any,
-    );
+  const saveFlowToStorage = useCallback(
+    (updatedNodes: any[], updatedEdges: any[]) => {
+      const serializedNodes: PipelineNode[] = updatedNodes.map(
+        (n) =>
+          ({
+            id: n.id,
+            label: n.data.label,
+            type: n.type as any,
+            config: JSON.stringify(n.data.config),
+            position: n.position,
+          }) as any,
+      );
 
-    const serializedEdges: PipelineEdge[] = updatedEdges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-    }));
+      const serializedEdges: PipelineEdge[] = updatedEdges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+      }));
 
-    setPersistedFlow({
-      nodes: serializedNodes,
-      edges: serializedEdges,
-    });
-  };
+      setPersistedFlow({
+        nodes: serializedNodes,
+        edges: serializedEdges,
+      });
+    },
+    [setPersistedFlow],
+  );
+
+  // Save changes to Jotai whenever nodes or edges changes
+  useEffect(() => {
+    saveFlowToStorage(nodes, edges);
+  }, [nodes, edges, saveFlowToStorage]);
 
   const onConnect = useCallback(
     (params: Connection) => {
-      setEdges((eds) => {
-        const newEdges = addEdge(params, eds);
-        saveFlowToStorage(nodes, newEdges);
-        return newEdges;
-      });
+      setEdges((eds) => addEdge(params, eds));
     },
-    [setEdges, nodes, saveFlowToStorage],
+    [setEdges],
   );
 
-  const handleNodesChange = (changes: any) => {
-    onNodesChange(changes);
-    // Timeout to throttle state serialization
-    setTimeout(() => {
-      saveFlowToStorage(nodes, edges);
-    }, 50);
-  };
+  const handleNodesChange = useCallback(
+    (changes: any) => {
+      onNodesChange(changes);
+    },
+    [onNodesChange],
+  );
 
-  const handleEdgesChange = (changes: any) => {
-    onEdgesChange(changes);
-    setTimeout(() => {
-      saveFlowToStorage(nodes, edges);
-    }, 50);
-  };
+  const handleEdgesChange = useCallback(
+    (changes: any) => {
+      onEdgesChange(changes);
+    },
+    [onEdgesChange],
+  );
 
   // Node Insertion
   const addNode = (type: "api" | "crypto" | "schema" | "preview" | "mapper") => {
@@ -415,11 +533,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
     const updatedNodes = [...nodes, newNode];
     setNodes(updatedNodes);
-    saveFlowToStorage(updatedNodes, edges);
     setSelectedNodeId(id);
   };
 
-  // Node Removal
   const deleteSelectedNode = () => {
     if (!selectedNodeId) {
       return;
@@ -428,7 +544,6 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     const updatedEdges = edges.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId);
     setNodes(updatedNodes);
     setEdges(updatedEdges);
-    saveFlowToStorage(updatedNodes, updatedEdges);
     setSelectedNodeId(null);
   };
 
@@ -447,7 +562,6 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       return n;
     });
     setNodes(updated);
-    saveFlowToStorage(updated, edges);
   };
 
   // Run Visual Flow
@@ -463,53 +577,268 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       })),
     );
 
-    // Compile state to JSON structure
-    const flow: PipelineFlow = {
-      nodes: nodes.map((n) => ({
-        id: n.id,
-        label: n.data.label,
-        type: n.type as any,
-        config: JSON.stringify(n.data.config),
-      })),
-      edges: edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-      })),
+    const startTime = Date.now();
+    const results: NodeExecutionResult[] = [];
+
+    // Helper: Sort DAG topologically
+    const sortDag = (nodes: any[], edges: any[]): string[] => {
+      const inDegree: Record<string, number> = {};
+      const adj: Record<string, string[]> = {};
+
+      nodes.forEach((n) => {
+        inDegree[n.id] = 0;
+        adj[n.id] = [];
+      });
+
+      edges.forEach((e) => {
+        if (adj[e.source]) {
+          adj[e.source].push(e.target);
+          inDegree[e.target] = (inDegree[e.target] || 0) + 1;
+        }
+      });
+
+      const queue: string[] = [];
+      nodes.forEach((n) => {
+        if (inDegree[n.id] === 0) {
+          queue.push(n.id);
+        }
+      });
+
+      const order: string[] = [];
+      while (queue.length > 0) {
+        const u = queue.shift()!;
+        order.push(u);
+
+        (adj[u] || []).forEach((v) => {
+          inDegree[v]--;
+          if (inDegree[v] === 0) {
+            queue.push(v);
+          }
+        });
+      }
+
+      if (order.length !== nodes.length) {
+        throw new Error("파이프라인 그래프에 순환 참조(Cycle)가 존재합니다.");
+      }
+
+      return order;
     };
 
+    let order: string[] = [];
     try {
-      const res = await executePipeline(flow);
-      setReport(res);
-
-      // Render execution status visually on nodes
-      setNodes((nds) =>
-        nds.map((n) => {
-          const runRes = res.results.find((r) => r.nodeId === n.id);
-          if (runRes) {
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                isRunning: false,
-                isSuccess: runRes.success,
-                isError: !runRes.success,
-                elapsedMs: runRes.elapsedMs,
-              },
-            };
-          }
-          return n;
-        }),
-      );
+      order = sortDag(nodes, edges);
     } catch (e: any) {
-      console.error(e);
-    } finally {
+      setReport({
+        success: false,
+        elapsedMs: Date.now() - startTime,
+        results: [],
+        error: e.message || String(e),
+      });
       setExecuting(false);
+      return;
     }
+
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    let pipelineSuccess = true;
+    let pipelineError: string | null = null;
+
+    try {
+      for (const nodeId of order) {
+        const node = nodeMap.get(nodeId);
+        if (!node) {
+          continue;
+        }
+
+        // Visual feedback: Mark current node as running
+        setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, isRunning: true } } : n)));
+
+        const nodeStart = Date.now();
+        let interpolatedConfig: any = null;
+
+        try {
+          interpolatedConfig = resolveInterpolatedValue(node.data.config, results);
+        } catch (e: any) {
+          const elapsed = Date.now() - nodeStart;
+          const errorMsg = `변수 치환 오류: ${e.message || String(e)}`;
+          results.push({
+            nodeId,
+            success: false,
+            elapsedMs: elapsed,
+            output: "null",
+            error: errorMsg,
+          });
+
+          setNodes((nds) =>
+            nds.map((n) =>
+              n.id === nodeId
+                ? { ...n, data: { ...n.data, isRunning: false, isSuccess: false, isError: true, elapsedMs: elapsed } }
+                : n,
+            ),
+          );
+          pipelineSuccess = false;
+          pipelineError = `Pipeline aborted at node '${node.data.label}': ${errorMsg}`;
+          break;
+        }
+
+        let output: any = null;
+        let nodeSuccess = false;
+        let nodeError: string | null = null;
+
+        try {
+          if (node.type === "api") {
+            output = await executePipelineApiNode(interpolatedConfig);
+            nodeSuccess = true;
+          } else if (node.type === "crypto") {
+            const action = interpolatedConfig.action;
+            const payload = interpolatedConfig.payload || "";
+            const key = interpolatedConfig.key || undefined;
+            const iv = interpolatedConfig.iv || undefined;
+            const res = await processCrypto(action, payload, key, iv);
+            output = { result: res };
+            nodeSuccess = true;
+          } else if (node.type === "schema") {
+            const payload = interpolatedConfig.payload || "";
+            const schema = interpolatedConfig.schema || "";
+            const res = await validateJsonSchema(payload, schema);
+            output = { valid: res.valid, errors: res.errors };
+            nodeSuccess = true;
+          } else if (node.type === "preview") {
+            output = interpolatedConfig;
+            nodeSuccess = true;
+          } else if (node.type === "mapper") {
+            const mappedObj: Record<string, any> = {};
+            if (Array.isArray(interpolatedConfig.mappings)) {
+              interpolatedConfig.mappings.forEach((m: any) => {
+                if (m.targetKey && m.targetKey.trim() !== "") {
+                  mappedObj[m.targetKey.trim()] = m.sourceValue;
+                }
+              });
+            }
+            output = mappedObj;
+            nodeSuccess = true;
+          } else {
+            throw new Error(`지원하지 않는 노드 유형입니다: ${node.type}`);
+          }
+        } catch (e: any) {
+          nodeSuccess = false;
+          nodeError = e.message || String(e);
+        }
+
+        const elapsed = Date.now() - nodeStart;
+
+        // Update node visual state
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === nodeId
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    isRunning: false,
+                    isSuccess: nodeSuccess,
+                    isError: !nodeSuccess,
+                    elapsedMs: elapsed,
+                  },
+                }
+              : n,
+          ),
+        );
+
+        if (!nodeSuccess) {
+          results.push({
+            nodeId,
+            success: false,
+            elapsedMs: elapsed,
+            output: "null",
+            error: nodeError,
+          });
+
+          const errorPolicy = interpolatedConfig?.errorPolicy || "fastFail";
+          if (errorPolicy !== "continueOnError") {
+            pipelineSuccess = false;
+            pipelineError = `Pipeline aborted at node '${node.data.label}': ${nodeError}`;
+            break;
+          }
+        } else {
+          results.push({
+            nodeId,
+            success: true,
+            elapsedMs: elapsed,
+            output: JSON.stringify(output),
+            error: null,
+          });
+        }
+      }
+    } catch (e: any) {
+      pipelineSuccess = false;
+      pipelineError = e.message || String(e);
+    }
+
+    setReport({
+      success: pipelineSuccess,
+      elapsedMs: Date.now() - startTime,
+      results,
+      error: pipelineError,
+    });
+    setExecuting(false);
   };
 
   // Find active selected node object
   const activeNode = nodes.find((n) => n.id === selectedNodeId);
+
+  const autoImportKeys = useCallback(() => {
+    if (!report || !selectedNodeId) {
+      return;
+    }
+    const activeNode = nodes.find((n) => n.id === selectedNodeId);
+    if (!activeNode || activeNode.type !== "mapper") {
+      return;
+    }
+
+    const runResults = report.results.filter((r) => r.nodeId !== selectedNodeId && r.success);
+    if (runResults.length === 0) {
+      return;
+    }
+
+    const lastResult = runResults[runResults.length - 1];
+    const precedingNode = nodes.find((n) => n.id === lastResult.nodeId);
+    if (!precedingNode) {
+      return;
+    }
+
+    try {
+      const outputObj = JSON.parse(lastResult.output);
+      let targetObj = outputObj;
+      let pathPrefix = "";
+
+      if (precedingNode.type === "api" && outputObj && typeof outputObj.body === "object" && outputObj.body !== null) {
+        targetObj = outputObj.body;
+        pathPrefix = "body.";
+      } else if (
+        precedingNode.type === "crypto" &&
+        outputObj &&
+        typeof outputObj.result === "object" &&
+        outputObj.result !== null
+      ) {
+        targetObj = outputObj.result;
+        pathPrefix = "result.";
+      }
+
+      if (targetObj && typeof targetObj === "object" && !Array.isArray(targetObj)) {
+        const newMappings = Object.keys(targetObj).map((key) => ({
+          targetKey: key,
+          sourceValue: `{{${precedingNode.id}.${pathPrefix}${key}}}`,
+        }));
+
+        updateNodeConfig(activeNode.id, {
+          ...activeNode.data.config,
+          mappings: [...(activeNode.data.config.mappings || []), ...newMappings],
+        });
+      }
+    } catch (e) {
+      console.error("Auto import keys failed", e);
+    }
+  }, [report, selectedNodeId, nodes, updateNodeConfig]);
 
   // List of variables candidates from preceding nodes (for template mapping helper)
   const variableCandidates = useMemo(() => {
@@ -743,22 +1072,39 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
               {activeNode.type === "crypto" && (
                 <div className="space-y-3">
-                  <div className="p-2 bg-base-200/50 rounded-lg">
-                    <button
-                      className="btn btn-[10px] h-7 min-h-7 btn-outline btn-primary w-full py-0 px-2"
-                      onClick={() => {
-                        if (cryptoToolCurrentConfig) {
+                  <div className="flex flex-col gap-1.5 p-2 bg-base-200/50 rounded-lg text-xs">
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-[10px] text-base-content/65 uppercase">
+                        암복호화 프리셋 불러오기
+                      </label>
+                    </div>
+                    <select
+                      className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
+                      value=""
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        if (!selectedId) {
+                          return;
+                        }
+                        const found = savedCryptoPresets.find((p) => p.id === selectedId);
+                        if (found) {
                           updateNodeConfig(activeNode.id, {
                             ...activeNode.data.config,
-                            action: cryptoToolCurrentConfig.action,
-                            key: cryptoToolCurrentConfig.key,
-                            iv: cryptoToolCurrentConfig.iv,
+                            action: found.action,
+                            key: found.key,
+                            iv: found.iv,
+                            payload: found.payload || activeNode.data.config.payload || "",
                           });
                         }
                       }}
                     >
-                      📥 단독 암복호화 도구 설정 가져오기
-                    </button>
+                      <option value="">-- 프리셋 선택 --</option>
+                      {savedCryptoPresets.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.action})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <CryptoNode
                     isStandalone={false}
@@ -881,89 +1227,176 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 </div>
               )}
 
-              {activeNode.type === "mapper" && (
-                <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
-                  <div className="flex items-center justify-between shrink-0">
-                    <label className="font-semibold text-base-content/75 flex items-center gap-1">
-                      <Shuffle className="w-3.5 h-3.5 text-info" /> Mappings 정의 (Target ➔ Source)
-                    </label>
-                    <button
-                      className="btn btn-xs btn-outline btn-primary flex items-center gap-1"
-                      onClick={() => {
-                        const currentMappings = activeNode.data.config.mappings || [];
-                        updateNodeConfig(activeNode.id, {
-                          ...activeNode.data.config,
-                          mappings: [...currentMappings, { targetKey: "", sourceValue: "" }],
-                        });
-                      }}
-                    >
-                      <Plus className="w-3 h-3" /> 추가
-                    </button>
-                  </div>
+              {activeNode.type === "mapper" &&
+                (() => {
+                  // 1. Create context object for editor from previous node execution results
+                  const editorContext: Record<string, any> = {};
+                  if (report) {
+                    report.results.forEach((res: any) => {
+                      try {
+                        editorContext[res.nodeId] = JSON.parse(res.output);
+                      } catch {
+                        editorContext[res.nodeId] = res.output;
+                      }
+                    });
+                  }
 
-                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[350px]">
-                    {((activeNode.data.config.mappings || []) as Array<{ targetKey: string; sourceValue: string }>).map(
-                      (m, idx) => (
-                        <div
-                          key={idx}
-                          className="flex gap-2 items-center p-2.5 bg-base-200/50 rounded-xl border border-base-300 relative group"
-                        >
-                          <div className="flex-1 space-y-1.5 min-w-0">
-                            <div>
-                              <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
-                                Target Key (속성명)
-                              </span>
-                              <input
-                                type="text"
-                                className="input input-bordered input-xs w-full mt-0.5 focus:outline-none"
-                                placeholder="e.g. title"
-                                value={m.targetKey}
-                                onChange={(e) => {
-                                  const newMappings = [...(activeNode.data.config.mappings || [])];
-                                  newMappings[idx] = { ...newMappings[idx], targetKey: e.target.value };
-                                  updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
-                                Source Value (표현식)
-                              </span>
-                              <input
-                                type="text"
-                                className="input input-bordered input-xs w-full mt-0.5 focus:outline-none font-mono text-[10px]"
-                                placeholder="e.g. {{api_1.body.title}}"
-                                value={m.sourceValue}
-                                onChange={(e) => {
-                                  const newMappings = [...(activeNode.data.config.mappings || [])];
-                                  newMappings[idx] = { ...newMappings[idx], sourceValue: e.target.value };
-                                  updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
-                                }}
-                              />
-                            </div>
-                          </div>
+                  // 2. Find connected downstream Schema node to autocomplete targetKey
+                  const outgoingEdges = edges.filter((e) => e.source === activeNode.id);
+                  const downstreamNodes = outgoingEdges.map((e) => nodes.find((n) => n.id === e.target));
+                  const connectedSchemaNode = downstreamNodes.find((n) => n && n.type === "schema");
+                  let schemaProperties: string[] = [];
+                  if (connectedSchemaNode) {
+                    try {
+                      const parsedSchema = JSON.parse(connectedSchemaNode.data.config.schema || "{}");
+                      if (parsedSchema && typeof parsedSchema.properties === "object") {
+                        schemaProperties = Object.keys(parsedSchema.properties);
+                      }
+                    } catch {
+                      // ignore invalid JSON schema string parsing
+                    }
+                  }
+                  const customTargetKeySuggestions = schemaProperties.map((prop) => ({
+                    label: prop,
+                    insertText: prop,
+                    detail: "schema prop",
+                  }));
+
+                  return (
+                    <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
+                      <div className="flex items-center justify-between shrink-0">
+                        <label className="font-semibold text-base-content/75 flex items-center gap-1">
+                          <Shuffle className="w-3.5 h-3.5 text-info" /> Mappings 정의 (Target ➔ Source)
+                        </label>
+                        <div className="flex gap-1.5">
+                          {report && (
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline btn-info flex items-center gap-1 font-bold text-[10px]"
+                              onClick={autoImportKeys}
+                            >
+                              자동 가져오기
+                            </button>
+                          )}
                           <button
-                            className="btn btn-ghost btn-xs text-error/70 p-0 w-6 h-6 hover:bg-error/15 shrink-0 self-end mb-1"
+                            className="btn btn-xs btn-outline btn-primary flex items-center gap-1"
                             onClick={() => {
-                              const newMappings = (activeNode.data.config.mappings || []).filter(
-                                (_: any, i: number) => i !== idx,
-                              );
-                              updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
+                              const currentMappings = activeNode.data.config.mappings || [];
+                              updateNodeConfig(activeNode.id, {
+                                ...activeNode.data.config,
+                                mappings: [...currentMappings, { targetKey: "", sourceValue: "" }],
+                              });
                             }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Plus className="w-3 h-3" /> 추가
                           </button>
                         </div>
-                      ),
-                    )}
-                    {(activeNode.data.config.mappings || []).length === 0 && (
-                      <div className="text-center py-6 text-base-content/40 italic">
-                        정의된 매핑이 없습니다. 상단의 추가 버튼을 눌러 속성을 매핑해 보세요.
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
+
+                      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[350px]">
+                        {(
+                          (activeNode.data.config.mappings || []) as Array<{ targetKey: string; sourceValue: string }>
+                        ).map((m, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-2 items-center p-2.5 bg-base-200/50 rounded-xl border border-base-300 relative group"
+                          >
+                            <div className="flex-1 space-y-1.5 min-w-0">
+                              <div>
+                                <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                                  Target Key (속성명)
+                                </span>
+                                <TsCodeEditor
+                                  value={m.targetKey}
+                                  onChange={(val) => {
+                                    const newMappings = [...(activeNode.data.config.mappings || [])];
+                                    newMappings[idx] = { ...newMappings[idx], targetKey: val };
+                                    updateNodeConfig(activeNode.id, {
+                                      ...activeNode.data.config,
+                                      mappings: newMappings,
+                                    });
+                                  }}
+                                  customSuggestions={customTargetKeySuggestions}
+                                  placeholder="e.g. title"
+                                  rows={1}
+                                  theme={theme}
+                                  className="mt-0.5"
+                                />
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold text-base-content/50 uppercase tracking-wider">
+                                  Source Value (표현식)
+                                </span>
+                                <TsCodeEditor
+                                  value={m.sourceValue}
+                                  onChange={(val) => {
+                                    const newMappings = [...(activeNode.data.config.mappings || [])];
+                                    newMappings[idx] = { ...newMappings[idx], sourceValue: val };
+                                    updateNodeConfig(activeNode.id, {
+                                      ...activeNode.data.config,
+                                      mappings: newMappings,
+                                    });
+                                  }}
+                                  context={editorContext}
+                                  placeholder="e.g. {{api_1.body.title}}"
+                                  rows={1}
+                                  theme={theme}
+                                  className="mt-0.5"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              className="btn btn-ghost btn-xs text-error/70 p-0 w-6 h-6 hover:bg-error/15 shrink-0 self-end mb-1"
+                              onClick={() => {
+                                const newMappings = (activeNode.data.config.mappings || []).filter(
+                                  (_: any, i: number) => i !== idx,
+                                );
+                                updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {(activeNode.data.config.mappings || []).length === 0 && (
+                          <div className="text-center py-6 text-base-content/40 italic">
+                            정의된 매핑이 없습니다. 상단의 추가 버튼을 눌러 속성을 매핑해 보세요.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Live Mapping Preview */}
+                      {report && (
+                        <div className="pt-2 border-t border-base-200 shrink-0 space-y-1">
+                          <label className="font-semibold text-[10px] text-base-content/65 uppercase flex items-center gap-1">
+                            ✨ 실시간 매핑 미리보기 (Live Preview)
+                          </label>
+                          {(() => {
+                            const previewResult = resolveInterpolatedValue(
+                              { mappings: activeNode.data.config.mappings || [] },
+                              report.results,
+                            );
+                            const mappedObj: any = {};
+                            if (Array.isArray(previewResult.mappings)) {
+                              previewResult.mappings.forEach((m: any) => {
+                                if (m.targetKey && m.targetKey.trim() !== "") {
+                                  mappedObj[m.targetKey.trim()] = m.sourceValue;
+                                }
+                              });
+                            }
+                            return (
+                              <textarea
+                                className="w-full p-2 bg-base-200 border border-base-300 rounded font-mono text-[9px] h-[90px] resize-none outline-none focus:outline-none focus:ring-0 text-success-content/80"
+                                value={JSON.stringify(mappedObj, null, 2)}
+                                readOnly
+                              />
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {activeNode.type === "preview" && (
                 <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
@@ -1141,26 +1574,50 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   <div className="text-[10px] text-base-content/50 leading-relaxed mb-2">
                     이전 노드의 데이터를 매핑하려면 아래 주소 중 하나를 복사하여 필요한 필드에 입력하세요:
                   </div>
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
-                    {variableCandidates.map((c) =>
-                      c.paths.map((p) => {
+                  <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                    {variableCandidates.map((c) => {
+                      const runRes = report?.results.find((r) => r.nodeId === c.id);
+                      let parsedOutput: any = null;
+                      if (runRes?.success) {
+                        try {
+                          parsedOutput = JSON.parse(runRes.output);
+                        } catch {
+                          parsedOutput = runRes.output;
+                        }
+                      }
+
+                      return c.paths.map((p) => {
                         const pathStr = `{{${c.id}.${p}}}`;
+                        let resolvedVal = "";
+                        if (parsedOutput && typeof parsedOutput === "object") {
+                          const val = parsedOutput[p];
+                          resolvedVal = typeof val === "object" ? JSON.stringify(val) : String(val);
+                        }
+
                         return (
                           <div
                             key={pathStr}
-                            className="flex justify-between items-center bg-base-200 p-1.5 rounded text-mono text-[10px]"
+                            className="flex flex-col bg-base-200 p-2 rounded text-mono text-[10px] gap-1 border border-base-300"
                           >
-                            <span className="text-primary truncate mr-2">{pathStr}</span>
-                            <button
-                              className="btn btn-[10px] btn-ghost btn-xs text-primary/80 uppercase hover:bg-base-300 font-bold"
-                              onClick={() => navigator.clipboard.writeText(pathStr)}
-                            >
-                              복사
-                            </button>
+                            <div className="flex justify-between items-center w-full">
+                              <span className="text-primary truncate mr-2 font-bold">{pathStr}</span>
+                              <button
+                                className="btn btn-[10px] btn-ghost btn-xs text-primary/80 uppercase hover:bg-base-300 font-bold"
+                                onClick={() => navigator.clipboard.writeText(pathStr)}
+                              >
+                                복사
+                              </button>
+                            </div>
+                            {resolvedVal !== "" && (
+                              <div className="text-[9px] text-base-content/60 bg-base-300/40 p-1 rounded font-mono truncate max-w-full">
+                                <span className="font-semibold text-base-content/40 mr-1">현재값:</span>
+                                {resolvedVal}
+                              </div>
+                            )}
                           </div>
                         );
-                      }),
-                    )}
+                      });
+                    })}
                   </div>
                 </div>
               )}
@@ -1176,71 +1633,120 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     }
                     return (
                       <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <span
-                            className={`badge badge-xs font-bold ${nodeRes.success ? "badge-success text-success-content" : "badge-error text-error-content"}`}
-                          >
-                            {nodeRes.success ? "성공" : "실패"}
-                          </span>
-                          <span className="text-[10px] text-base-content/50">{nodeRes.elapsedMs}ms 소요</span>
+                        <div className="flex gap-2 items-center justify-between">
+                          <div className="flex gap-2">
+                            <span
+                              className={`badge badge-xs font-bold ${nodeRes.success ? "badge-success text-success-content" : "badge-error text-error-content"}`}
+                            >
+                              {nodeRes.success ? "성공" : "실패"}
+                            </span>
+                            <span className="text-[10px] text-base-content/50">{nodeRes.elapsedMs}ms 소요</span>
+                          </div>
+
+                          {/* Tabs for Input / Output */}
+                          <div className="tabs tabs-boxed py-0 px-0.5 h-6 bg-base-200 gap-0.5 rounded-md flex shrink-0 border border-base-300">
+                            <button
+                              type="button"
+                              className={`tab tab-xs h-5 min-h-[20px] px-2 text-[9px] font-bold rounded-md transition-all ${
+                                resultTab === "input" ? "bg-white shadow-sm text-primary" : "text-base-content/60"
+                              }`}
+                              onClick={() => setResultTab("input")}
+                            >
+                              INPUT
+                            </button>
+                            <button
+                              type="button"
+                              className={`tab tab-xs h-5 min-h-[20px] px-2 text-[9px] font-bold rounded-md transition-all ${
+                                resultTab === "output" ? "bg-white shadow-sm text-primary" : "text-base-content/60"
+                              }`}
+                              onClick={() => setResultTab("output")}
+                            >
+                              OUTPUT
+                            </button>
+                          </div>
                         </div>
+
                         {nodeRes.error && (
                           <div className="p-2 border border-error/20 bg-error/5 text-error rounded font-mono text-[10px]">
                             {nodeRes.error}
                           </div>
                         )}
-                        {(() => {
-                          let outputObj: any = null;
-                          try {
-                            outputObj = JSON.parse(nodeRes.output);
-                          } catch {
-                            outputObj = nodeRes.output;
-                          }
-                          if (outputObj === null || outputObj === "null") {
-                            return null;
-                          }
 
-                          return (
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-base-content/50 uppercase">출력 JSON</span>
-                                <div className="flex gap-1.5">
-                                  {onExportPreviewData && (
+                        {resultTab === "input" ? (
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] text-base-content/50 uppercase font-semibold">
+                                실제 적용된 입력 (Interpolated)
+                              </span>
+                            </div>
+                            <textarea
+                              className="w-full p-2 bg-base-200 border border-base-300 rounded font-mono text-[10px] h-[150px] resize-none outline-none focus:outline-none focus:ring-0 text-base-content/80"
+                              value={JSON.stringify(
+                                resolveInterpolatedValue(activeNode.data.config, report.results),
+                                null,
+                                2,
+                              )}
+                              readOnly
+                            />
+                          </div>
+                        ) : (
+                          (() => {
+                            let outputObj: any = null;
+                            try {
+                              outputObj = JSON.parse(nodeRes.output);
+                            } catch {
+                              outputObj = nodeRes.output;
+                            }
+                            if (outputObj === null || outputObj === "null") {
+                              return <div className="text-base-content/40 italic">출력값 없음</div>;
+                            }
+
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] text-base-content/50 uppercase font-semibold">
+                                    출력 데이터 (JSON)
+                                  </span>
+                                  <div className="flex gap-1.5">
+                                    {onExportPreviewData && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-[10px] btn-ghost btn-xs text-success flex items-center gap-0.5"
+                                        onClick={() =>
+                                          onExportPreviewData(outputObj.body || outputObj.result || outputObj)
+                                        }
+                                      >
+                                        프리뷰로 내보내기 <ArrowRight className="w-3 h-3" />
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
-                                      className="btn btn-[10px] btn-ghost btn-xs text-success flex items-center gap-0.5"
+                                      className="btn btn-[10px] btn-ghost btn-xs"
                                       onClick={() =>
-                                        onExportPreviewData(outputObj.body || outputObj.result || outputObj)
+                                        navigator.clipboard.writeText(
+                                          typeof outputObj === "object"
+                                            ? JSON.stringify(outputObj, null, 2)
+                                            : String(outputObj),
+                                        )
                                       }
                                     >
-                                      프리뷰로 내보내기 <ArrowRight className="w-3 h-3" />
+                                      복사
                                     </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="btn btn-[10px] btn-ghost btn-xs"
-                                    onClick={() =>
-                                      navigator.clipboard.writeText(
-                                        typeof outputObj === "object"
-                                          ? JSON.stringify(outputObj, null, 2)
-                                          : String(outputObj),
-                                      )
-                                    }
-                                  >
-                                    복사
-                                  </button>
+                                  </div>
                                 </div>
+                                <textarea
+                                  className="w-full p-2 bg-base-200 border border-base-300 rounded font-mono text-[10px] h-[150px] resize-none outline-none focus:outline-none focus:ring-0 text-success-content/80"
+                                  value={
+                                    typeof outputObj === "object"
+                                      ? JSON.stringify(outputObj, null, 2)
+                                      : String(outputObj)
+                                  }
+                                  readOnly
+                                />
                               </div>
-                              <textarea
-                                className="w-full p-2 bg-base-200 border border-base-300 rounded font-mono text-[10px] h-[150px] resize-none outline-none focus:outline-none focus:ring-0 text-success-content/80"
-                                value={
-                                  typeof outputObj === "object" ? JSON.stringify(outputObj, null, 2) : String(outputObj)
-                                }
-                                readOnly
-                              />
-                            </div>
-                          );
-                        })()}
+                            );
+                          })()
+                        )}
                       </div>
                     );
                   })()}

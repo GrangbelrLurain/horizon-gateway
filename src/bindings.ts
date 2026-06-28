@@ -105,6 +105,7 @@ export const commands = {
 	processCrypto: (payload: ProcessCryptoPayload) => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("process_crypto", { payload })),
 	validateJsonSchema: (payload: ValidateSchemaPayload) => typedError<ApiResponse<SchemaValidationResult>, string>(__TAURI_INVOKE("validate_json_schema", { payload })),
 	executePipeline: (payload: PipelineFlow) => typedError<ApiResponse<PipelineExecutionReport>, string>(__TAURI_INVOKE("execute_pipeline", { payload })),
+	executePipelineApiNode: (configJson: string) => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("execute_pipeline_api_node", { configJson })),
 };
 
 /* Types */

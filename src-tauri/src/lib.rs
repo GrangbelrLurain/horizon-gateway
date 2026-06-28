@@ -108,7 +108,7 @@ use command::window_commands::{open_annotation_dialog, open_inspector_window, op
 use command::tunnel_commands::{get_tailscale_ip, start_cloudflare_tunnel, stop_cloudflare_tunnel};
 use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_reverse};
 use command::crypto_commands::{process_crypto, validate_json_schema};
-use command::pipeline_commands::execute_pipeline;
+use command::pipeline_commands::{execute_pipeline, execute_pipeline_api_node};
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
 
@@ -197,6 +197,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             process_crypto,
             validate_json_schema,
             execute_pipeline,
+            execute_pipeline_api_node,
         ])
 }
 
