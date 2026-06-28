@@ -1,6 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { Check, Copy, Download, FileCode, Layers, Plus, Save, Search, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  CornerDownRight,
+  Download,
+  FileCode,
+  Globe,
+  Layers,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import {
@@ -20,6 +32,7 @@ interface SchemaProperty {
   type: "string" | "number" | "integer" | "boolean" | "object" | "array";
   description: string;
   required: boolean;
+  parentId?: string;
 }
 
 const en = {
@@ -122,36 +135,81 @@ function JsonSchemaPage() {
     );
   }, [savedSchemas, search]);
 
-  // Generate Draft-07 Schema
+  // Generate Draft-07 Schema recursively
   const generatedSchema = useMemo(() => {
-    const propsObj: Record<string, any> = {};
-    const requiredList: string[] = [];
-
-    for (const prop of properties) {
-      if (!prop.name.trim()) {
-        continue;
+    const buildSchemaForNode = (props: SchemaProperty[], nodeId: string | undefined): any => {
+      const children = props.filter((p) => p.parentId === nodeId);
+      if (children.length === 0) {
+        return null;
       }
 
-      propsObj[prop.name.trim()] = {
-        type: prop.type,
-        description: prop.description.trim() || undefined,
+      const propertiesObj: Record<string, any> = {};
+      const requiredList: string[] = [];
+
+      for (const child of children) {
+        if (!child.name.trim()) {
+          continue;
+        }
+
+        let childSchema: any = {
+          type: child.type,
+          description: child.description.trim() || undefined,
+        };
+
+        if (child.type === "object") {
+          const subProperties = buildSchemaForNode(props, child.id);
+          if (subProperties) {
+            childSchema = {
+              ...childSchema,
+              properties: subProperties.properties,
+              required: subProperties.required,
+            };
+          } else {
+            childSchema.properties = {};
+          }
+        } else if (child.type === "array") {
+          const subProperties = buildSchemaForNode(props, child.id);
+          if (subProperties && Object.keys(subProperties.properties || {}).length > 0) {
+            childSchema.items = {
+              type: "object",
+              properties: subProperties.properties,
+              required: subProperties.required,
+            };
+          } else {
+            childSchema.items = { type: "string" };
+          }
+        }
+
+        propertiesObj[child.name.trim()] = childSchema;
+        if (child.required) {
+          requiredList.push(child.name.trim());
+        }
+      }
+
+      const res: any = {
+        type: "object",
+        properties: propertiesObj,
       };
 
-      if (prop.required) {
-        requiredList.push(prop.name.trim());
+      if (requiredList.length > 0) {
+        res.required = requiredList;
       }
-    }
+
+      return res;
+    };
+
+    const rootSchema = buildSchemaForNode(properties, undefined);
 
     const schemaObj: Record<string, any> = {
       $schema: "http://json-schema.org/draft-07/schema#",
       title: title.trim() || undefined,
       description: description.trim() || undefined,
       type: "object",
-      properties: propsObj,
+      properties: rootSchema?.properties || {},
     };
 
-    if (requiredList.length > 0) {
-      schemaObj.required = requiredList;
+    if (rootSchema?.required && rootSchema.required.length > 0) {
+      schemaObj.required = rootSchema.required;
     }
 
     return JSON.stringify(schemaObj, null, 2);
@@ -176,6 +234,36 @@ function JsonSchemaPage() {
     );
   }, [selectedId, savedSchemas, title, description, properties]);
 
+  // Order properties in tree hierarchy
+  const orderedProperties = useMemo(() => {
+    const orderTree = (props: SchemaProperty[], parentId: string | undefined): SchemaProperty[] => {
+      const children = props.filter((p) => p.parentId === parentId);
+      const result: SchemaProperty[] = [];
+      for (const child of children) {
+        result.push(child);
+        const descendants = orderTree(props, child.id);
+        result.push(...descendants);
+      }
+      return result;
+    };
+    return orderTree(properties, undefined);
+  }, [properties]);
+
+  // Compute indentation depth
+  const getPropertyDepth = (prop: SchemaProperty): number => {
+    let depth = 0;
+    let current = prop;
+    while (current.parentId) {
+      const parent = properties.find((p) => p.id === current.parentId);
+      if (!parent) {
+        break;
+      }
+      depth += 1;
+      current = parent;
+    }
+    return depth;
+  };
+
   // Visual Properties operations
   const addProperty = () => {
     const newProp: SchemaProperty = {
@@ -188,8 +276,32 @@ function JsonSchemaPage() {
     setProperties([...properties, newProp]);
   };
 
+  // Add a nested sub-property row
+  const addSubProperty = (parentId: string) => {
+    const newProp: SchemaProperty = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: "",
+      type: "string",
+      description: "",
+      required: false,
+      parentId,
+    };
+    setProperties([...properties, newProp]);
+  };
+
+  // Delete row recursively
   const removeProperty = (id: string) => {
-    setProperties(properties.filter((p) => p.id !== id));
+    const getDescendantIds = (parentId: string): string[] => {
+      const children = properties.filter((p) => p.parentId === parentId);
+      const ids = children.map((c) => c.id);
+      for (const child of children) {
+        ids.push(...getDescendantIds(child.id));
+      }
+      return ids;
+    };
+
+    const idsToRemove = [id, ...getDescendantIds(id)];
+    setProperties(properties.filter((p) => !idsToRemove.includes(p.id)));
   };
 
   const updateProperty = (id: string, field: keyof SchemaProperty, val: any) => {
@@ -197,46 +309,75 @@ function JsonSchemaPage() {
   };
 
   // Import JSON Parser
-  const importFromJson = (json: any) => {
+  const importFromJson = (json: any, parentId?: string) => {
     if (!json || typeof json !== "object") {
+      alert("추출할 수 있는 올바른 JSON 객체가 아닙니다.");
       return;
     }
 
     const parsedProps: SchemaProperty[] = [];
-    let targetObj = json;
 
-    if (Array.isArray(json)) {
-      if (json.length > 0 && typeof json[0] === "object") {
-        targetObj = json[0];
-      } else {
+    const parseJsonToSchemaProperties = (jsonVal: any, currentParentId: string | undefined) => {
+      if (!jsonVal || typeof jsonVal !== "object") {
         return;
       }
-    }
 
-    Object.entries(targetObj).forEach(([key, val]) => {
-      let type: SchemaProperty["type"] = "string";
-      if (typeof val === "number") {
-        type = Number.isInteger(val) ? "integer" : "number";
-      } else if (typeof val === "boolean") {
-        type = "boolean";
-      } else if (Array.isArray(val)) {
-        type = "array";
-      } else if (val === null) {
-        type = "string";
-      } else if (typeof val === "object") {
-        type = "object";
+      let targetObj = jsonVal;
+
+      if (Array.isArray(jsonVal)) {
+        if (jsonVal.length > 0 && typeof jsonVal[0] === "object") {
+          targetObj = jsonVal[0];
+        } else {
+          return;
+        }
       }
 
-      parsedProps.push({
-        id: Math.random().toString(36).substring(2, 9),
-        name: key,
-        type,
-        description: `Imported field: ${key}`,
-        required: false,
-      });
-    });
+      Object.entries(targetObj).forEach(([key, val]) => {
+        const propId = Math.random().toString(36).substring(2, 9);
+        let type: SchemaProperty["type"] = "string";
 
-    setProperties(parsedProps);
+        if (typeof val === "number") {
+          type = Number.isInteger(val) ? "integer" : "number";
+        } else if (typeof val === "boolean") {
+          type = "boolean";
+        } else if (Array.isArray(val)) {
+          type = "array";
+        } else if (val === null) {
+          type = "string";
+        } else if (typeof val === "object") {
+          type = "object";
+        }
+
+        parsedProps.push({
+          id: propId,
+          name: key,
+          type,
+          description: `Imported field: ${key}`,
+          required: false,
+          parentId: currentParentId,
+        });
+
+        // Recursively extract child properties
+        if (type === "object") {
+          parseJsonToSchemaProperties(val, propId);
+        } else if (type === "array" && Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
+          parseJsonToSchemaProperties(val[0], propId);
+        }
+      });
+    };
+
+    parseJsonToSchemaProperties(json, parentId);
+
+    if (parentId) {
+      // Append mode: filter out duplicate sibling names under the parent
+      const siblingNames = properties.filter((p) => p.parentId === parentId).map((p) => p.name);
+      const uniqueNewProps = parsedProps.filter((np) => !siblingNames.includes(np.name));
+
+      setProperties([...properties, ...uniqueNewProps]);
+    } else {
+      // Overwrite mode
+      setProperties(parsedProps);
+    }
   };
 
   // CRUD Operations
@@ -454,81 +595,121 @@ function JsonSchemaPage() {
 
                   {/* Properties Grid Rows */}
                   <div className="space-y-4">
-                    {properties.length === 0 ? (
+                    {orderedProperties.length === 0 ? (
                       <div className="text-center py-10 text-xs text-base-content/40 italic">{t.emptyProps}</div>
                     ) : (
-                      properties.map((prop) => (
-                        <div
-                          key={prop.id}
-                          className="p-3 border border-base-200 rounded-xl hover:border-primary/30 bg-base-200/20 transition-all duration-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-center relative group"
-                        >
-                          {/* Name */}
-                          <div className="md:col-span-4 flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-base-content/50 uppercase">
-                              {t.propertyName}
-                            </label>
-                            <input
-                              type="text"
-                              className="input input-bordered input-xs font-mono text-xs w-full focus:outline-none"
-                              placeholder="propertyName"
-                              value={prop.name}
-                              onChange={(e) => updateProperty(prop.id, "name", e.target.value)}
-                            />
-                          </div>
+                      orderedProperties.map((prop) => {
+                        const depth = getPropertyDepth(prop);
+                        const isObjectOrArray = prop.type === "object" || prop.type === "array";
 
-                          {/* Type */}
-                          <div className="md:col-span-3 flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-base-content/50 uppercase">{t.type}</label>
-                            <select
-                              className="select select-bordered select-xs w-full text-xs"
-                              value={prop.type}
-                              onChange={(e) => updateProperty(prop.id, "type", e.target.value)}
-                            >
-                              <option value="string">string</option>
-                              <option value="number">number</option>
-                              <option value="integer">integer</option>
-                              <option value="boolean">boolean</option>
-                              <option value="object">object (JSON)</option>
-                              <option value="array">array (배열)</option>
-                            </select>
-                          </div>
+                        return (
+                          <div
+                            key={prop.id}
+                            className="p-3 border border-base-200 rounded-xl hover:border-primary/30 bg-base-200/20 transition-all duration-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-center relative group animate-fadeIn"
+                            style={{ marginLeft: `${depth * 1.5}rem` }}
+                          >
+                            {/* Visual Connection Guide for Nested Children */}
+                            {depth > 0 && (
+                              <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center -ml-5 text-base-content/30 select-none pointer-events-none">
+                                <CornerDownRight className="w-3.5 h-3.5" />
+                              </div>
+                            )}
 
-                          {/* Required */}
-                          <div className="md:col-span-1.5 flex flex-col gap-1 items-center justify-center pt-2 md:pt-0">
-                            <label className="text-[10px] font-bold text-base-content/50 uppercase mb-1">
-                              {t.required}
-                            </label>
-                            <input
-                              type="checkbox"
-                              className="checkbox checkbox-primary checkbox-xs"
-                              checked={prop.required}
-                              onChange={(e) => updateProperty(prop.id, "required", e.target.checked)}
-                            />
-                          </div>
-
-                          {/* Description */}
-                          <div className="md:col-span-3.5 flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-base-content/50 uppercase">
-                              {t.description}
-                            </label>
-                            <div className="flex gap-2 items-center">
+                            {/* Name */}
+                            <div className="md:col-span-4 flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-base-content/50 uppercase">
+                                {t.propertyName}
+                              </label>
                               <input
                                 type="text"
-                                className="input input-bordered input-xs flex-1 text-xs focus:outline-none"
-                                placeholder="..."
-                                value={prop.description}
-                                onChange={(e) => updateProperty(prop.id, "description", e.target.value)}
+                                className="input input-bordered input-xs font-mono text-xs w-full focus:outline-none"
+                                placeholder="propertyName"
+                                value={prop.name}
+                                onChange={(e) => updateProperty(prop.id, "name", e.target.value)}
                               />
-                              <button
-                                className="btn btn-xs btn-ghost text-error"
-                                onClick={() => removeProperty(prop.id)}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                            </div>
+
+                            {/* Type */}
+                            <div className="md:col-span-3 flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-base-content/50 uppercase">{t.type}</label>
+                              <div className="flex items-center gap-1.5 w-full">
+                                <select
+                                  className="select select-bordered select-xs w-full text-xs"
+                                  value={prop.type}
+                                  onChange={(e) => updateProperty(prop.id, "type", e.target.value)}
+                                >
+                                  <option value="string">string</option>
+                                  <option value="number">number</option>
+                                  <option value="integer">integer</option>
+                                  <option value="boolean">boolean</option>
+                                  <option value="object">object (JSON)</option>
+                                  <option value="array">array (배열)</option>
+                                </select>
+
+                                {isObjectOrArray && (
+                                  <div className="flex gap-0.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => addSubProperty(prop.id)}
+                                      className="btn btn-primary btn-xs btn-square text-white"
+                                      title="하위 속성 추가"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-outline btn-xs btn-square hover:bg-base-200"
+                                      disabled={!apiClientLastResponse}
+                                      onClick={() =>
+                                        apiClientLastResponse && importFromJson(apiClientLastResponse, prop.id)
+                                      }
+                                      title="API 응답에서 하위 속성 추출하여 추가"
+                                    >
+                                      <Globe className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Required */}
+                            <div className="md:col-span-1.5 flex flex-col gap-1 items-center justify-center pt-2 md:pt-0">
+                              <label className="text-[10px] font-bold text-base-content/50 uppercase mb-1">
+                                {t.required}
+                              </label>
+                              <input
+                                type="checkbox"
+                                className="checkbox checkbox-primary checkbox-xs"
+                                checked={prop.required}
+                                onChange={(e) => updateProperty(prop.id, "required", e.target.checked)}
+                              />
+                            </div>
+
+                            {/* Description */}
+                            <div className="md:col-span-3.5 flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-base-content/50 uppercase">
+                                {t.description}
+                              </label>
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  type="text"
+                                  className="input input-bordered input-xs flex-1 text-xs focus:outline-none"
+                                  placeholder="..."
+                                  value={prop.description}
+                                  onChange={(e) => updateProperty(prop.id, "description", e.target.value)}
+                                />
+                                <button
+                                  onClick={() => removeProperty(prop.id)}
+                                  className="btn btn-ghost btn-xs text-error/70 hover:bg-error/15 p-0 w-6 h-6 rounded-circle shrink-0"
+                                  title="속성 삭제 (하위 속성도 포함하여 함께 삭제됩니다)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
