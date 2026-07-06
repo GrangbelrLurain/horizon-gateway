@@ -57,6 +57,12 @@ fn abort_proxy_handles(handles: &mut Vec<tokio::task::JoinHandle<()>>) {
     }
 }
 
+pub const GET_LOCAL_ROUTES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_local_routes",
+    description: "로컬 라우팅(리다이렉트) 규칙 목록을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_local_routes(
@@ -77,6 +83,12 @@ pub struct AddLocalRoutePayload {
     pub target_host: String,
     pub target_port: u16,
 }
+
+pub const ADD_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "add_local_route",
+    description: "새로운 로컬 라우팅 규칙을 추가합니다.",
+    payload_example: r#"{"domain": "test.com", "targetHost": "localhost", "targetPort": 3000}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -101,6 +113,12 @@ pub struct UpdateLocalRoutePayload {
     pub target_port: Option<u16>,
     pub enabled: Option<bool>,
 }
+
+pub const UPDATE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_local_route",
+    description: "로컬 라우팅 규칙을 수정합니다.",
+    payload_example: r#"{"id": 1, "domain": "test.com", "targetHost": "localhost", "targetPort": 3000}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -133,6 +151,12 @@ pub struct RemoveLocalRoutePayload {
     pub id: u32,
 }
 
+pub const REMOVE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "remove_local_route",
+    description: "로컬 라우팅 규칙을 삭제합니다.",
+    payload_example: r#"{"id": 1}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn remove_local_route(
@@ -158,6 +182,12 @@ pub struct SetLocalRouteEnabledPayload {
     pub id: u32,
     pub enabled: bool,
 }
+
+pub const SET_LOCAL_ROUTE_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_local_route_enabled",
+    description: "로컬 라우팅 규칙 활성화 여부를 설정합니다.",
+    payload_example: r#"{"id": 1, "enabled": true}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -197,6 +227,12 @@ static PROXY_REVERSE_HTTPS: AtomicU16 = AtomicU16::new(0);
 static PROXY_HANDLES: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>> =
     std::sync::Mutex::new(Vec::new());
 
+pub const GET_PROXY_AUTO_START_ERROR_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_proxy_auto_start_error",
+    description: "프록시 자동 시작 실패 에러 메시지를 조회합니다. 정상이면 null을 반환합니다.",
+    payload_example: "{}",
+};
+
 /// Returns the auto-start error if proxy failed to start on launch, or null if OK.
 #[tauri::command]
 #[specta::specta]
@@ -216,6 +252,12 @@ pub fn get_proxy_auto_start_error() -> Result<ApiResponse<Option<String>>, Strin
         data: err,
     })
 }
+
+pub const GET_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_proxy_status",
+    description: "프록시 서버의 현재 상태를 조회합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -248,6 +290,12 @@ pub struct ProxyStatusPayload {
 pub const PROXY_STATUS_CHANGED: &str = "proxy-status-changed";
 pub const PROXY_AUTO_START_ERROR: &str = "proxy-auto-start-error";
 
+pub const GET_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_proxy_settings",
+    description: "프록시 서버 설정(포트, DNS, 리버스 포트 등)을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_proxy_settings(
@@ -266,6 +314,12 @@ pub fn get_proxy_settings(
 pub struct SetProxyDnsServerPayload {
     pub dns_server: Option<String>,
 }
+
+pub const SET_PROXY_DNS_SERVER_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_proxy_dns_server",
+    description: "프록시가 사용할 사용자 지정 DNS 서버를 설정합니다.",
+    payload_example: r#"{"dnsServer": "8.8.8.8"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -287,6 +341,12 @@ pub struct SetProxyPortPayload {
     pub port: u16,
 }
 
+pub const SET_PROXY_PORT_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_proxy_port",
+    description: "프록시 서버가 사용할 포트를 설정합니다.",
+    payload_example: r#"{"port": 8080}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn set_proxy_port(
@@ -306,6 +366,12 @@ pub fn set_proxy_port(
 pub struct StartLocalProxyPayload {
     pub port: Option<u16>,
 }
+
+pub const START_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "start_local_proxy",
+    description: "로컬 프록시 서버를 시작합니다.",
+    payload_example: r#"{"port": null}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -466,6 +532,12 @@ pub async fn start_local_proxy(
     })
 }
 
+pub const GET_PROXY_SETUP_URL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_proxy_setup_url",
+    description: "프록시가 실행 중일 때 세틈 페이지 URL을 반환합니다.",
+    payload_example: "{}",
+};
+
 /// Returns the setup page URL when proxy is running and a reverse port is configured.
 /// Frontend can open this URL in the browser (e.g. via opener plugin).
 #[tauri::command]
@@ -501,6 +573,12 @@ pub struct SetProxyReversePortsPayload {
     pub reverse_https_port: Option<u16>,
 }
 
+pub const SET_PROXY_REVERSE_PORTS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_proxy_reverse_ports",
+    description: "리버스 HTTP/HTTPS 포트를 설정합니다. 다음 프록시 시작시에 적용됩니다.",
+    payload_example: r#"{"reverseHttpPort": 8081, "reverseHttpsPort": 8443}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn set_proxy_reverse_ports(
@@ -515,6 +593,12 @@ pub fn set_proxy_reverse_ports(
         data: settings,
     })
 }
+
+pub const STOP_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "stop_local_proxy",
+    description: "실행 중인 로컬 프록시 서버를 중지합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -552,6 +636,12 @@ pub fn stop_local_proxy(app: AppHandle) -> Result<ApiResponse<ProxyStatusPayload
 pub struct SetLocalRoutingEnabledPayload {
     pub enabled: bool,
 }
+
+pub const SET_LOCAL_ROUTING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_local_routing_enabled",
+    description: "로컬 라우팅 적용 여부를 토글합니다.",
+    payload_example: r#"{"enabled": true}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

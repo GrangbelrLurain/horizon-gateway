@@ -1,5 +1,11 @@
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
+pub const OPEN_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "open_window",
+    description: "Tauri 앱 내 새 Webview 담당을 엽니다.",
+    payload_example: r#"{"label": "my-window", "title": "My Window", "url": "/page", "width": 800, "height": 600}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub async fn open_window(
@@ -24,6 +30,12 @@ pub async fn open_window(
 
     Ok(())
 }
+
+pub const OPEN_INSPECTOR_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "open_inspector_window",
+    description: "UI 인스펝터 외부 URL Webview 담당을 엽니다.",
+    payload_example: r#"{"url": "https://example.com", "script": null}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -52,6 +64,12 @@ pub async fn open_inspector_window(
 
     Ok(())
 }
+
+pub const OPEN_ANNOTATION_DIALOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "open_annotation_dialog",
+    description: "UI 요소에 주석을 달기 위한 대화상자를 엽니다.",
+    payload_example: r#"{"selector": ".btn", "content": "<p>Hello</p>", "tagName": "button", "thumbnail": ""}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

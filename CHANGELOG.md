@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.1.0] - 2026-07-06
+
+### Added
+
+- **Headless CLI Mode**: Run `watchtower cli list`, `help`, and `run` from the terminal without launching the GUI. All Tauri commands are exposed with JSON payloads and optional `--query` projection for token-efficient agent output.
+- **Agent Skill Installer (`cli init`)**: Install bundled `SKILL.md` and `logs.mjs` to coding-agent skill directories (`cursor`, `claude`, `codex`, `gemini`, `copilot`, `windsurf`, `all`, or `auto`). Supports `--project` for `.agents/skills/watchtower/` and `--print` to output skill content without installing.
+- **Disk Log Reader Script**: `logs.mjs` reads API logs directly from the app data directory (Windows, macOS, Linux) without starting Watchtower — bundled for agent skill distribution.
+- **Tauri Env Loader**: `pnpm tauri` now loads `.env` via `scripts/tauri-env.mjs` before invoking the Tauri CLI.
+
+### Changed
+
+- **CLI Log Verbosity**: Suppresses trace/debug logs in CLI mode (`LevelFilter::ERROR`) to keep agent-facing stdout clean.
+
 ## [v2.0.1] - 2026-07-06
 
 ### Changed

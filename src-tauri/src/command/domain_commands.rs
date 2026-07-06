@@ -12,6 +12,12 @@ pub struct RegistDomainsPayload {
     pub group_id: Option<u32>,
 }
 
+pub const REGIST_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "regist_domains",
+    description: "새로운 도메인들을 등록합니다.",
+    payload_example: r#"{"urls": ["http://test.com"], "groupId": null}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn regist_domains(
@@ -40,6 +46,12 @@ pub fn regist_domains(
     })
 }
 
+pub const GET_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domains",
+    description: "등록된 도메인 목록을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_domains(
@@ -58,6 +70,12 @@ pub fn get_domains(
 pub struct GetDomainByIdPayload {
     pub id: u32,
 }
+
+pub const GET_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domain_by_id",
+    description: "ID로 특정 도메인을 조회합니다.",
+    payload_example: r#"{"id": 1}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -88,6 +106,12 @@ pub struct UpdateDomainByIdPayload {
     pub url: Option<String>,
 }
 
+pub const UPDATE_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_domain_by_id",
+    description: "ID로 특정 도메인 정보를 수정합니다.",
+    payload_example: r#"{"id": 1, "url": "https://new.example.com"}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn update_domain_by_id(
@@ -116,6 +140,12 @@ pub fn update_domain_by_id(
 pub struct RemoveDomainsPayload {
     pub id: u32,
 }
+
+pub const REMOVE_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "remove_domains",
+    description: "등록된 도메인을 제거합니다.",
+    payload_example: r#"{"id": 1}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -152,6 +182,12 @@ pub struct ImportDomainsPayload {
     pub domains: Vec<Domain>,
 }
 
+pub const IMPORT_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "import_domains",
+    description: "JSON 배열 형태로 도메인 목록을 일괄 임포트합니다.",
+    payload_example: r#"{"domains": [{"id": 1, "url": "https://example.com"}]}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn import_domains(
@@ -167,6 +203,12 @@ pub fn import_domains(
         data: list,
     })
 }
+
+pub const CLEAR_ALL_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "clear_all_domains",
+    description: "등록된 모든 도메인을 삭제합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]

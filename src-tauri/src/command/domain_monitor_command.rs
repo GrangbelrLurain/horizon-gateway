@@ -7,6 +7,12 @@ use crate::service::domain_service::DomainService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 
+pub const GET_LATEST_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_latest_status",
+    description: "모니터링 대상 도메인들의 최신 상태를 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_latest_status(
@@ -19,6 +25,12 @@ pub fn get_latest_status(
         data: list,
     })
 }
+
+pub const CHECK_DOMAIN_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "check_domain_status",
+    description: "도메인들의 HTTP 상태를 직접 체크하여 최신 상태를 리턴합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -44,6 +56,12 @@ pub async fn check_domain_status(
     })
 }
 
+pub const GET_DOMAIN_MONITOR_LIST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domain_monitor_list",
+    description: "모니터링 설정이 적용된 도메인 목록과 상태를 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_domain_monitor_list(
@@ -64,6 +82,12 @@ pub struct SetDomainMonitorCheckEnabledPayload {
     pub domain_ids: Vec<u32>,
     pub enabled: bool,
 }
+
+pub const SET_DOMAIN_MONITOR_CHECK_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_domain_monitor_check_enabled",
+    description: "특정 도메인들의 상태 모니터링 활성화 여부를 설정합니다.",
+    payload_example: r#"{"domainIds": [1, 2], "enabled": true}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -88,6 +112,12 @@ pub fn set_domain_monitor_check_enabled(
 pub struct GetDomainStatusLogsPayload {
     pub date: String,
 }
+
+pub const GET_DOMAIN_STATUS_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domain_status_logs",
+    description: "특정 날짜의 도메인 상태 체크 로그를 조회합니다.",
+    payload_example: r#"{"date": "2026-07-06"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

@@ -1,6 +1,12 @@
 use crate::model::api_response::ApiResponse;
 use crate::service::pipeline_runner::{PipelineRunner, PipelineFlow, PipelineExecutionReport};
 
+pub const EXECUTE_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "execute_pipeline",
+    description: "API 노드 체인으로 구성된 파이프라인을 실행합니다.",
+    payload_example: r#"{"nodes": [], "edges": []}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub async fn execute_pipeline(
@@ -18,6 +24,12 @@ pub async fn execute_pipeline(
         data: report,
     })
 }
+
+pub const EXECUTE_PIPELINE_API_NODE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "execute_pipeline_api_node",
+    description: "파이프라인 API 노드 하나를 단독으로 실행합니다.",
+    payload_example: r#"{"url": "https://api.example.com/data", "method": "GET"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

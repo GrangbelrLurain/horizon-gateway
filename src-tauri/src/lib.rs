@@ -52,6 +52,7 @@ use crate::service::proxy_settings_service::ProxySettingsService;
 use std::sync::Arc;
 
 mod logging;
+mod cli;
 mod command {
     pub mod api_log_commands;
     pub mod domain_commands;
@@ -222,7 +223,14 @@ pub fn run() {
         .setup(|app| {
             use std::fs;
             use tauri::Manager;
-            use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+            use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
+
+            let is_cli_mode = std::env::args().nth(1).as_deref() == Some("cli");
+            let log_level = if is_cli_mode {
+                LevelFilter::ERROR
+            } else {
+                LevelFilter::TRACE
+            };
 
             let tauri_layer = crate::logging::TauriEmitterLayer {
                 app_handle: app.handle().clone(),
@@ -230,8 +238,8 @@ pub fn run() {
 
             // Only init once
             let _ = tracing_subscriber::registry()
-                .with(tracing_subscriber::fmt::layer())
-                .with(tauri_layer)
+                .with(tracing_subscriber::fmt::layer().with_filter(log_level))
+                .with(tauri_layer.with_filter(log_level))
                 .try_init();
 
             let app_data_dir = app
@@ -309,6 +317,13 @@ pub fn run() {
             app.manage(inspector_service);
             app.manage(tunnel_service.clone());
             app.manage(usb_service);
+
+            // CLI 명령형 인자 인터셉트
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 && args[1] == "cli" {
+                cli::execute_cli(&args[2..], app.handle());
+                std::process::exit(0);
+            }
 
             // Start the Hand-off diagnostic Axum server
             let app_handle_clone = app.handle().clone();

@@ -9,6 +9,12 @@ use tauri::State;
 
 pub const MOCKING_STATUS_CHANGED: &str = "mocking-status-changed";
 
+pub const GET_MOCKING_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_mocking_status",
+    description: "모킹 활성화 상태 및 설정을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_mocking_status(
@@ -26,6 +32,12 @@ pub fn get_mocking_status(
 pub struct SetMockingEnabledPayload {
     pub enabled: bool,
 }
+
+pub const SET_MOCKING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_mocking_enabled",
+    description: "모킹 활성화 여부를 변경합니다.",
+    payload_example: r#"{"enabled": true}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -53,6 +65,12 @@ pub fn set_mocking_enabled(
     })
 }
 
+pub const GET_SCENARIOS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_scenarios",
+    description: "모킹 시나리오 목록을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_scenarios(
@@ -72,6 +90,12 @@ pub struct CreateScenarioPayload {
     pub description: Option<String>,
 }
 
+pub const CREATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "create_scenario",
+    description: "새로운 모킹 시나리오를 생성합니다.",
+    payload_example: r#"{"name": "Scenario Name", "description": "Description"}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn create_scenario(
@@ -85,6 +109,12 @@ pub fn create_scenario(
         data: scenario,
     })
 }
+
+pub const UPDATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_scenario",
+    description: "모킹 시나리오를 수정합니다.",
+    payload_example: r#"{"id": "scenario-uuid", "name": "New Name", "description": null, "enabled": null}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -100,6 +130,12 @@ pub fn update_scenario(
         .ok_or_else(|| "Scenario not found".to_string())
 }
 
+pub const SET_SCENARIO_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_scenario_enabled",
+    description: "모킹 시나리오의 활성화 여부를 설정합니다.",
+    payload_example: r#"{"id": "scenario-uuid", "enabled": true}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn set_scenario_enabled(
@@ -110,6 +146,12 @@ pub fn set_scenario_enabled(
     Ok(service.set_scenario_enabled(id, enabled))
 }
 
+pub const DELETE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "delete_scenario",
+    description: "모킹 시나리오를 삭제합니다.",
+    payload_example: r#""scenario-uuid""#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn delete_scenario(
@@ -118,6 +160,12 @@ pub fn delete_scenario(
 ) -> Result<bool, String> {
     Ok(service.delete_scenario(id))
 }
+
+pub const GET_MOCK_RULES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_mock_rules",
+    description: "모킹 룰 목록을 조회합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -136,6 +184,12 @@ pub fn get_mock_rules(
 pub struct GetMockRulesByScenarioPayload {
     pub scenario_id: String,
 }
+
+pub const GET_MOCK_RULES_BY_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_mock_rules_by_scenario",
+    description: "특정 시나리오에 속한 모킹 룰 목록을 조회합니다.",
+    payload_example: r#"{"scenarioId": "scenario-uuid"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -163,6 +217,12 @@ pub struct CreateMockRulePayload {
     pub response_body: Option<String>,
     pub enabled: bool,
 }
+
+pub const CREATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "create_mock_rule",
+    description: "새로운 모킹 룰을 생성합니다.",
+    payload_example: r#"{"name": "test rule", "scenarioId": "scenario-uuid", "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -202,6 +262,12 @@ pub struct UpdateMockRulePayload {
     pub enabled: Option<bool>,
 }
 
+pub const UPDATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_mock_rule",
+    description: "모킹 룰을 수정합니다.",
+    payload_example: r#"{"id": "rule-uuid", "name": null, "host": null, "method": null, "urlPattern": null, "responseStatus": null, "responseHeaders": null, "responseBody": null, "enabled": null}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn update_mock_rule(
@@ -229,6 +295,12 @@ pub fn update_mock_rule(
     })
 }
 
+pub const DELETE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "delete_mock_rule",
+    description: "모킹 룰을 삭제합니다.",
+    payload_example: r#""rule-uuid""#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn delete_mock_rule(
@@ -246,6 +318,12 @@ pub struct CreateMockFromLogPayload {
     pub name: String,
     pub log_date: String,
 }
+
+pub const CREATE_MOCK_RULE_FROM_LOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "create_mock_rule_from_log",
+    description: "API 로그 항목을 기반으로 모킹 룰을 생성합니다.",
+    payload_example: r#"{"logId": "log-uuid", "scenarioId": "scenario-uuid"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

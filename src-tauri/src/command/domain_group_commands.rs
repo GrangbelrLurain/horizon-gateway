@@ -7,6 +7,12 @@ use crate::service::domain_group_service::DomainGroupService;
 use crate::service::domain_service::DomainService;
 use tauri::State;
 
+pub const GET_DOMAIN_GROUP_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domain_group_links",
+    description: "도메인과 그룹 간의 연결 링크 전체 목록을 조회합니다.",
+    payload_example: "{}",
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_domain_group_links(
@@ -26,6 +32,12 @@ pub struct SetDomainGroupsPayload {
     pub domain_id: u32,
     pub group_ids: Vec<u32>,
 }
+
+pub const SET_DOMAIN_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_domain_groups",
+    description: "특정 도메인에 속하는 그룹 목록을 설정합니다.",
+    payload_example: r#"{"domainId": 1, "groupIds": [1, 2]}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -48,6 +60,12 @@ pub struct SetGroupDomainsPayload {
     pub domain_ids: Vec<u32>,
 }
 
+pub const SET_GROUP_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_group_domains",
+    description: "특정 그룹에 속하는 도메인 목록을 설정합니다.",
+    payload_example: r#"{"groupId": 1, "domainIds": [1, 2, 3]}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn set_group_domains(
@@ -67,6 +85,12 @@ pub fn set_group_domains(
 pub struct GetDomainsByGroupPayload {
     pub group_id: u32,
 }
+
+pub const GET_DOMAINS_BY_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domains_by_group",
+    description: "특정 그룹에 속한 도메인 목록을 조회합니다.",
+    payload_example: r#"{"groupId": 1}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -94,6 +118,12 @@ pub struct GetGroupsForDomainPayload {
     pub domain_id: u32,
 }
 
+pub const GET_GROUPS_FOR_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_groups_for_domain",
+    description: "특정 도메인이 속한 그룹 목록을 조회합니다.",
+    payload_example: r#"{"domainId": 1}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_groups_for_domain(
@@ -120,6 +150,12 @@ pub struct CreateGroupPayload {
     pub name: String,
 }
 
+pub const CREATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "create_group",
+    description: "새로운 도메인 그룹을 생성합니다.",
+    payload_example: r#"{"name": "My Group"}"#,
+};
+
 #[tauri::command]
 #[specta::specta]
 pub async fn create_group(
@@ -133,6 +169,12 @@ pub async fn create_group(
         message: "Group created successfully".to_string(),
     })
 }
+
+pub const GET_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_groups",
+    description: "도메인 그룹 전체 목록을 조회합니다.",
+    payload_example: "{}",
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -152,6 +194,12 @@ pub async fn get_groups(
 pub struct DeleteGroupPayload {
     pub id: u32,
 }
+
+pub const DELETE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "delete_group",
+    description: "도메인 그룹을 삭제합니다.",
+    payload_example: r#"{"id": 1}"#,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -175,6 +223,12 @@ pub struct UpdateGroupPayload {
     pub id: u32,
     pub name: String,
 }
+
+pub const UPDATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_group",
+    description: "도메인 그룹의 이름을 수정합니다.",
+    payload_example: r#"{"id": 1, "name": "New Group Name"}"#,
+};
 
 #[tauri::command]
 #[specta::specta]

@@ -7,6 +7,12 @@ use crate::service::api_log_service::ApiLogService;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+pub const GET_DOMAIN_API_LOGGING_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_domain_api_logging_links",
+    description: "도메인별 API 로깅 설정 링크 목록을 조회합니다.",
+    payload_example: "{}",
+};
+
 /// 모든 도메인 API 로깅 링크 조회.
 #[tauri::command]
 #[specta::specta]
@@ -29,6 +35,12 @@ pub struct SetDomainApiLoggingPayload {
     pub body_enabled: bool,
     pub schema_url: Option<String>,
 }
+
+pub const SET_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_domain_api_logging",
+    description: "도메인 API 로깅 설정을 추가하거나 변경합니다.",
+    payload_example: r#"{"domainId": 1, "loggingEnabled": true, "bodyEnabled": false, "schemaUrl": null}"#,
+};
 
 /// 도메인 API 로깅 설정 추가/변경.
 #[tauri::command]
@@ -67,6 +79,12 @@ pub fn set_domain_api_logging(
 pub struct RemoveDomainApiLoggingPayload {
     pub domain_id: u32,
 }
+
+pub const REMOVE_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "remove_domain_api_logging",
+    description: "도메인 API 로깅 설정을 제거합니다.",
+    payload_example: r#"{"domainId": 1}"#,
+};
 
 /// 도메인 API 로깅 설정 제거.
 #[tauri::command]
@@ -117,6 +135,12 @@ pub struct SchemaDownloadResult {
     /// 처음 N 글자 미리보기 (최대 500자).
     pub preview: String,
 }
+
+pub const DOWNLOAD_API_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "download_api_schema",
+    description: "Schema URL에서 OpenAPI/Swagger 스키마를 다운로드하여 로컬에 저장합니다.",
+    payload_example: r#"{"domainId": 1, "url": "https://api.example.com/openapi.json"}"#,
+};
 
 /// Schema URL에서 JSON/YAML을 다운로드하여 로컬 저장.
 #[tauri::command]
@@ -178,6 +202,12 @@ pub async fn download_api_schema(
         },
     })
 }
+
+pub const GET_API_SCHEMA_CONTENT_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_api_schema_content",
+    description: "로컬에 저장된 API Schema 파일의 내용을 조회합니다.",
+    payload_example: r#"{"domainId": 1}"#,
+};
 
 /// 로컬에 저장된 Schema 내용 조회.
 #[tauri::command]
@@ -241,6 +271,12 @@ fn empty_request_result() -> ApiRequestResult {
         elapsed_ms: 0,
     }
 }
+
+pub const SEND_API_REQUEST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "send_api_request",
+    description: "임의의 HTTP 요청을 전송하고 응답을 반환합니다 (Schema Try-it-out).",
+    payload_example: r#"{"method": "GET", "url": "https://api.example.com/users", "headers": {}, "body": null}"#,
+};
 
 /// 임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
 /// 네트워크 에러도 `ApiResponse로` 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
@@ -361,6 +397,12 @@ pub async fn send_api_request(
 
 // ─── API Log Commands ───────────────────────────────────────────────────────
 
+pub const LIST_API_LOG_DATES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "list_api_log_dates",
+    description: "API 로그가 존재하는 날짜 목록을 조회합니다 (YYYY-MM-DD 형식).",
+    payload_example: "{}",
+};
+
 /// API 로그 날짜 목록 조회. (YYYY-MM-DD)
 #[tauri::command]
 #[specta::specta]
@@ -384,6 +426,12 @@ pub struct GetApiLogsPayload {
     pub host_filter: Option<String>,
     pub exact_match: Option<bool>,
 }
+
+pub const GET_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_api_logs",
+    description: "API 로그 목록을 조회합니다.",
+    payload_example: r#"{"date": "2026-07-06", "domainFilter": null, "methodFilter": null, "hostFilter": null, "exactMatch": null}"#,
+};
 
 /// 특정 날짜의 API 로그 조회.
 #[tauri::command]
@@ -411,6 +459,12 @@ pub fn get_api_logs(
 pub struct ClearApiLogsPayload {
     pub date: Option<String>,
 }
+
+pub const CLEAR_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "clear_api_logs",
+    description: "API 로그를 삭제합니다.",
+    payload_example: r#"{"date": "2026-07-06"}"#,
+};
 
 /// API 로그 삭제 (특정 날짜 또는 전체).
 #[tauri::command]
