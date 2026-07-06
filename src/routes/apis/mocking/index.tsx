@@ -381,23 +381,29 @@ function MockingDashboard() {
                   {rules.map((rule) => (
                     <Card key={rule.id} className={`p-4 flex flex-col gap-3 ${!rule.enabled && `opacity-50`}`}>
                       <div className="font-bold text-sm truncate">{rule.name}</div>
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
+                      <div className="flex justify-between items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span
-                            className={`font-black text-xs px-2 py-0.5 rounded uppercase ${rule.method === `GET` ? `bg-success/20 text-success` : rule.method === `POST` ? `bg-info/20 text-info` : `bg-warning/20 text-warning`}`}
+                            className={`font-black text-xs px-2 py-0.5 rounded uppercase shrink-0 ${rule.method === `GET` ? `bg-success/20 text-success` : rule.method === `POST` ? `bg-info/20 text-info` : `bg-warning/20 text-warning`}`}
                           >
                             {rule.method}
                           </span>
-                          <span className="font-mono text-sm font-bold truncate max-w-[200px]" title={rule.url_pattern}>
+                          <span
+                            className="font-mono text-sm font-bold truncate max-w-[200px] min-w-0"
+                            title={rule.url_pattern}
+                          >
                             {rule.url_pattern}
                           </span>
                           {rule.host && (
-                            <span className="text-[10px] bg-base-200 text-base-content/50 px-1.5 py-0.5 rounded font-medium">
+                            <span
+                              className="text-[10px] bg-base-200 text-base-content/50 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px] min-w-0 shrink-0"
+                              title={rule.host}
+                            >
                               {rule.host}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"

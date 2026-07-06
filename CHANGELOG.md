@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.0.1] - 2026-07-06
+
+### Changed
+
+- **Client-Side API Log Filtering**: Refactored the API Logs view (`src/routes/apis/logs/index.tsx`) to fetch all logs for the selected date and apply filters (method, host, path/search) client-side using `useMemo`. This replaces server-side filtering on input change, eliminating excessive API request firing and improving responsiveness.
+
+### Fixed
+
+- **Mock Rule Card Layout Overflow**: Fixed layout overflow issues on the Mocking page rules dashboard cards (`src/routes/apis/mocking/index.tsx`) by introducing proper flex container bounds (`min-w-0`, `flex-1`, and `shrink-0`) to truncate long URL patterns and hosts gracefully without breaking action buttons.
+- **FlowBuilder Props Mapping Formatting**: Cleaned up code layout and formatting rules inside mapping functions in the sandbox FlowBuilder component (`src/features/sandbox/ui/FlowBuilder.tsx`).
+
 ## [v2.0.0] - 2026-06-28
 
 ### Added

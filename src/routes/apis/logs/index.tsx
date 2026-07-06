@@ -257,9 +257,9 @@ function ApiLogs() {
       const res = await commands
         .getApiLogs({
           date: targetDate,
-          domainFilter: searchRef.current.trim() || null,
-          methodFilter: methodFilterRef.current || null,
-          hostFilter: hostFilterRef.current.trim() || null,
+          domainFilter: null,
+          methodFilter: null,
+          hostFilter: null,
           exactMatch: null,
         })
         .then(unwrap);
@@ -295,21 +295,10 @@ function ApiLogs() {
     }
   }, []);
 
-  // Guard: prevent the filter effect from firing on the very first mount.
-  // The date effect below already does the initial fetch.
-  const isMountedRef = useRef(false);
   const dateRef = useRef(date);
   useEffect(() => {
     dateRef.current = date;
   }, [date]);
-  useEffect(() => {
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
-    setHasPendingUpdates(false);
-    fetchLogs(dateRef.current, "silent");
-  }, [fetchLogs]);
 
   useEffect(() => {
     fetchDates();
@@ -387,8 +376,32 @@ function ApiLogs() {
     }
   };
 
+  const filteredLogs = useMemo(() => {
+    return logs.filter((entry) => {
+      // 1. Method filter
+      if (methodFilter && entry.method !== methodFilter) {
+        return false;
+      }
+      // 2. Host filter
+      if (localHostFilter.trim()) {
+        const filterStr = localHostFilter.trim().toLowerCase();
+        if (!entry.host.toLowerCase().includes(filterStr)) {
+          return false;
+        }
+      }
+      // 3. Search / path filter
+      if (localSearch.trim()) {
+        const filterStr = localSearch.trim().toLowerCase();
+        if (!entry.path.toLowerCase().includes(filterStr) && !entry.url.toLowerCase().includes(filterStr)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [logs, methodFilter, localHostFilter, localSearch]);
+
   const rowVirtualizer = useVirtualizer({
-    count: logs.length,
+    count: filteredLogs.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
     overscan: 5,
@@ -396,7 +409,7 @@ function ApiLogs() {
 
   // Pre-format all timestamps once when logs change — avoids calling new Date() per virtualised row render
   const formattedTimestamps = useMemo(() => {
-    return logs.map((log) =>
+    return filteredLogs.map((log) =>
       new Date(log.timestamp).toLocaleTimeString([], {
         hour12: false,
         hour: "2-digit",
@@ -404,7 +417,7 @@ function ApiLogs() {
         second: "2-digit",
       }),
     );
-  }, [logs]);
+  }, [filteredLogs]);
 
   // Stable row click handler — does not change between renders
   const handleRowClick = useCallback((log: ApiLogEntry) => {
@@ -939,7 +952,7 @@ ${formattedResBody}
                     actionHref="/apis/settings"
                   />
                 </div>
-              ) : logs.length === 0 ? (
+              ) : filteredLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 gap-3 opacity-30 grayscale">
                   <FileText className="w-12 h-12 text-base-content" />
                   <p className="text-sm font-black uppercase tracking-widest text-base-content">
@@ -955,7 +968,7 @@ ${formattedResBody}
                   }}
                 >
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const log = logs[virtualRow.index];
+                    const log = filteredLogs[virtualRow.index];
                     if (!log) {
                       return null;
                     }

@@ -1409,11 +1409,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             );
                             const mappedObj: Record<string, unknown> = {};
                             if (Array.isArray(previewResult.mappings)) {
-                              (previewResult.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach((m) => {
-                                if (m.targetKey && m.targetKey.trim() !== "") {
-                                  mappedObj[m.targetKey.trim()] = m.sourceValue;
-                                }
-                              });
+                              (previewResult.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach(
+                                (m) => {
+                                  if (m.targetKey && m.targetKey.trim() !== "") {
+                                    mappedObj[m.targetKey.trim()] = m.sourceValue;
+                                  }
+                                },
+                              );
                             }
                             return (
                               <textarea
