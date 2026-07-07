@@ -13,6 +13,8 @@ const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
   // @ts-ignore
   return ui[lang][key] ?? ui['ko'][key];
 };
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Layout lang={lang}>
@@ -25,7 +27,7 @@ const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
     <section class="hero-section container">
       <div class="hero-content">
         <div class="badge">{t('hero.badge')}</div>
-        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src="/logo-text.svg" alt="Watchtower" class="hero-logo-text" /></h1>
+        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src={`${baseUrl}/logo-text.svg`} alt="Watchtower" class="hero-logo-text" /></h1>
         <p class="hero-subtitle">
           {t('hero.subtitle')}
         </p>
