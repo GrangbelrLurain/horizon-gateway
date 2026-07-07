@@ -57,8 +57,7 @@ export function Sidebar({
       >
         <div className="flex items-center justify-between tablet:hidden px-2 mb-4">
           <div className="flex items-center gap-2">
-            <img src="/app-icon.svg" alt="" className="w-5 h-5" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-400">Watchtower</span>
+            <img src="/logo-text.svg" alt="Watchtower" className="h-5 w-auto object-contain" />
           </div>
           <button
             type="button"

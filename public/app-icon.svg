@@ -9,9 +9,7 @@
     <!-- Energy Field / Anti-gravity Beam Gradient: Cyan -->
     <linearGradient id="energyBeam" x1="512" y1="100" x2="512" y2="900" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#38BDF8" stop-opacity="0" />
-      <stop offset="20%" stop-color="#22D3EE" stop-opacity="0.6" />
       <stop offset="50%" stop-color="#06B6D4" stop-opacity="0.8" />
-      <stop offset="80%" stop-color="#0EA5E9" stop-opacity="0.4" />
       <stop offset="100%" stop-color="#0369A1" stop-opacity="0" />
     </linearGradient>
 
@@ -34,58 +32,40 @@
       <feGaussianBlur stdDeviation="20" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
-    
-    <filter id="particleGlow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="10" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
 
   <!-- Void Background -->
   <rect width="1024" height="1024" fill="url(#voidBg)" />
 
   <!-- Magnetic Field (Background) -->
-  <circle cx="512" cy="512" r="380" fill="none" stroke="#0EA5E9" stroke-width="1" opacity="0.15" stroke-dasharray="4 12" />
-  <circle cx="512" cy="512" r="280" fill="none" stroke="#22D3EE" stroke-width="2" opacity="0.2" stroke-dasharray="10 30" />
-  <path d="M 512 100 L 512 924" stroke="url(#energyBeam)" stroke-width="4" filter="url(#neonGlow)" opacity="0.7" />
+  <circle cx="512" cy="512" r="420" fill="none" stroke="#0EA5E9" stroke-width="1" opacity="0.15" stroke-dasharray="4 12" />
+  <circle cx="512" cy="512" r="320" fill="none" stroke="#22D3EE" stroke-width="2" opacity="0.2" stroke-dasharray="10 30" />
+  <path d="M 512 80 L 512 944" stroke="url(#energyBeam)" stroke-width="4" filter="url(#neonGlow)" opacity="0.7" />
 
-  <!-- Flat Holographic Rhombus Layers (Replaces the 3D Pyramid) -->
+  <!-- Holographic Rhombus Base Layer (Centered) -->
   <g filter="url(#neonGlow)">
-    <!-- Central Energy Axis -->
-    <path d="M 512 480 L 512 850" stroke="#ECFEFF" stroke-width="2" opacity="0.6" stroke-dasharray="8 8" />
-
-    <!-- Layer 1: Top Largest Rhombus -->
-    <path d="M 512 510 L 712 560 L 512 610 L 312 560 Z" fill="#0284C7" fill-opacity="0.1" stroke="#22D3EE" stroke-width="3" />
-    <!-- Inner detail for Top Rhombus -->
-    <path d="M 512 525 L 672 560 L 512 595 L 352 560 Z" fill="none" stroke="#38BDF8" stroke-width="1" opacity="0.5" />
-    
-    <!-- Layer 2: Middle Medium Rhombus -->
-    <path d="M 512 620 L 642 660 L 512 700 L 382 660 Z" fill="#0369A1" fill-opacity="0.15" stroke="#0EA5E9" stroke-width="2" />
-    <!-- Inner detail -->
-    <path d="M 512 635 L 612 660 L 512 685 L 412 660 Z" fill="none" stroke="#06B6D4" stroke-width="1" opacity="0.6" />
-
-    <!-- Layer 3: Bottom Small Rhombus -->
-    <path d="M 512 710 L 572 735 L 512 760 L 452 735 Z" fill="#0C4A6E" fill-opacity="0.3" stroke="#0284C7" stroke-width="2" />
+    <!-- Outer Rhombus -->
+    <path d="M 512 180 L 844 512 L 512 844 L 180 512 Z" fill="#0284C7" fill-opacity="0.08" stroke="#22D3EE" stroke-width="8" />
+    <!-- Inner Rhombus detail -->
+    <path d="M 512 240 L 784 512 L 512 784 L 240 512 Z" fill="none" stroke="#38BDF8" stroke-width="3" opacity="0.5" />
   </g>
 
-  <!-- Energy Nodes dripping through the rhombuses -->
-  <circle cx="512" cy="790" r="6" fill="#22D3EE" filter="url(#neonGlow)" />
-  <circle cx="512" cy="840" r="4" fill="#38BDF8" filter="url(#neonGlow)" opacity="0.6" />
+  <!-- Orbiting Rings (Centered) -->
+  <g filter="url(#neonGlow)">
+    <ellipse cx="512" cy="512" rx="380" ry="100" fill="none" stroke="#22D3EE" stroke-width="6" opacity="0.45" transform="rotate(-15 512 512)" />
+    <ellipse cx="512" cy="512" rx="420" ry="70" fill="none" stroke="#0EA5E9" stroke-width="3" opacity="0.3" transform="rotate(10 512 512)" />
+  </g>
 
-  <!-- Floating Orbiting Rings -->
-  <ellipse cx="512" cy="420" rx="180" ry="40" fill="none" stroke="#22D3EE" stroke-width="2" opacity="0.4" filter="url(#neonGlow)" transform="rotate(-15 512 420)" />
-  <ellipse cx="512" cy="420" rx="220" ry="30" fill="none" stroke="#0EA5E9" stroke-width="1" opacity="0.3" transform="rotate(10 512 420)" />
-
-  <!-- The Antigravity Core -->
-  <circle cx="512" cy="390" r="140" fill="url(#coreGlow)" filter="url(#neonGlow)" opacity="0.8" />
-  <circle cx="512" cy="390" r="60" fill="url(#pureLight)" filter="url(#neonGlow)" />
-  <circle cx="512" cy="390" r="20" fill="#FFFFFF" />
+  <!-- The Antigravity Core (Centered inside the Rhombus) -->
+  <g filter="url(#neonGlow)">
+    <circle cx="512" cy="512" r="150" fill="url(#coreGlow)" opacity="0.85" />
+    <circle cx="512" cy="512" r="65" fill="url(#pureLight)" />
+    <circle cx="512" cy="512" r="22" fill="#FFFFFF" />
+  </g>
 
   <!-- Floating Circular Particles -->
-  <circle cx="280" cy="370" r="15" fill="#22D3EE" filter="url(#particleGlow)" opacity="0.8" />
-  <circle cx="740" cy="330" r="12" fill="#0EA5E9" filter="url(#particleGlow)" opacity="0.7" />
-  <circle cx="685" cy="485" r="8" fill="#38BDF8" filter="url(#particleGlow)" opacity="0.9" />
-  <circle cx="335" cy="460" r="18" fill="#06B6D4" filter="url(#particleGlow)" opacity="0.6" />
-  <circle cx="780" cy="600" r="6" fill="#0284C7" opacity="0.5" />
-  <circle cx="230" cy="650" r="5" fill="#38BDF8" opacity="0.4" />
+  <circle cx="280" cy="300" r="16" fill="#22D3EE" filter="url(#neonGlow)" opacity="0.8" />
+  <circle cx="740" cy="280" r="12" fill="#0EA5E9" filter="url(#neonGlow)" opacity="0.7" />
+  <circle cx="780" cy="650" r="14" fill="#38BDF8" filter="url(#neonGlow)" opacity="0.9" />
+  <circle cx="230" cy="680" r="18" fill="#06B6D4" filter="url(#neonGlow)" opacity="0.6" />
 </svg>

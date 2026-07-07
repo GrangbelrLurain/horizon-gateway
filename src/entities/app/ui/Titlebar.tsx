@@ -74,17 +74,12 @@ export function Titlebar() {
             <Menu className="w-4 h-4" />
           </button>
         )}
-        <img src="/app-icon.svg" alt="" className="w-4 h-4 shrink-0 object-contain" aria-hidden />
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none">
-            Watchtower
+        <img src="/logo-text.svg" alt="Watchtower" className="h-4 w-auto object-contain shrink-0" />
+        {isDetached && (
+          <span className="text-[8px] font-bold text-blue-400/80 uppercase tracking-wider ml-1">
+            {location.pathname.replace(/\//g, " ").trim() || "Dashboard"}
           </span>
-          {isDetached && (
-            <span className="text-[8px] font-bold text-blue-400/80 uppercase tracking-wider mt-0.5">
-              {location.pathname.replace(/\//g, " ").trim() || "Dashboard"}
-            </span>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="flex items-center h-full">

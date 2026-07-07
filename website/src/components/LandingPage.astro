@@ -1,0 +1,993 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { ui } from '../i18n/ui';
+import type { Lang } from '../i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+
+const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
+  // @ts-ignore
+  return ui[lang][key] ?? ui['ko'][key];
+};
+---
+
+<Layout lang={lang}>
+  <main data-lang={lang}>
+    <!-- Background Glows -->
+    <div class="glow-backdrop" style="top: 100px; left: -100px;"></div>
+    <div class="glow-backdrop" style="top: 600px; right: -100px;"></div>
+
+    <!-- Hero Section -->
+    <section class="hero-section container">
+      <div class="hero-content">
+        <div class="badge">{t('hero.badge')}</div>
+        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src="/logo-text.svg" alt="Watchtower" class="hero-logo-text" /></h1>
+        <p class="hero-subtitle">
+          {t('hero.subtitle')}
+        </p>
+        
+        <div class="hero-actions">
+          <a href="https://github.com/GrangbelrLurain/watchtower/releases" class="btn btn-primary btn-hero-download" id="primary-download-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <div class="btn-text-wrapper">
+              <span id="primary-download-text">{t('hero.download.win')}</span>
+              <span id="primary-download-subtext" class="btn-subtext">{t('hero.download.sub.win')}</span>
+            </div>
+          </a>
+          
+          <div class="cli-copy-box">
+            <span class="cli-prefix">$</span>
+            <code class="cli-code">watchtower cli init --project</code>
+            <button class="cli-copy-btn" id="copy-cli-btn" aria-label="Copy command">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="copy-icon">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="check-icon" style="display: none; stroke: var(--color-success);">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- App Mockup Container -->
+      <div class="mockup-container animate-float">
+        <div class="app-mockup glass-panel">
+          <div class="mockup-header">
+            <div class="mockup-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="mockup-address">watchtower.app / dashboard</div>
+          </div>
+          <div class="mockup-body">
+            <div class="mockup-sidebar">
+              <div class="sidebar-item active">Domains</div>
+              <div class="sidebar-item">Local Proxy</div>
+              <div class="sidebar-item">APIs & Mocking</div>
+              <div class="sidebar-item">Settings</div>
+            </div>
+            <div class="mockup-main">
+              <div class="main-header">
+                <h3>Domain Health Status</h3>
+                <span class="status-indicator-badge live">Live Mode</span>
+              </div>
+              <div class="domain-card-mockup">
+                <div class="domain-info">
+                  <span class="domain-dot online"></span>
+                  <div>
+                    <div class="domain-name">api.development.local</div>
+                    <div class="domain-meta">Ping: 12ms | HTTP 200 OK</div>
+                  </div>
+                </div>
+                <div class="mini-chart">
+                  <div class="bar" style="height: 40%"></div>
+                  <div class="bar" style="height: 60%"></div>
+                  <div class="bar" style="height: 55%"></div>
+                  <div class="bar" style="height: 70%"></div>
+                  <div class="bar highlight" style="height: 85%"></div>
+                </div>
+              </div>
+              <div class="domain-card-mockup">
+                <div class="domain-info">
+                  <span class="domain-dot online"></span>
+                  <div>
+                    <div class="domain-name">auth.service.internal</div>
+                    <div class="domain-meta">Ping: 8ms | HTTP 200 OK</div>
+                  </div>
+                </div>
+                <div class="mini-chart">
+                  <div class="bar" style="height: 30%"></div>
+                  <div class="bar" style="height: 45%"></div>
+                  <div class="bar" style="height: 40%"></div>
+                  <div class="bar" style="height: 50%"></div>
+                  <div class="bar highlight" style="height: 60%"></div>
+                </div>
+              </div>
+              <div class="domain-card-mockup warning">
+                <div class="domain-info">
+                  <span class="domain-dot alert"></span>
+                  <div>
+                    <div class="domain-name">legacy-database.internal</div>
+                    <div class="domain-meta">Connection Timeout | HTTP 504</div>
+                  </div>
+                </div>
+                <div class="mini-chart">
+                  <div class="bar" style="height: 70%"></div>
+                  <div class="bar" style="height: 65%"></div>
+                  <div class="bar" style="height: 20%"></div>
+                  <div class="bar" style="height: 0%"></div>
+                  <div class="bar alert" style="height: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section container" style="margin-top: 150px;">
+      <div style="text-align: center; max-width: 600px; margin: 0 auto 50px;">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">{t('features.title')}<span class="text-gradient">{t('features.title.accent')}</span></h2>
+        <p style="color: var(--color-text-secondary);">{t('features.subtitle')}</p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card glass-panel">
+          <div class="feature-icon icon-violet">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+          </div>
+          <h3>{t('features.domain.title')}</h3>
+          <p>{t('features.domain.desc')}</p>
+          <div class="feature-visual">
+            <div class="ping-signal">
+              <span class="ring animate-ping"></span>
+              <span class="signal-core"></span>
+            </div>
+            <span style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--color-success)">status: 200 OK (14ms)</span>
+          </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card glass-panel">
+          <div class="feature-icon icon-blue">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <h3>{t('features.proxy.title')}</h3>
+          <p>{t('features.proxy.desc')}</p>
+          <div class="feature-visual" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div class="route-map">
+              <span class="route-node">prod-api.com</span>
+              <span class="route-arrow">➔</span>
+              <span class="route-node highlight">localhost:8080</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card glass-panel">
+          <div class="feature-icon icon-rose">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+          </div>
+          <h3>{t('features.api.title')}</h3>
+          <p>{t('features.api.desc')}</p>
+          <div class="feature-visual font-mono" style="font-size: 0.8rem; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px 12px; justify-content: flex-start; color: var(--color-accent);">
+            <span>{'{ "mocked": true, "status": "success" }'}</span>
+          </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card glass-panel">
+          <div class="feature-icon icon-green">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          </div>
+          <h3>{t('features.mobile.title')}</h3>
+          <p>{t('features.mobile.desc')}</p>
+          <div class="feature-visual" style="gap: 15px;">
+            <span style="font-size: 0.8rem; border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px;">{t('features.mobile.connect')}</span>
+            <span class="route-arrow">↔</span>
+            <span style="font-size: 0.8rem; border: 1px solid var(--color-success); padding: 4px 8px; border-radius: 6px; color: var(--color-success)">{t('features.mobile.tunnel')}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLI Terminal Section -->
+    <section class="terminal-section container" style="margin-top: 150px;">
+      <div style="display: flex; flex-direction: column; gap: 40px;">
+        <div style="max-width: 500px;">
+          <div class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--color-secondary);">{t('terminal.badge')}</div>
+          <h2 style="font-size: 2.3rem; margin: 15px 0;">{t('terminal.title')}<span class="text-gradient">{t('terminal.title.accent')}</span>{t('terminal.title.post')}</h2>
+          <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
+            {t('terminal.desc')}
+          </p>
+          <div class="terminal-buttons">
+            <button class="btn btn-secondary terminal-tab active" data-command="init">watchtower cli init</button>
+            <button class="btn btn-secondary terminal-tab" data-command="list">watchtower cli list</button>
+            <button class="btn btn-secondary terminal-tab" data-command="run">watchtower cli run</button>
+          </div>
+        </div>
+
+        <div class="terminal-mockup glass-panel">
+          <div class="mockup-header" style="background: rgba(0,0,0,0.4)">
+            <div class="mockup-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <div class="mockup-address" style="font-family: var(--font-mono)">Terminal - powershell</div>
+          </div>
+          <div class="terminal-body">
+            <div class="terminal-line input-line">
+              <span class="prompt-prefix">PS C:\project></span>
+              <span id="terminal-input-text">watchtower cli init --project</span><span class="terminal-cursor"></span>
+            </div>
+            <div class="terminal-output" id="terminal-output-text">
+              [Info] Initializing agent skill settings...
+              [Success] Created skill folder: .agents/skills/watchtower/
+              [Success] Created file: .agents/skills/watchtower/SKILL.md
+              [Info] Skill documentation registration completed.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technical Stack / Performance -->
+    <section class="performance-section container" style="margin-top: 150px; background: radial-gradient(circle at center, rgba(168,85,247,0.05) 0%, transparent 70%); border-radius: 24px; padding: 60px 20px;">
+      <div style="text-align: center; margin-bottom: 50px;">
+        <h2 style="font-size: 2.3rem;">{t('perf.title')}<span class="text-gradient">{t('perf.title.accent')}</span></h2>
+        <p style="color: var(--color-text-secondary); margin-top: 10px;">{t('perf.subtitle')}</p>
+      </div>
+
+      <div class="performance-grid">
+        <div class="perf-card">
+          <div class="perf-metric">&lt; 20MB</div>
+          <div class="perf-label">{t('perf.installer.label')}</div>
+          <div class="perf-progress-bar"><span style="width: 15%"></span></div>
+          <p class="perf-desc">{t('perf.installer.desc')}</p>
+        </div>
+        <div class="perf-card">
+          <div class="perf-metric">&lt; 50MB</div>
+          <div class="perf-label">{t('perf.memory.label')}</div>
+          <div class="perf-progress-bar"><span style="width: 25%"></span></div>
+          <p class="perf-desc">{t('perf.memory.desc')}</p>
+        </div>
+        <div class="perf-card">
+          <div class="perf-metric">0.1s</div>
+          <div class="perf-label">{t('perf.startup.label')}</div>
+          <div class="perf-progress-bar"><span style="width: 5%"></span></div>
+          <p class="perf-desc">{t('perf.startup.desc')}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section container" style="margin: 150px auto 100px; text-align: center; position: relative;">
+      <div class="glass-panel" style="padding: 80px 40px; border-radius: 24px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);">
+        <h2 style="font-size: 2.8rem; margin-bottom: 1.5rem;">{t('cta.title')}<span class="text-gradient">{t('cta.title.accent')}</span>{t('cta.title.post')}</h2>
+        <p style="color: var(--color-text-secondary); max-width: 600px; margin: 0 auto 40px; font-size: 1.1rem;">
+          {t('cta.desc')}
+        </p>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+          <a href="https://github.com/GrangbelrLurain/watchtower/releases" class="btn btn-primary" style="padding: 1rem 2rem;">
+            {t('cta.btn')}
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<!-- Client scripts for interactivity -->
+<script>
+  // Read target language from DOM data attribute
+  const lang = document.querySelector('main')?.getAttribute('data-lang') || 'ko';
+
+  // 1. OS Detection Logic for Download Button
+  const userAgent = navigator.userAgent.toLowerCase();
+  const downloadBtn = document.getElementById('primary-download-btn') as HTMLAnchorElement | null;
+  const downloadText = document.getElementById('primary-download-text');
+  const downloadSubText = document.getElementById('primary-download-subtext');
+  
+  if (downloadBtn && downloadText && downloadSubText) {
+    if (userAgent.includes('win')) {
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadText.textContent = lang === 'ko' ? 'Windows용 다운로드' : 'Download for Windows';
+      downloadSubText.textContent = 'Download .msi (v2.1.2)';
+    } else if (userAgent.includes('mac')) {
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadText.textContent = lang === 'ko' ? 'macOS용 다운로드' : 'Download for macOS';
+      downloadSubText.textContent = 'Download .dmg (v2.1.2)';
+    } else {
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadText.textContent = lang === 'ko' ? 'GitHub 릴리즈 페이지' : 'GitHub Releases Page';
+      downloadSubText.textContent = lang === 'ko' ? '모든 OS 설치파일 목록' : 'All Operating Systems';
+    }
+  }
+
+  // 2. CLI Command Copy Functionality
+  const copyBtn = document.getElementById('copy-cli-btn');
+  const copyIcon = document.getElementById('copy-icon');
+  const checkIcon = document.getElementById('check-icon');
+  
+  if (copyBtn && copyIcon && checkIcon) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText('watchtower cli init --project');
+        copyIcon.style.display = 'none';
+        checkIcon.style.display = 'inline';
+        setTimeout(() => {
+          copyIcon.style.display = 'inline';
+          checkIcon.style.display = 'none';
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+    });
+  }
+
+  // 3. Interactive Terminal Simulation Logic
+  const tabButtons = document.querySelectorAll('.terminal-tab');
+  const inputEl = document.getElementById('terminal-input-text');
+  const outputEl = document.getElementById('terminal-output-text');
+
+  const commandsData: Record<string, { cmd: string; output: string }> = {
+    init: {
+      cmd: 'watchtower cli init --project',
+      output: `[Info] Initializing agent skill settings...
+[Success] Created skill folder: .agents/skills/watchtower/
+[Success] Created file: .agents/skills/watchtower/SKILL.md
+[Info] Skill documentation registration completed.`
+    },
+    list: {
+      cmd: 'watchtower cli list',
+      output: `[
+  { "command": "get_domains", "description": "Fetch list of configured domains" },
+  { "command": "create_domain", "description": "Add new domain target" },
+  { "command": "get_proxy_settings", "description": "Fetch current proxy port configuration" },
+  { "command": "run_proxy", "description": "Start/Stop local hyper proxy engine" }
+]`
+    },
+    run: {
+      cmd: 'watchtower cli run get_domains \'{}\' --query \'data[].domainName\'',
+      output: `[
+  "api.development.local",
+  "auth.service.internal"
+]`
+    }
+  };
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Toggle active states
+      tabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const cmdType = btn.getAttribute('data-command') || 'init';
+      const data = commandsData[cmdType];
+
+      if (inputEl && outputEl && data) {
+        // Typing animation simulation
+        outputEl.style.opacity = '0';
+        inputEl.textContent = '';
+        
+        let i = 0;
+        const text = data.cmd;
+        const typingInterval = setInterval(() => {
+          if (i < text.length) {
+            inputEl.textContent += text.charAt(i);
+            i++;
+          } else {
+            clearInterval(typingInterval);
+            setTimeout(() => {
+              outputEl.textContent = data.output;
+              outputEl.style.opacity = '1';
+            }, 150);
+          }
+        }, 30);
+      }
+    });
+  });
+</script>
+
+<style>
+  /* Local Scoped Styles for Index page */
+  .hero-section {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    align-items: center;
+    gap: 4rem;
+    min-height: calc(85vh - 70px);
+    position: relative;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    z-index: 2;
+  }
+
+  .badge {
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--color-primary);
+    padding: 0.35rem 0.8rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+  }
+
+  .hero-title {
+    font-size: 3.6rem;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-logo-text {
+    height: 3.8rem;
+    width: auto;
+    vertical-align: middle;
+    display: inline-block;
+    margin-top: -0.2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.15rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 2.5rem;
+    max-width: 600px;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+    width: 100%;
+  }
+
+  .btn-hero-download {
+    padding: 0.9rem 1.8rem;
+    height: 54px;
+  }
+
+  .btn-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+  }
+
+  .btn-subtext {
+    font-size: 0.75rem;
+    font-weight: 400;
+    opacity: 0.8;
+  }
+
+  /* CLI Copy Box */
+  .cli-copy-box {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    padding: 0 1.2rem;
+    border-radius: 10px;
+    height: 54px;
+    font-family: var(--font-mono);
+    gap: 0.8rem;
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+
+  .cli-prefix {
+    color: var(--color-primary);
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .cli-code {
+    color: var(--color-text-primary);
+  }
+
+  .cli-copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0.4rem;
+    border-radius: 6px;
+    transition: var(--transition-fast);
+  }
+
+  .cli-copy-btn:hover {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Mockup App Interface Styling */
+  .mockup-container {
+    perspective: 1000px;
+    z-index: 2;
+  }
+
+  .app-mockup {
+    width: 100%;
+    max-width: 500px;
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
+    transform: rotateX(8deg) rotateY(-12deg) rotateZ(3deg);
+    transition: transform var(--transition-slow);
+  }
+
+  .app-mockup:hover {
+    transform: rotateX(3deg) rotateY(-4deg) rotateZ(1deg);
+  }
+
+  .mockup-header {
+    background: rgba(11, 15, 25, 0.8);
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .mockup-dots {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot.red { background: #ff5f56; }
+  .dot.yellow { background: #ffbd2e; }
+  .dot.green { background: #27c93f; }
+
+  .mockup-address {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.2rem 1.5rem;
+    border-radius: 4px;
+    flex-grow: 1;
+    text-align: center;
+  }
+
+  .mockup-body {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    flex-grow: 1;
+    overflow: hidden;
+  }
+
+  .mockup-sidebar {
+    background: rgba(11, 15, 25, 0.4);
+    border-right: 1px solid var(--border-color);
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sidebar-item {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+  }
+
+  .sidebar-item.active {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--color-primary);
+  }
+
+  .mockup-main {
+    padding: 1.2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .main-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .status-indicator-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .status-indicator-badge.live {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  .domain-card-mockup {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .domain-card-mockup.warning {
+    border-color: rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.02);
+  }
+
+  .domain-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .domain-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .domain-dot.online {
+    background: var(--color-success);
+    box-shadow: 0 0 8px var(--color-success);
+  }
+
+  .domain-dot.alert {
+    background: var(--color-danger);
+    box-shadow: 0 0 8px var(--color-danger);
+  }
+
+  .domain-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .domain-meta {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+  }
+
+  .mini-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 24px;
+  }
+
+  .mini-chart .bar {
+    width: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 1px;
+  }
+
+  .mini-chart .bar.highlight {
+    background: var(--color-success);
+  }
+
+  .mini-chart .bar.alert {
+    background: var(--color-danger);
+  }
+
+  /* Feature cards design details */
+  .feature-card {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .feature-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-icon.icon-violet {
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--color-primary);
+  }
+
+  .feature-icon.icon-blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-secondary);
+  }
+
+  .feature-icon.icon-rose {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--color-accent);
+  }
+
+  .feature-icon.icon-green {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success);
+  }
+
+  .feature-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-card p {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+  }
+
+  .feature-visual {
+    width: 100%;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .ping-signal {
+    position: relative;
+    width: 12px;
+    height: 12px;
+  }
+
+  .signal-core {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--color-success);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+  }
+
+  .animate-ping {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--color-success);
+    opacity: 0.4;
+    border-radius: 50%;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes ping {
+    75%, 100% {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  .route-map {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    width: 100%;
+    padding: 0 15px;
+  }
+
+  .route-node {
+    color: var(--color-text-muted);
+  }
+
+  .route-node.highlight {
+    color: var(--color-secondary);
+    font-weight: 500;
+  }
+
+  .route-arrow {
+    color: var(--color-text-muted);
+  }
+
+  /* Terminal Simulator Styling */
+  .terminal-section {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 4rem;
+    align-items: center;
+  }
+
+  .terminal-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .terminal-tab {
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    padding: 0.5rem 1rem;
+  }
+
+  .terminal-tab.active {
+    border-color: var(--color-primary);
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--color-primary);
+  }
+
+  .terminal-mockup {
+    width: 100%;
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .terminal-body {
+    background: #03050c;
+    padding: 1.5rem;
+    flex-grow: 1;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #a9b1d6;
+  }
+
+  .input-line {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .prompt-prefix {
+    color: var(--color-success);
+  }
+
+  #terminal-input-text {
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+
+  .terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background: #a9b1d6;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    from, to { background-color: transparent }
+    50% { background-color: #a9b1d6; }
+  }
+
+  .terminal-output {
+    white-space: pre-wrap;
+    color: #565f89;
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  /* Performance cards */
+  .performance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2.5rem;
+    margin-top: 3rem;
+  }
+
+  .perf-card {
+    text-align: left;
+  }
+
+  .perf-metric {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--color-primary);
+  }
+
+  .perf-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .perf-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    margin-bottom: 1rem;
+  }
+
+  .perf-progress-bar span {
+    display: block;
+    height: 100%;
+    background: var(--gradient-hero);
+    border-radius: 2px;
+  }
+
+  .perf-desc {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+  }
+
+  /* Responsive styling */
+  @media (max-width: 992px) {
+    .hero-section, .terminal-section {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap: 3rem;
+    }
+    
+    .hero-content, .hero-actions {
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .hero-title {
+      font-size: 2.8rem;
+    }
+
+    .hero-logo-text {
+      height: 3.0rem;
+    }
+    
+    .app-mockup {
+      margin: 0 auto;
+      transform: none;
+    }
+    
+    .app-mockup:hover {
+      transform: scale(1.02);
+    }
+    
+    .terminal-section div {
+      align-items: center;
+      text-align: center;
+    }
+
+    .terminal-buttons {
+      justify-content: center;
+    }
+  }
+</style>

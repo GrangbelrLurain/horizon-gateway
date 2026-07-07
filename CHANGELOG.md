@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.1.3] - 2026-07-07
+
+### Added
+- **Unified Branding & Logo System**: Introduced a new symmetric `WATCH {로고} TOWER` branding logo with an integrated micro brand icon.
+- **Logo Sync Automation**: Created `scripts/sync-logos.mjs` to automatically propagate branding SVGs from the root `public/` directory (Single Source of Truth) to the website assets at dev/build time.
+- **GitHub Pages Deploy Action**: Added `.github/workflows/deploy-web.yml` to automatically build and deploy the website to GitHub Pages on website changes or after `Release` workflow completion.
+
+### Changed
+- **Website Layout & Routing**: Extracted website routes to `/ko` and `/en` subdirectories, added auto browser language detection and redirection at root `/`, and updated header/footer navigation to render the new symmetric logo.
+- **Desktop Application Branding**: Replaced old logo and text in desktop app's `Titlebar.tsx` and `Sidebar.tsx` with the new unified `logo-text.svg`.
+- **CLI Command in Documentation**: Updated website copy box command to `watchtower cli init --project` for active agent skill initialization.
+- **Local Signer Configuration**: Configured working `.env` and `tauri.conf.json` updater signing keys to facilitate local release builds and testing.
+
 ## [v2.1.2] - 2026-07-07
 
 ### Added

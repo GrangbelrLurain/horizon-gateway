@@ -1,0 +1,33 @@
+---
+// Root page for redirection
+---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width" />
+  <title>Watchtower</title>
+  
+  <script is:inline>
+    // Detect browser language and redirect to /en or /ko
+    try {
+      const userLang = navigator.language || navigator.userLanguage;
+      if (userLang && userLang.toLowerCase().startsWith('en')) {
+        window.location.replace('/en');
+      } else {
+        window.location.replace('/ko');
+      }
+    } catch (e) {
+      window.location.replace('/ko');
+    }
+  </script>
+  
+  <!-- Fallback for browsers with JavaScript disabled -->
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=/ko" />
+  </noscript>
+</head>
+<body style="background: #060814;">
+</body>
+</html>
