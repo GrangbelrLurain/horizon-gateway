@@ -321,7 +321,7 @@ pub fn run() {
             // CLI 명령형 인자 인터셉트
             let args: Vec<String> = std::env::args().collect();
             if args.len() > 1 && args[1] == "cli" {
-                cli::execute_cli(&args[2..], app.handle());
+                cli::execute_cli(&args[2..], Some(app.handle()));
                 std::process::exit(0);
             }
 
@@ -434,4 +434,8 @@ pub fn run() {
             }
             _ => {}
         });
+}
+
+pub fn execute_cli_standalone(args: &[String]) {
+    cli::execute_cli(args, None);
 }

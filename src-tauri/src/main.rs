@@ -8,13 +8,22 @@ extern "system" {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
     #[cfg(windows)]
     {
-        let args: Vec<String> = std::env::args().collect();
         if args.len() > 1 && args[1] == "cli" {
             unsafe {
-                AttachConsole(0xffff_ffff); // ATTACH_PARENT_PROCESS
+                let _ = AttachConsole(0xffff_ffff); // ATTACH_PARENT_PROCESS
             }
+        }
+    }
+
+    // If it's a standalone command (init, list, help), execute directly and exit to prevent Tauri/WebView2 hangs
+    if args.len() > 1 && args[1] == "cli" {
+        if args.len() > 2 && (args[2] == "init" || args[2] == "list" || args[2] == "help") {
+            watchtower_lib::execute_cli_standalone(&args[2..]);
+            std::process::exit(0);
         }
     }
 

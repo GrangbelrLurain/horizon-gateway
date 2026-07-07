@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use super::{cli_println, cli_eprintln};
 
 const SKILL_MD: &str = include_str!("../../resources/skills/watchtower/SKILL.md");
 const LOGS_MJS: &str = include_str!("../../resources/skills/watchtower/scripts/logs.mjs");
@@ -92,7 +93,7 @@ pub fn execute_init(args: &[String]) {
             skipped: vec![],
             skill_md: Some(SKILL_MD.to_string()),
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        cli_println(&serde_json::to_string_pretty(&output).unwrap());
         return;
     }
 
@@ -164,7 +165,7 @@ pub fn execute_init(args: &[String]) {
         skill_md: None,
     };
 
-    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+    cli_println(&serde_json::to_string_pretty(&output).unwrap());
 }
 
 fn parse_init_options(args: &[String]) -> InitOptions {
@@ -305,7 +306,7 @@ fn print_init_error(msg: &str) {
         "success": false,
         "error": msg
     });
-    eprintln!("{}", serde_json::to_string_pretty(&output).unwrap());
+    cli_eprintln(&serde_json::to_string_pretty(&output).unwrap());
 }
 
 #[cfg(test)]

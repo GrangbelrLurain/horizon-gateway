@@ -138,7 +138,7 @@ fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
     }
 }
 
-pub fn execute_cli(args: &[String], app_handle: &tauri::AppHandle) {
+pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
     if args.is_empty() {
         print_error("명령어가 지정되지 않았습니다. (사용 가능한 명령: init, list, help, run)");
         return;
@@ -154,7 +154,7 @@ pub fn execute_cli(args: &[String], app_handle: &tauri::AppHandle) {
                 "success": true,
                 "data": CLI_COMMANDS
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            cli_println(&serde_json::to_string_pretty(&output).unwrap());
         }
         "help" => {
             if args.len() < 2 {
@@ -167,7 +167,7 @@ pub fn execute_cli(args: &[String], app_handle: &tauri::AppHandle) {
                     "success": true,
                     "data": info
                 });
-                println!("{}", serde_json::to_string_pretty(&output).unwrap());
+                cli_println(&serde_json::to_string_pretty(&output).unwrap());
             } else {
                 print_error(&format!("존재하지 않는 명령어입니다: {}", cmd_name));
             }
@@ -189,15 +189,23 @@ pub fn execute_cli(args: &[String], app_handle: &tauri::AppHandle) {
                 }
             };
 
+            let handle = match app_handle {
+                Some(h) => h,
+                None => {
+                    print_error("Tauri handle is not initialized. Run commands are not supported standalone.");
+                    return;
+                }
+            };
+
             // Dispatch command
-            match dispatch_command(cmd_name, payload, app_handle) {
+            match dispatch_command(cmd_name, payload, handle) {
                 Ok(response) => {
                     let final_response = if let Some(ref q) = query {
                         query::apply_query(&response, q)
                     } else {
                         response
                     };
-                    println!("{}", serde_json::to_string_pretty(&final_response).unwrap());
+                    cli_println(&serde_json::to_string_pretty(&final_response).unwrap());
                 }
                 Err(e) => {
                     print_error(&e);
@@ -213,12 +221,71 @@ pub fn execute_cli(args: &[String], app_handle: &tauri::AppHandle) {
     }
 }
 
+pub fn cli_println(text: &str) {
+    #[cfg(windows)]
+    {
+        print_to_handle(text, -11); // STD_OUTPUT_HANDLE
+    }
+    #[cfg(not(windows))]
+    {
+        println!("{}", text);
+    }
+}
+
+pub fn cli_eprintln(text: &str) {
+    #[cfg(windows)]
+    {
+        print_to_handle(text, -12); // STD_ERROR_HANDLE
+    }
+    #[cfg(not(windows))]
+    {
+        eprintln!("{}", text);
+    }
+}
+
+#[cfg(windows)]
+#[allow(unsafe_code)]
+fn print_to_handle(text: &str, n_std_handle: i32) {
+    use std::io::Write;
+    use std::os::windows::io::FromRawHandle;
+    
+    extern "system" {
+        fn GetStdHandle(n_std_handle: i32) -> *mut std::ffi::c_void;
+        fn GetFileType(h_file: *mut std::ffi::c_void) -> u32;
+    }
+    
+    unsafe {
+        let handle = GetStdHandle(n_std_handle);
+        if !handle.is_null() && handle as isize != -1 {
+            let file_type = GetFileType(handle);
+            // FILE_TYPE_DISK (1) or FILE_TYPE_PIPE (3) means stdio is redirected to file/pipe.
+            if file_type == 1 || file_type == 3 {
+                let mut file = std::mem::ManuallyDrop::new(std::fs::File::from_raw_handle(handle));
+                let mut text_with_newline = text.to_string();
+                text_with_newline.push_str("\r\n");
+                let _ = file.write_all(text_with_newline.as_bytes());
+                let _ = file.flush();
+                return;
+            }
+        }
+        
+        // Otherwise, if we are attached to a console, print to CONOUT$ / CONERR$
+        let con_path = if n_std_handle == -11 { "CONOUT$" } else { "CONERR$" };
+        if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(con_path) {
+            let mut text_with_newline = text.to_string();
+            text_with_newline.push_str("\r\n");
+            let _ = file.write_all(text_with_newline.as_bytes());
+            let _ = file.flush();
+        }
+    }
+}
+
 fn print_error(msg: &str) {
     let output = serde_json::json!({
         "success": false,
         "error": msg
     });
-    eprintln!("{}", serde_json::to_string_pretty(&output).unwrap());
+    cli_eprintln(&serde_json::to_string_pretty(&output).unwrap());
 }
 
 fn dispatch_command(
