@@ -44,10 +44,10 @@
     </style>
   </defs>
 
-  <!-- Left Side: WATCH (Ends exactly at x=98, 22px from the center 120) -->
-  <text x="98" y="25" class="brand-text text-left">WATCH</text>
+  <!-- Left Side: WATCH (Compensated for trailing letter-spacing to end glyph at x=99.5) -->
+  <text x="104" y="25" class="brand-text text-left">WATCH</text>
 
-  <!-- Center: Refined Micro Core Icon (Centered exactly at x=120) -->
+  <!-- Center: Refined Micro Core Icon (Centered exactly at x=120, bounds at 108-132) -->
   <g id="micro-logo-icon">
     <!-- Rhombus base outline -->
     <path d="M 120 10 L 130 20 L 120 30 L 110 20 Z" class="logo-icon-rhombus" />
@@ -60,6 +60,6 @@
     <circle cx="120" cy="20" r="1.2" class="logo-icon-core" />
   </g>
 
-  <!-- Right Side: TOWER (Starts exactly at x=142, 22px from the center 120) -->
-  <text x="142" y="25" class="brand-text text-right">TOWER</text>
+  <!-- Right Side: TOWER (Starts exactly at x=140) -->
+  <text x="140" y="25" class="brand-text text-right">TOWER</text>
 </svg>

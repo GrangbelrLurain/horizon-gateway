@@ -21,17 +21,18 @@ const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
 };
 
 // Calculate alternative lang links based on current path
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
 const pathname = Astro.url.pathname;
 const isChangelog = pathname.includes('changelog');
-const koLink = isChangelog ? '/ko/changelog' : '/ko';
-const enLink = isChangelog ? '/en/changelog' : '/en';
+const koLink = isChangelog ? `${baseUrl}/ko/changelog` : `${baseUrl}/ko`;
+const enLink = isChangelog ? `${baseUrl}/en/changelog` : `${baseUrl}/en`;
 ---
 
 <!DOCTYPE html>
 <html lang={lang}>
 <head>
   <meta charset="utf-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href={`${baseUrl}/favicon.svg`} />
   <meta name="viewport" content="width=device-width" />
   <meta name="generator" content={Astro.generator} />
   
@@ -56,13 +57,13 @@ const enLink = isChangelog ? '/en/changelog' : '/en';
   <!-- Header -->
   <header>
     <div class="container nav-container">
-      <a href={lang === 'ko' ? '/ko' : '/en'} class="logo" id="header-logo-link">
-        <img src="/logo-text.svg" alt="Watchtower" style="height: 18px; width: auto;" />
+      <a href={lang === 'ko' ? `${baseUrl}/ko` : `${baseUrl}/en`} class="logo" id="header-logo-link">
+        <img src={`${baseUrl}/logo-text.svg`} alt="Watchtower" style="height: 18px; width: auto;" />
       </a>
       
       <nav class="nav-links">
-        <a href={lang === 'ko' ? '/ko' : '/en'} class="nav-link" id="nav-home-link">{t('nav.home')}</a>
-        <a href={lang === 'ko' ? '/ko/changelog' : '/en/changelog'} class="nav-link" id="nav-changelog-link">{t('nav.changelog')}</a>
+        <a href={lang === 'ko' ? `${baseUrl}/ko` : `${baseUrl}/en`} class="nav-link" id="nav-home-link">{t('nav.home')}</a>
+        <a href={lang === 'ko' ? `${baseUrl}/ko/changelog` : `${baseUrl}/en/changelog`} class="nav-link" id="nav-changelog-link">{t('nav.changelog')}</a>
         
         <!-- Language Switcher -->
         <div class="lang-switcher" style="display: flex; gap: 8px; font-size: 0.85rem; font-family: var(--font-display); font-weight: 600; border-left: 1px solid var(--border-color); padding-left: 15px; margin-left: 5px;">
@@ -89,7 +90,7 @@ const enLink = isChangelog ? '/en/changelog' : '/en';
   <footer style="margin-top: 100px; padding: 40px 0; border-top: 1px solid var(--border-color); background: var(--bg-secondary);">
     <div class="container" style="display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <img src="/logo-text.svg" alt="Watchtower" style="height: 22px; width: auto;" />
+        <img src={`${baseUrl}/logo-text.svg`} alt="Watchtower" style="height: 22px; width: auto;" />
       </div>
       <p style="font-size: 0.9rem; color: var(--color-text-secondary); max-width: 500px;">
         {t('footer.desc')}
