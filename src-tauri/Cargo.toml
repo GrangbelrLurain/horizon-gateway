@@ -20,7 +20,7 @@ unused_async = "allow"
 
 [package]
 name = "watchtower"
-version = "2.1.3"
+version = "2.1.4"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"

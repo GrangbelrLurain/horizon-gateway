@@ -35,7 +35,7 @@
   </defs>
 
   <!-- Void Background -->
-  <rect width="1024" height="1024" fill="url(#voidBg)" />
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#voidBg)" />
 
   <!-- Magnetic Field (Background) -->
   <circle cx="512" cy="512" r="420" fill="none" stroke="#0EA5E9" stroke-width="1" opacity="0.15" stroke-dasharray="4 12" />

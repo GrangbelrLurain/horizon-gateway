@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.1.4] - 2026-07-07
+
+### Fixed
+
+- **CLI Hang on Standalone Subcommands**: Resolved an issue where the CLI would hang indefinitely when running standalone subcommands (e.g. `watchtower cli list`) by bypassing full Tauri initialization for non-GUI commands. Also fixed stdout redirection on Windows to ensure terminal output is visible when invoked from the command line.
+- **GitHub Pages Subpath Routing**: Configured Astro `base` path to `/watchtower` to correctly resolve all asset and page URLs under the GitHub Pages subdirectory.
+- **Website Image 404 on GitHub Pages**: Prefixed hero title logo and social share images with the Astro `base` URL to prevent 404 errors when served from the `/watchtower` subpath.
+
+### Changed
+
+- **CI Optimization**: Skip GitHub Actions CI test runs for commits that only affect website or documentation files, reducing unnecessary Actions usage.
+
 ## [v2.1.3] - 2026-07-07
 
 ### Added
