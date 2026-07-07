@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.1.1] - 2026-07-07
+
+### Added
+
+- **Installer PATH Option**: Added a custom user-consent confirmation prompt during Windows (NSIS) installation to safely append the `watchtower.exe` installation directory to the user's `PATH` environment variable.
+- **Silent Mode Handling**: Integrates `IfSilent` checks in the installer post-install hook to bypass the PATH prompt and modification during background auto-updates, ensuring smooth updates.
+- **Installer PATH Cleanup**: Automatically cleans up the user's `PATH` environment variable on uninstallation.
+
 ## [v2.1.0] - 2026-07-06
 
 ### Added

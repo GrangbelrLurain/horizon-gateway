@@ -32,3 +32,6 @@ src-tauri/resources/inspector.js
 ~/
 .tauri/
 *.key
+
+# AI Agent workspace config and scratch files
+.gemini/
