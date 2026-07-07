@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.1.2] - 2026-07-07
+
+### Added
+
+- **Windows CLI Console Attachment**: Configures release builds on Windows to dynamically attach to the parent console (`AttachConsole`) in CLI mode, ensuring `println!` outputs are visible when run from the command line.
+
 ## [v2.1.1] - 2026-07-07
 
 ### Added
