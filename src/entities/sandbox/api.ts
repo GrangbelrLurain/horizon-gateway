@@ -2,9 +2,12 @@ import { commands, unwrap } from "@/shared/api";
 import type { CryptoAction, PipelineExecutionReport, PipelineFlow, SchemaValidationResult } from "./types";
 
 export async function processCrypto(action: CryptoAction, payload: string, key?: string, iv?: string): Promise<string> {
+  if (action === "custom") {
+    throw new Error("Custom JS 스크립트는 백엔드에서 실행할 수 없습니다.");
+  }
   const res = unwrap(
     await commands.processCrypto({
-      action,
+      action: action as any,
       payload,
       key: key || null,
       iv: iv || null,

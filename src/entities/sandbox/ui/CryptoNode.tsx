@@ -1,10 +1,18 @@
+import * as Babel from "@babel/standalone";
+import CryptoJS from "crypto-js";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Check, Copy, Eye, EyeOff, Layers, Lock, Plus, Save, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, themeAtom } from "@/entities/app";
 import { processCrypto } from "../api";
 import { cryptoToolCurrentConfigAtom, savedCryptoPresetsAtom } from "../store";
 import type { CryptoAction, SavedCryptoPreset } from "../types";
+
+if (typeof window !== "undefined") {
+  (window as any).CryptoJS = CryptoJS;
+}
+
+import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 
 export interface CryptoNodeProps {
   payload?: string;
@@ -15,6 +23,8 @@ export interface CryptoNodeProps {
   onChangeSecretKey?: (val: string) => void;
   iv?: string;
   onChangeIv?: (val: string) => void;
+  customCode?: string;
+  onChangeCustomCode?: (val: string) => void;
   isStandalone?: boolean;
 }
 
@@ -77,6 +87,8 @@ export function CryptoNode({
   onChangeSecretKey,
   iv: propIv,
   onChangeIv,
+  customCode: propCustomCode,
+  onChangeCustomCode,
   isStandalone = true,
 }: CryptoNodeProps) {
   // Internal fallback states for standalone mode
@@ -84,6 +96,7 @@ export function CryptoNode({
   const [localAction, setLocalAction] = useState<CryptoAction>("base64Encode");
   const [localSecretKey, setLocalSecretKey] = useState("");
   const [localIv, setLocalIv] = useState("");
+  const [localCustomCode, setLocalCustomCode] = useState("");
   const [result, setResult] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -99,12 +112,15 @@ export function CryptoNode({
   const setSecretKey = onChangeSecretKey || setLocalSecretKey;
   const iv = propIv !== undefined ? propIv : localIv;
   const setIv = onChangeIv || setLocalIv;
+  const customCode = propCustomCode !== undefined ? propCustomCode : localCustomCode;
+  const setCustomCode = onChangeCustomCode || setLocalCustomCode;
 
   const setSharedConfig = useSetAtom(cryptoToolCurrentConfigAtom);
 
   // Saved presets state
   const [savedPresets, setSavedPresets] = useAtom(savedCryptoPresetsAtom);
   const lang = useAtomValue(languageAtom);
+  const theme = useAtomValue(themeAtom);
   const t = lang === "ko" ? ko : en;
 
   const [selectedId, setSelectedId] = useState<string>(() => {
@@ -128,6 +144,7 @@ export function CryptoNode({
         setLocalPayload(found.payload);
         setLocalSecretKey(found.key);
         setLocalIv(found.iv);
+        setLocalCustomCode(found.code || "");
         setResult("");
         setError(null);
       } else if (savedPresets.length > 0) {
@@ -139,6 +156,7 @@ export function CryptoNode({
         setLocalPayload("");
         setLocalSecretKey("");
         setLocalIv("");
+        setLocalCustomCode("");
         setResult("");
         setError(null);
       }
@@ -152,15 +170,45 @@ export function CryptoNode({
         action,
         key: secretKey,
         iv,
+        code: customCode,
       });
     }
-  }, [isStandalone, action, secretKey, iv, setSharedConfig]);
+  }, [isStandalone, action, secretKey, iv, customCode, setSharedConfig]);
 
   const handleExecute = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await processCrypto(action, payload, secretKey, iv);
+      let res: string;
+      if (action === "custom") {
+        let transpiled = "";
+        try {
+          transpiled =
+            Babel.transform(customCode, {
+              presets: ["typescript"],
+              plugins: ["transform-modules-commonjs"],
+              filename: "crypto_custom.ts",
+            }).code || "";
+        } catch (e: any) {
+          throw new Error(`컴파일 에러: ${e.message}`);
+        }
+
+        const runFn = new Function("exports", transpiled);
+        const exportsObj: any = {};
+        runFn(exportsObj);
+
+        const defaultExport = exportsObj.default;
+        if (typeof defaultExport !== "function") {
+          throw new Error(
+            "Default export가 함수가 아닙니다. 'export default function(payload, key, iv) { ... }' 형태로 내보내주세요.",
+          );
+        }
+
+        const customResult = await defaultExport(payload, secretKey, iv);
+        res = typeof customResult === "string" ? customResult : JSON.stringify(customResult, null, 2);
+      } else {
+        res = await processCrypto(action, payload, secretKey, iv);
+      }
       setResult(res);
     } catch (err: any) {
       setError(err.message || "Crypto processing failed");
@@ -186,6 +234,7 @@ export function CryptoNode({
     { value: "aesDecrypt", label: "AES-256-GCM Decrypt" },
     { value: "sha256", label: "SHA-256 Hash" },
     { value: "hmacSha256", label: "HMAC-SHA-256" },
+    { value: "custom", label: "커스텀 스크립트 (JS)" },
   ];
 
   // Search filter
@@ -211,9 +260,10 @@ export function CryptoNode({
       found.action !== action ||
       found.payload !== payload ||
       found.key !== secretKey ||
-      found.iv !== iv
+      found.iv !== iv ||
+      (found.code || "") !== customCode
     );
-  }, [selectedId, savedPresets, title, description, action, payload, secretKey, iv]);
+  }, [selectedId, savedPresets, title, description, action, payload, secretKey, iv, customCode]);
 
   // CRUD Actions
   const handleAddPreset = () => {
@@ -226,6 +276,12 @@ export function CryptoNode({
       payload: "Hello, Watchtower!",
       key: "",
       iv: "",
+      code: `export default function(payload, key, iv) {
+  // CryptoJS 라이브러리가 전역(window.CryptoJS)에 제공되므로 바로 사용할 수 있습니다.
+  // 예: const hash = CryptoJS.SHA256(payload).toString();
+  
+  return payload;
+}`,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -244,6 +300,7 @@ export function CryptoNode({
           payload,
           key: secretKey,
           iv,
+          code: customCode,
           updatedAt: Date.now(),
         };
       }
@@ -298,6 +355,19 @@ export function CryptoNode({
             onChange={(e) => setPayload(e.target.value)}
           />
         </div>
+
+        {action === "custom" && (
+          <div className="flex flex-col gap-1 min-h-[180px]">
+            <label className="font-semibold text-base-content/80">Custom JS 스크립트</label>
+            <TsCodeEditor
+              value={customCode}
+              onChange={(val) => setCustomCode(val)}
+              language="javascript"
+              theme={theme}
+              className="flex-1"
+            />
+          </div>
+        )}
 
         {requiresKey && (
           <div className="flex flex-col gap-1">
@@ -465,15 +535,33 @@ export function CryptoNode({
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1 flex-1 min-h-0">
+                <div className="flex flex-col gap-1 shrink-0">
                   <label className="label-text text-xs font-semibold text-base-content/70">{t.payload}</label>
                   <textarea
-                    className="textarea textarea-bordered font-mono text-sm w-full flex-1 min-h-[120px] focus:outline-none"
+                    className="textarea textarea-bordered font-mono text-sm w-full min-h-[80px] focus:outline-none"
                     placeholder="Payload..."
                     value={payload}
                     onChange={(e) => setPayload(e.target.value)}
                   />
                 </div>
+
+                {action === "custom" && (
+                  <div className="flex flex-col gap-1 flex-1 min-h-[220px]">
+                    <label className="label-text text-xs font-semibold text-base-content/70">
+                      Custom JS 스크립트 작성
+                    </label>
+                    <p className="text-[10px] text-base-content/50 mb-1">
+                      `export default async function(payload, key, iv)` 형태로 작성합니다.
+                    </p>
+                    <TsCodeEditor
+                      value={customCode}
+                      onChange={(val) => setCustomCode(val)}
+                      language="javascript"
+                      theme={theme}
+                      className="flex-1"
+                    />
+                  </div>
+                )}
 
                 {requiresKey && (
                   <div className="flex flex-col gap-1 shrink-0">

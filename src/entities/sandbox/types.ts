@@ -9,40 +9,16 @@ export type CryptoAction =
   | "aesEncrypt"
   | "aesDecrypt"
   | "sha256"
-  | "hmacSha256";
+  | "hmacSha256"
+  | "custom";
 
-export interface PipelineNode {
-  id: string;
-  label: string;
-  type: "api" | "crypto" | "schema" | "preview" | "mapper";
-  config: string;
-}
-
-export interface PipelineEdge {
-  id: string;
-  source: string;
-  target: string;
-}
-
-export interface PipelineFlow {
-  nodes: PipelineNode[];
-  edges: PipelineEdge[];
-}
-
-export interface NodeExecutionResult {
-  nodeId: string;
-  success: boolean;
-  elapsedMs: number | null;
-  output: string;
-  error: string | null;
-}
-
-export interface PipelineExecutionReport {
-  success: boolean;
-  elapsedMs: number | null;
-  results: NodeExecutionResult[];
-  error: string | null;
-}
+export type {
+  NodeExecutionResult,
+  PipelineEdge,
+  PipelineExecutionReport,
+  PipelineFlow,
+  PipelineNode,
+} from "@/entities/pipeline";
 
 export interface SchemaValidationResult {
   valid: boolean;
@@ -68,6 +44,7 @@ export interface SavedCryptoPreset {
   payload: string;
   key: string;
   iv: string;
+  code?: string;
   createdAt: number;
   updatedAt: number;
 }

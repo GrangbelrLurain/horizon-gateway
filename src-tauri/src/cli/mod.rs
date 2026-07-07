@@ -276,6 +276,16 @@ fn print_to_handle(text: &str, n_std_handle: i32) {
             text_with_newline.push_str("\r\n");
             let _ = file.write_all(text_with_newline.as_bytes());
             let _ = file.flush();
+        } else {
+            // Fallback: If opening CONOUT$/CONERR$ fails (e.g., in non-interactive agent environments),
+            // write directly to the standard handle.
+            if !handle.is_null() && handle as isize != -1 {
+                let mut file = std::mem::ManuallyDrop::new(std::fs::File::from_raw_handle(handle));
+                let mut text_with_newline = text.to_string();
+                text_with_newline.push_str("\r\n");
+                let _ = file.write_all(text_with_newline.as_bytes());
+                let _ = file.flush();
+            }
         }
     }
 }

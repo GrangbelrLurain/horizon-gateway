@@ -13,6 +13,8 @@ import {
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
+import * as Babel from "@babel/standalone";
+import CryptoJS from "crypto-js";
 import {
   AlertCircle,
   ArrowRight,
@@ -30,15 +32,17 @@ import {
 } from "lucide-react";
 import { themeAtom } from "@/entities/app";
 import {
-  activeFlowAtom,
+  flowToReactFlow,
+  type PipelineExecutionReport,
+  reactFlowToFlow,
+  sandboxActiveFlowAtom,
+} from "@/entities/pipeline";
+import {
   apiClientCurrentRequestAtom,
   apiClientHistoryAtom,
   CryptoNode,
   executePipelineApiNode,
   type NodeExecutionResult,
-  type PipelineEdge,
-  type PipelineExecutionReport,
-  type PipelineNode,
   processCrypto,
   savedComponentsAtom,
   savedCryptoPresetsAtom,
@@ -48,6 +52,10 @@ import {
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { LivePreviewer } from "./LivePreviewer";
 import { SchemaEditorModal } from "./SchemaEditorModal";
+
+if (typeof window !== "undefined") {
+  (window as any).CryptoJS = CryptoJS;
+}
 
 // ── Custom Node Components ──────────────────────────────────────────────────
 
@@ -219,6 +227,44 @@ function MapperNodeComponent({ data }: { data: any }) {
   );
 }
 
+// 6. Custom Script Node Component
+function ScriptNodeComponent({ data }: { data: any }) {
+  const isRunning = data.isRunning;
+  const isSuccess = data.isSuccess;
+  const isError = data.isError;
+  const elapsedMs = data.elapsedMs;
+
+  return (
+    <div
+      className={`p-3 rounded-xl border bg-base-100 shadow-md min-w-[180px] transition-all ${
+        isRunning
+          ? "border-primary ring-2 ring-primary/20 animate-pulse"
+          : isSuccess
+            ? "border-success ring-1 ring-success/30"
+            : isError
+              ? "border-error ring-1 ring-error/30"
+              : "border-base-300 hover:border-primary/40"
+      }`}
+    >
+      <Handle type="target" position={Position.Top} className="w-2.5 h-2.5 bg-primary" />
+      <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-base-200">
+        <FileCode className="w-4 h-4 text-accent" />
+        <span className="text-xs font-bold text-base-content/80">JS Script Node</span>
+      </div>
+      <div className="text-[10px] font-semibold text-base-content/60">
+        {isRunning ? (
+          "실행 중..."
+        ) : elapsedMs !== null && elapsedMs !== undefined ? (
+          <span className="text-success font-bold">{elapsedMs}ms 완료</span>
+        ) : (
+          "대기 중"
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
+    </div>
+  );
+}
+
 // Node registrations object for React Flow
 const nodeTypes = {
   api: ApiNodeComponent as any,
@@ -226,6 +272,7 @@ const nodeTypes = {
   schema: SchemaNodeComponent as any,
   preview: PreviewNodeComponent as any,
   mapper: MapperNodeComponent as any,
+  script: ScriptNodeComponent as any,
 };
 
 const resolveInterpolatedValue = (val: any, results: NodeExecutionResult[]): any => {
@@ -344,8 +391,8 @@ export interface FlowBuilderProps {
 }
 
 export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
-  // Sync pipeline state with persistent Jotai atom
-  const [persistedFlow, setPersistedFlow] = useAtom(activeFlowAtom);
+  const [activeFlow, setActiveFlow] = useAtom(sandboxActiveFlowAtom);
+  const persistedFlow = activeFlow.flow;
 
   const apiClientCurrentRequest = useAtomValue(apiClientCurrentRequestAtom);
   const apiClientHistory = useAtomValue(apiClientHistoryAtom);
@@ -355,49 +402,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const theme = useAtomValue(themeAtom);
 
   // Map persisted data into React Flow state
-  const initialNodes = useMemo(() => {
-    if (!persistedFlow || !Array.isArray(persistedFlow.nodes)) {
-      return [];
-    }
-    return persistedFlow.nodes.map((node) => {
-      let parsedConfig: any = {};
-      if (node.config) {
-        if (typeof node.config === "string") {
-          try {
-            parsedConfig = JSON.parse(node.config);
-          } catch (e) {
-            console.error("Failed to parse node config", e);
-          }
-        } else {
-          parsedConfig = node.config;
-        }
-      }
-      return {
-        id: node.id,
-        type: node.type,
-        position: (node as any).position || { x: Math.random() * 200 + 100, y: Math.random() * 150 + 100 },
-        data: {
-          label: node.label || "",
-          config: parsedConfig,
-          isRunning: false,
-          isSuccess: false,
-          isError: false,
-          elapsedMs: null as number | null,
-        },
-      };
-    });
-  }, [persistedFlow]);
-
-  const initialEdges = useMemo(() => {
-    if (!persistedFlow || !Array.isArray(persistedFlow.edges)) {
-      return [];
-    }
-    return persistedFlow.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-    }));
-  }, [persistedFlow]);
+  const initialNodes = useMemo(() => flowToReactFlow(persistedFlow).nodes, [activeFlow.revision]);
+  const initialEdges = useMemo(() => flowToReactFlow(persistedFlow).edges, [activeFlow.revision]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -407,7 +413,15 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const [executing, setExecuting] = useState(false);
   const [report, setReport] = useState<PipelineExecutionReport | null>(null);
   const [resultTab, setResultTab] = useState<"input" | "output">("output");
-  // const [focusedMappingIdx, setFocusedMappingIdx] = useState<number | null>(null);
+
+  // Reload canvas when a saved pipeline is loaded or a new blank flow is created
+  useEffect(() => {
+    const { nodes: nextNodes, edges: nextEdges } = flowToReactFlow(activeFlow.flow);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    setSelectedNodeId(null);
+    setReport(null);
+  }, [activeFlow.revision, setNodes, setEdges]);
 
   // JSON Schema Editor Modal State
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
@@ -422,30 +436,22 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
   // Save changes back to Jotai
   const saveFlowToStorage = useCallback(
-    (updatedNodes: any[], updatedEdges: any[]) => {
-      const serializedNodes: PipelineNode[] = updatedNodes.map(
-        (n) =>
-          ({
-            id: n.id,
-            label: n.data.label,
-            type: n.type as any,
-            config: JSON.stringify(n.data.config),
-            position: n.position,
-          }) as any,
-      );
-
-      const serializedEdges: PipelineEdge[] = updatedEdges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
+    (
+      updatedNodes: Array<{
+        id: string;
+        type?: string;
+        position: { x: number; y: number };
+        data: { label?: string; config?: unknown };
+      }>,
+      updatedEdges: Array<{ id: string; source: string; target: string }>,
+    ) => {
+      setActiveFlow((prev) => ({
+        ...prev,
+        flow: reactFlowToFlow(updatedNodes, updatedEdges),
+        updatedAt: Date.now(),
       }));
-
-      setPersistedFlow({
-        nodes: serializedNodes,
-        edges: serializedEdges,
-      });
     },
-    [setPersistedFlow],
+    [setActiveFlow],
   );
 
   // Save changes to Jotai whenever nodes or edges changes
@@ -475,7 +481,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   );
 
   // Node Insertion
-  const addNode = (type: "api" | "crypto" | "schema" | "preview" | "mapper") => {
+  const addNode = (type: "api" | "crypto" | "schema" | "preview" | "mapper" | "script") => {
     const id = `${type}_${Math.random().toString(36).substring(2, 9)}`;
     const label =
       type === "api"
@@ -486,7 +492,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             ? "Schema Node"
             : type === "mapper"
               ? "Mapper Node"
-              : "UI Preview Node";
+              : type === "script"
+                ? "Custom Script"
+                : "UI Preview Node";
 
     let config: any = {};
     if (type === "api") {
@@ -510,6 +518,19 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     } else if (type === "mapper") {
       config = {
         mappings: [{ targetKey: "title", sourceValue: "" }],
+        errorPolicy: "fastFail",
+      };
+    } else if (type === "script") {
+      config = {
+        code: `export default async function(inputs) {
+  // inputs 에는 이전 노드들의 실행 결과가 노드 ID를 키로 하여 들어있습니다.
+  // 예: const apiBody = inputs.api_1?.body;
+  
+  // CryptoJS 라이브러리가 전역에 제공되므로 바로 사용할 수 있습니다.
+  // 예: const hash = CryptoJS.SHA256("test").toString();
+  
+  return "Hello, Watchtower!";
+}`,
         errorPolicy: "fastFail",
       };
     } else {
@@ -592,16 +613,16 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     const results: NodeExecutionResult[] = [];
 
     // Helper: Sort DAG topologically
-    const sortDag = (nodes: any[], edges: any[]): string[] => {
+    const sortDag = (flowNodes: any[], flowEdges: any[]): string[] => {
       const inDegree: Record<string, number> = {};
       const adj: Record<string, string[]> = {};
 
-      nodes.forEach((n) => {
+      flowNodes.forEach((n) => {
         inDegree[n.id] = 0;
         adj[n.id] = [];
       });
 
-      edges.forEach((e) => {
+      flowEdges.forEach((e) => {
         if (adj[e.source]) {
           adj[e.source].push(e.target);
           inDegree[e.target] = (inDegree[e.target] || 0) + 1;
@@ -609,7 +630,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
       });
 
       const queue: string[] = [];
-      nodes.forEach((n) => {
+      flowNodes.forEach((n) => {
         if (inDegree[n.id] === 0) {
           queue.push(n.id);
         }
@@ -628,7 +649,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
         });
       }
 
-      if (order.length !== nodes.length) {
+      if (order.length !== flowNodes.length) {
         throw new Error("파이프라인 그래프에 순환 참조(Cycle)가 존재합니다.");
       }
 
@@ -704,11 +725,44 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           } else if (node.type === "crypto") {
             const action = interpolatedConfig.action;
             const payload = interpolatedConfig.payload || "";
-            const key = interpolatedConfig.key || undefined;
-            const iv = interpolatedConfig.iv || undefined;
-            const res = await processCrypto(action, payload, key, iv);
-            output = { result: res };
-            nodeSuccess = true;
+            const key = interpolatedConfig.key || "";
+            const iv = interpolatedConfig.iv || "";
+
+            if (action === "custom") {
+              const code = interpolatedConfig.code || "";
+              let transpiled = "";
+              try {
+                transpiled =
+                  Babel.transform(code, {
+                    presets: ["typescript"],
+                    plugins: ["transform-modules-commonjs"],
+                    filename: "crypto_custom.ts",
+                  }).code || "";
+              } catch (e: any) {
+                throw new Error(`컴파일 에러: ${e.message}`);
+              }
+
+              const runFn = new Function("exports", transpiled);
+              const exportsObj: any = {};
+              runFn(exportsObj);
+
+              const defaultExport = exportsObj.default;
+              if (typeof defaultExport !== "function") {
+                throw new Error(
+                  "Default export가 함수가 아닙니다. 'export default function(payload, key, iv) { ... }' 형태로 내보내주세요.",
+                );
+              }
+
+              const customResult = await defaultExport(payload, key, iv);
+              output = {
+                result: typeof customResult === "string" ? customResult : JSON.stringify(customResult, null, 2),
+              };
+              nodeSuccess = true;
+            } else {
+              const res = await processCrypto(action, payload, key || undefined, iv || undefined);
+              output = { result: res };
+              nodeSuccess = true;
+            }
           } else if (node.type === "schema") {
             const payload = interpolatedConfig.payload || "";
             const schema = interpolatedConfig.schema || "";
@@ -743,6 +797,49 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               });
             }
             output = mappedObj;
+            nodeSuccess = true;
+          } else if (node.type === "script") {
+            const code = interpolatedConfig.code || "";
+            let transpiled = "";
+            try {
+              transpiled =
+                Babel.transform(code, {
+                  presets: ["typescript"],
+                  plugins: ["transform-modules-commonjs"],
+                  filename: "script.ts",
+                }).code || "";
+            } catch (e: any) {
+              throw new Error(`컴파일 에러: ${e.message}`);
+            }
+
+            // Create inputs object containing outputs of all previous nodes
+            const inputs: Record<string, any> = {};
+            results.forEach((res) => {
+              try {
+                inputs[res.nodeId] = JSON.parse(res.output);
+              } catch {
+                inputs[res.nodeId] = res.output;
+              }
+            });
+
+            // Execute the code
+            const runFn = new Function("exports", "inputs", transpiled);
+            const exportsObj: any = {};
+            runFn(exportsObj, inputs);
+
+            const defaultExport = exportsObj.default;
+            if (typeof defaultExport !== "function") {
+              throw new Error(
+                "Default export가 함수가 아닙니다. 'export default function(inputs) { ... }' 형태로 내보내주세요.",
+              );
+            }
+
+            const scriptResult = await defaultExport(inputs);
+            if (typeof scriptResult === "object" && scriptResult !== null) {
+              output = scriptResult;
+            } else {
+              output = { result: scriptResult };
+            }
             nodeSuccess = true;
           } else {
             throw new Error(`지원하지 않는 노드 유형입니다: ${node.type}`);
@@ -821,8 +918,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     if (!report || !selectedNodeId) {
       return;
     }
-    const activeNode = nodes.find((n) => n.id === selectedNodeId);
-    if (!activeNode || activeNode.type !== "mapper") {
+    const mapperNode = nodes.find((n) => n.id === selectedNodeId);
+    if (!mapperNode || mapperNode.type !== "mapper") {
       return;
     }
 
@@ -861,9 +958,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           sourceValue: `{{${precedingNode.id}.${pathPrefix}${key}}}`,
         }));
 
-        updateNodeConfig(activeNode.id, {
-          ...activeNode.data.config,
-          mappings: [...(activeNode.data.config.mappings || []), ...newMappings],
+        updateNodeConfig(mapperNode.id, {
+          ...mapperNode.data.config,
+          mappings: [...(mapperNode.data.config.mappings || []), ...newMappings],
         });
       }
     } catch (e) {
@@ -880,6 +977,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           return { id: n.id, label: `${n.data.label} (${n.id})`, paths: ["body", "statusCode", "headers"] };
         } else if (n.type === "crypto") {
           return { id: n.id, label: `${n.data.label} (${n.id})`, paths: ["result"] };
+        } else if (n.type === "script") {
+          return { id: n.id, label: `${n.data.label} (${n.id})`, paths: ["result"] };
         } else {
           return { id: n.id, label: `${n.data.label} (${n.id})`, paths: ["valid", "errors"] };
         }
@@ -887,7 +986,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   }, [nodes, selectedNodeId]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[calc(100vh-14rem)] items-stretch">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-full items-stretch">
       {/* Visual Canvas (Left Side - 8 columns) */}
       <div className="lg:col-span-8 card bg-base-100 border border-base-300 p-0 shadow-sm overflow-hidden flex flex-col h-full relative">
         {/* Canvas Toolbar */}
@@ -919,6 +1018,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               onClick={() => addNode("preview")}
             >
               <Plus className="w-3.5 h-3.5 text-secondary" /> Preview 노드
+            </button>
+            <button
+              className="btn btn-xs btn-outline btn-ghost flex items-center gap-1"
+              onClick={() => addNode("script")}
+            >
+              <Plus className="w-3.5 h-3.5 text-accent" /> JS 스크립트 노드
             </button>
           </div>
 
@@ -1149,6 +1254,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     onChangeSecretKey={(key) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, key })}
                     iv={activeNode.data.config.iv}
                     onChangeIv={(iv) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, iv })}
+                    customCode={activeNode.data.config.code}
+                    onChangeCustomCode={(code) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code })}
                   />
                 </div>
               )}
@@ -1629,6 +1736,30 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         );
                       })()}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeNode.type === "script" && (
+                <div className="space-y-3 text-xs flex flex-col h-full overflow-hidden">
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <label className="font-semibold text-base-content/75 flex items-center gap-1">
+                      <FileCode className="w-3.5 h-3.5 text-accent" /> Custom JS 스크립트 작성
+                    </label>
+                    <p className="text-[10px] text-base-content/50 leading-relaxed">
+                      `export default async function(inputs)` 형태로 작성합니다.
+                      <br />
+                      `inputs` 객체에서 이전 노드의 결과(예: `inputs.api_1.body`)를 조회할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="flex-1 min-h-[300px] flex flex-col gap-1">
+                    <TsCodeEditor
+                      value={activeNode.data.config.code || ""}
+                      onChange={(val) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code: val })}
+                      language="javascript"
+                      theme={theme}
+                      className="flex-1"
+                    />
                   </div>
                 </div>
               )}

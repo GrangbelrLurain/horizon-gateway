@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import type { PipelineFlow, SavedComponent, SavedCryptoPreset } from "./types";
+import type { SavedComponent, SavedCryptoPreset } from "./types";
 
 export interface ApiClientHistoryItem {
   id: string;
@@ -22,6 +22,7 @@ export interface CryptoConfig {
   action: string;
   key: string;
   iv: string;
+  code?: string;
 }
 
 // Stores historical API requests sent via API Client
@@ -38,12 +39,6 @@ export {
   autocompletePathnamesAtom,
   autocompletePathnamesByOriginAtom,
 } from "@/entities/api-request";
-
-// Stores the currently edited visual pipeline flow
-export const activeFlowAtom = atomWithStorage<PipelineFlow>("watchtower-active-pipeline-flow", {
-  nodes: [],
-  edges: [],
-});
 
 // Stores pipeline → preview handoff data
 export const livePreviewDataAtom = atom<unknown | null>(null);
@@ -99,6 +94,7 @@ export const cryptoToolCurrentConfigAtom = atom<CryptoConfig>({
   action: "base64Encode",
   key: "",
   iv: "",
+  code: "",
 });
 
 export const apiClientLastResponseAtom = atom<any | null>(null);
