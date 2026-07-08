@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { Check, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type AppTheme, AVATAR_COLORS, getInitials, languageAtom, themeAtom, userProfileAtom } from "@/entities/app";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { en } from "./en";
@@ -17,6 +18,7 @@ function ProfilePage() {
   const [profile, setProfile] = useAtom(userProfileAtom);
   const [lang, setLang] = useAtom(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = useIsEmbeddedPage();
 
   const [globalTheme, setGlobalTheme] = useAtom(themeAtom);
 
@@ -54,16 +56,20 @@ function ProfilePage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 pb-20 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight text-base-content flex items-center gap-3">
-          <div className="p-2 bg-primary/10 text-primary rounded-xl">
-            <UserCircle2 className="w-6 h-6" />
-          </div>
-          {t.title}
-        </h1>
-        <p className="text-base-content/60 font-medium">{t.subtitle}</p>
-      </header>
+    <div
+      className={`flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500 ${isEmbedded ? "h-full min-h-0" : "pb-20"}`}
+    >
+      {!isEmbedded && (
+        <header className="flex flex-col gap-2">
+          <h1 className="text-3xl font-black tracking-tight text-base-content flex items-center gap-3">
+            <div className="p-2 bg-primary/10 text-primary rounded-xl">
+              <UserCircle2 className="w-6 h-6" />
+            </div>
+            {t.title}
+          </h1>
+          <p className="text-base-content/60 font-medium">{t.subtitle}</p>
+        </header>
+      )}
 
       <div className="bg-base-100 rounded-3xl border border-base-200 overflow-hidden shadow-sm flex flex-col md:flex-row min-h-[500px]">
         {/* Left side: Avatar Preview Jumbo */}

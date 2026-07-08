@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import { atomWithWindowStorage } from "@/shared/lib/jotai/window-storage";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Modal } from "@/shared/ui/modal/Modal";
 
 interface ServerLog {
@@ -37,6 +38,7 @@ function ServerLogsPage() {
   const [selectedLog, setSelectedLog] = useState<ServerLog | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
+  const isEmbedded = useIsEmbeddedPage();
 
   // Keep track of pause state for listener
   const isPausedRef = useRef(isPaused);
@@ -96,9 +98,15 @@ function ServerLogsPage() {
   }, [filteredLogs.length, isPaused, virtualizer]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] space-y-4">
-      <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6 shrink-0">
-        <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content font-sans">Server Logs</h1>
+    <div
+      className={`flex flex-col space-y-4 overflow-hidden ${isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-8rem)]"}`}
+    >
+      <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-4 shrink-0">
+        {!isEmbedded && (
+          <h1 className="text-2xl tablet:text-3xl font-black tracking-tight text-base-content font-sans">
+            Server Logs
+          </h1>
+        )}
         {isProxyRunning && (
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="relative flex-1 tablet:flex-initial min-w-[140px]">

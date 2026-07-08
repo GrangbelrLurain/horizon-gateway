@@ -5,6 +5,13 @@ export interface ApiExchangeCopyInput {
   url: string;
   requestHeaders: Record<string, string>;
   requestBody: string | null | undefined;
+  timestamp?: string;
+  labels?: {
+    requestHeaders: string;
+    requestBody: string;
+    responseHeaders: string;
+    responseBody: string;
+  };
   response: {
     statusCode: number;
     headers: Record<string, string> | null | undefined;
@@ -77,6 +84,18 @@ export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
   const statusColor = getStatusColor(input.response.statusCode);
   const reqHeadersHtml = formatHeadersHtml(input.requestHeaders);
   const resHeadersHtml = formatHeadersHtml(input.response.headers ?? {});
+  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
+  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
+  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
+  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
+  const timeDisplay = input.timestamp
+    ? new Date(input.timestamp).toLocaleString()
+    : `${input.response.elapsedMs ?? "-"}ms`;
+  const metaTimeLine = input.timestamp
+    ? `<strong>Time:</strong> <span style="font-family: monospace;">${timeDisplay}</span>`
+    : `<strong>Time:</strong> <span style="font-family: monospace;">${timeDisplay}</span>
+    <span style="margin: 0 10px; color: #edebe9;">|</span>
+    <strong>Time Copied:</strong> <span style="font-family: monospace;">${new Date().toLocaleString()}</span>`;
 
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #323130; max-width: 800px; border: 1px solid #edebe9; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
@@ -88,13 +107,11 @@ export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
   <div style="padding: 8px 16px; background-color: #faf9f8; border-bottom: 1px solid #edebe9; font-size: 11px; color: #605e5c;">
     <strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold; font-family: monospace;">${input.response.statusCode}</span>
     <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time:</strong> <span style="font-family: monospace;">${input.response.elapsedMs ?? "-"}ms</span>
-    <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time Copied:</strong> <span style="font-family: monospace;">${new Date().toLocaleString()}</span>
+    ${metaTimeLine}
   </div>
 
   <div style="padding: 16px;">
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Headers</h4>
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${reqHeadersTitle}</h4>
     <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
       ${reqHeadersHtml}
     </div>
@@ -102,13 +119,13 @@ export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
     ${
       formattedReqBody
         ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Request Body</h4>
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${reqBodyTitle}</h4>
     <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedReqBody}</pre>
     `
         : ""
     }
 
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Headers</h4>
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${resHeadersTitle}</h4>
     <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
       ${resHeadersHtml}
     </div>
@@ -116,7 +133,7 @@ export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
     ${
       formattedResBody
         ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">Response Body</h4>
+    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${resBodyTitle}</h4>
     <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedResBody}</pre>
     `
         : ""
@@ -129,18 +146,25 @@ export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
 export function buildApiExchangePlainText(input: ApiExchangeCopyInput): string {
   const formattedReqBody = formatHttpBody(input.requestBody);
   const formattedResBody = formatHttpBody(input.response.body);
+  const timeDisplay = input.timestamp
+    ? new Date(input.timestamp).toLocaleString()
+    : `${input.response.elapsedMs ?? "-"}ms`;
+  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
+  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
+  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
+  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
 
   return `METHOD: ${input.method.toUpperCase()}
 URL: ${input.url}
 Status: ${input.response.statusCode}
-Time: ${input.response.elapsedMs ?? "-"}ms
+Time: ${timeDisplay}
 
-[Request Headers]
+[${reqHeadersTitle}]
 ${formatHeadersPlain(input.requestHeaders)}
-${formattedReqBody ? `\n[Request Body]\n${formattedReqBody}\n` : ""}
-[Response Headers]
+${formattedReqBody ? `\n[${reqBodyTitle}]\n${formattedReqBody}\n` : ""}
+[${resHeadersTitle}]
 ${formatHeadersPlain(input.response.headers)}
-${formattedResBody ? `\n[Response Body]\n${formattedResBody}\n` : ""}
+${formattedResBody ? `\n[${resBodyTitle}]\n${formattedResBody}\n` : ""}
 `;
 }
 
@@ -150,22 +174,29 @@ export function buildApiExchangeMarkdown(input: ApiExchangeCopyInput): string {
   const formattedResBody = formatHttpBody(input.response.body);
   const reqHeadersStr = formatHeadersPlain(input.requestHeaders);
   const resHeadersStr = formatHeadersPlain(input.response.headers);
+  const timeDisplay = input.timestamp
+    ? new Date(input.timestamp).toLocaleString()
+    : `${input.response.elapsedMs ?? "-"}ms`;
+  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
+  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
+  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
+  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
 
   return [
     `### **[${method}]** \`${input.url}\``,
-    `**Status:** \`${input.response.statusCode}\` | **Time:** \`${input.response.elapsedMs ?? "-"}ms\``,
+    `**Status:** \`${input.response.statusCode}\` | **Time:** \`${timeDisplay}\``,
     "",
-    "#### **Request Headers**",
+    `#### **${reqHeadersTitle}**`,
     "```http",
     reqHeadersStr,
     "```",
-    ...(formattedReqBody ? ["", "#### **Request Body**", "```json", formattedReqBody, "```"] : []),
+    ...(formattedReqBody ? ["", `#### **${reqBodyTitle}**`, "```json", formattedReqBody, "```"] : []),
     "",
-    "#### **Response Headers**",
+    `#### **${resHeadersTitle}**`,
     "```http",
     resHeadersStr,
     "```",
-    ...(formattedResBody ? ["", "#### **Response Body**", "```json", formattedResBody, "```"] : []),
+    ...(formattedResBody ? ["", `#### **${resBodyTitle}**`, "```json", formattedResBody, "```"] : []),
     "",
   ].join("\n");
 }
@@ -177,6 +208,13 @@ export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): strin
   const reqHeadersStr = formatHeadersPlain(input.requestHeaders);
   const resHeadersStr = formatHeadersPlain(input.response.headers);
   const methodColor = getMethodBgColor(method);
+  const timeDisplay = input.timestamp
+    ? new Date(input.timestamp).toLocaleString()
+    : `${input.response.elapsedMs ?? "-"}ms`;
+  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
+  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
+  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
+  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
 
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #242424; max-width: 800px;">
@@ -187,11 +225,11 @@ export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): strin
   <div style="font-size: 12px; color: #616161; margin-bottom: 16px;">
     <strong>Status:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${input.response.statusCode}</code>
     <span style="margin: 0 8px; color: #d2d2d2;">|</span>
-    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${input.response.elapsedMs ?? "-"}ms</code>
+    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${timeDisplay}</code>
   </div>
 
   <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Headers</div>
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${reqHeadersTitle}</div>
     <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${reqHeadersStr}</pre>
   </div>
 
@@ -199,7 +237,7 @@ export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): strin
     formattedReqBody
       ? `
   <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Request Body</div>
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${reqBodyTitle}</div>
     <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedReqBody}</pre>
   </div>
   `
@@ -207,7 +245,7 @@ export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): strin
   }
 
   <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Headers</div>
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${resHeadersTitle}</div>
     <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${resHeadersStr}</pre>
   </div>
 
@@ -215,7 +253,7 @@ export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): strin
     formattedResBody
       ? `
   <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">Response Body</div>
+    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${resBodyTitle}</div>
     <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedResBody}</pre>
   </div>
   `

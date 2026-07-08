@@ -6,11 +6,8 @@ import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import {
   Calendar,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Copy,
   FileText,
   FlaskConical,
   GlobeIcon,
@@ -20,9 +17,9 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
+import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
-import { ApiLogExchangeDetail, formatHttpBody, savedJsonSchemasAtom, validateJsonSchema } from "@/entities/sandbox";
+import { ApiLogExchangeDetail, savedJsonSchemasAtom, validateJsonSchema } from "@/entities/sandbox";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -125,11 +122,7 @@ function ApiLogs() {
   const [methodFilter, setMethodFilter] = useAtom(apiLogsMethodFilterAtom);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [clearing, setClearing] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
-  const { alert: promiseAlert } = usePromiseModal();
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
 
   // Schema validation state for log detail modal
@@ -338,18 +331,6 @@ function ApiLogs() {
     void fetchLogs(date, "refresh");
   }, [date, fetchLogs]);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   const changeDate = (days: number) => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + days);
@@ -423,337 +404,6 @@ function ApiLogs() {
   const handleRowClick = useCallback((log: ApiLogEntry) => {
     setSelectedLog(log);
   }, []);
-
-  const formatBody = useCallback((body: string | null): string => {
-    return formatHttpBody(body);
-  }, []);
-
-  const handleCopyHtml = useCallback(async () => {
-    setIsDropdownOpen(false);
-    if (!selectedLog) {
-      return;
-    }
-
-    const getMethodBgColor = (method: string) => {
-      const m = method.toUpperCase();
-      if (m === "GET") {
-        return "#0078d4";
-      }
-      if (m === "POST") {
-        return "#107c41";
-      }
-      if (m === "PUT" || m === "PATCH") {
-        return "#d83b01";
-      }
-      if (m === "DELETE") {
-        return "#a80000";
-      }
-      return "#605e5c";
-    };
-
-    const getStatusColor = (status: number | null) => {
-      if (!status) {
-        return "#605e5c";
-      }
-      if (status >= 500) {
-        return "#a80000";
-      }
-      if (status >= 400) {
-        return "#d83b01";
-      }
-      if (status >= 300) {
-        return "#0078d4";
-      }
-      return "#107c41";
-    };
-
-    const formattedReqBody = formatBody(selectedLog.request_body);
-    const formattedResBody = formatBody(selectedLog.response_body);
-
-    const methodColor = getMethodBgColor(selectedLog.method);
-    const statusColor = getStatusColor(selectedLog.status_code);
-
-    let reqHeadersHtml = "";
-    if (selectedLog.request_headers && Object.keys(selectedLog.request_headers).length > 0) {
-      reqHeadersHtml = Object.entries(selectedLog.request_headers)
-        .map(
-          ([k, v]) => `
-        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
-          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
-        </div>`,
-        )
-        .join("");
-    } else {
-      reqHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
-    }
-
-    let resHeadersHtml = "";
-    if (selectedLog.response_headers && Object.keys(selectedLog.response_headers).length > 0) {
-      resHeadersHtml = Object.entries(selectedLog.response_headers)
-        .map(
-          ([k, v]) => `
-        <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
-          <strong style="color: #605e5c;">${k}:</strong> <span style="color: #323130; word-break: break-all;">${v}</span>
-        </div>`,
-        )
-        .join("");
-    } else {
-      resHeadersHtml = '<div style="font-size: 11px; color: #a19f9d; font-style: italic;">No headers</div>';
-    }
-
-    const html = `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #323130; max-width: 800px; border: 1px solid #edebe9; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
-  <div style="padding: 12px 16px; background-color: #f3f2f1; border-bottom: 1px solid #edebe9;">
-    <span style="display: inline-block; font-weight: bold; background-color: ${methodColor}; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin-right: 8px;">${selectedLog.method}</span>
-    <strong style="font-family: monospace; font-size: 12px; word-break: break-all;">${selectedLog.url}</strong>
-  </div>
-  
-  <div style="padding: 8px 16px; background-color: #faf9f8; border-bottom: 1px solid #edebe9; font-size: 11px; color: #605e5c;">
-    <strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold; font-family: monospace;">${selectedLog.status_code ?? "-"}</span>
-    <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time:</strong> <span style="font-family: monospace;">${new Date(selectedLog.timestamp).toLocaleString()}</span>
-  </div>
-
-  <div style="padding: 16px;">
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${t.requestHeaders}</h4>
-    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
-      ${reqHeadersHtml}
-    </div>
-
-    ${
-      formattedReqBody
-        ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${t.requestBody}</h4>
-    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedReqBody}</pre>
-    `
-        : ""
-    }
-
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${t.responseHeaders}</h4>
-    <div style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px;">
-      ${resHeadersHtml}
-    </div>
-
-    ${
-      formattedResBody
-        ? `
-    <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #605e5c; letter-spacing: 0.5px;">${t.responseBody}</h4>
-    <pre style="background-color: #faf9f8; border: 1px solid #edebe9; border-radius: 4px; padding: 10px; margin-bottom: 16px; font-family: monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #323130; margin-top: 0;">${formattedResBody}</pre>
-    `
-        : ""
-    }
-  </div>
-</div>
-`;
-
-    const plainHeaders = (headers: Record<string, string> | null) => {
-      if (!headers) {
-        return "No headers";
-      }
-      return Object.entries(headers)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-    };
-
-    const plain = `METHOD: ${selectedLog.method}
-URL: ${selectedLog.url}
-Status: ${selectedLog.status_code ?? "-"}
-Time: ${new Date(selectedLog.timestamp).toLocaleString()}
-
-[${t.requestHeaders}]
-${plainHeaders(selectedLog.request_headers)}
-${formattedReqBody ? `\n[${t.requestBody}]\n${formattedReqBody}\n` : ""}
-[${t.responseHeaders}]
-${plainHeaders(selectedLog.response_headers)}
-${formattedResBody ? `\n[${t.responseBody}]\n${formattedResBody}\n` : ""}
-`;
-
-    try {
-      const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([plain], { type: "text/plain" });
-      const data = [
-        new ClipboardItem({
-          "text/html": blobHtml,
-          "text/plain": blobText,
-        }),
-      ];
-      await navigator.clipboard.write(data);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      promiseAlert(t.copied, t.copiedDesc);
-    } catch (err) {
-      console.error("Failed to copy HTML, falling back to text:", err);
-      try {
-        await navigator.clipboard.writeText(plain);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        promiseAlert(t.copied, t.copiedDesc);
-      } catch (err2) {
-        console.error("Failed to copy text:", err2);
-      }
-    }
-  }, [
-    selectedLog,
-    t.requestHeaders,
-    t.requestBody,
-    t.responseHeaders,
-    t.responseBody,
-    formatBody,
-    promiseAlert,
-    t.copied,
-    t.copiedDesc,
-  ]);
-
-  const handleCopyMarkdown = useCallback(async () => {
-    setIsDropdownOpen(false);
-    if (!selectedLog) {
-      return;
-    }
-
-    const formattedReqBody = formatBody(selectedLog.request_body);
-    const formattedResBody = formatBody(selectedLog.response_body);
-
-    const plainHeaders = (headers: Record<string, string> | null) => {
-      if (!headers || Object.keys(headers).length === 0) {
-        return "No headers";
-      }
-      return Object.entries(headers)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-    };
-
-    const reqHeadersStr = plainHeaders(selectedLog.request_headers);
-    const resHeadersStr = plainHeaders(selectedLog.response_headers);
-
-    const md = `### **[${selectedLog.method.toUpperCase()}]** \`${selectedLog.url}\`
-**Status:** \`${selectedLog.status_code ?? "-"}\` | **Time:** \`${new Date(selectedLog.timestamp).toLocaleString()}\`
-
-#### **${t.requestHeaders}**
-\`\`\`http
-${reqHeadersStr}
-\`\`\`
-${
-  formattedReqBody
-    ? `
-#### **${t.requestBody}**
-\`\`\`json
-${formattedReqBody}
-\`\`\`
-`
-    : ""
-}
-#### **${t.responseHeaders}**
-\`\`\`http
-${resHeadersStr}
-\`\`\`
-${
-  formattedResBody
-    ? `
-#### **${t.responseBody}**
-\`\`\`json
-${formattedResBody}
-\`\`\`
-`
-    : ""
-}
-`;
-
-    const methodColor =
-      selectedLog.method.toUpperCase() === "GET"
-        ? "#0078d4"
-        : selectedLog.method.toUpperCase() === "POST"
-          ? "#107c41"
-          : ["PUT", "PATCH"].includes(selectedLog.method.toUpperCase())
-            ? "#d83b01"
-            : selectedLog.method.toUpperCase() === "DELETE"
-              ? "#a80000"
-              : "#605e5c";
-
-    const html = `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #242424; max-width: 800px;">
-  <div style="margin-bottom: 8px;">
-    <span style="font-weight: bold; font-family: monospace; font-size: 12px; color: ${methodColor};">[${selectedLog.method.toUpperCase()}]</span> 
-    <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 12px;">${selectedLog.url}</code>
-  </div>
-  <div style="font-size: 12px; color: #616161; margin-bottom: 16px;">
-    <strong>Status:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${selectedLog.status_code ?? "-"}</code>
-    <span style="margin: 0 8px; color: #d2d2d2;">|</span>
-    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${new Date(selectedLog.timestamp).toLocaleString()}</code>
-  </div>
-
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${t.requestHeaders}</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${reqHeadersStr}</pre>
-  </div>
-
-  ${
-    formattedReqBody
-      ? `
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${t.requestBody}</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedReqBody}</pre>
-  </div>
-  `
-      : ""
-  }
-
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${t.responseHeaders}</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${resHeadersStr}</pre>
-  </div>
-
-  ${
-    formattedResBody
-      ? `
-  <div style="margin-bottom: 12px;">
-    <div style="font-weight: bold; margin-bottom: 4px; font-size: 12px; color: #242424;">${t.responseBody}</div>
-    <pre style="background-color: #f3f2f1; border-left: 3px solid #605e5c; padding: 8px 12px; font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; color: #242424; margin: 0;">${formattedResBody}</pre>
-  </div>
-  `
-      : ""
-  }
-</div>
-`;
-
-    try {
-      const blobHtml = new Blob([html], { type: "text/html" });
-      const blobText = new Blob([md], { type: "text/plain" });
-      const data = [
-        new ClipboardItem({
-          "text/html": blobHtml,
-          "text/plain": blobText,
-        }),
-      ];
-      await navigator.clipboard.write(data);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-      promiseAlert(t.copied, t.copiedDesc);
-    } catch (err) {
-      console.error("Failed to copy Markdown HTML, falling back to plain text:", err);
-      try {
-        await navigator.clipboard.writeText(md);
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-        promiseAlert(t.copied, t.copiedDesc);
-      } catch (err2) {
-        console.error("Failed to copy text:", err2);
-      }
-    }
-  }, [
-    selectedLog,
-    t.requestHeaders,
-    t.requestBody,
-    t.responseHeaders,
-    t.responseBody,
-    formatBody,
-    promiseAlert,
-    t.copied,
-    t.copiedDesc,
-  ]);
 
   const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 
@@ -1018,68 +668,31 @@ ${formattedResBody}
                 request: t.request,
                 requestBody: t.requestBody,
                 requestHeaders: t.requestHeaders,
+                responseBody: t.responseBody,
+                responseHeaders: t.responseHeaders,
                 status: t.status,
                 time: t.time,
                 empty: t.empty,
+                btnCopy: t.btnCopy,
+                copied: t.copied,
+                copyHtml: t.copyHtml,
+                copyMarkdown: t.copyMarkdown,
               }}
               actions={
-                <>
-                  <div className="relative inline-block text-left" ref={dropdownRef}>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setIsDropdownOpen((prev) => !prev)}
-                      className="flex items-center gap-1.5 h-8 font-bold"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-success" />
-                          <span className="text-success">{t.copied}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>{t.btnCopy}</span>
-                          <ChevronDown className="w-3 h-3 text-base-content/40" />
-                        </>
-                      )}
-                    </Button>
-
-                    {isDropdownOpen && (
-                      <div className="absolute right-0 mt-1 w-44 bg-base-100 border border-base-300 rounded-xl shadow-xl z-50 py-1 overflow-hidden backdrop-blur-md bg-base-100/95">
-                        <button
-                          type="button"
-                          className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 text-base-content font-bold transition-colors cursor-pointer"
-                          onClick={handleCopyHtml}
-                        >
-                          {t.copyHtml}
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full text-left px-4 py-2 text-xs hover:bg-base-200 border-t border-base-200 text-base-content font-bold transition-colors cursor-pointer"
-                          onClick={handleCopyMarkdown}
-                        >
-                          {t.copyMarkdown}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex items-center gap-1.5 h-8 font-bold"
-                    onClick={() => {
-                      setCreateMockModal({
-                        isOpen: true,
-                        logData: selectedLog,
-                      });
-                    }}
-                  >
-                    <FlaskConical className="w-3.5 h-3.5" />
-                    <span>Save as Mock</span>
-                  </Button>
-                </>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex items-center gap-1.5 h-8 font-bold"
+                  onClick={() => {
+                    setCreateMockModal({
+                      isOpen: true,
+                      logData: selectedLog,
+                    });
+                  }}
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  <span>Save as Mock</span>
+                </Button>
               }
               responseViewerProps={{
                 t,

@@ -8,6 +8,7 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight } from "lucide-react";
+import { openPopupWindow } from "@/shared/lib/tauri/openPopupWindow";
 import { Button } from "@/shared/ui/button/Button";
 
 export interface EmptyStateTier1Props {
@@ -76,12 +77,14 @@ export function EmptyState(props: EmptyStateProps) {
           <h3 className="text-lg font-bold text-base-content mb-1">{t.title}</h3>
           <p className="text-sm text-base-content/40 leading-relaxed">{t.description}</p>
         </div>
-        <Link to="/domains/regist">
-          <Button variant="primary" className="gap-2 flex items-center shadow-lg shadow-indigo-500/20">
-            {t.action}
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </Link>
+        <Button
+          variant="primary"
+          className="gap-2 flex items-center shadow-lg shadow-indigo-500/20"
+          onClick={() => void openPopupWindow("add-domain")}
+        >
+          {t.action}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
       </div>
     );
   }

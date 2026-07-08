@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import clsx from "clsx";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   BookOpen,
@@ -53,6 +54,7 @@ import {
 import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { type OpenApiSpec, type ParsedEndpoint, parseOpenApiSpec, type TagGroup } from "@/shared/lib/openapi-parser";
+import { useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -70,8 +72,22 @@ import {
 } from "./store";
 
 export const Route = createFileRoute("/apis/schema/")({
-  component: ApiSchemaPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    d:
+      typeof search.d === "number"
+        ? search.d
+        : typeof search.d === "string"
+          ? Number(search.d) || undefined
+          : undefined,
+  }),
+  component: ApiSchemaRoutePage,
 });
+
+function ApiSchemaRoutePage() {
+  const embedMode = useEmbedMode();
+  const { d } = Route.useSearch();
+  return <ApiSchemaPage initialDomainId={d} embedMode={embedMode} />;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -778,14 +794,29 @@ function SchemaOptionsPanel() {
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 
-function ApiSchemaPage() {
+export function ApiSchemaPage({
+  initialDomainId,
+  embedMode = "standalone",
+}: {
+  initialDomainId?: number;
+  embedMode?: "standalone" | "popup" | "detached";
+} = {}) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = embedMode !== "standalone";
+  const routeSearch = useSearch({ strict: false });
   const [domains, setDomains] = useState<Domain[]>([]);
   const [links, setLinks] = useState<DomainApiLoggingLink[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedDomainId, setSelectedDomainId] = useAtom(apiSchemaSelectedDomainIdAtom);
+
+  useEffect(() => {
+    const d = initialDomainId ?? (typeof routeSearch.d === "number" ? routeSearch.d : undefined);
+    if (d) {
+      setSelectedDomainId(d);
+    }
+  }, [initialDomainId, routeSearch.d, setSelectedDomainId]);
 
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [parsedSpec, setParsedSpec] = useState<OpenApiSpec | null>(null);
@@ -911,70 +942,97 @@ function ApiSchemaPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-10rem)] overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between border-b border-base-200 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-secondary/10 text-secondary rounded-lg">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <div>
-            <H1 className="text-2xl font-bold tracking-tight text-base-content">{t.title}</H1>
-            <P className="text-base-content/60 text-xs font-medium">{t.subtitle}</P>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        {/* Domain selector */}
-        <Card className="p-1 items-center gap-2 flex flex-wrap bg-base-100 border-base-300 shadow-xl rounded-2xl mb-6 relative z-10">
-          <div className="pl-4 pr-3 py-2 flex items-center gap-3 border-r border-base-300 shrink-0">
-            <Globe className="w-4 h-4 text-primary" />
-            <span className="text-xs font-black text-base-content/40 whitespace-nowrap hidden sm:inline-block uppercase tracking-widest">
-              {t.targetApi}
-            </span>
-          </div>
-
-          <div className="relative flex-1 min-w-[200px] group/sel">
-            <select
-              id="domain-select"
-              className="appearance-none w-full bg-transparent border-none py-2.5 pl-3 pr-10 text-sm font-bold text-base-content focus:ring-0 cursor-pointer outline-none transition-all"
-              value={selectedDomainId ?? ""}
-              onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : null)}
-              disabled={loading}
-            >
-              <option value="" className="bg-base-100">
-                {t.selectDomain}
-              </option>
-              {schemaLinks.map((link) => {
-                const domain = domainMap.get(link.domainId);
-                return (
-                  <option key={link.domainId} value={link.domainId} className="bg-base-100">
-                    {domain?.url ?? `Domain #${link.domainId}`}
-                  </option>
-                );
-              })}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 pointer-events-none group-hover/sel:text-primary transition-colors" />
-          </div>
-
-          {schemaLoading ? (
-            <div className="flex items-center gap-3 mr-5 p-2 px-4 bg-primary/5 text-primary rounded-xl text-xs font-black uppercase tracking-widest shadow-inner">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {t.parsingSchema}
+    <div
+      className={clsx("flex flex-col gap-4 overflow-hidden", isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-10rem)]")}
+    >
+      {!isEmbedded && (
+        <header className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between border-b border-base-200 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-secondary/10 text-secondary rounded-lg">
+              <BookOpen className="w-5 h-5" />
             </div>
-          ) : (
-            parsedSpec && (
-              <div className="hidden md:flex items-center gap-4 mr-4 p-2 px-4 bg-primary/10 text-primary rounded-xl text-xs font-bold border border-primary/20 animate-in fade-in slide-in-from-right-4 shrink-0 shadow-sm">
-                <span className="font-black uppercase tracking-tight">{parsedSpec.info.title}</span>
-                <span className="w-px h-3 bg-primary/20" />
-                <span className="font-mono tabular-nums">v{parsedSpec.info.version}</span>
-                <span className="w-px h-3 bg-primary/20" />
-                <span className="font-black uppercase tracking-tighter">{t.endpointsCount(allEndpoints.length)}</span>
+            <div>
+              <H1 className="text-2xl font-bold tracking-tight text-base-content">{t.title}</H1>
+              <P className="text-base-content/60 text-xs font-medium">{t.subtitle}</P>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-0">
+        {/* Domain selector */}
+        {!isEmbedded || !initialDomainId ? (
+          <Card className="p-1 items-center gap-2 flex flex-wrap bg-base-100 border-base-300 shadow-xl rounded-2xl mb-6 relative z-10">
+            <div className="pl-4 pr-3 py-2 flex items-center gap-3 border-r border-base-300 shrink-0">
+              <Globe className="w-4 h-4 text-primary" />
+              <span className="text-xs font-black text-base-content/40 whitespace-nowrap hidden sm:inline-block uppercase tracking-widest">
+                {t.targetApi}
+              </span>
+            </div>
+
+            <div className="relative flex-1 min-w-[200px] group/sel">
+              <select
+                id="domain-select"
+                className="appearance-none w-full bg-transparent border-none py-2.5 pl-3 pr-10 text-sm font-bold text-base-content focus:ring-0 cursor-pointer outline-none transition-all"
+                value={selectedDomainId ?? ""}
+                onChange={(e) => setSelectedDomainId(e.target.value ? Number(e.target.value) : null)}
+                disabled={loading}
+              >
+                <option value="" className="bg-base-100">
+                  {t.selectDomain}
+                </option>
+                {schemaLinks.map((link) => {
+                  const domain = domainMap.get(link.domainId);
+                  return (
+                    <option key={link.domainId} value={link.domainId} className="bg-base-100">
+                      {domain?.url ?? `Domain #${link.domainId}`}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 pointer-events-none group-hover/sel:text-primary transition-colors" />
+            </div>
+
+            {schemaLoading ? (
+              <div className="flex items-center gap-3 mr-5 p-2 px-4 bg-primary/5 text-primary rounded-xl text-xs font-black uppercase tracking-widest shadow-inner">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t.parsingSchema}
               </div>
-            )
-          )}
-        </Card>
+            ) : (
+              parsedSpec && (
+                <div className="hidden md:flex items-center gap-4 mr-4 p-2 px-4 bg-primary/10 text-primary rounded-xl text-xs font-bold border border-primary/20 animate-in fade-in slide-in-from-right-4 shrink-0 shadow-sm">
+                  <span className="font-black uppercase tracking-tight">{parsedSpec.info.title}</span>
+                  <span className="w-px h-3 bg-primary/20" />
+                  <span className="font-mono tabular-nums">v{parsedSpec.info.version}</span>
+                  <span className="w-px h-3 bg-primary/20" />
+                  <span className="font-black uppercase tracking-tighter">{t.endpointsCount(allEndpoints.length)}</span>
+                </div>
+              )
+            )}
+          </Card>
+        ) : (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
+            <span className="text-sm font-bold text-slate-800 truncate">
+              {selectedDomainId ? (domainMap.get(selectedDomainId)?.url ?? `Domain #${selectedDomainId}`) : "—"}
+            </span>
+            {schemaLoading ? (
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 shrink-0">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                {t.parsingSchema}
+              </div>
+            ) : (
+              parsedSpec && (
+                <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-600 shrink-0">
+                  <span>{parsedSpec.info.title}</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="font-mono">v{parsedSpec.info.version}</span>
+                  <span className="text-slate-300">·</span>
+                  <span>{t.endpointsCount(allEndpoints.length)}</span>
+                </div>
+              )
+            )}
+          </div>
+        )}
 
         <div className="tabs tabs-boxed w-fit shrink-0">
           <button

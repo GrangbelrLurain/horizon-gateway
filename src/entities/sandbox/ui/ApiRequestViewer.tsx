@@ -11,6 +11,9 @@ export interface ApiRequestViewerProps
     headers: string;
     empty?: string;
   };
+  enableCopy?: boolean;
+  copyLabel?: string;
+  copiedLabel?: string;
 }
 
 export function ApiRequestViewer({
@@ -22,6 +25,9 @@ export function ApiRequestViewer({
   actions,
   heightClass = "",
   bodyPanelHeightClass = "min-h-[240px] max-h-[40vh]",
+  enableCopy,
+  copyLabel,
+  copiedLabel,
 }: ApiRequestViewerProps) {
   return (
     <ApiHttpMessageViewer
@@ -34,6 +40,9 @@ export function ApiRequestViewer({
       heightClass={heightClass}
       bodyPanelHeightClass={bodyPanelHeightClass}
       bodyTextClassName="text-base-content/85"
+      enableCopy={enableCopy}
+      copyLabel={copyLabel}
+      copiedLabel={copiedLabel}
     />
   );
 }

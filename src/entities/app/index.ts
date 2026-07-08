@@ -5,4 +5,5 @@ export * from "./status/store";
 export * from "./theme/store";
 export * from "./ui/store";
 export * from "./ui/Titlebar";
+export * from "./ui/WindowControls";
 export * from "./user/store";

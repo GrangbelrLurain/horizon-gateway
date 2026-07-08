@@ -1,0 +1,488 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { Globe, Keyboard } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { languageAtom } from "@/entities/app";
+import type { Domain } from "@/shared/api";
+import { useDomainHubData } from "../hooks/useDomainHubData";
+import { usePanelNavigation } from "../hooks/usePanelNavigation";
+import { HubOverlayProvider } from "../lib/HubOverlayContext";
+import {
+  collapsedPanelsAtom,
+  domainListBulkModeAtom,
+  domainListBulkSelectedIdsAtom,
+  domainListBulkSnapshotAtom,
+  domainListOverlayOpenAtom,
+  domainListPinnedOpenAtom,
+  manualExpandedPanelsAtom,
+  panelOverlayOpenAtom,
+} from "../store";
+import type { PanelEntry } from "../types";
+import { DomainApiLogDetailPanel } from "./DomainApiLogDetailPanel";
+import { DomainApiLogsPanel } from "./DomainApiLogsPanel";
+import { DomainApiMockingPanel } from "./DomainApiMockingPanel";
+import { DomainApiPanel } from "./DomainApiPanel";
+import { DomainApiSchemaPanel } from "./DomainApiSchemaPanel";
+import { DomainBulkManagePanel } from "./DomainBulkManagePanel";
+import { DomainDebugPanel } from "./DomainDebugPanel";
+import { DomainListPanel } from "./DomainListPanel";
+import { DomainMonitorPanel } from "./DomainMonitorPanel";
+import { DomainOverviewPanel } from "./DomainOverviewPanel";
+import { DomainProxyPanel } from "./DomainProxyPanel";
+import { PanelBreadcrumb } from "./PanelBreadcrumb";
+import { TopBar } from "./TopBar";
+
+function getDomainLabel(domain: Domain) {
+  try {
+    const u = new URL(domain.url.startsWith("http") ? domain.url : `https://${domain.url}`);
+    return u.hostname;
+  } catch {
+    return domain.url;
+  }
+}
+
+function renderPanel(
+  panel: PanelEntry,
+  domain: Domain,
+  panelIndex: number,
+  panels: PanelEntry[],
+  nav: ReturnType<typeof usePanelNavigation>,
+  hostFilter: string,
+) {
+  const onClose = () => {
+    if (panel.id === "overview" && panels.length === 1) {
+      nav.clearDomain();
+      return;
+    }
+    nav.closePanel(panelIndex);
+  };
+
+  switch (panel.id) {
+    case "overview":
+      return (
+        <DomainOverviewPanel
+          key="overview"
+          domain={domain}
+          onClose={onClose}
+          onOpenPanel={(id, params) => nav.openPanel(id, params)}
+        />
+      );
+    case "monitor":
+      return <DomainMonitorPanel key="monitor" domain={domain} onClose={onClose} />;
+    case "proxy":
+      return <DomainProxyPanel key="proxy" domain={domain} onClose={onClose} />;
+    case "api":
+      return (
+        <DomainApiPanel
+          key="api"
+          domain={domain}
+          onClose={onClose}
+          onOpenPanel={(id) => nav.openPanel(id)}
+          activeSection={panels.find((p) => p.id.startsWith("api/") && p.id !== "api/log")?.id}
+        />
+      );
+    case "api/logs":
+      return (
+        <DomainApiLogsPanel
+          key="api/logs"
+          domain={domain}
+          onClose={onClose}
+          onSelectLog={(logId) => nav.openPanel("api/log", { logId })}
+          selectedLogId={panels.find((p) => p.id === "api/log")?.params?.logId}
+        />
+      );
+    case "api/log":
+      return (
+        <DomainApiLogDetailPanel
+          key={`api/log-${panel.params?.logId}`}
+          logId={panel.params?.logId ?? ""}
+          hostFilter={hostFilter}
+          onClose={onClose}
+        />
+      );
+    case "api/mocking":
+      return <DomainApiMockingPanel key="api/mocking" domain={domain} onClose={onClose} />;
+    case "api/schema":
+      return <DomainApiSchemaPanel key="api/schema" domain={domain} onClose={onClose} />;
+    case "debug":
+      return <DomainDebugPanel key="debug" domain={domain} onClose={onClose} />;
+    default:
+      return null;
+  }
+}
+
+export function DomainHubPage() {
+  const nav = usePanelNavigation();
+  const { domains, loading, getDomainHost } = useDomainHubData();
+  const lang = useAtomValue(languageAtom);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hubOverlayRef = useRef<HTMLDivElement>(null);
+  const [bulkMode, setBulkMode] = useAtom(domainListBulkModeAtom);
+  const [bulkSnapshot, setBulkSnapshot] = useAtom(domainListBulkSnapshotAtom);
+  const setBulkSelectedIds = useSetAtom(domainListBulkSelectedIdsAtom);
+  const [manualExpanded, setManualExpanded] = useAtom(manualExpandedPanelsAtom);
+  const [domainListOverlayOpen, setDomainListOverlayOpen] = useAtom(domainListOverlayOpenAtom);
+  const [panelOverlayOpen, setPanelOverlayOpen] = useAtom(panelOverlayOpenAtom);
+  const [, setDomainListPinnedOpen] = useAtom(domainListPinnedOpenAtom);
+  const bulkHydratedRef = useRef(false);
+  const manualExpandedRef = useRef(manualExpanded);
+  manualExpandedRef.current = manualExpanded;
+
+  const [showShortcutTip, setShowShortcutTip] = useState(false);
+  const [, setCollapsedPanels] = useAtom(collapsedPanelsAtom);
+  const tipTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  const overlayStateRef = useRef({ domain: false, panel: null as string | null });
+  overlayStateRef.current = { domain: domainListOverlayOpen, panel: panelOverlayOpen };
+  const prevDomainIdRef = useRef<number | null>(null);
+
+  const triggerShortcutTip = useCallback(() => {
+    setShowShortcutTip(true);
+    if (tipTimerRef.current) {
+      clearTimeout(tipTimerRef.current);
+    }
+    tipTimerRef.current = setTimeout(() => {
+      setShowShortcutTip(false);
+    }, 3000);
+  }, []);
+
+  const domain = nav.domainId ? domains.find((d) => d.id === nav.domainId) : null;
+
+  const enterBulkMode = useCallback(() => {
+    if (nav.domainId != null) {
+      setBulkSnapshot({ domainId: nav.domainId, panels: nav.panels });
+      nav.clearDomain();
+    }
+    setBulkSelectedIds([]);
+    setBulkMode(true);
+  }, [nav, setBulkMode, setBulkSelectedIds, setBulkSnapshot]);
+
+  const exitBulkMode = useCallback(() => {
+    const snapshot = bulkSnapshot;
+    setBulkMode(false);
+    setBulkSelectedIds([]);
+    setBulkSnapshot(null);
+    if (snapshot?.domainId != null) {
+      nav.restoreNavigation(snapshot.domainId, snapshot.panels);
+    }
+  }, [bulkSnapshot, nav, setBulkMode, setBulkSelectedIds, setBulkSnapshot]);
+
+  useEffect(() => {
+    if (!bulkMode || bulkHydratedRef.current) {
+      return;
+    }
+    bulkHydratedRef.current = true;
+    if (nav.domainId != null && bulkSnapshot === null) {
+      setBulkSnapshot({ domainId: nav.domainId, panels: nav.panels });
+      nav.clearDomain();
+    }
+  }, [bulkMode, bulkSnapshot, nav, setBulkSnapshot]);
+
+  // 스택에서 제거된 패널은 수동 펼침 목록에서 정리
+  useEffect(() => {
+    setManualExpanded((prev) => {
+      const next = new Set([...prev].filter((id) => nav.panels.some((p) => p.id === id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [nav.panels, setManualExpanded]);
+
+  // 패널 4개 이상일 때만 왼쪽 패널 자동 접기 (수동으로 펼친 패널은 유지)
+  useEffect(() => {
+    if (nav.panels.length <= 3) {
+      setCollapsedPanels((prev) => {
+        const next = { ...prev };
+        for (const p of nav.panels) {
+          next[p.id] = false;
+        }
+        return next;
+      });
+      return;
+    }
+
+    const activeKeys = new Set(nav.panels.slice(-2).map((p) => p.id));
+    const leftKeys = nav.panels.slice(0, -2).map((p) => p.id);
+    const pinned = manualExpandedRef.current;
+
+    setCollapsedPanels((prev) => {
+      const next = { ...prev };
+      for (const key of leftKeys) {
+        if (!pinned.has(key)) {
+          next[key] = true;
+        }
+      }
+      for (const key of activeKeys) {
+        next[key] = false;
+      }
+      return next;
+    });
+  }, [nav.panels, setCollapsedPanels]);
+
+  useEffect(() => {
+    if (!domain || nav.panels.length < 4) {
+      setDomainListOverlayOpen(false);
+      setDomainListPinnedOpen(false);
+    }
+  }, [domain, nav.panels.length, setDomainListOverlayOpen, setDomainListPinnedOpen]);
+
+  // 최초 도메인 진입(패널 스택 활성화) 시에만 팁 팝업 노출
+  useEffect(() => {
+    const id = nav.domainId;
+    if (id != null && prevDomainIdRef.current === null) {
+      triggerShortcutTip();
+    }
+    prevDomainIdRef.current = id;
+  }, [nav.domainId, triggerShortcutTip]);
+
+  useEffect(() => {
+    if (panelOverlayOpen && !nav.panels.some((p) => p.id === panelOverlayOpen)) {
+      setPanelOverlayOpen(null);
+    }
+  }, [nav.panels, panelOverlayOpen, setPanelOverlayOpen]);
+
+  useEffect(() => {
+    if (!loading && nav.domainId != null && !domains.some((d) => d.id === nav.domainId)) {
+      nav.clearDomain();
+    }
+  }, [loading, nav.domainId, domains, nav.clearDomain, nav]);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) {
+      return;
+    }
+
+    let targetScrollLeft = el.scrollLeft;
+    let animationFrameId: number | null = null;
+
+    let targetScrollTop = 0;
+    let currentScrollable: HTMLElement | null = null;
+    let animFrameYId: number | null = null;
+
+    // 가로 휠 스크롤 렌더링 루프를 통해 스무스 스크롤 구현 (Lerp)
+    const smoothScroll = () => {
+      const diff = targetScrollLeft - el.scrollLeft;
+      if (Math.abs(diff) > 0.5) {
+        el.scrollLeft += diff * 0.12; // Lerp 계수 (0.12)
+        animationFrameId = requestAnimationFrame(smoothScroll);
+      } else {
+        el.scrollLeft = targetScrollLeft;
+        animationFrameId = null;
+      }
+    };
+
+    // 세로 스크롤 렌더링 루프를 통해 스무스 스크롤 구현 (Lerp)
+    const smoothScrollY = () => {
+      if (!currentScrollable) {
+        return;
+      }
+      const diff = targetScrollTop - currentScrollable.scrollTop;
+      if (Math.abs(diff) > 0.5) {
+        currentScrollable.scrollTop += diff * 0.12; // Lerp 계수 (0.12)
+        animFrameYId = requestAnimationFrame(smoothScrollY);
+      } else {
+        currentScrollable.scrollTop = targetScrollTop;
+        animFrameYId = null;
+        currentScrollable = null;
+      }
+    };
+
+    // ── 1. 마우스 휠 가로 스크롤 제어 (Lerp 가속도 휠) ─────────────────────────
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && e.deltaX === 0) {
+        let target = e.target as HTMLElement | null;
+        let isInsideVerticalScrollable = false;
+
+        // 수직 스크롤 가능한 하위 요소 내부에서의 휠 스크롤인 경우 변환을 건너뜀
+        while (target && target !== el) {
+          const style = window.getComputedStyle(target);
+          const overflowY = style.overflowY;
+          const isScrollable =
+            (overflowY === "auto" || overflowY === "scroll") && target.scrollHeight > target.clientHeight;
+          if (isScrollable) {
+            isInsideVerticalScrollable = true;
+            break;
+          }
+          target = target.parentElement;
+        }
+
+        if (!isInsideVerticalScrollable) {
+          e.preventDefault();
+          triggerShortcutTip();
+
+          // 휠 입력에 따라 타겟 스크롤 누적
+          targetScrollLeft = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, targetScrollLeft + e.deltaY * 1.0));
+
+          if (animationFrameId === null) {
+            animationFrameId = requestAnimationFrame(smoothScroll);
+          }
+        }
+      }
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+
+    // ── 2. 키보드 단축키 제어 (Alt+Arrow, ESC) ──────────────────────────────────
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt + Left / Right: 가로 패널 이동 (Lerp 스무스 스크롤 연동)
+      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        triggerShortcutTip();
+        const scrollAmount = e.key === "ArrowLeft" ? -350 : 350;
+        targetScrollLeft = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, targetScrollLeft + scrollAmount));
+        if (animationFrameId === null) {
+          animationFrameId = requestAnimationFrame(smoothScroll);
+        }
+      }
+
+      // Alt + Up / Down: 마지막(최종) 패널의 수직 스크롤 제어 (Lerp 스무스 스크롤 연동)
+      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        triggerShortcutTip();
+        const lastPanel = el.lastElementChild as HTMLElement | null;
+        if (lastPanel) {
+          const scrollable = lastPanel.querySelector(".overflow-y-auto, [class*='overflow-y-']") as HTMLElement | null;
+          if (scrollable) {
+            if (currentScrollable !== scrollable) {
+              if (animFrameYId !== null) {
+                cancelAnimationFrame(animFrameYId);
+              }
+              currentScrollable = scrollable;
+              targetScrollTop = scrollable.scrollTop;
+            }
+
+            const scrollAmount = e.key === "ArrowUp" ? -250 : 250;
+            targetScrollTop = Math.max(
+              0,
+              Math.min(scrollable.scrollHeight - scrollable.clientHeight, targetScrollTop + scrollAmount),
+            );
+
+            if (animFrameYId === null) {
+              animFrameYId = requestAnimationFrame(smoothScrollY);
+            }
+          }
+        }
+      }
+
+      // ESC: 오버레이 닫기 → 패널 닫기
+      if (e.key === "Escape") {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (activeTag === "input" || activeTag === "textarea") {
+          return;
+        }
+
+        if (overlayStateRef.current.domain) {
+          e.preventDefault();
+          setDomainListOverlayOpen(false);
+          return;
+        }
+        if (overlayStateRef.current.panel) {
+          e.preventDefault();
+          setPanelOverlayOpen(null);
+          return;
+        }
+
+        if (navRef.current.panels.length > 1) {
+          e.preventDefault();
+          triggerShortcutTip();
+          navRef.current.closePanel(navRef.current.panels.length - 1);
+        } else if (navRef.current.domainId) {
+          e.preventDefault();
+          triggerShortcutTip();
+          navRef.current.clearDomain();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("keydown", handleKeyDown);
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (animFrameYId !== null) {
+        cancelAnimationFrame(animFrameYId);
+      }
+      if (tipTimerRef.current) {
+        clearTimeout(tipTimerRef.current);
+      }
+    };
+  }, [triggerShortcutTip, setDomainListOverlayOpen, setPanelOverlayOpen]);
+
+  return (
+    <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
+      <TopBar
+        onOpenInfrastructure={() => nav.openPopup("infrastructure")}
+        onOpenTools={() => nav.openPopup("tools")}
+        onOpenSettings={() => nav.openPopup("settings")}
+      />
+
+      {domain && !bulkMode && (
+        <PanelBreadcrumb
+          domainLabel={getDomainLabel(domain)}
+          panels={nav.panels}
+          lang={lang}
+          onNavigate={(id, index) => nav.navigateToPanel(id, index)}
+          onClose={() => (nav.panels.length > 1 ? nav.resetPanels() : nav.clearDomain())}
+          onGoHome={nav.clearDomain}
+        />
+      )}
+
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-base-200 relative">
+        <div ref={hubOverlayRef} className="absolute inset-0 z-[35] pointer-events-none" />
+        <HubOverlayProvider containerRef={hubOverlayRef}>
+          <DomainListPanel
+            selectedDomainId={nav.domainId}
+            onSelectDomain={nav.selectDomain}
+            onClearDomain={nav.clearDomain}
+            onAddDomain={() => nav.openPopup("add-domain")}
+            onManageGroups={() => nav.openPopup("groups")}
+            onEnterBulkMode={enterBulkMode}
+            onExitBulkMode={exitBulkMode}
+            activePanelsCount={domain ? nav.panels.length : 0}
+          />
+
+          {bulkMode ? (
+            <div className="flex flex-1 min-w-0 overflow-hidden">
+              <DomainBulkManagePanel onClose={exitBulkMode} />
+            </div>
+          ) : domain ? (
+            <div ref={scrollContainerRef} className="flex flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+              {nav.panels.map((panel, i) => renderPanel(panel, domain, i, nav.panels, nav, getDomainHost(domain)))}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100">
+              <div className="w-16 h-16 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
+                <Globe className="w-8 h-8 text-base-content/20" />
+              </div>
+              <p className="text-sm font-bold text-base-content/50">
+                {lang === "ko" ? "도메인을 선택하세요" : "Select a domain to get started"}
+              </p>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {showShortcutTip && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                exit={{ opacity: 0, y: 10, x: "-50%" }}
+                transition={{ duration: 0.3 }}
+                className="absolute bottom-6 left-1/2 z-50 flex items-center gap-2 bg-base-100/90 border border-base-300 px-4 py-2 rounded-full shadow-2xl text-[10px] font-bold text-base-content/85 select-none pointer-events-none backdrop-blur-md"
+              >
+                <Keyboard className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <span>Alt + ← / → : 가로 스크롤</span>
+                <span className="text-base-content/30">|</span>
+                <span>Alt + ↑ / ↓ : 본문 스크롤</span>
+                <span className="text-base-content/30">|</span>
+                <span>ESC : 닫기</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </HubOverlayProvider>
+      </div>
+    </div>
+  );
+}

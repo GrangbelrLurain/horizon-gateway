@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { type SavedJsonSchema, savedJsonSchemasAtom, schemaBuilderCurrentSchemaAtom } from "@/entities/sandbox";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "@/features/sandbox";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 
 export const Route = createFileRoute("/apis/json-schema/")({
   component: JsonSchemaPage,
@@ -51,6 +52,7 @@ const ko = {
 function JsonSchemaPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = useIsEmbeddedPage();
 
   const [savedSchemas, setSavedSchemas] = useAtom(savedJsonSchemasAtom);
   const setSharedSchema = useSetAtom(schemaBuilderCurrentSchemaAtom);
@@ -206,16 +208,19 @@ function JsonSchemaPage() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 w-full h-[calc(100vh-10rem)]">
-      {/* Title Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileCode className="text-primary w-6 h-6" /> {t.title}
-          </h1>
-          <p className="text-sm text-base-content/70 mt-1">{t.subtitle}</p>
+    <div
+      className={`flex flex-col space-y-6 w-full overflow-hidden ${isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-10rem)]"}`}
+    >
+      {!isEmbedded && (
+        <div className="flex items-center justify-between shrink-0">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <FileCode className="text-primary w-6 h-6" /> {t.title}
+            </h1>
+            <p className="text-sm text-base-content/70 mt-1">{t.subtitle}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch flex-1 min-h-0 overflow-hidden">
         {/* Left Column: Schema List */}

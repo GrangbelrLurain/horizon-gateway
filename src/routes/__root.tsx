@@ -3,54 +3,22 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
-import {
-  ActivityIcon,
-  Camera,
-  FileCode,
-  FileTextIcon,
-  FlaskConical,
-  GitBranch,
-  GlobeIcon,
-  History,
-  HomeIcon,
-  LayoutGrid,
-  Lock,
-  Play,
-  PlusIcon,
-  ServerIcon,
-  SettingsIcon,
-  Smartphone,
-  Tv,
-  WifiIcon,
-} from "lucide-react";
-import { type ComponentProps, useEffect, useMemo, useState } from "react";
-import {
-  languageAtom,
-  proxyInspectorEnabledAtom,
-  Titlebar,
-  themeAtom,
-  useAppBootstrap,
-  userProfileAtom,
-} from "@/entities/app";
+import { useEffect, useState } from "react";
+import { proxyInspectorEnabledAtom, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
-import { Sidebar, useSidebar } from "@/features/sidebar";
+import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
 import { commands, unwrap } from "@/shared/api";
+import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { PromiseModal } from "@/shared/ui/modal/PromiseModal";
-import { en } from "./root.en";
-import { ko } from "./root.ko";
 
 const RootLayout = () => {
-  const lang = useAtomValue(languageAtom);
-  const t = lang === "ko" ? ko : en;
-
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
 
-  // Global Message Listener (for Browser Injection & Cross-page actions)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === "WT_ACTION_CREATE_MOCK") {
@@ -69,19 +37,20 @@ const RootLayout = () => {
   useAppBootstrap();
 
   const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
-
   const theme = useAtomValue(themeAtom);
   const userProfile = useAtomValue(userProfileAtom);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPopupWindow = useIsPopupWindow();
+  const isDetachedWindow = useIsDetachedWindow();
+  const isDetached = useIsDetached();
+  const isHubPage = pathname === "/";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Handle dynamic primary color injection based on avatarColor
   useEffect(() => {
     const color = userProfile.avatarColor;
-
-    // Gradient classes to solid Hex mapping
     const colorMap: Record<string, string> = {
       "bg-gradient-to-br from-indigo-500 to-purple-600": "#6366f1",
       "bg-gradient-to-br from-blue-500 to-cyan-400": "#3b82f6",
@@ -91,20 +60,14 @@ const RootLayout = () => {
       "bg-gradient-to-br from-fuchsia-500 to-pink-500": "#d946ef",
       "bg-slate-800": "#1e293b",
     };
-
     const targetHex = colorMap[color];
-
     if (targetHex) {
-      // Find or create style tag
       let styleTag = document.getElementById("dynamic-theme");
       if (!styleTag) {
         styleTag = document.createElement("style");
         styleTag.id = "dynamic-theme";
         document.head.appendChild(styleTag);
       }
-
-      // Inject CSS variables for primary color and its content (text)
-      // --p: primary color, --pc: primary content (text color on primary)
       styleTag.innerHTML = `
         :root {
           --p: ${targetHex} !important;
@@ -128,227 +91,106 @@ const RootLayout = () => {
         commands.setGlobalInspectorEnabled(newState).then(unwrap);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [inspectorEnabled, setInspectorEnabled]);
 
-  const sidebarItems: ComponentProps<typeof Sidebar>["items"] = useMemo(
-    () => [
-      {
-        label: t.home,
-        icon: <HomeIcon className="w-4 h-4" />,
-        href: "/",
-      },
-      {
-        label: t.domains,
-        icon: <GlobeIcon className="w-4 h-4" />,
-        href: "/domains/dashboard",
-        children: [
-          {
-            label: t.dashboard,
-            icon: <LayoutGrid className="w-4 h-4" />,
-            href: "/domains/dashboard",
-          },
-          {
-            label: t.regist,
-            icon: <PlusIcon className="w-4 h-4" />,
-            href: "/domains/regist",
-          },
-          {
-            label: t.groups,
-            icon: <LayoutGrid className="w-4 h-4" />,
-            href: "/domains/groups",
-          },
-        ],
-      },
-      {
-        label: t.monitor,
-        icon: <ActivityIcon className="w-4 h-4" />,
-        href: "/monitor",
-        children: [
-          {
-            label: t.dashboard,
-            icon: <ActivityIcon className="w-4 h-4" />,
-            href: "/monitor",
-          },
-          {
-            label: t.logs,
-            icon: <History className="w-4 h-4" />,
-            href: "/monitor/logs",
-          },
-          {
-            label: t.settings,
-            icon: <SettingsIcon className="w-4 h-4" />,
-            href: "/monitor/settings",
-          },
-        ],
-      },
-      {
-        label: t.proxy,
-        icon: <ServerIcon className="w-4 h-4" />,
-        href: "/proxy/dashboard",
-        children: [
-          {
-            label: t.dashboard,
-            icon: <LayoutGrid className="w-4 h-4" />,
-            href: "/proxy/dashboard",
-          },
-          {
-            label: t.setup,
-            icon: <SettingsIcon className="w-4 h-4" />,
-            href: "/proxy/setup",
-          },
-          {
-            label: t.mobileConnect,
-            icon: <Smartphone className="w-4 h-4" />,
-            href: "/proxy/mobile",
-          },
-        ],
-      },
-      {
-        label: t.policy_group,
-        icon: <FileTextIcon className="w-4 h-4" />,
-        href: "/ux/policies",
-        children: [
-          {
-            label: t.policy_list,
-            icon: <FileTextIcon className="w-4 h-4" />,
-            href: "/ux/policies",
-          },
-          {
-            label: t.inspector,
-            icon: <PlusIcon className="w-4 h-4" />,
-            href: "/proxy/inspector",
-          },
-          {
-            label: t.live_capture,
-            icon: <Camera className="w-4 h-4" />,
-            href: "/ux/live-capture",
-          },
-        ],
-      },
-      {
-        label: t.apis,
-        icon: <WifiIcon className="w-4 h-4" />,
-        href: "/apis/dashboard",
-        children: [
-          {
-            label: t.dashboard,
-            icon: <WifiIcon className="w-4 h-4" />,
-            href: "/apis/dashboard",
-          },
-          {
-            label: t.settings,
-            icon: <SettingsIcon className="w-4 h-4" />,
-            href: "/apis/settings",
-          },
-          {
-            label: t.mocking,
-            icon: <FlaskConical className="w-4 h-4" />,
-            href: "/apis/mocking",
-          },
-          {
-            label: t.apiSchema,
-            icon: <FileTextIcon className="w-4 h-4" />,
-            href: "/apis/schema",
-          },
-          {
-            label: t.jsonSchema,
-            icon: <FileCode className="w-4 h-4" />,
-            href: "/apis/json-schema",
-          },
-          {
-            label: t.logs,
-            icon: <History className="w-4 h-4" />,
-            href: "/apis/logs",
-          },
-          {
-            label: t.apiClient,
-            icon: <Play className="w-4 h-4" />,
-            href: "/apis/client",
-          },
-        ],
-      },
-      {
-        label: t.sandbox,
-        icon: <FlaskConical className="w-4 h-4" />,
-        href: "/sandbox/pipeline",
-        children: [
-          {
-            label: t.sandboxPipeline,
-            icon: <GitBranch className="w-4 h-4" />,
-            href: "/sandbox/pipeline",
-          },
-          {
-            label: t.sandboxCrypto,
-            icon: <Lock className="w-4 h-4" />,
-            href: "/sandbox/crypto",
-          },
-          {
-            label: t.sandboxPreview,
-            icon: <Tv className="w-4 h-4" />,
-            href: "/sandbox/preview",
-          },
-        ],
-      },
-      {
-        label: t.server_logs,
-        icon: <History className="w-4 h-4" />,
-        href: "/server-logs",
-      },
-    ],
-    [t],
-  );
-  const isLoading = useRouterState({ select: (s) => s.status === "pending" });
+  const isPending = useRouterState({ select: (s) => s.status === "pending" });
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isPending) {
+      setIsLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [isPending]);
+
   const { update } = useUpdateCheck({ onMount: true, delayMs: 3000 });
   const [dismissedUpdate, setDismissedUpdate] = useState(false);
   const showUpdateBanner = update && !dismissedUpdate;
 
-  const isDetached = useIsDetached();
-  const sidebar = useSidebar();
+  const content = (
+    <main
+      className={clsx(
+        "flex-1 overflow-hidden",
+        isDetached && !isPopupWindow && !isDetachedWindow && "p-0",
+        !isDetached &&
+          !isHubPage &&
+          !isPopupWindow &&
+          !isDetachedWindow &&
+          "overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]",
+      )}
+    >
+      <div
+        className={clsx(
+          "h-full",
+          !isDetached &&
+            !isHubPage &&
+            !isPopupWindow &&
+            !isDetachedWindow &&
+            "mx-auto max-w-(--breakpoint-2xl) p-4 tablet:p-8 lg:p-10 overflow-y-auto",
+          (isHubPage || isPopupWindow || isDetachedWindow) && "h-full min-h-0",
+        )}
+      >
+        {showUpdateBanner && !isDetached && !isHubPage && !isPopupWindow && !isDetachedWindow && update && (
+          <div className="mb-4">
+            <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />
+          </div>
+        )}
+        <Outlet />
+      </div>
+    </main>
+  );
+
+  const globalOverlays = (
+    <>
+      <CreateMockModal />
+      <PromiseModal />
+      <UserProfileSetup />
+    </>
+  );
+
+  if (isPopupWindow) {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
+        <PopupWindowLayout>
+          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+          {content}
+        </PopupWindowLayout>
+        {globalOverlays}
+        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+      </div>
+    );
+  }
+
+  if (isDetachedWindow) {
+    return (
+      <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
+        <DetachedWindowLayout>
+          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+          {content}
+        </DetachedWindowLayout>
+        {globalOverlays}
+        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
-      <Titlebar />
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Global Loading Overlay */}
+      {!isHubPage && <Titlebar />}
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
         <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
-
-        {!isDetached && (
-          <Sidebar
-            items={sidebarItems}
-            pathname={sidebar.pathname}
-            profile={sidebar.profile}
-            initials={sidebar.initials}
-            mobileSidebarOpen={sidebar.mobileSidebarOpen}
-            onMobileSidebarOpenChange={sidebar.setMobileSidebarOpen}
-            badgeContext={sidebar.badgeContext}
-          />
-        )}
-        <UserProfileSetup />
-
-        <main
-          className={clsx("flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]", isDetached && "p-0")}
-        >
-          <div
-            className={clsx(
-              "mx-auto",
-              !isDetached ? "max-w-(--breakpoint-2xl) p-4 tablet:p-8 lg:p-10" : "w-full h-full p-4",
-            )}
-          >
-            {showUpdateBanner && !isDetached && update && (
-              <div className="mb-4">
-                <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />
-              </div>
-            )}
-            <Outlet />
-          </div>
-        </main>
+        {content}
       </div>
 
-      <CreateMockModal />
-      <PromiseModal />
+      {globalOverlays}
       {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
     </div>
   );

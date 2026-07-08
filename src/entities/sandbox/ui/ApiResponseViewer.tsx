@@ -39,6 +39,9 @@ export interface ApiResponseViewerProps {
   hideOnEmpty?: boolean;
   schemaReadOnly?: boolean;
   showMetaBar?: boolean;
+  enableCopy?: boolean;
+  copyLabel?: string;
+  copiedLabel?: string;
 }
 
 function getStatusColor(code: number): "green" | "blue" | "amber" | "red" | "slate" {
@@ -74,6 +77,9 @@ export function ApiResponseViewer({
   hideOnEmpty = false,
   schemaReadOnly = false,
   showMetaBar = true,
+  enableCopy,
+  copyLabel,
+  copiedLabel,
 }: ApiResponseViewerProps) {
   const schemaTab = useMemo<ApiHttpMessageViewerTab | null>(() => {
     if (!showSchemaTab) {
@@ -254,6 +260,9 @@ export function ApiResponseViewer({
       heightClass={heightClass}
       bodyPanelHeightClass={bodyPanelHeightClass}
       bodyTextClassName="text-success"
+      enableCopy={enableCopy}
+      copyLabel={copyLabel}
+      copiedLabel={copiedLabel}
     />
   );
 }

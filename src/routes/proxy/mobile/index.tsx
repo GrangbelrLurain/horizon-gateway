@@ -1,8 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useAtomValue } from "jotai";
 import {
   AlertCircle,
-  ArrowLeft,
   CheckCircle2,
   Loader2Icon,
   QrCode,
@@ -19,16 +18,22 @@ import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import type { AdbStatus, ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, H2, P } from "@/shared/ui/typography/typography";
 
 export const Route = createFileRoute("/proxy/mobile/")({
-  component: ProxyMobilePage,
+  component: ProxyMobileRoutePage,
 });
 
-function ProxyMobilePage() {
+function ProxyMobileRoutePage() {
+  const embedMode = useEmbedMode();
+  return <MobileConnectionContent embedded={embedMode !== "standalone"} />;
+}
+
+export function MobileConnectionContent({ embedded = false }: { embedded?: boolean }) {
   const lang = useAtomValue(languageAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
 
@@ -189,20 +194,19 @@ function ProxyMobilePage() {
   const connectUrl = tunnelUrl ? `${tunnelUrl}/connect` : null;
 
   return (
-    <div className="flex flex-col gap-8 pb-20">
-      <div className="flex items-center gap-4">
-        <Link to="/proxy/dashboard" className="text-base-content/40 hover:text-base-content transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex items-center gap-2 text-primary">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Smartphone className="w-5 h-5" />
+    <div className={`flex flex-col gap-4 ${embedded ? "" : "gap-8 pb-20"}`}>
+      {!embedded && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-primary">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <H1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">
+              {lang === "ko" ? "모바일 연결" : "Mobile Connection"}
+            </H1>
           </div>
-          <H1 className="text-2xl tablet:text-3xl font-black text-base-content tracking-tight">
-            {lang === "ko" ? "모바일 연결" : "Mobile Connection"}
-          </H1>
         </div>
-      </div>
+      )}
 
       <ProxyServerWarning />
 

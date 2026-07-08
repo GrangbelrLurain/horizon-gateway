@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Camera, Check, ChevronRight, ExternalLink, Globe, Plus, Save, X } from "lucide-react";
 import type { CapturedElement } from "@/entities/inspector";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -47,17 +48,23 @@ export function InspectorPanel({
   onSaveAnnotation,
   onDismissCapture,
 }: InspectorPanelProps) {
+  const isEmbedded = useIsEmbeddedPage();
+
   return (
-    <div className="flex flex-col gap-8 pb-20 max-w-4xl mx-auto">
-      <header>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
-            <Camera className="w-6 h-6" />
+    <div
+      className={`flex flex-col gap-4 overflow-hidden ${isEmbedded ? "h-full min-h-0" : "gap-8 pb-20 max-w-4xl mx-auto"}`}
+    >
+      {!isEmbedded && (
+        <header>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
+              <Camera className="w-6 h-6" />
+            </div>
+            <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
           </div>
-          <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
-        </div>
-        <P className="text-base-content/60 ml-1">{t.subtitle}</P>
-      </header>
+          <P className="text-base-content/60 ml-1">{t.subtitle}</P>
+        </header>
+      )}
 
       <Card className="p-6 border-none bg-base-100 shadow-sm ring-1 ring-base-300">
         <div className="flex flex-col tablet:flex-row justify-between items-start gap-6">

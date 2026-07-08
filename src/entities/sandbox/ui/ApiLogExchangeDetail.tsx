@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import type { ApiLogEntry } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
+import type { ApiExchangeCopyInput } from "../lib/copyApiExchange";
+import { ApiExchangeCopyDropdown, type ApiExchangeCopyDropdownLabels } from "./ApiExchangeCopyDropdown";
 import { ApiRequestViewer } from "./ApiRequestViewer";
 import { ApiResponseViewer, type ApiResponseViewerProps } from "./ApiResponseViewer";
 
@@ -8,9 +10,16 @@ export interface ApiLogExchangeDetailLabels {
   request: string;
   requestBody: string;
   requestHeaders: string;
+  responseBody: string;
+  responseHeaders: string;
   status: string;
   time: string;
   empty?: string;
+  copy?: string;
+  copied?: string;
+  btnCopy?: string;
+  copyHtml?: string;
+  copyMarkdown?: string;
 }
 
 export interface ApiLogExchangeDetailProps {
@@ -20,7 +29,41 @@ export interface ApiLogExchangeDetailProps {
   responseViewerProps: Omit<ApiResponseViewerProps, "response" | "showMetaBar" | "loading" | "error">;
 }
 
+function buildLogCopyInput(log: ApiLogEntry, labels: ApiLogExchangeDetailLabels): ApiExchangeCopyInput {
+  return {
+    method: log.method,
+    url: log.url,
+    requestHeaders: log.request_headers ?? {},
+    requestBody: log.request_body,
+    timestamp: log.timestamp,
+    labels: {
+      requestHeaders: labels.requestHeaders,
+      requestBody: labels.requestBody,
+      responseHeaders: labels.responseHeaders,
+      responseBody: labels.responseBody,
+    },
+    response: {
+      statusCode: log.status_code ?? 0,
+      headers: log.response_headers ?? {},
+      body: log.response_body ?? "",
+      elapsedMs: null,
+    },
+  };
+}
+
 export function ApiLogExchangeDetail({ log, labels, actions, responseViewerProps }: ApiLogExchangeDetailProps) {
+  const copyLabel = labels.copy ?? "Copy";
+  const copiedLabel = labels.copied ?? "Copied!";
+
+  const getCopyInput = useCallback(() => buildLogCopyInput(log, labels), [log, labels]);
+
+  const copyDropdownLabels: ApiExchangeCopyDropdownLabels = {
+    btnCopy: labels.btnCopy ?? copyLabel,
+    copied: copiedLabel,
+    copyHtml: labels.copyHtml ?? "Copy HTML",
+    copyMarkdown: labels.copyMarkdown ?? "Copy Markdown",
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 p-5 bg-base-200/50 rounded-2xl border border-base-300 shadow-inner">
@@ -44,7 +87,10 @@ export function ApiLogExchangeDetail({ log, labels, actions, responseViewerProps
               </span>
             </div>
           </div>
-          {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <ApiExchangeCopyDropdown getInput={getCopyInput} labels={copyDropdownLabels} />
+            {actions}
+          </div>
         </div>
       </div>
 
@@ -57,6 +103,9 @@ export function ApiLogExchangeDetail({ log, labels, actions, responseViewerProps
           headers: labels.requestHeaders,
           empty: labels.empty,
         }}
+        enableCopy
+        copyLabel={copyLabel}
+        copiedLabel={copiedLabel}
       />
 
       <ApiResponseViewer
@@ -70,6 +119,9 @@ export function ApiLogExchangeDetail({ log, labels, actions, responseViewerProps
           elapsedMs: null,
         }}
         showMetaBar={false}
+        enableCopy
+        copyLabel={copyLabel}
+        copiedLabel={copiedLabel}
       />
     </div>
   );

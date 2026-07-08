@@ -22,6 +22,7 @@ import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/entit
 import type { CapturedElement } from "@/entities/inspector";
 import type { Annotation, ApiLogEntry, MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -42,6 +43,7 @@ function LiveCapturePage() {
   const { url } = Route.useSearch();
   const isProxyRunning = useAtomValue(proxyRunningAtom);
   const isMockingEnabled = useAtomValue(proxyMockingEnabledAtom);
+  const isEmbedded = useIsEmbeddedPage();
 
   const initialUrl = url || "https://www.google.com";
   const [urlInput, setUrlInput] = useState(initialUrl);
@@ -349,17 +351,19 @@ function LiveCapturePage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] gap-4 overflow-hidden">
+    <div className={`flex flex-col gap-4 overflow-hidden ${isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-100px)]"}`}>
       <header className="flex flex-col gap-2 shrink-0">
-        <div className="flex items-center gap-3 px-1">
-          <div className="p-2 bg-primary/20 rounded-xl text-primary">
-            <Activity className="w-6 h-6 animate-pulse" />
+        {!isEmbedded && (
+          <div className="flex items-center gap-3 px-1">
+            <div className="p-2 bg-primary/20 rounded-xl text-primary">
+              <Activity className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <H1 className="text-2xl font-black">{t.title}</H1>
+              <P className="text-xs text-base-content/50">{t.subtitle}</P>
+            </div>
           </div>
-          <div>
-            <H1 className="text-2xl font-black">{t.title}</H1>
-            <P className="text-xs text-base-content/50">{t.subtitle}</P>
-          </div>
-        </div>
+        )}
 
         <form
           onSubmit={handleGo}

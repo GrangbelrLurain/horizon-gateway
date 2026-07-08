@@ -28,6 +28,13 @@ import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
 import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
 import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
 import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
+import { Route as PopupToolsIndexRouteImport } from './routes/popup/tools/index'
+import { Route as PopupSettingsIndexRouteImport } from './routes/popup/settings/index'
+import { Route as PopupSchemaExplorerIndexRouteImport } from './routes/popup/schema-explorer/index'
+import { Route as PopupMobileIndexRouteImport } from './routes/popup/mobile/index'
+import { Route as PopupInfrastructureIndexRouteImport } from './routes/popup/infrastructure/index'
+import { Route as PopupGroupsIndexRouteImport } from './routes/popup/groups/index'
+import { Route as PopupAddDomainIndexRouteImport } from './routes/popup/add-domain/index'
 import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
 import { Route as MonitorLogsIndexRouteImport } from './routes/monitor/logs/index'
 import { Route as DomainsRegistIndexRouteImport } from './routes/domains/regist/index'
@@ -136,6 +143,43 @@ const ProxyDashboardIndexRoute = ProxyDashboardIndexRouteImport.update({
   path: '/proxy/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PopupToolsIndexRoute = PopupToolsIndexRouteImport.update({
+  id: '/popup/tools/',
+  path: '/popup/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupSettingsIndexRoute = PopupSettingsIndexRouteImport.update({
+  id: '/popup/settings/',
+  path: '/popup/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupSchemaExplorerIndexRoute =
+  PopupSchemaExplorerIndexRouteImport.update({
+    id: '/popup/schema-explorer/',
+    path: '/popup/schema-explorer/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PopupMobileIndexRoute = PopupMobileIndexRouteImport.update({
+  id: '/popup/mobile/',
+  path: '/popup/mobile/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupInfrastructureIndexRoute =
+  PopupInfrastructureIndexRouteImport.update({
+    id: '/popup/infrastructure/',
+    path: '/popup/infrastructure/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PopupGroupsIndexRoute = PopupGroupsIndexRouteImport.update({
+  id: '/popup/groups/',
+  path: '/popup/groups/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PopupAddDomainIndexRoute = PopupAddDomainIndexRouteImport.update({
+  id: '/popup/add-domain/',
+  path: '/popup/add-domain/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MonitorSettingsIndexRoute = MonitorSettingsIndexRouteImport.update({
   id: '/monitor/settings/',
   path: '/monitor/settings/',
@@ -220,6 +264,13 @@ export interface FileRoutesByFullPath {
   '/domains/regist/': typeof DomainsRegistIndexRoute
   '/monitor/logs/': typeof MonitorLogsIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
+  '/popup/add-domain/': typeof PopupAddDomainIndexRoute
+  '/popup/groups/': typeof PopupGroupsIndexRoute
+  '/popup/infrastructure/': typeof PopupInfrastructureIndexRoute
+  '/popup/mobile/': typeof PopupMobileIndexRoute
+  '/popup/schema-explorer/': typeof PopupSchemaExplorerIndexRoute
+  '/popup/settings/': typeof PopupSettingsIndexRoute
+  '/popup/tools/': typeof PopupToolsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
@@ -253,6 +304,13 @@ export interface FileRoutesByTo {
   '/domains/regist': typeof DomainsRegistIndexRoute
   '/monitor/logs': typeof MonitorLogsIndexRoute
   '/monitor/settings': typeof MonitorSettingsIndexRoute
+  '/popup/add-domain': typeof PopupAddDomainIndexRoute
+  '/popup/groups': typeof PopupGroupsIndexRoute
+  '/popup/infrastructure': typeof PopupInfrastructureIndexRoute
+  '/popup/mobile': typeof PopupMobileIndexRoute
+  '/popup/schema-explorer': typeof PopupSchemaExplorerIndexRoute
+  '/popup/settings': typeof PopupSettingsIndexRoute
+  '/popup/tools': typeof PopupToolsIndexRoute
   '/proxy/dashboard': typeof ProxyDashboardIndexRoute
   '/proxy/inspector': typeof ProxyInspectorIndexRoute
   '/proxy/mobile': typeof ProxyMobileIndexRoute
@@ -287,6 +345,13 @@ export interface FileRoutesById {
   '/domains/regist/': typeof DomainsRegistIndexRoute
   '/monitor/logs/': typeof MonitorLogsIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
+  '/popup/add-domain/': typeof PopupAddDomainIndexRoute
+  '/popup/groups/': typeof PopupGroupsIndexRoute
+  '/popup/infrastructure/': typeof PopupInfrastructureIndexRoute
+  '/popup/mobile/': typeof PopupMobileIndexRoute
+  '/popup/schema-explorer/': typeof PopupSchemaExplorerIndexRoute
+  '/popup/settings/': typeof PopupSettingsIndexRoute
+  '/popup/tools/': typeof PopupToolsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
@@ -322,6 +387,13 @@ export interface FileRouteTypes {
     | '/domains/regist/'
     | '/monitor/logs/'
     | '/monitor/settings/'
+    | '/popup/add-domain/'
+    | '/popup/groups/'
+    | '/popup/infrastructure/'
+    | '/popup/mobile/'
+    | '/popup/schema-explorer/'
+    | '/popup/settings/'
+    | '/popup/tools/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
     | '/proxy/mobile/'
@@ -355,6 +427,13 @@ export interface FileRouteTypes {
     | '/domains/regist'
     | '/monitor/logs'
     | '/monitor/settings'
+    | '/popup/add-domain'
+    | '/popup/groups'
+    | '/popup/infrastructure'
+    | '/popup/mobile'
+    | '/popup/schema-explorer'
+    | '/popup/settings'
+    | '/popup/tools'
     | '/proxy/dashboard'
     | '/proxy/inspector'
     | '/proxy/mobile'
@@ -388,6 +467,13 @@ export interface FileRouteTypes {
     | '/domains/regist/'
     | '/monitor/logs/'
     | '/monitor/settings/'
+    | '/popup/add-domain/'
+    | '/popup/groups/'
+    | '/popup/infrastructure/'
+    | '/popup/mobile/'
+    | '/popup/schema-explorer/'
+    | '/popup/settings/'
+    | '/popup/tools/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
     | '/proxy/mobile/'
@@ -422,6 +508,13 @@ export interface RootRouteChildren {
   DomainsRegistIndexRoute: typeof DomainsRegistIndexRoute
   MonitorLogsIndexRoute: typeof MonitorLogsIndexRoute
   MonitorSettingsIndexRoute: typeof MonitorSettingsIndexRoute
+  PopupAddDomainIndexRoute: typeof PopupAddDomainIndexRoute
+  PopupGroupsIndexRoute: typeof PopupGroupsIndexRoute
+  PopupInfrastructureIndexRoute: typeof PopupInfrastructureIndexRoute
+  PopupMobileIndexRoute: typeof PopupMobileIndexRoute
+  PopupSchemaExplorerIndexRoute: typeof PopupSchemaExplorerIndexRoute
+  PopupSettingsIndexRoute: typeof PopupSettingsIndexRoute
+  PopupToolsIndexRoute: typeof PopupToolsIndexRoute
   ProxyDashboardIndexRoute: typeof ProxyDashboardIndexRoute
   ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
   ProxyMobileIndexRoute: typeof ProxyMobileIndexRoute
@@ -568,6 +661,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProxyDashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/popup/tools/': {
+      id: '/popup/tools/'
+      path: '/popup/tools'
+      fullPath: '/popup/tools/'
+      preLoaderRoute: typeof PopupToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/settings/': {
+      id: '/popup/settings/'
+      path: '/popup/settings'
+      fullPath: '/popup/settings/'
+      preLoaderRoute: typeof PopupSettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/schema-explorer/': {
+      id: '/popup/schema-explorer/'
+      path: '/popup/schema-explorer'
+      fullPath: '/popup/schema-explorer/'
+      preLoaderRoute: typeof PopupSchemaExplorerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/mobile/': {
+      id: '/popup/mobile/'
+      path: '/popup/mobile'
+      fullPath: '/popup/mobile/'
+      preLoaderRoute: typeof PopupMobileIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/infrastructure/': {
+      id: '/popup/infrastructure/'
+      path: '/popup/infrastructure'
+      fullPath: '/popup/infrastructure/'
+      preLoaderRoute: typeof PopupInfrastructureIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/groups/': {
+      id: '/popup/groups/'
+      path: '/popup/groups'
+      fullPath: '/popup/groups/'
+      preLoaderRoute: typeof PopupGroupsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popup/add-domain/': {
+      id: '/popup/add-domain/'
+      path: '/popup/add-domain'
+      fullPath: '/popup/add-domain/'
+      preLoaderRoute: typeof PopupAddDomainIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/monitor/settings/': {
       id: '/monitor/settings/'
       path: '/monitor/settings'
@@ -678,6 +820,13 @@ const rootRouteChildren: RootRouteChildren = {
   DomainsRegistIndexRoute: DomainsRegistIndexRoute,
   MonitorLogsIndexRoute: MonitorLogsIndexRoute,
   MonitorSettingsIndexRoute: MonitorSettingsIndexRoute,
+  PopupAddDomainIndexRoute: PopupAddDomainIndexRoute,
+  PopupGroupsIndexRoute: PopupGroupsIndexRoute,
+  PopupInfrastructureIndexRoute: PopupInfrastructureIndexRoute,
+  PopupMobileIndexRoute: PopupMobileIndexRoute,
+  PopupSchemaExplorerIndexRoute: PopupSchemaExplorerIndexRoute,
+  PopupSettingsIndexRoute: PopupSettingsIndexRoute,
+  PopupToolsIndexRoute: PopupToolsIndexRoute,
   ProxyDashboardIndexRoute: ProxyDashboardIndexRoute,
   ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
   ProxyMobileIndexRoute: ProxyMobileIndexRoute,

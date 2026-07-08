@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.2.0] - 2026-07-08
+
+### Added
+
+- **Domain Hub**: Replaced the legacy sidebar/dashboard home with a domain-centric hub — panel stack navigation, domain overview, and per-domain monitor/proxy/API/debug panels.
+- **Popup Windows**: Detached popup routes for infrastructure, tools, settings, domain registration, and group management.
+- **Embed Mode**: Standalone window routes for server logs, API tools, UX policies, profile, and related pages without the main hub chrome.
+- **Domain List UX**: Search, group/feature filters, sort, M/P/A badges, persisted filter state, and bulk manage mode (feature toggles, group assign, delete).
+- **Panel Collapse & Overlay**: Collapsed panel strips with `>` inline expand and tab-click slide-over preview; domain list strip at depth 4+ with the same pattern.
+- **API Log Polish**: Exchange copy dropdown (HTML/Markdown), log detail panel, path/method search in domain API logs, and overview deep links.
+- **Domain API Mocking Panel**: In-hub CRUD for mock rules with i18n.
+- **domain-hub Entity**: Hub data subscription with reason-based partial refresh.
+
+### Changed
+
+- **Navigation**: Root route is now the Domain Hub; legacy sidebar and dashboard feature removed.
+- **FSD Layout**: Panel stack, popup-window, and domain-hub entities reorganized for clearer feature boundaries.
+- **Domain List Width**: Fixed 420px width when visible; no shrink on domain selection (strip only at panel depth 4+).
+
+### Fixed
+
+- **Panel Gates**: Block monitor/API panel entry when features are disabled; proxy remains accessible.
+- **Performance**: Memoized domain list rows, reduced re-renders on selection, and lighter panel transitions.
+
 ## [v2.1.4] - 2026-07-07
 
 ### Fixed

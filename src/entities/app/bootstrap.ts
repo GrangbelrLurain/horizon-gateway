@@ -6,6 +6,7 @@ import { apiLoggingLinksAtom, fetchApiLoggingLinks } from "@/entities/domain-api
 import { fetchInspectorEnabled, inspectorEnabledAtom } from "@/entities/inspector";
 import { fetchMockingEnabled, mockingEnabledAtom } from "@/entities/mocking";
 import { fetchProxyStatus, proxyStatusAtom } from "@/entities/proxy";
+import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { appStatusLoadedAtom, appStatusLoadingAtom } from "./status/store";
 
 export function useAppBootstrap() {
@@ -64,6 +65,10 @@ export function useAppBootstrap() {
       }
     });
 
+    const unlistenHub = listen(HUB_DATA_CHANGED, () => {
+      void refresh();
+    });
+
     const interval = setInterval(() => {
       void refresh();
     }, 60_000);
@@ -72,6 +77,7 @@ export function useAppBootstrap() {
       clearInterval(interval);
       void unlistenProxy.then((fn) => fn());
       void unlistenMocking.then((fn) => fn());
+      void unlistenHub.then((fn) => fn());
     };
   }, [refresh, setProxyStatus, setMockingEnabled]);
 

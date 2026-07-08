@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router";
 import { Check, Globe, Loader2Icon, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Domain } from "@/entities/domain";
 import type { DomainGroup } from "@/entities/domain-group";
+import { openPopupWindow } from "@/shared/lib/tauri/openPopupWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { Modal } from "@/shared/ui/modal/Modal";
@@ -77,9 +77,13 @@ export function AssignDomainsModal({
         {domains.length === 0 ? (
           <p className="text-sm text-base-content/40 py-8 text-center font-medium italic">
             {translations.noDomainsText}{" "}
-            <Link to="/domains/regist" className="text-primary hover:underline font-bold">
+            <button
+              type="button"
+              onClick={() => void openPopupWindow("add-domain")}
+              className="text-primary hover:underline font-bold"
+            >
               {translations.addLink}
-            </Link>{" "}
+            </button>{" "}
             {translations.first}
           </p>
         ) : (

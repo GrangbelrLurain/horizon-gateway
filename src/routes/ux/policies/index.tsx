@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import type { Annotation } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
@@ -45,6 +46,7 @@ type ViewMode = "manage" | "report";
 function PolicyListPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = useIsEmbeddedPage();
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [search, setSearch] = useState("");
@@ -293,17 +295,19 @@ function PolicyListPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 pb-20 max-w-7xl mx-auto">
+    <div className={`flex flex-col gap-6 max-w-7xl mx-auto ${isEmbedded ? "h-full min-h-0" : "pb-20"}`}>
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
-              <BookOpen className="w-6 h-6" />
+        {!isEmbedded && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary/20 rounded-xl text-primary">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
             </div>
-            <H1 className="text-3xl font-black tracking-tight">{t.title}</H1>
+            <P className="text-base-content/60 ml-1">{t.subtitle}</P>
           </div>
-          <P className="text-base-content/60 ml-1">{t.subtitle}</P>
-        </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           {/* View Toggle */}

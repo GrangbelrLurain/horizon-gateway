@@ -7,6 +7,7 @@ import type { MockRule, Scenario } from "@/entities/mocking";
 import * as mockingApi from "@/entities/mocking";
 import { ProxyServerWarning } from "@/entities/proxy";
 import { commands, unwrap } from "@/shared/api";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
@@ -26,6 +27,7 @@ function MockingDashboard() {
 
   const [mockingEnabled, setMockingEnabled] = useAtom(proxyMockingEnabledAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
+  const isEmbedded = useIsEmbeddedPage();
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useAtom(selectedScenarioIdAtom);
@@ -341,12 +343,14 @@ function MockingDashboard() {
         {isProxyRunning && (
           <>
             <div className="flex flex-col tablet:flex-row tablet:items-center justify-between gap-6 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  <FlaskConical className="w-5 h-5 tablet:w-6 tablet:h-6" />
+              {!isEmbedded && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                    <FlaskConical className="w-5 h-5 tablet:w-6 tablet:h-6" />
+                  </div>
+                  <h1 className="text-2xl tablet:text-3xl font-black tracking-tight">{t.mockRules}</h1>
                 </div>
-                <h1 className="text-2xl tablet:text-3xl font-black tracking-tight">{t.mockRules}</h1>
-              </div>
+              )}
               <div className="flex flex-wrap items-center gap-3 tablet:gap-4">
                 <StatusToggle
                   label={lang === "ko" ? "모킹" : "Mocking"}

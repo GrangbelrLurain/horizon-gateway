@@ -14,6 +14,7 @@ export * from "./lib/copyApiExchange";
 export * from "./lib/formatHttpBody";
 export * from "./store";
 export type * from "./types";
+export * from "./ui/ApiExchangeCopyDropdown";
 export * from "./ui/ApiHttpMessageViewer";
 export * from "./ui/ApiLogExchangeDetail";
 export * from "./ui/ApiRequestViewer";

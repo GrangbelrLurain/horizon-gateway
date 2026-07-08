@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import type { DomainStatusLog } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -30,12 +31,17 @@ import { ko } from "./ko";
 import { monitorLogsDateAtom, monitorLogsLevelFilterAtom, monitorLogsSearchAtom } from "./store";
 
 export const Route = createFileRoute("/monitor/logs/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    host: typeof search.host === "string" ? search.host : undefined,
+  }),
   component: MonitorLogs,
 });
 
 function MonitorLogs() {
+  const { host: hostFilter } = Route.useSearch();
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = useIsEmbeddedPage();
   const [date, setDate] = useAtom(monitorLogsDateAtom);
   const [logs, setLogs] = useState<DomainStatusLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +86,10 @@ function MonitorLogs() {
 
   const filteredLogs = useMemo(() => {
     let result = logs;
+    if (hostFilter) {
+      const host = hostFilter.toLowerCase();
+      result = result.filter((log) => log.url.toLowerCase().includes(host));
+    }
     if (search) {
       const lowerSearch = search.toLowerCase();
       result = result.filter(
@@ -90,7 +100,7 @@ function MonitorLogs() {
       result = result.filter((log) => levelFilter.includes(log.level));
     }
     return result;
-  }, [logs, search, levelFilter]);
+  }, [logs, hostFilter, search, levelFilter]);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -101,44 +111,73 @@ function MonitorLogs() {
   });
 
   return (
-    <div className="flex flex-col gap-6 pb-20">
+    <div className={`flex flex-col gap-4 overflow-hidden ${isEmbedded ? "h-full min-h-0" : "gap-6 pb-20"}`}>
       <AnimatePresence>
         {loading && logs.length === 0 && <LoadingScreen key="logs-loader" onCancel={() => setLoading(false)} />}
       </AnimatePresence>
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 text-primary rounded-lg">
-              <History className="w-5 h-5" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-base-content">{t.title}</h1>
-          </div>
-          <p className="text-base-content/60 text-sm">{t.subtitle}</p>
-        </div>
 
-        <div className="flex items-center gap-2 bg-base-100 p-1 rounded-xl border border-base-200 shadow-sm">
-          <Button variant="secondary" size="icon" onClick={() => changeDate(-1)}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-2 px-3">
-            <Calendar className="w-4 h-4 text-base-content/40" />
+      {isEmbedded && hostFilter && (
+        <div className="px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm shrink-0 flex items-center justify-between gap-2">
+          <span className="text-sm font-bold text-slate-800 truncate">{hostFilter}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="secondary" size="icon" className="h-7 w-7" onClick={() => changeDate(-1)}>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </Button>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="text-sm font-bold text-base-content/80 outline-none bg-transparent"
+              className="text-xs font-bold text-slate-700 outline-none bg-transparent"
             />
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => changeDate(1)}
+              disabled={date === new Date().toISOString().split("T")[0]}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
           </div>
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => changeDate(1)}
-            disabled={date === new Date().toISOString().split("T")[0]}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
         </div>
-      </header>
+      )}
+
+      {!isEmbedded && (
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                <History className="w-5 h-5" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-base-content">{t.title}</h1>
+            </div>
+            <p className="text-base-content/60 text-sm">{t.subtitle}</p>
+          </div>
+
+          <div className="flex items-center gap-2 bg-base-100 p-1 rounded-xl border border-base-200 shadow-sm">
+            <Button variant="secondary" size="icon" onClick={() => changeDate(-1)}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-2 px-3">
+              <Calendar className="w-4 h-4 text-base-content/40" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="text-sm font-bold text-base-content/80 outline-none bg-transparent"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => changeDate(1)}
+              disabled={date === new Date().toISOString().split("T")[0]}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </header>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Card className="p-4 bg-base-100/50 backdrop-blur-sm border-base-200 flex-1 shadow-sm">

@@ -31,7 +31,7 @@ export function UserProfileSetupView({
 }: UserProfileSetupViewProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
-      <div className="bg-white rounded-3xl overflow-hidden w-full max-w-md shadow-2xl flex flex-col mx-4 animate-in zoom-in-95 duration-500">
+      <div className="bg-base-100 border border-base-300/30 rounded-3xl overflow-hidden w-full max-w-md shadow-2xl flex flex-col mx-4 animate-in zoom-in-95 duration-500 text-base-content">
         <div className="relative h-32 bg-slate-950 flex items-center justify-center overflow-hidden shrink-0">
           <div className={`absolute inset-0 opacity-20 ${tempColor}`} />
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
@@ -39,7 +39,7 @@ export function UserProfileSetupView({
           <div className="absolute -bottom-10">
             <div
               className={clsx(
-                "w-20 h-20 rounded-2xl border-4 border-white flex items-center justify-center text-3xl font-black text-white shadow-xl transition-all duration-500 rotate-3 hover:rotate-0",
+                "w-20 h-20 rounded-2xl border-4 border-base-100 flex items-center justify-center text-3xl font-black text-white shadow-xl transition-all duration-500 rotate-3 hover:rotate-0",
                 tempColor,
               )}
             >
@@ -50,11 +50,11 @@ export function UserProfileSetupView({
 
         <div className="pt-16 pb-8 px-8 flex flex-col gap-6">
           <div className="text-center flex flex-col gap-1">
-            <h2 className="text-2xl font-black text-slate-800 flex items-center justify-center gap-2">
+            <h2 className="text-2xl font-black text-base-content flex items-center justify-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-500" />
               Welcome to Watchtower
             </h2>
-            <p className="text-sm text-slate-500">How should we address you?</p>
+            <p className="text-sm text-base-content/60">How should we address you?</p>
           </div>
 
           <div className="flex flex-col gap-5 mt-2">
@@ -105,7 +105,7 @@ export function UserProfileSetupView({
                     className={clsx(
                       "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
                       c,
-                      tempColor === c ? "border-slate-900 scale-110 shadow-md" : "border-transparent",
+                      tempColor === c ? "border-base-content scale-110 shadow-md" : "border-transparent",
                     )}
                   >
                     {tempColor === c && <Check className="w-4 h-4 text-white" />}
@@ -116,13 +116,15 @@ export function UserProfileSetupView({
 
             <div className="flex flex-col gap-1.5 mt-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Language</span>
-              <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+              <div className="flex gap-2 bg-base-200 p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => onLangChange("en")}
                   className={clsx(
-                    "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all",
-                    lang === "en" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                    "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                    lang === "en"
+                      ? "bg-base-100 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      : "text-base-content/60 hover:text-base-content",
                   )}
                 >
                   English
@@ -131,8 +133,10 @@ export function UserProfileSetupView({
                   type="button"
                   onClick={() => onLangChange("ko")}
                   className={clsx(
-                    "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all",
-                    lang === "ko" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                    "flex-1 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                    lang === "ko"
+                      ? "bg-base-100 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      : "text-base-content/60 hover:text-base-content",
                   )}
                 >
                   한국어

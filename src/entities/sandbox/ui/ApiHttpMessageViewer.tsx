@@ -1,4 +1,6 @@
+import { Check, Copy } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { formatHttpBody } from "../lib/formatHttpBody";
 
@@ -26,6 +28,9 @@ export interface ApiHttpMessageViewerProps {
   bodyPanelHeightClass?: string;
   bodyTextClassName?: string;
   defaultTab?: string;
+  enableCopy?: boolean;
+  copyLabel?: string;
+  copiedLabel?: string;
 }
 
 export function ApiHttpMessageViewer({
@@ -40,19 +45,61 @@ export function ApiHttpMessageViewer({
   bodyPanelHeightClass = "min-h-[280px] max-h-[50vh]",
   bodyTextClassName = "text-base-content/90",
   defaultTab = "body",
+  enableCopy = false,
+  copyLabel = "Copy",
+  copiedLabel = "Copied!",
 }: ApiHttpMessageViewerProps) {
   const tabIds = useMemo(() => ["body", "headers", ...additionalTabs.map((tab) => tab.id)], [additionalTabs]);
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [copied, setCopied] = useState(false);
 
   const resolvedTab = tabIds.includes(activeTab) ? activeTab : "body";
   const formattedBody = useMemo(() => formatHttpBody(body), [body]);
   const headerCount = Object.keys(headers).length;
 
+  const handleCopyTab = async () => {
+    let text = "";
+    if (resolvedTab === "body") {
+      text = formattedBody;
+    } else if (resolvedTab === "headers") {
+      text =
+        headerCount > 0
+          ? Object.entries(headers)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join("\n")
+          : "";
+    }
+    if (!text) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.error("Copy failed:", e);
+    }
+  };
+
   return (
     <Card className={`p-5 bg-base-100 border-base-300 shadow-sm flex flex-col min-w-0 ${heightClass}`}>
       <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
         <h3 className="font-semibold text-lg text-base-content/85">{title}</h3>
-        {actions}
+        <div className="flex items-center gap-2 shrink-0">
+          {enableCopy && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => void handleCopyTab()}
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? copiedLabel : copyLabel}
+            </Button>
+          )}
+          {actions}
+        </div>
       </div>
 
       {metaBar}

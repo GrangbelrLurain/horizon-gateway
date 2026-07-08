@@ -37,6 +37,7 @@ import {
   validateJsonSchema,
 } from "@/entities/sandbox";
 import { commands, unwrap } from "@/shared/api";
+import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { en } from "./en";
@@ -72,6 +73,7 @@ function headersToRecord(rows: ApiRequestDraft["headers"]): Record<string, strin
 function ApiClientPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isEmbedded = useIsEmbeddedPage();
 
   const [history, setHistory] = useAtom(apiClientHistoryAtom);
   const storedOrigins = useAtomValue(autocompleteOriginsAtom);
@@ -367,15 +369,17 @@ function ApiClientPage() {
   }, []);
 
   return (
-    <div className="flex flex-col space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Code className="text-primary w-6 h-6" /> {t.title}
-          </h1>
-          <p className="text-sm text-base-content/70 mt-1">{t.subtitle}</p>
+    <div className={`flex flex-col space-y-6 w-full ${isEmbedded ? "h-full min-h-0" : ""}`}>
+      {!isEmbedded && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Code className="text-primary w-6 h-6" /> {t.title}
+            </h1>
+            <p className="text-sm text-base-content/70 mt-1">{t.subtitle}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
         <div className="xl:col-span-1 card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col h-[650px]">
