@@ -43,6 +43,7 @@ use super::super::resolver::{resolve_connect_target, resolve_target};
     fn test_resolve_target_with_matching_route() {
         let route = LocalRoute {
             id: 1,
+            domain_id: 1,
             domain: "api.example.com".to_string(),
             target_host: "127.0.0.1".to_string(),
             target_port: 3000,
@@ -67,6 +68,7 @@ use super::super::resolver::{resolve_connect_target, resolve_target};
     fn test_resolve_target_disabled_route_no_match() {
         let route = LocalRoute {
             id: 1,
+            domain_id: 1,
             domain: "api.example.com".to_string(),
             target_host: "127.0.0.1".to_string(),
             target_port: 3000,
@@ -94,6 +96,7 @@ use super::super::resolver::{resolve_connect_target, resolve_target};
     fn test_resolve_connect_target_matching_route() {
         let route = LocalRoute {
             id: 1,
+            domain_id: 1,
             domain: "api.example.com".to_string(),
             target_host: "127.0.0.1".to_string(),
             target_port: 3000,
@@ -111,6 +114,7 @@ use super::super::resolver::{resolve_connect_target, resolve_target};
     fn test_routing_flag_integration() {
         let route = LocalRoute {
             id: 1,
+            domain_id: 1,
             domain: "dev.local".to_string(),
             target_host: "127.0.0.1".to_string(),
             target_port: 8080,

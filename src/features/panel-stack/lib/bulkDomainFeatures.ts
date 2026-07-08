@@ -41,6 +41,28 @@ export async function setBulkApiLogging(
   await notifyHubDataChanged("features");
 }
 
+export async function setBulkApiBodyLogging(
+  domainIds: number[],
+  enabled: boolean,
+  existingLinks: DomainApiLoggingLink_Serialize[],
+): Promise<void> {
+  if (domainIds.length === 0) {
+    return;
+  }
+  for (const domainId of domainIds) {
+    const link = existingLinks.find((l) => l.domainId === domainId);
+    await commands
+      .setDomainApiLogging({
+        domainId,
+        loggingEnabled: link?.loggingEnabled ?? true,
+        bodyEnabled: enabled,
+        schemaUrl: link?.schemaUrl ?? null,
+      })
+      .then(unwrap);
+  }
+  await notifyHubDataChanged("features");
+}
+
 export async function setBulkProxy(
   states: { domainId: number; state: DomainFeatureState }[],
   enabled: boolean,
@@ -60,7 +82,6 @@ export async function setBulkProxy(
     await commands
       .updateLocalRoute({
         id: state.proxyRouteId,
-        domain: null,
         targetHost: null,
         targetPort: null,
         enabled,

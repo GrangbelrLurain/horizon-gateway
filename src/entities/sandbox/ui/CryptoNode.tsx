@@ -9,7 +9,7 @@ import { cryptoToolCurrentConfigAtom, savedCryptoPresetsAtom } from "../store";
 import type { CryptoAction, SavedCryptoPreset } from "../types";
 
 if (typeof window !== "undefined") {
-  (window as any).CryptoJS = CryptoJS;
+  (window as Window & { CryptoJS?: typeof CryptoJS }).CryptoJS = CryptoJS;
 }
 
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
@@ -26,6 +26,7 @@ export interface CryptoNodeProps {
   customCode?: string;
   onChangeCustomCode?: (val: string) => void;
   isStandalone?: boolean;
+  layout?: "page" | "panel";
 }
 
 const en = {
@@ -90,6 +91,7 @@ export function CryptoNode({
   customCode: propCustomCode,
   onChangeCustomCode,
   isStandalone = true,
+  layout = "page",
 }: CryptoNodeProps) {
   // Internal fallback states for standalone mode
   const [localPayload, setLocalPayload] = useState("");
@@ -189,12 +191,13 @@ export function CryptoNode({
               plugins: ["transform-modules-commonjs"],
               filename: "crypto_custom.ts",
             }).code || "";
-        } catch (e: any) {
-          throw new Error(`컴파일 에러: ${e.message}`);
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : "Unknown compile error";
+          throw new Error(`컴파일 에러: ${message}`);
         }
 
         const runFn = new Function("exports", transpiled);
-        const exportsObj: any = {};
+        const exportsObj: { default?: (...args: string[]) => unknown } = {};
         runFn(exportsObj);
 
         const defaultExport = exportsObj.default;
@@ -210,8 +213,9 @@ export function CryptoNode({
         res = await processCrypto(action, payload, secretKey, iv);
       }
       setResult(res);
-    } catch (err: any) {
-      setError(err.message || "Crypto processing failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Crypto processing failed";
+      setError(message);
       setResult("");
     } finally {
       setLoading(false);
@@ -412,6 +416,246 @@ export function CryptoNode({
                 {showIv ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (layout === "panel") {
+    return (
+      <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1 no-scrollbar text-xs pb-4">
+        {/* Presets Select Row */}
+        <div className="flex items-end gap-2 shrink-0 bg-base-200/60 p-3 rounded-xl border border-base-300/80">
+          <div className="flex-1 min-w-0">
+            <label className="text-[10px] font-black uppercase text-base-content/40 block mb-1">{t.presetList}</label>
+            <select
+              className="select select-bordered select-xs w-full font-bold focus:outline-none bg-base-100"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {savedPresets.length === 0 ? (
+                <option value="">{t.noPresets}</option>
+              ) : (
+                savedPresets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={handleAddPreset}
+              className="btn btn-square btn-xs btn-primary text-primary-content hover:scale-105 transition-transform"
+              title={t.addPreset}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            {selectedId && (
+              <button
+                onClick={(e) => handleDeletePreset(selectedId, e)}
+                className="btn btn-square btn-xs btn-outline btn-error hover:scale-105 transition-transform"
+                title={t.deleteConfirm}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {selectedId ? (
+          <>
+            {/* Config Form Card */}
+            <div className="card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col gap-3.5 shrink-0">
+              <div className="flex justify-between items-center pb-2 border-b border-base-200 mb-1">
+                <h3 className="font-bold text-xs text-primary flex items-center gap-1.5 truncate pr-2">
+                  🔐 {title || "Preset Config"}
+                </h3>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasUnsavedChanges && (
+                    <span className="badge badge-warning badge-xs font-bold text-[9px] py-1 px-1.5 shrink-0">
+                      {t.modified}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleSavePreset}
+                    className={`btn btn-xs ${
+                      justSaved ? "btn-success" : "btn-primary"
+                    } h-6 min-h-0 px-2 flex items-center gap-1 font-bold text-[10px]`}
+                  >
+                    <Save className="w-3 h-3" /> {justSaved ? t.saved : t.save}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold text-base-content/65">{t.presetTitle}</label>
+                  <input
+                    type="text"
+                    className="input input-bordered input-xs font-semibold focus:outline-none w-full bg-base-50"
+                    placeholder={t.presetTitle}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold text-base-content/65">{t.presetDesc}</label>
+                  <input
+                    type="text"
+                    className="input input-bordered input-xs focus:outline-none w-full bg-base-50"
+                    placeholder={t.presetDesc}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold text-base-content/65">{t.action}</label>
+                <select
+                  className="select select-bordered select-xs w-full font-semibold focus:outline-none bg-base-50"
+                  value={action}
+                  onChange={(e) => setAction(e.target.value as CryptoAction)}
+                >
+                  {actionsList.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold text-base-content/65">{t.payload}</label>
+                <textarea
+                  className="textarea textarea-bordered textarea-xs font-mono text-xs w-full min-h-[70px] focus:outline-none bg-base-50"
+                  placeholder="Payload..."
+                  value={payload}
+                  onChange={(e) => setPayload(e.target.value)}
+                />
+              </div>
+
+              {action === "custom" && (
+                <div className="flex flex-col gap-1 min-h-[180px] border border-base-200 rounded-lg p-2 bg-base-200/20">
+                  <label className="text-[10px] font-semibold text-base-content/65">Custom JS 스크립트 작성</label>
+                  <p className="text-[9px] text-base-content/40 mb-1">
+                    `export default async function(payload, key, iv)` 형태로 작성합니다.
+                  </p>
+                  <TsCodeEditor
+                    value={customCode}
+                    onChange={(val) => setCustomCode(val)}
+                    language="javascript"
+                    theme={theme}
+                    className="flex-1 rounded-md overflow-hidden border border-base-300"
+                  />
+                </div>
+              )}
+
+              {requiresKey && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold text-base-content/65">
+                    {t.key} {action === "jwtDecode" && "(선택 사항)"}
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showSecretKey ? "text" : "password"}
+                      className="input input-bordered input-xs font-mono w-full pr-8 focus:outline-none bg-base-50"
+                      placeholder={t.key}
+                      value={secretKey}
+                      onChange={(e) => setSecretKey(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 text-base-content/40 hover:text-base-content/70 cursor-pointer"
+                      onClick={() => setShowSecretKey(!showSecretKey)}
+                    >
+                      {showSecretKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {requiresIv && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-semibold text-base-content/65">{t.iv}</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showIv ? "text" : "password"}
+                      className="input input-bordered input-xs font-mono w-full pr-8 focus:outline-none bg-base-50"
+                      placeholder={t.iv}
+                      value={iv}
+                      onChange={(e) => setIv(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 text-base-content/40 hover:text-base-content/70 cursor-pointer"
+                      onClick={() => setShowIv(!showIv)}
+                    >
+                      {showIv ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                className={`btn btn-primary btn-xs btn-block mt-1 h-8 min-h-0 text-[11px] font-bold ${
+                  loading ? "loading" : ""
+                }`}
+                onClick={handleExecute}
+                disabled={loading || !payload}
+              >
+                {loading ? t.executing : t.execute}
+              </button>
+            </div>
+
+            {/* Output Card */}
+            <div className="card bg-base-100 border border-base-300 p-4 shadow-sm flex flex-col min-h-[160px] max-h-[300px] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-base-200 pb-2 mb-2 shrink-0">
+                <span className="font-semibold text-xs text-base-content/85">{t.outputResult}</span>
+                {result && (
+                  <button
+                    className={`btn btn-xs ${
+                      copied ? "btn-success" : "btn-outline btn-ghost"
+                    } h-5 min-h-0 px-1.5 flex items-center gap-1 text-[10px]`}
+                    onClick={() => {
+                      navigator.clipboard.writeText(result);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                  >
+                    {copied ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                    {copied ? t.copied : t.copy}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-auto bg-base-200 border border-base-300 rounded-lg p-3 font-mono text-[11px] leading-relaxed no-scrollbar flex flex-col min-h-0">
+                {error ? (
+                  <div className="text-error font-medium">⚠️ Error: {error}</div>
+                ) : result ? (
+                  <pre className="whitespace-pre-wrap break-all text-success text-[10.5px] leading-relaxed">
+                    {result}
+                  </pre>
+                ) : (
+                  <span className="text-base-content/40 italic">
+                    {lang === "ko"
+                      ? "실행하기 버튼을 누르면 여기에 결과가 나타납니다."
+                      : "Click Run to see the output here."}
+                  </span>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center bg-base-100 border border-base-300 rounded-xl p-8 text-xs text-base-content/40 italic min-h-[200px]">
+            <Lock className="w-10 h-10 text-base-content/20 mb-2" />
+            <span>{t.noPresets}</span>
+            <button onClick={handleAddPreset} className="btn btn-xs btn-primary mt-3 flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> {t.addPreset}
+            </button>
           </div>
         )}
       </div>

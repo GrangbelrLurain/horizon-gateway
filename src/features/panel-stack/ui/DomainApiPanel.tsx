@@ -40,13 +40,6 @@ export function DomainApiPanel({ domain, onClose, onOpenPanel, activeSection }: 
 
   return (
     <Panel id="api" title={t.apiTitle} subtitle={host} onClose={onClose} width="sm">
-      <FeaturePanelToggle
-        label={t.api}
-        checked={toggles.api.checked}
-        loading={toggles.api.loading}
-        onChange={toggles.api.toggle}
-      />
-
       {toggles.api.checked && (
         <FeaturePanelToggle
           label={t.apiBodyLogging}

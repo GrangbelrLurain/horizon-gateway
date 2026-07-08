@@ -12,6 +12,11 @@ export const popupKo = {
   infraMobile: "모바일 연결",
   infraMobileDesc: "ADB 또는 무선으로 기기를 프록시에 연결",
   infraMobileOpen: "모바일 연결 설정",
+  infraLocalRouting: "로컬 라우팅",
+  infraLocalRoutingDesc:
+    "켜면 등록된 도메인 라우트로 트래픽이 로컬 개발 서버로 전달됩니다. 꺼도 API 로깅·모킹은 동작합니다.",
+  infraLocalRoutingOn: "켜짐",
+  infraLocalRoutingOff: "꺼짐",
   schemaExplorerTitle: "스키마 탐색기",
   addDomainTitle: "도메인 추가",
   addDomainPlaceholder: "URL을 한 줄에 하나씩 입력\nhttps://api.example.com",

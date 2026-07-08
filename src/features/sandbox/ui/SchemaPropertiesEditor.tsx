@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/suspicious/noExplicitAny: Legacy dynamic schema parsing intentionally relies on flexible shapes. */
 import { useAtomValue } from "jotai";
 import { Copy, CornerDownRight, FileCode, Globe, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -5,6 +6,7 @@ import { languageAtom } from "@/entities/app";
 import { apiClientLastResponseAtom } from "@/entities/sandbox";
 import { commands, unwrap } from "@/shared/api";
 import { parseOpenApiSpec } from "@/shared/lib/openapi-parser";
+import { importPropertiesFromJson as importPropertiesFromJsonShared } from "../lib/importPropertiesFromJson";
 
 export interface SchemaProperty {
   id: string;
@@ -405,7 +407,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
       parsedProps.push({
         id: propId,
         name,
-        type: type === "integer" ? "integer" : (type as any),
+        type: type === "integer" ? "integer" : (type as SchemaProperty["type"]),
         description: desc,
         required: isRequired,
         parentId,
@@ -512,74 +514,19 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     }
   };
 
-  // JSON property recursive extractor helper
-  const importFromJson = (json: any, parentId?: string) => {
+  const importFromJson = (json: unknown, parentId?: string) => {
     if (!json || typeof json !== "object") {
       alert(t.invalidJson);
       return;
     }
 
-    const parsedProps: SchemaProperty[] = [];
-
-    const parseJsonToSchemaProperties = (jsonVal: any, currentParentId: string | undefined) => {
-      if (!jsonVal || typeof jsonVal !== "object") {
-        return;
-      }
-
-      let targetObj = jsonVal;
-
-      if (Array.isArray(jsonVal)) {
-        if (jsonVal.length > 0 && typeof jsonVal[0] === "object") {
-          targetObj = jsonVal[0];
-        } else {
-          return;
-        }
-      }
-
-      Object.entries(targetObj).forEach(([key, val]) => {
-        const propId = Math.random().toString(36).substring(2, 9);
-        let type: SchemaProperty["type"] = "string";
-
-        if (typeof val === "number") {
-          type = Number.isInteger(val) ? "integer" : "number";
-        } else if (typeof val === "boolean") {
-          type = "boolean";
-        } else if (Array.isArray(val)) {
-          type = "array";
-        } else if (val === null) {
-          type = "string";
-        } else if (typeof val === "object") {
-          type = "object";
-        }
-
-        parsedProps.push({
-          id: propId,
-          name: key,
-          type,
-          description: `Imported field: ${key}`,
-          required: false,
-          parentId: currentParentId,
-        });
-
-        // Recursively extract child properties
-        if (type === "object") {
-          parseJsonToSchemaProperties(val, propId);
-        } else if (type === "array" && Array.isArray(val) && val.length > 0 && typeof val[0] === "object") {
-          parseJsonToSchemaProperties(val[0], propId);
-        }
-      });
-    };
-
-    parseJsonToSchemaProperties(json, parentId);
+    const parsedProps = importPropertiesFromJsonShared(json);
 
     if (parentId) {
-      // Append mode: filter out duplicate sibling names under the parent
       const siblingNames = properties.filter((p) => p.parentId === parentId).map((p) => p.name);
       const uniqueNewProps = parsedProps.filter((np) => !siblingNames.includes(np.name));
-
       onChange([...properties, ...uniqueNewProps]);
     } else {
-      // Overwrite mode
       onChange(parsedProps);
     }
   };
@@ -1020,7 +967,8 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                       setActiveImportTab(null);
                       setRawJsonInput("");
                     } catch (err) {
-                      alert(`${t.jsonSyntaxError}: ${(err as any).message}`);
+                      const message = err instanceof Error ? err.message : String(err);
+                      alert(`${t.jsonSyntaxError}: ${message}`);
                     }
                   }}
                 >

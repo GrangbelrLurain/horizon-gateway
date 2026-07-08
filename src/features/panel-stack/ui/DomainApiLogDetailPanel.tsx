@@ -7,15 +7,17 @@ import type { ApiLogEntry } from "@/shared/api";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import { HandoffMenu } from "./HandoffMenu";
 import { Panel } from "./Panel";
 
 interface DomainApiLogDetailPanelProps {
   logId: string;
+  domainId: number;
   hostFilter?: string;
   onClose: () => void;
 }
 
-export function DomainApiLogDetailPanel({ logId, hostFilter, onClose }: DomainApiLogDetailPanelProps) {
+export function DomainApiLogDetailPanel({ logId, domainId, hostFilter, onClose }: DomainApiLogDetailPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const [log, setLog] = useState<ApiLogEntry | null>(null);
@@ -77,7 +79,12 @@ export function DomainApiLogDetailPanel({ logId, hostFilter, onClose }: DomainAp
       {loading ? (
         <LoadingScreen />
       ) : log ? (
-        <ApiLogExchangeDetail log={log} labels={labels} responseViewerProps={responseViewerProps} />
+        <ApiLogExchangeDetail
+          log={log}
+          labels={labels}
+          actions={<HandoffMenu log={log} domainId={domainId} />}
+          responseViewerProps={responseViewerProps}
+        />
       ) : (
         <p className="text-xs text-base-content/50">{t.apiLogNotFound}</p>
       )}

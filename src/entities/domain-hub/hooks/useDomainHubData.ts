@@ -47,10 +47,11 @@ export function useDomainHubData() {
   }, [apiLoggingLinks]);
 
   const proxyRouteMap = useMemo(() => {
-    const map = new Map<string, { id: number; enabled: boolean; targetHost: string; targetPort: number }>();
+    const map = new Map<number, { id: number; enabled: boolean; targetHost: string; targetPort: number }>();
     for (const r of localRoutes) {
-      if (r.domain) {
-        map.set(r.domain.toLowerCase(), {
+      const domainId = r.domain_id;
+      if (domainId != null && domainId > 0) {
+        map.set(domainId, {
           id: r.id,
           enabled: r.enabled,
           targetHost: r.target_host,
@@ -145,9 +146,7 @@ export function useDomainHubData() {
 
   const getFeatureState = useCallback(
     (domainId: number): DomainFeatureState => {
-      const domain = domains.find((d) => d.id === domainId);
-      const domainHost = domain ? getDomainHost(domain) : undefined;
-      const proxyRoute = domainHost ? proxyRouteMap.get(domainHost) : undefined;
+      const proxyRoute = proxyRouteMap.get(domainId);
 
       return {
         monitorEnabled: monitorMap.has(domainId) ? monitorMap.get(domainId) : undefined,
@@ -156,7 +155,7 @@ export function useDomainHubData() {
         apiLoggingEnabled: apiLoggingMap.has(domainId) ? apiLoggingMap.get(domainId) : undefined,
       };
     },
-    [apiLoggingMap, domains, getDomainHost, monitorMap, proxyRouteMap],
+    [apiLoggingMap, monitorMap, proxyRouteMap],
   );
 
   const getGroupName = useCallback(
@@ -181,10 +180,9 @@ export function useDomainHubData() {
 
   const getProxyRoute = useCallback(
     (domain: Domain) => {
-      const host = getDomainHost(domain);
-      return proxyRouteMap.get(host);
+      return proxyRouteMap.get(domain.id);
     },
-    [getDomainHost, proxyRouteMap],
+    [proxyRouteMap],
   );
 
   return {

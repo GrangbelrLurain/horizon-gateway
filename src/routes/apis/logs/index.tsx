@@ -20,6 +20,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
 import { ApiLogExchangeDetail, savedJsonSchemasAtom, validateJsonSchema } from "@/entities/sandbox";
+import { hubApiLogsHostSeedAtom } from "@/features/panel-stack";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -119,11 +120,21 @@ function ApiLogs() {
   const [localSearch, setLocalSearch] = useState(search);
   const [hostFilter, setHostFilter] = useAtom(apiLogsHostFilterAtom);
   const [localHostFilter, setLocalHostFilter] = useState(hostFilter);
+  const [apiLogsHostSeed, setApiLogsHostSeed] = useAtom(hubApiLogsHostSeedAtom);
   const [methodFilter, setMethodFilter] = useAtom(apiLogsMethodFilterAtom);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
   const [clearing, setClearing] = useState(false);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+
+  useEffect(() => {
+    if (!apiLogsHostSeed) {
+      return;
+    }
+    setHostFilter(apiLogsHostSeed);
+    setLocalHostFilter(apiLogsHostSeed);
+    setApiLogsHostSeed(null);
+  }, [apiLogsHostSeed, setApiLogsHostSeed, setHostFilter]);
 
   // Schema validation state for log detail modal
   const [logSchemaEnabled, setLogSchemaEnabled] = useState(false);
@@ -154,8 +165,9 @@ function ApiLogs() {
       try {
         const result = await validateJsonSchema(body, logSchemaText);
         setLogSchemaResult(result);
-      } catch (err: any) {
-        setLogSchemaResult({ valid: false, errors: err.message || "Validation failed" });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Validation failed";
+        setLogSchemaResult({ valid: false, errors: message });
       }
     }, 600);
     return () => clearTimeout(timer);

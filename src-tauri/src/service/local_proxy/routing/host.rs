@@ -32,7 +32,7 @@ pub(crate) fn get_logging_config_for_host(
 }
 
 /// Extract hostname from route domain: "<https://dev.modetour.local>/" -> "dev.modetour.local", "dev.modetour.local" -> "dev.modetour.local".
-pub(crate) fn route_domain_to_host(domain: &str) -> &str {
+pub fn route_domain_to_host(domain: &str) -> &str {
     let domain = domain.trim();
     if let Some(after) = domain
         .strip_prefix("https://")

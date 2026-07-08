@@ -11,6 +11,9 @@ export const en = {
   selectEndpoint: "Select an endpoint from the left.",
   endpointsInfo: (eps: number, tags: number) => `${eps} endpoints, ${tags} tag groups`,
   chooseDomainToStart: "Choose a domain above to explore the OpenAPI schema.",
+  handoffEndpointMatched: (method: string, path: string) => `Matched OpenAPI endpoint: ${method.toUpperCase()} ${path}`,
+  handoffEndpointNotFound: (method: string, path: string) =>
+    `No matching OpenAPI endpoint for ${method.toUpperCase()} ${path}. Check schema download or search manually.`,
   requestHistoryToday: "Request History (Today)",
   noLogsFound: "No logs found for this endpoint today.",
   hasBody: "Has Body",

@@ -1,28 +1,62 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
-import { openPopupWindow, type PopupWindowId } from "@/features/popup-window";
+import { notifyHubHandoff } from "@/shared/lib/tauri/hubEvents";
+import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
+import type { HandoffTarget, HubHandoff } from "../lib/hubHandoff";
 import { canOpenPanel } from "../lib/panelGates";
-import { panelStackAtom, selectedDomainIdAtom } from "../store";
-import type { PanelEntry, PanelId } from "../types";
-import { buildPanelsFromSearch } from "../types";
+import { getSurfaceEntry } from "../lib/surfaceRegistry";
+import { hubHandoffAtom, hubHandoffConsumedIdAtom, panelStackAtom, selectedDomainIdAtom } from "../store";
+import type { HubSearchParams, HubSurfaceId, PanelEntry, PanelId } from "../types";
+import { buildPanelsFromSearch, parseHubSurfaceId } from "../types";
 import { useDomainHubData } from "./useDomainHubData";
 
-function searchFromState(domainId: number | null, panels: PanelEntry[]): Record<string, string | number | undefined> {
-  if (!domainId) {
-    return {};
+function buildNextPanels(currentPanels: PanelEntry[], id: PanelId, params?: Record<string, string>): PanelEntry[] {
+  if (id === "overview") {
+    return [{ id: "overview" }];
+  }
+  if (id === "api") {
+    return [{ id: "overview" }, { id: "api" }];
+  }
+  if (id.startsWith("api/")) {
+    const hasApi = currentPanels.some((p) => p.id === "api");
+    return hasApi
+      ? [...currentPanels.filter((p) => p.id === "overview" || p.id === "api"), { id, params }]
+      : [{ id: "overview" }, { id: "api" }, { id, params }];
+  }
+  return [{ id: "overview" }, { id, params }];
+}
+
+function searchFromState(
+  domainId: number | null,
+  panels: PanelEntry[],
+  globalSurface: HubSurfaceId | null,
+): HubSearchParams {
+  const result: HubSearchParams = {};
+
+  if (globalSurface) {
+    result.g = globalSurface;
   }
 
+  if (!domainId) {
+    return result;
+  }
+
+  result.d = domainId;
   const last = panels[panels.length - 1];
   if (!last || last.id === "overview") {
-    return { d: domainId, p: "overview" };
+    result.p = "overview";
+    return result;
   }
 
   if (last.id === "api/log" && last.params?.logId) {
-    return { d: domainId, p: "api/log", logId: last.params.logId };
+    result.p = "api/log";
+    result.logId = last.params.logId;
+    return result;
   }
 
-  return { d: domainId, p: last.id };
+  result.p = last.id;
+  return result;
 }
 
 export function usePanelNavigation() {
@@ -30,9 +64,17 @@ export function usePanelNavigation() {
   const search = useSearch({ from: "/" });
   const [domainId, setDomainId] = useAtom(selectedDomainIdAtom);
   const [panels, setPanels] = useAtom(panelStackAtom);
+  const setHandoff = useSetAtom(hubHandoffAtom);
+  const setConsumedHandoffId = useSetAtom(hubHandoffConsumedIdAtom);
   const { getFeatureState } = useDomainHubData();
   const domainIdRef = useRef(domainId);
+  const panelsRef = useRef(panels);
+  const globalSurfaceRef = useRef<HubSurfaceId | null>(null);
   domainIdRef.current = domainId;
+  panelsRef.current = panels;
+
+  const globalSurface = parseHubSurfaceId(search.g);
+  globalSurfaceRef.current = globalSurface;
 
   useEffect(() => {
     const built = buildPanelsFromSearch(search.d, search.p, search.logId);
@@ -41,10 +83,20 @@ export function usePanelNavigation() {
   }, [search.d, search.p, search.logId, setDomainId, setPanels]);
 
   const syncUrl = useCallback(
-    (nextDomainId: number | null, nextPanels: PanelEntry[]) => {
-      navigate({ search: searchFromState(nextDomainId, nextPanels), replace: true });
+    (nextDomainId: number | null, nextPanels: PanelEntry[], nextGlobalSurface: HubSurfaceId | null) => {
+      navigate({
+        search: searchFromState(nextDomainId, nextPanels, nextGlobalSurface),
+        replace: true,
+      });
     },
     [navigate],
+  );
+
+  const syncUrlPreserveGlobal = useCallback(
+    (nextDomainId: number | null, nextPanels: PanelEntry[]) => {
+      syncUrl(nextDomainId, nextPanels, globalSurfaceRef.current);
+    },
+    [syncUrl],
   );
 
   useEffect(() => {
@@ -56,50 +108,72 @@ export function usePanelNavigation() {
       return;
     }
     if (!canOpenPanel(active.id, getFeatureState(domainId))) {
-      syncUrl(domainId, [{ id: "overview" }]);
+      syncUrlPreserveGlobal(domainId, [{ id: "overview" }]);
     }
-  }, [domainId, panels, getFeatureState, syncUrl]);
+  }, [domainId, panels, getFeatureState, syncUrlPreserveGlobal]);
+
+  const openGlobalSurface = useCallback(
+    (id: HubSurfaceId, opts?: { detach?: boolean }) => {
+      const entry = getSurfaceEntry(id);
+      if (opts?.detach) {
+        void openDetachedWindow(entry.route, id, entry.detachWidth, entry.detachHeight);
+        return;
+      }
+      syncUrl(domainIdRef.current, panelsRef.current, id);
+    },
+    [syncUrl],
+  );
+
+  const closeGlobalSurface = useCallback(() => {
+    syncUrl(domainIdRef.current, panelsRef.current, null);
+  }, [syncUrl]);
+
+  const openChromeSurface = useCallback(
+    (id: Extract<HubSurfaceId, `chrome/${string}`>) => {
+      openGlobalSurface(id);
+    },
+    [openGlobalSurface],
+  );
 
   const selectDomain = useCallback(
     (id: number) => {
       if (domainIdRef.current === id) {
-        syncUrl(null, []);
+        syncUrl(null, [], globalSurfaceRef.current);
         return;
       }
-      syncUrl(id, [{ id: "overview" }]);
+      syncUrl(id, [{ id: "overview" }], globalSurfaceRef.current);
     },
     [syncUrl],
   );
 
   const openPanel = useCallback(
     (id: PanelId, params?: Record<string, string>) => {
-      if (!domainId) {
+      const currentDomainId = domainIdRef.current;
+      if (!currentDomainId) {
         return;
       }
 
-      const features = getFeatureState(domainId);
+      const features = getFeatureState(currentDomainId);
       if (id !== "overview" && !canOpenPanel(id, features)) {
         return;
       }
 
-      let nextPanels: PanelEntry[];
-
-      if (id === "overview") {
-        nextPanels = [{ id: "overview" }];
-      } else if (id === "api") {
-        nextPanels = [{ id: "overview" }, { id: "api" }];
-      } else if (id.startsWith("api/")) {
-        const hasApi = panels.some((p) => p.id === "api");
-        nextPanels = hasApi
-          ? [...panels.filter((p) => p.id === "overview" || p.id === "api"), { id, params }]
-          : [{ id: "overview" }, { id: "api" }, { id, params }];
-      } else {
-        nextPanels = [{ id: "overview" }, { id, params }];
-      }
-
-      syncUrl(domainId, nextPanels);
+      const nextPanels = buildNextPanels(panelsRef.current, id, params);
+      syncUrl(currentDomainId, nextPanels, globalSurfaceRef.current);
     },
-    [domainId, panels, syncUrl, getFeatureState],
+    [syncUrl, getFeatureState],
+  );
+
+  const openPanelForDomain = useCallback(
+    (targetDomainId: number, id: PanelId, params?: Record<string, string>) => {
+      const features = getFeatureState(targetDomainId);
+      if (id !== "overview" && !canOpenPanel(id, features)) {
+        return;
+      }
+      const nextPanels = buildNextPanels([], id, params);
+      syncUrl(targetDomainId, nextPanels, null);
+    },
+    [syncUrl, getFeatureState],
   );
 
   const navigateToPanel = useCallback(
@@ -111,9 +185,9 @@ export function usePanelNavigation() {
       if (nextPanels[nextPanels.length - 1]?.id !== id) {
         return;
       }
-      syncUrl(domainId, nextPanels);
+      syncUrlPreserveGlobal(domainId, nextPanels);
     },
-    [domainId, panels, syncUrl],
+    [domainId, panels, syncUrlPreserveGlobal],
   );
 
   const closePanel = useCallback(
@@ -125,43 +199,60 @@ export function usePanelNavigation() {
       if (nextPanels.length === 0) {
         nextPanels.push({ id: "overview" });
       }
-      syncUrl(domainId, nextPanels);
+      syncUrlPreserveGlobal(domainId, nextPanels);
     },
-    [domainId, panels, syncUrl],
+    [domainId, panels, syncUrlPreserveGlobal],
   );
 
   const resetPanels = useCallback(() => {
     if (!domainId) {
       return;
     }
-    syncUrl(domainId, [{ id: "overview" }]);
-  }, [domainId, syncUrl]);
+    syncUrlPreserveGlobal(domainId, [{ id: "overview" }]);
+  }, [domainId, syncUrlPreserveGlobal]);
 
   const clearDomain = useCallback(() => {
-    syncUrl(null, []);
+    syncUrl(null, [], globalSurfaceRef.current);
   }, [syncUrl]);
 
   const restoreNavigation = useCallback(
     (id: number, nextPanels: PanelEntry[]) => {
-      syncUrl(id, nextPanels.length > 0 ? nextPanels : [{ id: "overview" }]);
+      syncUrl(id, nextPanels.length > 0 ? nextPanels : [{ id: "overview" }], globalSurfaceRef.current);
     },
     [syncUrl],
   );
 
-  const openPopup = useCallback((id: PopupWindowId) => {
-    void openPopupWindow(id);
-  }, []);
+  const dispatchHandoff = useCallback(
+    (handoff: HubHandoff, target: HandoffTarget) => {
+      setHandoff(handoff);
+      setConsumedHandoffId(null);
+      void notifyHubHandoff(handoff, target);
+
+      if (target.scope === "domain") {
+        openPanelForDomain(target.domainId, target.panelId);
+        return;
+      }
+
+      syncUrl(domainIdRef.current, panelsRef.current, target.surfaceId);
+    },
+    [setHandoff, setConsumedHandoffId, openPanelForDomain, syncUrl],
+  );
 
   return {
     domainId,
     panels,
+    globalSurface,
     selectDomain,
     openPanel,
+    openPanelForDomain,
     navigateToPanel,
     closePanel,
     resetPanels,
     clearDomain,
     restoreNavigation,
-    openPopup,
+    openGlobalSurface,
+    closeGlobalSurface,
+    openChromeSurface,
+    dispatchHandoff,
   };
 }

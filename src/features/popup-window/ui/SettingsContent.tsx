@@ -1,6 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
-import { Download, RefreshCw, Server, Upload } from "lucide-react";
+import { Download, RefreshCw, Route, Server, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/entities/app";
@@ -45,6 +45,7 @@ export function SettingsContent() {
   const [reverseHttpsInput, setReverseHttpsInput] = useAtom(proxyReverseHttpsPortInputAtom);
   const [proxyLoading, setProxyLoading] = useState(false);
   const [proxyPortSaving, setProxyPortSaving] = useState(false);
+  const [routingLoading, setRoutingLoading] = useState(false);
 
   const t = lang === "ko" ? settingsKo : settingsEn;
 
@@ -99,6 +100,22 @@ export function SettingsContent() {
       console.error("toggle proxy:", e);
     } finally {
       setProxyLoading(false);
+    }
+  };
+
+  const handleToggleLocalRouting = async (enabled: boolean) => {
+    setRoutingLoading(true);
+    try {
+      const res = await commands.setLocalRoutingEnabled({ enabled }).then(unwrap);
+      if (res.success && res.data) {
+        setProxyStatus(res.data);
+      }
+      await notifyHubDataChanged("features");
+      await notifyHubDataChanged("routes");
+    } catch (e) {
+      console.error("toggle local routing:", e);
+    } finally {
+      setRoutingLoading(false);
     }
   };
 
@@ -210,6 +227,19 @@ export function SettingsContent() {
             onChange={handleToggleProxy}
             loading={proxyLoading}
             icon={<Server className="w-3.5 h-3.5" />}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-base-300">
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-base-content">{t.proxyLocalRoutingLabel}</p>
+            <p className="text-[10px] text-base-content/50 mt-0.5 leading-relaxed">{t.proxyLocalRoutingDesc}</p>
+          </div>
+          <StatusToggle
+            label={proxyStatus.local_routing_enabled ? t.proxyLocalRoutingOn : t.proxyLocalRoutingOff}
+            checked={proxyStatus.local_routing_enabled}
+            onChange={handleToggleLocalRouting}
+            loading={routingLoading}
+            icon={<Route className="w-3.5 h-3.5" />}
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-base-300">

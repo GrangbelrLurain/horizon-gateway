@@ -11,7 +11,6 @@ import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
-import { FeaturePanelToggle } from "./FeaturePanelToggle";
 import { Panel } from "./Panel";
 
 interface DomainMonitorPanelProps {
@@ -84,13 +83,6 @@ export function DomainMonitorPanel({ domain, onClose }: DomainMonitorPanelProps)
 
   return (
     <Panel id="monitor" title={t.monitorTitle} subtitle={host} onClose={onClose} width="md">
-      <FeaturePanelToggle
-        label={t.monitor}
-        checked={toggles.monitor.checked}
-        loading={toggles.monitor.loading}
-        onChange={toggles.monitor.toggle}
-      />
-
       {!toggles.monitor.checked ? (
         <p className="text-xs text-base-content/50">{t.monitorEnableHint}</p>
       ) : (

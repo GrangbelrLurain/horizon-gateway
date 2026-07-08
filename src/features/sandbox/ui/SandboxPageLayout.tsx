@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { FlaskConical, GitBranch, Lock, Tv } from "lucide-react";
 import type { ReactNode } from "react";
 import { languageAtom } from "@/entities/app";
+import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { H1, P } from "@/shared/ui/typography/typography";
 
@@ -20,6 +21,8 @@ export function SandboxPageLayout({ children }: SandboxPageLayoutProps) {
   const lang = useAtomValue(languageAtom);
   const isKo = lang === "ko";
   const isEmbedded = useIsEmbeddedPage();
+  const isHubEmbed = useIsHubSurfaceEmbed();
+  const hideChrome = isEmbedded || isHubEmbed;
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   const title = isKo ? "샌드박스 플레이그라운드" : "Sandbox Playground";
@@ -28,8 +31,8 @@ export function SandboxPageLayout({ children }: SandboxPageLayoutProps) {
     : "Design pipelines, encode/decode data, and render real-time React UIs dynamically.";
 
   return (
-    <div className={`flex flex-col gap-4 overflow-hidden ${isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-10rem)]"}`}>
-      {!isEmbedded && (
+    <div className={`flex flex-col gap-4 overflow-hidden ${hideChrome ? "h-full min-h-0" : "h-[calc(100vh-10rem)]"}`}>
+      {!hideChrome && (
         <header className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between border-b border-base-200 pb-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 text-primary rounded-lg">

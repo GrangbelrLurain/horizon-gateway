@@ -25,6 +25,7 @@ mod service {
     pub mod ca_service;
     pub mod domain_group_link_service;
     pub mod domain_group_service;
+    pub mod domain_hostname;
     pub mod domain_monitor_service;
     pub mod domain_service;
     pub mod inspector_service;
@@ -295,6 +296,7 @@ pub fn run() {
 
             monitor_service.sync_with_domains(&domain_service.get_all());
             api_logging_service.refresh_map(&domain_service.get_all());
+            local_route_service.sync_with_domains(&domain_service.get_all());
 
             // Clone/read values needed for auto-start before `app.manage()` moves them.
             let route_svc_for_proxy = Arc::clone(&local_route_service);

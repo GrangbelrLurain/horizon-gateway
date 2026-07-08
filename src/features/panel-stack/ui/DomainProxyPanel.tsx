@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai";
 import { Server, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, proxyLocalRoutingEnabledAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
 import { openPopupWindow } from "@/features/popup-window";
 import type { Domain } from "@/shared/api";
@@ -14,7 +14,6 @@ import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
-import { FeaturePanelToggle } from "./FeaturePanelToggle";
 import { Panel } from "./Panel";
 
 interface DomainProxyPanelProps {
@@ -26,6 +25,8 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const { getDomainHost, getProxyRoute, getFeatureState, proxyActive, fetchAll } = useDomainHubData();
+  const proxyRunning = useAtomValue(proxyRunningAtom);
+  const localRoutingEnabled = useAtomValue(proxyLocalRoutingEnabledAtom);
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
@@ -46,7 +47,7 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
       setTargetHost(route.targetHost);
       setTargetPort(String(route.targetPort));
     }
-  }, [route?.id, route?.targetHost, route?.targetPort]);
+  }, [route]);
 
   const handleAddRoute = async () => {
     const port = Number(targetPort);
@@ -55,7 +56,9 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
     }
     setSaving(true);
     try {
-      await commands.addLocalRoute({ domain: host, targetHost: targetHost.trim(), targetPort: port }).then(unwrap);
+      await commands
+        .addLocalRoute({ domainId: domain.id, targetHost: targetHost.trim(), targetPort: port })
+        .then(unwrap);
       await fetchAll();
       await notifyHubDataChanged("routes");
     } catch (e) {
@@ -78,7 +81,6 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
       await commands
         .updateLocalRoute({
           id: route.id,
-          domain: null,
           targetHost: targetHost.trim(),
           targetPort: port,
           enabled: null,
@@ -114,16 +116,16 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
 
   return (
     <Panel id="proxy" title={t.proxyTitle} subtitle={host} onClose={onClose} width="md">
-      <FeaturePanelToggle
-        label={t.proxy}
-        checked={toggles.proxy.checked}
-        loading={toggles.proxy.loading}
-        onChange={toggles.proxy.toggle}
-      />
-
-      {!proxyActive ? (
+      {!proxyRunning ? (
         <div className="space-y-3">
           <p className="text-xs text-base-content/50">{t.proxyGlobalOff}</p>
+          <Button variant="primary" size="sm" onClick={() => void openPopupWindow("infrastructure")}>
+            {t.proxyOpenInfra}
+          </Button>
+        </div>
+      ) : !localRoutingEnabled ? (
+        <div className="space-y-3">
+          <p className="text-xs text-base-content/50">{t.proxyLocalRoutingOff}</p>
           <Button variant="primary" size="sm" onClick={() => void openPopupWindow("infrastructure")}>
             {t.proxyOpenInfra}
           </Button>
@@ -196,6 +198,7 @@ export function DomainProxyPanel({ domain, onClose }: DomainProxyPanelProps) {
 
       {toggles.proxy.showModal && (
         <ProxyRouteModal
+          domainId={domain.id}
           domainUrl={domain.url}
           t={t}
           onClose={() => toggles.proxy.setShowModal(false)}

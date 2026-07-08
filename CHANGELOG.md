@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.3.0] - 2026-07-08
+
+### Added
+
+- **Hub Handoff & Overlay Surfaces**: Added structured handoff flow from API log detail to global/domain targets (mocking, schema explorer, JSON schema registry, crypto, pipeline) with `?g=` global overlay navigation.
+- **Schema Explorer Global Surface**: Added global schema explorer surface with OpenAPI endpoint pre-selection from handoff metadata (method/path matching).
+- **Hub Context Bar**: Added contextual header showing selected domain, M/P/A badges, and all-domain API logs shortcut.
+- **Hub Event Sync for Detached Windows**: Added handoff event broadcast/sync so detached windows can receive and apply hub navigation intents.
+- **Bulk API Body Logging Toggle**: Added nested support for toggling API body logging (`bodyEnabled`) status across multiple domains in bulk manage mode.
+
+### Changed
+
+- **Bulk Manage UI/UX Redesign**: Redesigned the Bulk Manage panel to feature toggle cards resembling the specific Domain Overview panel, including status badges (ON/OFF/Mixed) and animated loaders per card.
+- **Crypto Tool Navigation**: Moved crypto flow from domain 2-depth panel to global surface-first usage in handoff/navigation.
+- **Proxy Route Model**: Switched local proxy routes to domain FK-based linkage (`domain_id`) and synchronized hostname cache from domain URL.
+- **Settings/Infrastructure Controls**: Exposed `local_routing_enabled` toggle in both settings and infrastructure UIs for consistent control.
+
+### Fixed
+
+- **Ghost Proxy Routes**: Prevented orphan proxy routes by validating domain linkage on CUD, syncing routes with domain list, and cascading delete on domain removal.
+- **Route/Domain Matching Drift**: Normalized and synced route host values from domain URL updates/import flows to avoid stale proxy badges and mismatched management states.
+- **Schema Explorer Runtime Navigation Error**: Fixed active route mismatch/invariant failures when opening schema explorer via hub surface.
+
 ## [v2.2.0] - 2026-07-08
 
 ### Added

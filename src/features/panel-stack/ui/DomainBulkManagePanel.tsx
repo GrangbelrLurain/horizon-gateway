@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
-import { ListChecks, Trash2 } from "lucide-react";
+import { Activity, ListChecks, Loader2, Server, Trash2, Wifi } from "lucide-react";
 import { useState } from "react";
 import { languageAtom } from "@/entities/app";
+import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import { Button } from "@/shared/ui/button/Button";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { useDomainBulkActions } from "../hooks/useDomainBulkActions";
@@ -20,10 +21,50 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const [selectedIds, setSelectedIds] = useAtom(domainListBulkSelectedIdsAtom);
-  const { groups } = useDomainHubData();
-  const { bulkLoading, bulkFeatureToggle, bulkAssign, bulkDelete } = useDomainBulkActions();
+  const { groups, getFeatureState } = useDomainHubData();
+  const { bulkLoading, bulkFeatureToggle, bulkApiBodyToggle, bulkAssign, bulkDelete } = useDomainBulkActions();
+  const apiLinks = useAtomValue(apiLoggingLinksAtom);
   const [bulkGroupId, setBulkGroupId] = useState<number | "">("");
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [localLoading, setLocalLoading] = useState<Record<string, boolean>>({});
+
+  const getFeatureStates = (key: "monitor" | "proxy" | "api") => {
+    if (selectedIds.length === 0) {
+      return { allEnabled: false, noneEnabled: true, isMixed: false };
+    }
+    const states = selectedIds.map((id) => getFeatureState(id));
+    const enabledCount = states.filter((s) => {
+      if (key === "monitor") {
+        return !!s.monitorEnabled;
+      }
+      if (key === "proxy") {
+        return !!s.proxyEnabled;
+      }
+      return !!s.apiLoggingEnabled;
+    }).length;
+
+    const allEnabled = enabledCount === selectedIds.length;
+    const noneEnabled = enabledCount === 0;
+    const isMixed = !allEnabled && !noneEnabled;
+
+    return { allEnabled, noneEnabled, isMixed };
+  };
+
+  const getApiBodyStates = () => {
+    if (selectedIds.length === 0) {
+      return { allBodyEnabled: false, noneBodyEnabled: true, isBodyMixed: false };
+    }
+    const enabledCount = selectedIds.filter((id) => {
+      const link = apiLinks.find((l) => l.domainId === id);
+      return !!link?.bodyEnabled;
+    }).length;
+
+    const allBodyEnabled = enabledCount === selectedIds.length;
+    const noneBodyEnabled = enabledCount === 0;
+    const isBodyMixed = !allBodyEnabled && !noneBodyEnabled;
+
+    return { allBodyEnabled, noneBodyEnabled, isBodyMixed };
+  };
 
   const handleAssignGroup = async () => {
     const ids = [...selectedIds];
@@ -68,36 +109,130 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                 {t.filterFeatureLabel}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {(["monitor", "proxy", "api"] as const).map((key) => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl border border-base-300/60 bg-base-200/30"
-                  >
-                    <span className="text-sm font-bold text-base-content/80">
-                      {key === "monitor" ? t.monitor : key === "proxy" ? t.proxy : t.api}
-                    </span>
-                    <div className="flex gap-2 shrink-0">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8 text-xs px-3"
-                        disabled={bulkLoading}
-                        onClick={() => void bulkFeatureToggle(selectedIds, key, true)}
-                      >
-                        {t.bulkTurnOn}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs px-3"
-                        disabled={bulkLoading}
-                        onClick={() => void bulkFeatureToggle(selectedIds, key, false)}
-                      >
-                        {t.bulkTurnOff}
-                      </Button>
+                {(["monitor", "proxy", "api"] as const).map((key) => {
+                  const { allEnabled, noneEnabled, isMixed } = getFeatureStates(key);
+                  const anyEnabled = !noneEnabled;
+                  const isLoading = localLoading[key];
+
+                  const { allBodyEnabled, isBodyMixed } =
+                    key === "api" ? getApiBodyStates() : { allBodyEnabled: false, isBodyMixed: false };
+
+                  return (
+                    <div
+                      key={key}
+                      className={clsx(
+                        "flex flex-col gap-1 p-3 rounded-xl border border-base-300/60 bg-base-200/30 transition-all",
+                        !anyEnabled && "opacity-60 hover:opacity-80",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3 w-full">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={clsx(
+                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                              anyEnabled ? "bg-base-200 text-base-content/50" : "bg-base-300/50 text-base-content/30",
+                            )}
+                          >
+                            {key === "monitor" ? (
+                              <Activity className="w-4 h-4" />
+                            ) : key === "proxy" ? (
+                              <Server className="w-4 h-4" />
+                            ) : (
+                              <Wifi className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-base-content">
+                                {key === "monitor" ? t.monitor : key === "proxy" ? t.proxy : t.api}
+                              </span>
+                              {allEnabled ? (
+                                <span className="text-[8px] font-bold text-success bg-success/15 px-1 py-0.5 rounded">
+                                  ON
+                                </span>
+                              ) : noneEnabled ? (
+                                <span className="text-[8px] font-bold text-base-content/30 bg-base-300 px-1 py-0.5 rounded">
+                                  OFF
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-bold text-warning bg-warning/15 px-1 py-0.5 rounded">
+                                  {t.bulkMixedState}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-base-content/40 mt-0.5 truncate">
+                              {key === "monitor"
+                                ? t.monitorEnableHint
+                                : key === "proxy"
+                                  ? t.proxyRouteToggleHint
+                                  : t.apiEnableHint}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center shrink-0">
+                          {isLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                          ) : (
+                            <input
+                              type="checkbox"
+                              className="toggle toggle-success toggle-sm"
+                              checked={allEnabled}
+                              ref={(el) => {
+                                if (el) {
+                                  el.indeterminate = isMixed;
+                                }
+                              }}
+                              disabled={bulkLoading}
+                              onChange={async (e) => {
+                                const targetVal = e.target.checked;
+                                setLocalLoading((prev) => ({ ...prev, [key]: true }));
+                                try {
+                                  await bulkFeatureToggle(selectedIds, key, targetVal);
+                                } finally {
+                                  setLocalLoading((prev) => ({ ...prev, [key]: false }));
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Sub-row for API Body Logging */}
+                      {key === "api" && anyEnabled && (
+                        <div className="w-full pl-11 pt-2 border-t border-base-300/30 mt-2">
+                          <div className="flex items-center justify-between text-xs py-1 px-2">
+                            <span className="text-base-content/70">{t.apiBodyLogging}</span>
+                            {localLoading["api-body"] ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                            ) : (
+                              <input
+                                type="checkbox"
+                                className="toggle toggle-success toggle-xs"
+                                checked={allBodyEnabled}
+                                ref={(el) => {
+                                  if (el) {
+                                    el.indeterminate = isBodyMixed;
+                                  }
+                                }}
+                                disabled={bulkLoading}
+                                onChange={async (e) => {
+                                  const targetVal = e.target.checked;
+                                  setLocalLoading((prev) => ({ ...prev, "api-body": true }));
+                                  try {
+                                    await bulkApiBodyToggle(selectedIds, targetVal);
+                                  } finally {
+                                    setLocalLoading((prev) => ({ ...prev, "api-body": false }));
+                                  }
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
 

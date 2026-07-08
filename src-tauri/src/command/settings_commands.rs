@@ -106,11 +106,12 @@ pub fn import_all_settings(
         ));
     }
     domain_service.import_from_json(payload.domains);
-    monitor_service.sync_with_domains(&domain_service.get_all());
+    let domains = domain_service.get_all();
+    monitor_service.sync_with_domains(&domains);
     monitor_service.import_domain_monitor(&payload.domain_monitor, &domain_service);
     group_service.replace_all(payload.groups);
     link_service.replace_all(payload.domain_group_links);
-    route_service.replace_all(payload.local_routes);
+    route_service.replace_all(payload.local_routes, &domains);
     proxy_settings_service.replace_all(payload.proxy_settings);
     Ok(ApiResponse {
         message: "Import completed".to_string(),

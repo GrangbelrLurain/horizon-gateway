@@ -380,9 +380,10 @@ fn dispatch_command(
         }
         "update_domain_by_id" => {
             let domain_service = app_handle.state::<DomainService>();
+            let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let parsed: command::domain_commands::UpdateDomainByIdPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::domain_commands::update_domain_by_id(parsed, domain_service)?;
+            let result = command::domain_commands::update_domain_by_id(parsed, domain_service, route_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "remove_domains" => {
@@ -390,25 +391,28 @@ fn dispatch_command(
             let link_service = app_handle.state::<DomainGroupLinkService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
             let api_logging_service = app_handle.state::<ApiLoggingSettingsService>();
+            let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let parsed_payload: command::domain_commands::RemoveDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::domain_commands::remove_domains(
-                parsed_payload, domain_service, link_service, monitor_service, api_logging_service,
+                parsed_payload, domain_service, link_service, monitor_service, api_logging_service, route_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "import_domains" => {
             let domain_service = app_handle.state::<DomainService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
+            let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let parsed: command::domain_commands::ImportDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::domain_commands::import_domains(parsed, domain_service, monitor_service)?;
+            let result = command::domain_commands::import_domains(parsed, domain_service, monitor_service, route_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "clear_all_domains" => {
             let domain_service = app_handle.state::<DomainService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
-            let result = command::domain_commands::clear_all_domains(domain_service, monitor_service)?;
+            let route_service = app_handle.state::<Arc<LocalRouteService>>();
+            let result = command::domain_commands::clear_all_domains(domain_service, monitor_service, route_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         // --- Domain Groups ---
@@ -508,9 +512,10 @@ fn dispatch_command(
         }
         "add_local_route" => {
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
+            let domain_service = app_handle.state::<DomainService>();
             let parsed_payload: command::local_route_commands::AddLocalRoutePayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::local_route_commands::add_local_route(parsed_payload, route_service)?;
+            let result = command::local_route_commands::add_local_route(parsed_payload, route_service, domain_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "remove_local_route" => {
@@ -522,9 +527,10 @@ fn dispatch_command(
         }
         "set_local_route_enabled" => {
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
+            let domain_service = app_handle.state::<DomainService>();
             let parsed_payload: command::local_route_commands::SetLocalRouteEnabledPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::local_route_commands::set_local_route_enabled(parsed_payload, route_service)?;
+            let result = command::local_route_commands::set_local_route_enabled(parsed_payload, route_service, domain_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         // --- Proxy ---

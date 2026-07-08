@@ -37,6 +37,7 @@ export const ko: TranslationSchema = {
   bulkPanelTitle: "일괄 관리",
   bulkPanelEmpty: "왼쪽 목록에서 도메인을 선택하세요",
   bulkPanelEmptyHint: "체크박스로 도메인을 고른 뒤 여기서 일괄 작업을 적용합니다",
+  bulkMixedState: "일부 활성",
   filtersToggle: "필터",
   filtersExpand: "필터 펼치기",
   filtersCollapse: "필터 접기",
@@ -91,6 +92,8 @@ export const ko: TranslationSchema = {
   schemaDownloadFailed: (msg: string) => `다운로드 실패: ${msg}`,
   schemaOpenExplorer: "스키마 탐색기 (새 창)",
   schemaUrlRequired: "스키마 URL을 먼저 입력하고 저장하세요",
+  apiSchemaOpenApiHint:
+    "이 도메인의 OpenAPI 스펙 URL을 관리합니다. 응답 페이로드용 JSON 스키마는 JSON 스키마 저장소를 사용하세요.",
 
   closePanel: "패널 닫기",
   openFeature: "열기",
@@ -128,6 +131,7 @@ export const ko: TranslationSchema = {
   proxyTarget: "대상",
   proxyNoRoute: "라우트가 설정되지 않았습니다",
   proxyGlobalOff: "프록시 서버가 꺼져 있습니다",
+  proxyLocalRoutingOff: "로컬 라우팅이 꺼져 있습니다. 인프라 또는 설정에서 켜 주세요.",
   proxyOpenInfra: "인프라 설정",
   proxyRouteModalTitle: "라우트 추가",
   proxyRouteModalDesc: (domain: string) => `${domain}에 대한 라우트`,
@@ -217,4 +221,26 @@ export const ko: TranslationSchema = {
   statusMonitor: "모니터",
   statusProxy: "프록시",
   statusApi: "API",
+
+  surfaceClose: "닫기",
+  surfaceDetach: "새 창",
+  handoffSend: "보내기",
+  handoffCloseMenu: "메뉴 닫기",
+  handoffFrom: (label: string) => `"${label}"에서 전달됨`,
+  handoffDismiss: "전달 데이터 지우기",
+  handoffToMocking: "모킹 규칙으로",
+  handoffToSchemaExplorer: "스키마 탐색기",
+  handoffToOpenApi: "OpenAPI 스펙",
+  handoffToJsonSchema: "JSON 스키마 저장소",
+  handoffToCrypto: "암복호화",
+  handoffToPipeline: "파이프라인",
+
+  contextBarShowDomainList: "도메인 목록 보기",
+  contextBarGlobalLogs: "전체 API 로그",
+
+  schemaHandoffEndpoint: "전달된 엔드포인트",
+  schemaHandoffExplorerHint: "스키마 탐색기에서 OpenAPI 스펙의 해당 오퍼레이션을 찾아보세요.",
+  schemaOpenExplorerOverlay: "스키마 탐색기 열기",
+  bulkBlocksGlobal: "일괄 관리 중에는 전체 도구를 열 수 없습니다",
+  debugSubmenu: "디버그 설정",
 };

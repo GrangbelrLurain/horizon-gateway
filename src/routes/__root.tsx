@@ -6,6 +6,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { proxyInspectorEnabledAtom, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
+import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
@@ -35,6 +36,7 @@ const RootLayout = () => {
   }, [setCreateMockModal]);
 
   useAppBootstrap();
+  useHubHandoffSync();
 
   const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
   const theme = useAtomValue(themeAtom);

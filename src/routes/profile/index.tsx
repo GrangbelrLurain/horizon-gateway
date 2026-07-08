@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import { Check, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type AppTheme, AVATAR_COLORS, getInitials, languageAtom, themeAtom, userProfileAtom } from "@/entities/app";
+import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
@@ -19,6 +20,8 @@ function ProfilePage() {
   const [lang, setLang] = useAtom(languageAtom);
   const t = lang === "ko" ? ko : en;
   const isEmbedded = useIsEmbeddedPage();
+  const isHubEmbed = useIsHubSurfaceEmbed();
+  const hideChrome = isEmbedded || isHubEmbed;
 
   const [globalTheme, setGlobalTheme] = useAtom(themeAtom);
 
@@ -57,9 +60,9 @@ function ProfilePage() {
 
   return (
     <div
-      className={`flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500 ${isEmbedded ? "h-full min-h-0" : "pb-20"}`}
+      className={`flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500 ${hideChrome ? "h-full min-h-0 overflow-y-auto p-4" : "pb-20"}`}
     >
-      {!isEmbedded && (
+      {!hideChrome && (
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-black tracking-tight text-base-content flex items-center gap-3">
             <div className="p-2 bg-primary/10 text-primary rounded-xl">
@@ -71,7 +74,9 @@ function ProfilePage() {
         </header>
       )}
 
-      <div className="bg-base-100 rounded-3xl border border-base-200 overflow-hidden shadow-sm flex flex-col md:flex-row min-h-[500px]">
+      <div
+        className={`bg-base-100 rounded-3xl border border-base-200 overflow-hidden shadow-sm flex flex-col md:flex-row ${hideChrome ? "min-h-0 flex-1" : "min-h-[500px]"}`}
+      >
         {/* Left side: Avatar Preview Jumbo */}
         <div className="md:w-[320px] bg-slate-950 p-8 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
           <div className={`absolute inset-0 opacity-20 ${tempColor}`} />

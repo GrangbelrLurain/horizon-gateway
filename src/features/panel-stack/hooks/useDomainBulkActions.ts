@@ -9,6 +9,7 @@ import {
   type BulkFeatureKey,
   bulkAssignGroup,
   bulkRemoveDomains,
+  setBulkApiBodyLogging,
   setBulkApiLogging,
   setBulkMonitor,
   setBulkProxy,
@@ -106,9 +107,29 @@ export function useDomainBulkActions() {
     [fetchAll, showAlert, t],
   );
 
+  const bulkApiBodyToggle = useCallback(
+    async (domainIds: number[], enabled: boolean) => {
+      if (domainIds.length === 0) {
+        return;
+      }
+      setBulkLoading(true);
+      try {
+        await setBulkApiBodyLogging(domainIds, enabled, apiLinks);
+        await fetchAll();
+      } catch (e) {
+        console.error(e);
+        await showAlert(t.errorGeneric, t.saveFailed, "danger");
+      } finally {
+        setBulkLoading(false);
+      }
+    },
+    [apiLinks, fetchAll, showAlert, t],
+  );
+
   return {
     bulkLoading,
     bulkFeatureToggle,
+    bulkApiBodyToggle,
     bulkAssign,
     bulkDelete,
   };

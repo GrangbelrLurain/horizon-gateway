@@ -29,6 +29,7 @@ pub use flags::{
     is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled, set_inspector_enabled,
     set_local_routing_enabled, set_mocking_enabled,
 };
+pub use routing::route_domain_to_host;
 pub use server::{run_proxy, run_reverse_proxy_http, run_reverse_proxy_https};
 #[allow(unused_imports)]
 pub use state::ProxyState;

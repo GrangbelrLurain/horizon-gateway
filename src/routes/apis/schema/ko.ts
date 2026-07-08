@@ -17,6 +17,10 @@ export const ko: TranslationSchema = {
   selectEndpoint: "왼쪽에서 엔드포인트를 선택하세요.",
   endpointsInfo: (eps: number, tags: number) => `${eps}개 엔드포인트, ${tags}개 태그 그룹`,
   chooseDomainToStart: "위에서 도메인을 선택하면 OpenAPI 스키마를 탐색할 수 있습니다.",
+  handoffEndpointMatched: (method: string, path: string) =>
+    `OpenAPI 엔드포인트 매칭됨: ${method.toUpperCase()} ${path}`,
+  handoffEndpointNotFound: (method: string, path: string) =>
+    `${method.toUpperCase()} ${path}에 해당하는 OpenAPI 엔드포인트를 찾지 못했습니다. 스키마 다운로드 여부를 확인하거나 직접 검색하세요.`,
   requestHistoryToday: "요청 기록 (오늘)",
   noLogsFound: "오늘 이 엔드포인트에 대한 로그가 없습니다.",
   hasBody: "본문 있음",

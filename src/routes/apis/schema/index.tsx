@@ -51,9 +51,17 @@ import {
   savedJsonSchemasAtom,
   validateJsonSchema,
 } from "@/entities/sandbox";
+import { hubSchemaExplorerSeedAtom } from "@/features/panel-stack";
 import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { type OpenApiSpec, type ParsedEndpoint, parseOpenApiSpec, type TagGroup } from "@/shared/lib/openapi-parser";
+import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
+import {
+  findMatchingEndpoint,
+  type OpenApiSpec,
+  type ParsedEndpoint,
+  parseOpenApiSpec,
+  type TagGroup,
+} from "@/shared/lib/openapi-parser";
 import { useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -803,7 +811,8 @@ export function ApiSchemaPage({
 } = {}) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const isEmbedded = embedMode !== "standalone";
+  const hubSurfaceEmbed = useIsHubSurfaceEmbed();
+  const isEmbedded = embedMode !== "standalone" || hubSurfaceEmbed;
   const routeSearch = useSearch({ strict: false });
   const [domains, setDomains] = useState<Domain[]>([]);
   const [links, setLinks] = useState<DomainApiLoggingLink[]>([]);
@@ -827,6 +836,30 @@ export function ApiSchemaPage({
   const [search, setSearch] = useAtom(apiSchemaSearchAtom);
   const [selectedEndpoint, setSelectedEndpoint] = useAtom(apiSchemaSelectedEndpointAtom);
   const [activeTab, setActiveTab] = useState<SchemaPageTab>("endpoints");
+  const [explorerSeed, setExplorerSeed] = useAtom(hubSchemaExplorerSeedAtom);
+  const pendingEndpointMatchRef = useRef<{ method: string; path: string } | null>(null);
+  const [handoffMatchNotice, setHandoffMatchNotice] = useState<{
+    ok: boolean;
+    method: string;
+    path: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!explorerSeed) {
+      return;
+    }
+
+    if (explorerSeed.domainId) {
+      setSelectedDomainId(explorerSeed.domainId);
+    }
+
+    pendingEndpointMatchRef.current = {
+      method: explorerSeed.method,
+      path: explorerSeed.path,
+    };
+    setHandoffMatchNotice(null);
+    setExplorerSeed(null);
+  }, [explorerSeed, setExplorerSeed, setSelectedDomainId]);
 
   useEffect(() => {
     (async () => {
@@ -910,6 +943,46 @@ export function ApiSchemaPage({
     })();
   }, [selectedDomainId, setSearch, setSelectedEndpoint, t]);
 
+  useEffect(() => {
+    const pending = pendingEndpointMatchRef.current;
+    if (!pending || schemaLoading) {
+      return;
+    }
+
+    if (allEndpoints.length === 0) {
+      if (!schemaLoading && (parseError || selectedDomainId !== null)) {
+        pendingEndpointMatchRef.current = null;
+        setHandoffMatchNotice({
+          ok: false,
+          method: pending.method,
+          path: pending.path,
+        });
+      }
+      return;
+    }
+
+    const matched = findMatchingEndpoint(allEndpoints, pending.method, pending.path);
+    pendingEndpointMatchRef.current = null;
+
+    if (matched) {
+      setSelectedEndpoint(matched);
+      setSearch(matched.path);
+      setHandoffMatchNotice({
+        ok: true,
+        method: pending.method,
+        path: pending.path,
+      });
+      return;
+    }
+
+    setSearch(pending.path);
+    setHandoffMatchNotice({
+      ok: false,
+      method: pending.method,
+      path: pending.path,
+    });
+  }, [allEndpoints, parseError, schemaLoading, selectedDomainId, setSearch, setSelectedEndpoint]);
+
   // Derive base URL from domain
   const baseUrl = useMemo(() => {
     if (!selectedDomainId) {
@@ -960,6 +1033,21 @@ export function ApiSchemaPage({
       )}
 
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-h-0">
+        {handoffMatchNotice && (
+          <div
+            className={clsx(
+              "shrink-0 rounded-xl border px-3 py-2 text-xs font-bold",
+              handoffMatchNotice.ok
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-warning/30 bg-warning/10 text-warning",
+            )}
+          >
+            {handoffMatchNotice.ok
+              ? t.handoffEndpointMatched(handoffMatchNotice.method, handoffMatchNotice.path)
+              : t.handoffEndpointNotFound(handoffMatchNotice.method, handoffMatchNotice.path)}
+          </div>
+        )}
+
         {/* Domain selector */}
         {!isEmbedded || !initialDomainId ? (
           <Card className="p-1 items-center gap-2 flex flex-wrap bg-base-100 border-base-300 shadow-xl rounded-2xl mb-6 relative z-10">

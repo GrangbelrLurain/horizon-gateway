@@ -1,18 +1,19 @@
 import clsx from "clsx";
-import { useAtom, useAtomValue } from "jotai";
-import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { BookOpen, Download, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { useDomainHubData } from "../hooks/useDomainHubData";
+import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import { hubSchemaExplorerSeedAtom } from "../store";
 import { Panel } from "./Panel";
 
 interface DomainApiSchemaPanelProps {
@@ -23,6 +24,8 @@ interface DomainApiSchemaPanelProps {
 export function DomainApiSchemaPanel({ domain, onClose }: DomainApiSchemaPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const nav = usePanelNavigation();
+  const setExplorerSeed = useSetAtom(hubSchemaExplorerSeedAtom);
   const { getDomainHost } = useDomainHubData();
   const host = getDomainHost(domain);
   const [links, setLinks] = useAtom(apiLoggingLinksAtom);
@@ -85,12 +88,15 @@ export function DomainApiSchemaPanel({ domain, onClose }: DomainApiSchemaPanelPr
   }, [domain.id, link?.schemaUrl, schemaUrl, t]);
 
   const handleOpenExplorer = useCallback(() => {
-    void openDetachedWindow(`/apis/schema?d=${domain.id}`, `${host} — Schema`, 1280, 860);
-  }, [domain.id, host]);
+    setExplorerSeed({ domainId: domain.id, method: "GET", path: "/" });
+    nav.openGlobalSurface("global/schema-explorer");
+  }, [domain.id, nav, setExplorerSeed]);
 
   return (
     <Panel id="api/schema" title={t.apiSchema} subtitle={host} onClose={onClose} width="lg">
       <div className="space-y-4">
+        <p className="text-xs text-base-content/55 leading-relaxed">{t.apiSchemaOpenApiHint}</p>
+
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold uppercase text-base-content/50">{t.schemaUrlLabel}</label>
           <Input
@@ -122,8 +128,8 @@ export function DomainApiSchemaPanel({ domain, onClose }: DomainApiSchemaPanelPr
         )}
 
         <Button variant="secondary" size="sm" className="w-full gap-1.5 text-xs" onClick={handleOpenExplorer}>
-          <ExternalLink className="w-3.5 h-3.5" />
-          {t.schemaOpenExplorer}
+          <BookOpen className="w-3.5 h-3.5" />
+          {t.schemaOpenExplorerOverlay}
         </Button>
       </div>
     </Panel>

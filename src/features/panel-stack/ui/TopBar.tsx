@@ -1,22 +1,24 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
-import { FlaskConical, Server, Settings, User } from "lucide-react";
+import { Server, Settings, User } from "lucide-react";
 import { languageAtom, proxyRunningAtom, WindowControls } from "@/entities/app";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import type { HubSurfaceId } from "../types";
+import { ToolsMenu } from "./ToolsMenu";
 
 const appWindow = getCurrentWindow();
 
 interface TopBarProps {
   onOpenInfrastructure: () => void;
-  onOpenTools: () => void;
+  onOpenProfile: () => void;
   onOpenSettings: () => void;
+  onOpenGlobalTool: (id: HubSurfaceId) => void;
 }
 
-export function TopBar({ onOpenInfrastructure, onOpenTools, onOpenSettings }: TopBarProps) {
+export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, onOpenGlobalTool }: TopBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const proxyRunning = useAtomValue(proxyRunningAtom);
@@ -58,20 +60,12 @@ export function TopBar({ onOpenInfrastructure, onOpenTools, onOpenSettings }: To
           <Server className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{t.infrastructure}</span>
         </Button>
+        <ToolsMenu onOpenTool={onOpenGlobalTool} />
         <Button
           variant="ghost"
           size="sm"
           className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
-          onClick={onOpenTools}
-        >
-          <FlaskConical className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{t.tools}</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
-          onClick={() => void openDetachedWindow("/profile", t.profile, 520, 680)}
+          onClick={onOpenProfile}
         >
           <User className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{t.profile}</span>

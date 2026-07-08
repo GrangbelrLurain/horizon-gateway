@@ -4,6 +4,8 @@ use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::domain_service::DomainService;
+use crate::service::local_route_service::LocalRouteService;
+use std::sync::Arc;
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -117,6 +119,7 @@ pub const UPDATE_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
 pub fn update_domain_by_id(
     payload: UpdateDomainByIdPayload,
     domain_service: tauri::State<'_, DomainService>,
+    route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
     let url = payload.url.filter(|s| !s.is_empty());
     let domain = domain_service.update_domain(payload.id, url);
@@ -127,6 +130,7 @@ pub fn update_domain_by_id(
             data: Option::<Domain>::None,
         })
     } else {
+        route_service.sync_with_domains(&domain_service.get_all());
         Ok(ApiResponse {
             message: format!("{} 업데이트 완료!", payload.id),
             success: true,
@@ -155,8 +159,10 @@ pub fn remove_domains(
     link_service: tauri::State<'_, DomainGroupLinkService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
+    route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
     link_service.remove_links_for_domain(payload.id);
+    route_service.remove_for_domain(payload.id);
     let domain = domain_service.delete_domain(payload.id);
     let all_domains = domain_service.get_all();
     monitor_service.sync_with_domains(&all_domains);
@@ -194,9 +200,12 @@ pub fn import_domains(
     payload: ImportDomainsPayload,
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
+    route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(payload.domains);
-    monitor_service.sync_with_domains(&domain_service.get_all());
+    let all_domains = domain_service.get_all();
+    monitor_service.sync_with_domains(&all_domains);
+    route_service.sync_with_domains(&all_domains);
     Ok(ApiResponse {
         message: format!("{}개 도메인 임포트 완료!", list.len()),
         success: true,
@@ -215,9 +224,11 @@ pub const CLEAR_ALL_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
 pub fn clear_all_domains(
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
+    route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(vec![]);
     monitor_service.sync_with_domains(&domain_service.get_all());
+    route_service.sync_with_domains(&domain_service.get_all());
     Ok(ApiResponse {
         message: "모든 도메인이 삭제되었습니다.".to_string(),
         success: true,

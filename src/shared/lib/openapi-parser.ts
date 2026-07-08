@@ -329,3 +329,66 @@ export function parseOpenApiSpec(jsonStr: string): {
 
   return { spec, endpoints, tagGroups };
 }
+
+// ── Log URL → OpenAPI endpoint matching ─────────────────────────────────────
+
+export function normalizeRequestPath(urlOrPath: string): string {
+  const trimmed = urlOrPath.trim();
+  if (!trimmed) {
+    return "/";
+  }
+
+  try {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return new URL(trimmed).pathname || "/";
+    }
+  } catch {
+    // fall through
+  }
+
+  const withoutQuery = trimmed.split("?")[0] ?? trimmed;
+  return withoutQuery.startsWith("/") ? withoutQuery : `/${withoutQuery}`;
+}
+
+export function matchesOpenApiPath(specPath: string, actualPath: string): boolean {
+  const normalize = (p: string) => {
+    const cleaned = p.replace(/\/+$/, "") || "/";
+    return cleaned === "/" ? [] : cleaned.split("/").filter(Boolean);
+  };
+
+  const specParts = normalize(specPath);
+  const actualParts = normalize(actualPath);
+
+  if (specParts.length !== actualParts.length) {
+    return false;
+  }
+
+  return specParts.every((seg, i) => {
+    if (seg.startsWith("{") && seg.endsWith("}")) {
+      return true;
+    }
+    return seg.toLowerCase() === actualParts[i].toLowerCase();
+  });
+}
+
+/** Match an API log method + URL against parsed OpenAPI endpoints. */
+export function findMatchingEndpoint(
+  endpoints: ParsedEndpoint[],
+  method: string,
+  urlOrPath: string,
+): ParsedEndpoint | null {
+  const path = normalizeRequestPath(urlOrPath);
+  const m = method.toLowerCase() as HttpMethod;
+
+  const exact = endpoints.find((ep) => ep.method === m && ep.path === path);
+  if (exact) {
+    return exact;
+  }
+
+  const byTemplate = endpoints.find((ep) => ep.method === m && matchesOpenApiPath(ep.path, path));
+  if (byTemplate) {
+    return byTemplate;
+  }
+
+  return endpoints.find((ep) => matchesOpenApiPath(ep.path, path)) ?? null;
+}

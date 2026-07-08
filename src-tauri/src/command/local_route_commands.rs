@@ -5,6 +5,7 @@ use crate::service::api_log_service::ApiLogService;
 use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::ca_service::CaService;
 use crate::service::local_proxy;
+use crate::service::domain_service::DomainService;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 use crate::service::system_proxy_service::SystemProxyService;
@@ -79,7 +80,7 @@ pub fn get_local_routes(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AddLocalRoutePayload {
-    pub domain: String,
+    pub domain_id: u32,
     pub target_host: String,
     pub target_port: u16,
 }
@@ -87,7 +88,7 @@ pub struct AddLocalRoutePayload {
 pub const ADD_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_local_route",
     description: "새로운 로컬 라우팅 규칙을 추가합니다.",
-    payload_example: r#"{"domain": "test.com", "targetHost": "localhost", "targetPort": 3000}"#,
+    payload_example: r#"{"domainId": 1, "targetHost": "localhost", "targetPort": 3000}"#,
 };
 
 #[tauri::command]
@@ -95,20 +96,39 @@ pub const ADD_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
 pub fn add_local_route(
     payload: AddLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
+    domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<LocalRoute>, String> {
-    let route = route_service.add(payload.domain, payload.target_host, payload.target_port);
-    Ok(ApiResponse {
-        message: "Route added".to_string(),
-        success: true,
-        data: route,
-    })
+    let domains = domain_service.get_all();
+    match route_service.add(
+        payload.domain_id,
+        &domains,
+        payload.target_host,
+        payload.target_port,
+    ) {
+        Ok(route) => Ok(ApiResponse {
+            message: "Route added".to_string(),
+            success: true,
+            data: route,
+        }),
+        Err(message) => Ok(ApiResponse {
+            message,
+            success: false,
+            data: LocalRoute {
+                id: 0,
+                domain_id: payload.domain_id,
+                domain: String::new(),
+                target_host: String::new(),
+                target_port: 0,
+                enabled: false,
+            },
+        }),
+    }
 }
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateLocalRoutePayload {
     pub id: u32,
-    pub domain: Option<String>,
     pub target_host: Option<String>,
     pub target_port: Option<u16>,
     pub enabled: Option<bool>,
@@ -117,7 +137,7 @@ pub struct UpdateLocalRoutePayload {
 pub const UPDATE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_local_route",
     description: "로컬 라우팅 규칙을 수정합니다.",
-    payload_example: r#"{"id": 1, "domain": "test.com", "targetHost": "localhost", "targetPort": 3000}"#,
+    payload_example: r#"{"id": 1, "targetHost": "localhost", "targetPort": 3000}"#,
 };
 
 #[tauri::command]
@@ -125,14 +145,16 @@ pub const UPDATE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
 pub fn update_local_route(
     payload: UpdateLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
+    domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+    let domains = domain_service.get_all();
     let route = route_service.update(
         payload.id,
-        payload.domain,
+        &domains,
         payload.target_host,
         payload.target_port,
         payload.enabled,
-    );
+    )?;
     Ok(ApiResponse {
         message: if route.is_some() {
             "Route updated"
@@ -140,7 +162,7 @@ pub fn update_local_route(
             "Route not found"
         }
         .to_string(),
-        success: true,
+        success: route.is_some(),
         data: route,
     })
 }
@@ -194,8 +216,10 @@ pub const SET_LOCAL_ROUTE_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::
 pub fn set_local_route_enabled(
     payload: SetLocalRouteEnabledPayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
+    domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
-    let route = route_service.set_enabled(payload.id, payload.enabled);
+    let domains = domain_service.get_all();
+    let route = route_service.set_enabled(payload.id, payload.enabled, &domains)?;
     Ok(ApiResponse {
         message: if route.is_some() {
             "Route updated"
@@ -203,7 +227,7 @@ pub fn set_local_route_enabled(
             "Route not found"
         }
         .to_string(),
-        success: true,
+        success: route.is_some(),
         data: route,
     })
 }

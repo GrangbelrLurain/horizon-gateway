@@ -2,11 +2,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Globe, Keyboard } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, usePromiseModal } from "@/entities/app";
 import type { Domain } from "@/shared/api";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
+import { en } from "../i18n/en";
+import { ko } from "../i18n/ko";
 import { HubOverlayProvider } from "../lib/HubOverlayContext";
+import type { HandoffTarget } from "../lib/hubHandoff";
 import {
   collapsedPanelsAtom,
   domainListBulkModeAtom,
@@ -14,10 +17,11 @@ import {
   domainListBulkSnapshotAtom,
   domainListOverlayOpenAtom,
   domainListPinnedOpenAtom,
+  hubHandoffRemoteTargetAtom,
   manualExpandedPanelsAtom,
   panelOverlayOpenAtom,
 } from "../store";
-import type { PanelEntry } from "../types";
+import type { HubSurfaceId, PanelEntry } from "../types";
 import { DomainApiLogDetailPanel } from "./DomainApiLogDetailPanel";
 import { DomainApiLogsPanel } from "./DomainApiLogsPanel";
 import { DomainApiMockingPanel } from "./DomainApiMockingPanel";
@@ -29,6 +33,8 @@ import { DomainListPanel } from "./DomainListPanel";
 import { DomainMonitorPanel } from "./DomainMonitorPanel";
 import { DomainOverviewPanel } from "./DomainOverviewPanel";
 import { DomainProxyPanel } from "./DomainProxyPanel";
+import { HubContextBar } from "./HubContextBar";
+import { HubSurfaceOverlay } from "./HubSurfaceOverlay";
 import { PanelBreadcrumb } from "./PanelBreadcrumb";
 import { TopBar } from "./TopBar";
 
@@ -65,6 +71,7 @@ function renderPanel(
           domain={domain}
           onClose={onClose}
           onOpenPanel={(id, params) => nav.openPanel(id, params)}
+          activePanelIds={panels.map((p) => p.id)}
         />
       );
     case "monitor":
@@ -96,6 +103,7 @@ function renderPanel(
         <DomainApiLogDetailPanel
           key={`api/log-${panel.params?.logId}`}
           logId={panel.params?.logId ?? ""}
+          domainId={domain.id}
           hostFilter={hostFilter}
           onClose={onClose}
         />
@@ -113,8 +121,27 @@ function renderPanel(
 
 export function DomainHubPage() {
   const nav = usePanelNavigation();
+  const [remoteHandoffTarget, setRemoteHandoffTarget] = useAtom(hubHandoffRemoteTargetAtom);
+
+  useEffect(() => {
+    if (!remoteHandoffTarget) {
+      return;
+    }
+
+    const target: HandoffTarget = remoteHandoffTarget;
+    setRemoteHandoffTarget(null);
+
+    if (target.scope === "domain") {
+      nav.openPanelForDomain(target.domainId, target.panelId);
+      return;
+    }
+    nav.openGlobalSurface(target.surfaceId);
+  }, [remoteHandoffTarget, nav, setRemoteHandoffTarget]);
+
   const { domains, loading, getDomainHost } = useDomainHubData();
   const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? ko : en;
+  const { alert: showAlert } = usePromiseModal();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hubOverlayRef = useRef<HTMLDivElement>(null);
   const [bulkMode, setBulkMode] = useAtom(domainListBulkModeAtom);
@@ -133,8 +160,12 @@ export function DomainHubPage() {
   const tipTimerRef = useRef<NodeJS.Timeout | null>(null);
   const navRef = useRef(nav);
   navRef.current = nav;
-  const overlayStateRef = useRef({ domain: false, panel: null as string | null });
-  overlayStateRef.current = { domain: domainListOverlayOpen, panel: panelOverlayOpen };
+  const overlayStateRef = useRef({ domain: false, panel: null as string | null, global: false });
+  overlayStateRef.current = {
+    domain: domainListOverlayOpen,
+    panel: panelOverlayOpen,
+    global: nav.globalSurface != null,
+  };
   const prevDomainIdRef = useRef<number | null>(null);
 
   const triggerShortcutTip = useCallback(() => {
@@ -146,6 +177,17 @@ export function DomainHubPage() {
       setShowShortcutTip(false);
     }, 3000);
   }, []);
+
+  const openSurface = useCallback(
+    (id: HubSurfaceId) => {
+      if (bulkMode) {
+        void showAlert(t.errorGeneric, t.bulkBlocksGlobal, "warning");
+        return;
+      }
+      nav.openGlobalSurface(id);
+    },
+    [bulkMode, nav, showAlert, t],
+  );
 
   const domain = nav.domainId ? domains.find((d) => d.id === nav.domainId) : null;
 
@@ -371,6 +413,11 @@ export function DomainHubPage() {
           return;
         }
 
+        if (overlayStateRef.current.global) {
+          e.preventDefault();
+          navRef.current.closeGlobalSurface();
+          return;
+        }
         if (overlayStateRef.current.domain) {
           e.preventDefault();
           setDomainListOverlayOpen(false);
@@ -411,12 +458,16 @@ export function DomainHubPage() {
     };
   }, [triggerShortcutTip, setDomainListOverlayOpen, setPanelOverlayOpen]);
 
+  const showDomainPanels = domain && !bulkMode;
+  const showEmptyState = !domain && !bulkMode && !nav.globalSurface;
+
   return (
     <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
       <TopBar
-        onOpenInfrastructure={() => nav.openPopup("infrastructure")}
-        onOpenTools={() => nav.openPopup("tools")}
-        onOpenSettings={() => nav.openPopup("settings")}
+        onOpenInfrastructure={() => openSurface("chrome/infrastructure")}
+        onOpenProfile={() => openSurface("chrome/profile")}
+        onOpenSettings={() => openSurface("chrome/settings")}
+        onOpenGlobalTool={openSurface}
       />
 
       {domain && !bulkMode && (
@@ -437,31 +488,42 @@ export function DomainHubPage() {
             selectedDomainId={nav.domainId}
             onSelectDomain={nav.selectDomain}
             onClearDomain={nav.clearDomain}
-            onAddDomain={() => nav.openPopup("add-domain")}
-            onManageGroups={() => nav.openPopup("groups")}
+            onAddDomain={() => openSurface("chrome/add-domain")}
+            onManageGroups={() => openSurface("chrome/groups")}
             onEnterBulkMode={enterBulkMode}
             onExitBulkMode={exitBulkMode}
             activePanelsCount={domain ? nav.panels.length : 0}
           />
 
-          {bulkMode ? (
-            <div className="flex flex-1 min-w-0 overflow-hidden">
-              <DomainBulkManagePanel onClose={exitBulkMode} />
-            </div>
-          ) : domain ? (
-            <div ref={scrollContainerRef} className="flex flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
-              {nav.panels.map((panel, i) => renderPanel(panel, domain, i, nav.panels, nav, getDomainHost(domain)))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100">
-              <div className="w-16 h-16 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
-                <Globe className="w-8 h-8 text-base-content/20" />
+          <div className="relative flex flex-1 min-w-0 overflow-hidden border-l border-base-300">
+            {bulkMode ? (
+              <div className="flex flex-1 min-w-0 overflow-hidden">
+                <DomainBulkManagePanel onClose={exitBulkMode} />
               </div>
-              <p className="text-sm font-bold text-base-content/50">
-                {lang === "ko" ? "도메인을 선택하세요" : "Select a domain to get started"}
-              </p>
-            </div>
-          )}
+            ) : showDomainPanels ? (
+              <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                <HubContextBar domain={domain} />
+                <div ref={scrollContainerRef} className="flex flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+                  {nav.panels.map((panel, i) => renderPanel(panel, domain, i, nav.panels, nav, getDomainHost(domain)))}
+                </div>
+              </div>
+            ) : showEmptyState ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100">
+                <div className="w-16 h-16 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
+                  <Globe className="w-8 h-8 text-base-content/20" />
+                </div>
+                <p className="text-sm font-bold text-base-content/50">
+                  {lang === "ko" ? "도메인을 선택하세요" : "Select a domain to get started"}
+                </p>
+              </div>
+            ) : (
+              <div className="flex-1 bg-base-100" />
+            )}
+
+            {nav.globalSurface && !bulkMode && (
+              <HubSurfaceOverlay surfaceId={nav.globalSurface} onClose={() => nav.closeGlobalSurface()} />
+            )}
+          </div>
 
           <AnimatePresence>
             {showShortcutTip && (

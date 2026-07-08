@@ -31,6 +31,7 @@ export const en = {
   bulkPanelTitle: "Bulk manage",
   bulkPanelEmpty: "Select domains from the list on the left",
   bulkPanelEmptyHint: "Use checkboxes to select domains, then apply actions here",
+  bulkMixedState: "Mixed",
   filtersToggle: "Filters",
   filtersExpand: "Show filters",
   filtersCollapse: "Hide filters",
@@ -85,6 +86,8 @@ export const en = {
   schemaDownloadFailed: (msg: string) => `Download failed: ${msg}`,
   schemaOpenExplorer: "Schema Explorer (new window)",
   schemaUrlRequired: "Enter and save a schema URL first",
+  apiSchemaOpenApiHint:
+    "Manage the OpenAPI spec URL for this domain. Use JSON Schema registry for response payload schemas.",
 
   closePanel: "Close panel",
   openFeature: "Open",
@@ -122,6 +125,7 @@ export const en = {
   proxyTarget: "Target",
   proxyNoRoute: "No route configured",
   proxyGlobalOff: "Proxy server is off",
+  proxyLocalRoutingOff: "Local routing is disabled. Enable it in Infrastructure or Settings.",
   proxyOpenInfra: "Infrastructure Settings",
   proxyRouteModalTitle: "Add Route",
   proxyRouteModalDesc: (domain: string) => `Route for ${domain}`,
@@ -211,4 +215,26 @@ export const en = {
   statusMonitor: "Monitor",
   statusProxy: "Proxy",
   statusApi: "API",
+
+  surfaceClose: "Close",
+  surfaceDetach: "Detach",
+  handoffSend: "Send to",
+  handoffCloseMenu: "Close menu",
+  handoffFrom: (label: string) => `From "${label}"`,
+  handoffDismiss: "Clear handoff",
+  handoffToMocking: "Mocking rule",
+  handoffToSchemaExplorer: "Schema explorer",
+  handoffToOpenApi: "OpenAPI spec",
+  handoffToJsonSchema: "JSON Schema registry",
+  handoffToCrypto: "Crypto tool",
+  handoffToPipeline: "Pipeline",
+
+  contextBarShowDomainList: "Show domain list",
+  contextBarGlobalLogs: "All API logs",
+
+  schemaHandoffEndpoint: "Handoff endpoint",
+  schemaHandoffExplorerHint: "Open the schema explorer to locate this operation in the OpenAPI spec.",
+  schemaOpenExplorerOverlay: "Open schema explorer",
+  bulkBlocksGlobal: "Finish bulk manage before opening global tools",
+  debugSubmenu: "Debug Settings",
 } as const;

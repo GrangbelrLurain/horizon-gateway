@@ -1,3 +1,4 @@
+export { importPropertiesFromJson } from "./lib/importPropertiesFromJson";
 export { FlowBuilder } from "./ui/FlowBuilder";
 export { LivePreviewer } from "./ui/LivePreviewer";
 export { PipelineLibraryPanel } from "./ui/PipelineLibraryPanel";

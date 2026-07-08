@@ -12,6 +12,11 @@ export const popupEn = {
   infraMobile: "Mobile Connection",
   infraMobileDesc: "Connect device to proxy via ADB or wireless",
   infraMobileOpen: "Mobile Connection Setup",
+  infraLocalRouting: "Local routing",
+  infraLocalRoutingDesc:
+    "When enabled, registered domain routes forward traffic to your local dev server. API logging and mocking still work when disabled.",
+  infraLocalRoutingOn: "On",
+  infraLocalRoutingOff: "Off",
   schemaExplorerTitle: "Schema Explorer",
   addDomainTitle: "Add Domain",
   addDomainPlaceholder: "Enter one URL per line\nhttps://api.example.com",

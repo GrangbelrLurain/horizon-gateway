@@ -116,7 +116,7 @@ export type AdbStatus = {
 };
 
 export type AddLocalRoutePayload = {
-	domain: string,
+	domainId: number,
 	targetHost: string,
 	targetPort: number,
 };
@@ -326,7 +326,9 @@ export type ImportDomainsPayload = {
 
 export type LocalRoute = {
 	id: number,
-	/**  Hostname to match (e.g. api.example.com) */
+	/**  Registered domain id (FK into domains.json). */
+	domain_id?: number,
+	/**  Hostname to match (e.g. api.example.com), cached from the linked domain URL. */
 	domain: string,
 	/**  Local target host (e.g. 127.0.0.1) */
 	target_host: string,
@@ -571,7 +573,6 @@ export type UpdateGroupPayload = {
 
 export type UpdateLocalRoutePayload = {
 	id: number,
-	domain: string | null,
 	targetHost: string | null,
 	targetPort: number | null,
 	enabled: boolean | null,

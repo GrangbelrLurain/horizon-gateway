@@ -4,6 +4,7 @@ import { Check, Copy, Download, FileCode, Layers, Plus, Save, Search, Trash2 } f
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { type SavedJsonSchema, savedJsonSchemasAtom, schemaBuilderCurrentSchemaAtom } from "@/entities/sandbox";
+import { hubJsonSchemaSeedAtom } from "@/features/panel-stack";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "@/features/sandbox";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 
@@ -56,6 +57,7 @@ function JsonSchemaPage() {
 
   const [savedSchemas, setSavedSchemas] = useAtom(savedJsonSchemasAtom);
   const setSharedSchema = useSetAtom(schemaBuilderCurrentSchemaAtom);
+  const [jsonSchemaSeed, setJsonSchemaSeed] = useAtom(hubJsonSchemaSeedAtom);
 
   const [selectedId, setSelectedId] = useState<string>(() => {
     return savedSchemas.length > 0 ? savedSchemas[0].id : "";
@@ -83,6 +85,31 @@ function JsonSchemaPage() {
       setProperties([]);
     }
   }, [selectedId, savedSchemas]);
+
+  useEffect(() => {
+    if (!jsonSchemaSeed) {
+      return;
+    }
+
+    const newId = `handoff-${Date.now()}`;
+    const schemaText = generateJsonSchema(jsonSchemaSeed.title, jsonSchemaSeed.description, jsonSchemaSeed.properties);
+    const newSchema: SavedJsonSchema = {
+      id: newId,
+      name: jsonSchemaSeed.title,
+      description: jsonSchemaSeed.description,
+      properties: jsonSchemaSeed.properties,
+      schemaText,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    setSavedSchemas((prev) => [newSchema, ...prev]);
+    setSelectedId(newId);
+    setTitle(newSchema.name);
+    setDescription(newSchema.description);
+    setProperties(newSchema.properties as SchemaProperty[]);
+    setJsonSchemaSeed(null);
+  }, [jsonSchemaSeed, setJsonSchemaSeed, setSavedSchemas]);
 
   // Search filter
   const filteredSchemas = useMemo(() => {

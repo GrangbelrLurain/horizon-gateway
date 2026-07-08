@@ -7,13 +7,14 @@ import { Modal } from "@/shared/ui/modal/Modal";
 import type { ProxyRouteModalT } from "./types";
 
 interface ProxyRouteModalProps {
+  domainId: number;
   domainUrl: string;
   t: ProxyRouteModalT;
   onClose: () => void;
   onAdded: () => void;
 }
 
-export function ProxyRouteModal({ domainUrl, t, onClose, onAdded }: ProxyRouteModalProps) {
+export function ProxyRouteModal({ domainId, domainUrl, t, onClose, onAdded }: ProxyRouteModalProps) {
   const [host, setHost] = useState("localhost");
   const [port, setPort] = useState("3000");
   const [adding, setAdding] = useState(false);
@@ -35,7 +36,7 @@ export function ProxyRouteModal({ domainUrl, t, onClose, onAdded }: ProxyRouteMo
     try {
       await commands
         .addLocalRoute({
-          domain: domainHost,
+          domainId,
           targetHost: host.trim(),
           targetPort: portNum,
         })

@@ -9,6 +9,52 @@ export type PanelId =
   | "api/schema"
   | "debug";
 
+export type DomainPanelId = PanelId;
+
+export type HubSurfaceId =
+  | "chrome/infrastructure"
+  | "chrome/settings"
+  | "chrome/groups"
+  | "chrome/add-domain"
+  | "chrome/profile"
+  | "global/pipeline"
+  | "global/crypto"
+  | "global/preview"
+  | "global/api-client"
+  | "global/json-schema"
+  | "global/server-logs"
+  | "global/api-logs"
+  | "global/mocking"
+  | "global/schema-explorer";
+
+const VALID_SURFACE_IDS: HubSurfaceId[] = [
+  "chrome/infrastructure",
+  "chrome/settings",
+  "chrome/groups",
+  "chrome/add-domain",
+  "chrome/profile",
+  "global/pipeline",
+  "global/crypto",
+  "global/preview",
+  "global/api-client",
+  "global/json-schema",
+  "global/server-logs",
+  "global/api-logs",
+  "global/mocking",
+  "global/schema-explorer",
+];
+
+export function parseHubSurfaceId(value: string | undefined): HubSurfaceId | null {
+  if (!value) {
+    return null;
+  }
+  return VALID_SURFACE_IDS.includes(value as HubSurfaceId) ? (value as HubSurfaceId) : null;
+}
+
+export function isChromeSurface(id: HubSurfaceId): boolean {
+  return id.startsWith("chrome/");
+}
+
 export interface PanelEntry {
   id: PanelId;
   params?: Record<string, string>;
@@ -18,6 +64,7 @@ export interface HubSearchParams {
   d?: number;
   p?: string;
   logId?: string;
+  g?: string;
 }
 
 export const TOP_LEVEL_PANELS: PanelId[] = ["overview", "monitor", "proxy", "api", "debug"];
@@ -66,14 +113,14 @@ export function buildPanelsFromSearch(
     if (logId) {
       return {
         domainId: d,
-        panels: [{ id: "overview" }, { id: "api" }, { id: "api/logs" }, { id: "api/log", params: { logId } }],
+        panels: [{ id: "overview" }, { id: "api/logs" }, { id: "api/log", params: { logId } }],
       };
     }
-    return { domainId: d, panels: [{ id: "overview" }, { id: "api" }, { id: "api/logs" }] };
+    return { domainId: d, panels: [{ id: "overview" }, { id: "api/logs" }] };
   }
 
   if (panelId.startsWith("api/")) {
-    return { domainId: d, panels: [{ id: "overview" }, { id: "api" }, { id: panelId }] };
+    return { domainId: d, panels: [{ id: "overview" }, { id: panelId }] };
   }
 
   return { domainId: d, panels: [{ id: "overview" }, { id: panelId }] };

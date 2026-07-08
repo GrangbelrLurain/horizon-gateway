@@ -114,7 +114,6 @@ export function useDomainFeatureToggles({
       await commands
         .updateLocalRoute({
           id: state.proxyRouteId,
-          domain: null,
           targetHost: null,
           targetPort: null,
           enabled,

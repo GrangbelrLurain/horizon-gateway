@@ -6,14 +6,16 @@ import type { MockRule, Scenario } from "@/entities/mocking";
 import * as mockingApi from "@/entities/mocking";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { Modal } from "@/shared/ui/modal/Modal";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { useDomainHubData } from "../hooks/useDomainHubData";
+import { useApiExchangeHandoffEffect } from "../hooks/useHubHandoff";
+import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import { HandoffBanner } from "./HandoffBanner";
 import { Panel } from "./Panel";
 
 interface DomainApiMockingPanelProps {
@@ -48,6 +50,7 @@ function matchesHost(rule: MockRule, host: string) {
 export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const nav = usePanelNavigation();
   const { alert: showAlert } = usePromiseModal();
   const { getDomainHost } = useDomainHubData();
   const host = getDomainHost(domain);
@@ -82,6 +85,29 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
   useEffect(() => {
     void load();
   }, [load]);
+
+  useApiExchangeHandoffEffect(
+    useCallback((handoff) => {
+      let path = handoff.url;
+      try {
+        path = new URL(handoff.url).pathname;
+      } catch {
+        // keep raw url
+      }
+
+      setEditingRule(null);
+      setRuleForm({
+        name: `${handoff.method} ${path}`,
+        method: handoff.method,
+        url_pattern: path.includes("*") ? path : `${path}*`,
+        response_status: String(handoff.response.status || 200),
+        response_headers: JSON.stringify(handoff.response.headers ?? { "Content-Type": "application/json" }, null, 2),
+        response_body: handoff.response.body ?? "{}",
+        enabled: false,
+      });
+      setIsRuleModalOpen(true);
+    }, []),
+  );
 
   const scenarioRules = rules.filter((r) => !selectedScenarioId || r.scenario_id === selectedScenarioId);
 
@@ -206,6 +232,7 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
   return (
     <Panel id="api/mocking" title={t.apiMocking} subtitle={host} onClose={onClose} width="lg">
       <div className="space-y-4">
+        <HandoffBanner />
         <StatusToggle
           label="Mocking"
           checked={!!mockingEnabled}
@@ -287,7 +314,7 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
           variant="secondary"
           size="sm"
           className="w-full text-xs"
-          onClick={() => void openDetachedWindow("/apis/mocking", t.apiMocking, 1200, 860)}
+          onClick={() => nav.openGlobalSurface("global/mocking")}
         >
           {t.mockingOpenFull}
         </Button>

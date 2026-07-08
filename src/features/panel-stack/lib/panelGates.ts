@@ -2,7 +2,7 @@ import type { DomainFeatureState } from "@/entities/domain";
 import type { PanelId } from "../types";
 
 export function canOpenPanel(panelId: PanelId, features: DomainFeatureState): boolean {
-  if (panelId === "overview" || panelId === "debug") {
+  if (panelId === "debug") {
     return true;
   }
   if (panelId === "monitor") {

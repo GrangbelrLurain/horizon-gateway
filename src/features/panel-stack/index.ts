@@ -1,5 +1,12 @@
 export { useDomainHubData } from "@/entities/domain-hub";
+export { useApiExchangeHandoffEffect } from "./hooks/useHubHandoff";
+export { useHubHandoffSync } from "./hooks/useHubHandoffSync";
+export { useHubNavigation } from "./hooks/useHubNavigation";
 export { usePanelNavigation } from "./hooks/usePanelNavigation";
-export type { HubSearchParams, PanelEntry, PanelId } from "./types";
+export { pickHandoffPayload } from "./lib/inferSchemaFromJson";
+export type { JsonSchemaHandoffSeed, SchemaExplorerHandoffSeed } from "./store";
+export { hubApiLogsHostSeedAtom, hubJsonSchemaSeedAtom, hubSchemaExplorerSeedAtom } from "./store";
+export type { HubSearchParams, HubSurfaceId, PanelEntry, PanelId } from "./types";
 export { DomainHubPage } from "./ui/DomainHubPage";
+export { HandoffBanner } from "./ui/HandoffBanner";
 export { TopBar } from "./ui/TopBar";
