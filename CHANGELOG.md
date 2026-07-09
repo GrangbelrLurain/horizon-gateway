@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.4.2] - 2026-07-09
+
+### Fixed
+
+- **Windows CLI pipe output**: Dropped unconditional `AttachConsole` / stdio rebinding (v2.4.1 regression). Release builds now use the console subsystem so `spawn`, pipes, and file redirection capture stdout reliably.
+- **GUI console flash**: Hide the console window on non-`cli` launch via `GetConsoleWindow` + `ShowWindow(SW_HIDE)`.
+
+### Changed
+
+- **SKILL.md**: Updated Windows notes — pipes/spawn work natively; `Out-String` is optional.
+
 ## [v2.4.1] - 2026-07-09
 
 ### Fixed

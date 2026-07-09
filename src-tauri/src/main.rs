@@ -1,18 +1,17 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(unsafe_code)]
 
-mod console_attach;
+mod console_window;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    let is_cli = args.len() > 1 && args[1] == "cli";
 
-    if args.len() > 1 && args[1] == "cli" {
-        console_attach::attach_for_cli();
+    if !is_cli {
+        console_window::hide_for_gui();
     }
 
     // If it's a standalone command (init, list, help), execute directly and exit to prevent Tauri/WebView2 hangs
-    if args.len() > 1 && args[1] == "cli" {
+    if is_cli {
         if args.len() > 2 && (args[2] == "init" || args[2] == "list" || args[2] == "help") {
             watchtower_lib::execute_cli_standalone(&args[2..]);
             std::process::exit(0);
