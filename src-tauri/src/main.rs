@@ -2,21 +2,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(unsafe_code)]
 
-#[cfg(windows)]
-extern "system" {
-    fn AttachConsole(dw_process_id: u32) -> i32;
-}
+mod console_attach;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
-    #[cfg(windows)]
-    {
-        if args.len() > 1 && args[1] == "cli" {
-            unsafe {
-                let _ = AttachConsole(0xffff_ffff); // ATTACH_PARENT_PROCESS
-            }
-        }
+    if args.len() > 1 && args[1] == "cli" {
+        console_attach::attach_for_cli();
     }
 
     // If it's a standalone command (init, list, help), execute directly and exit to prevent Tauri/WebView2 hangs

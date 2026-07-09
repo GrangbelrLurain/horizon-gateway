@@ -100,6 +100,27 @@ watchtower cli run create_scenario -   # JSON from stdin
 watchtower cli run get_domains '{}' --payload @body.json
 ```
 
+### Windows PowerShell
+
+Release builds are GUI-subsystem binaries. v2.4.1+ attaches to the parent console and rebinds stdio, so output should appear without extra piping. If a terminal still drops output, force synchronous capture:
+
+```powershell
+watchtower cli run get_proxy_status '{}' | Out-String
+```
+
+**JSON escaping** — wrap the payload in single quotes and escape inner double quotes:
+
+```powershell
+watchtower cli run set_local_route_enabled '{\"id\": 24, \"enabled\": true}'
+```
+
+**Prefer file payloads** for complex JSON (avoids escaping issues):
+
+```powershell
+watchtower cli run regist_domains @domains.json
+watchtower cli run create_scenario - --payload @body.json   # stdin
+```
+
 ### Examples
 
 ```bash
