@@ -8,6 +8,7 @@ import {
   sandboxActiveFlowAtom,
   savedPipelinesAtom,
 } from "@/entities/pipeline";
+import { createSavedPipeline, deleteSavedPipeline, updateSavedPipeline } from "@/entities/sandbox";
 
 const en = {
   title: "Saved Pipelines",
@@ -147,7 +148,7 @@ export function PipelineLibraryPanel() {
     });
   };
 
-  const handleSave = (asNew: boolean) => {
+  const handleSave = async (asNew: boolean) => {
     const name = saveName.trim();
     if (!name) {
       window.alert(isKo ? "파이프라인 이름을 입력해주세요." : "Please enter a pipeline name.");
@@ -159,39 +160,57 @@ export function PipelineLibraryPanel() {
       return;
     }
 
-    const now = Date.now();
-    const existingId = !asNew && activeFlow.loadedFromId ? activeFlow.loadedFromId : null;
-    const id = existingId ?? `pipeline_${Math.random().toString(36).slice(2, 10)}`;
+    try {
+      const existingId = !asNew && activeFlow.loadedFromId ? activeFlow.loadedFromId : null;
+      const description = saveDescription.trim();
+      const savedRaw = existingId
+        ? await updateSavedPipeline(existingId, {
+            name,
+            description,
+            flow: activeFlow.flow,
+          })
+        : await createSavedPipeline(name, description, activeFlow.flow);
 
-    const saved: SavedPipeline = {
-      id,
-      name,
-      description: saveDescription.trim(),
-      flow: activeFlow.flow,
-      createdAt: existingId ? (savedPipelines.find((p) => p.id === existingId)?.createdAt ?? now) : now,
-      updatedAt: now,
-    };
+      if (!savedRaw) {
+        throw new Error("Save failed");
+      }
 
-    persistSaved(saved);
-    setActiveFlow({
-      ...activeFlow,
-      loadedFromId: id,
-      updatedAt: now,
-    });
+      const saved: SavedPipeline = {
+        ...savedRaw,
+        createdAt: savedRaw.createdAt ?? Date.now(),
+        updatedAt: savedRaw.updatedAt ?? Date.now(),
+      };
 
-    setJustSaved(true);
-    setShowSaveForm(false);
-    window.setTimeout(() => setJustSaved(false), 1500);
+      persistSaved(saved);
+      setActiveFlow({
+        ...activeFlow,
+        loadedFromId: saved.id,
+        updatedAt: saved.updatedAt,
+      });
+
+      setJustSaved(true);
+      setShowSaveForm(false);
+      window.setTimeout(() => setJustSaved(false), 1500);
+    } catch (e) {
+      console.error(e);
+      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save pipeline.");
+    }
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(t.deleteConfirm)) {
       return;
     }
-    setSavedPipelines((prev) => prev.filter((p) => p.id !== id));
-    if (activeFlow.loadedFromId === id) {
-      setActiveFlow({ ...activeFlow, loadedFromId: null });
+    try {
+      await deleteSavedPipeline(id);
+      setSavedPipelines((prev) => prev.filter((p) => p.id !== id));
+      if (activeFlow.loadedFromId === id) {
+        setActiveFlow({ ...activeFlow, loadedFromId: null });
+      }
+    } catch (err) {
+      console.error(err);
+      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete pipeline.");
     }
   };
 

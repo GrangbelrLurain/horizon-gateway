@@ -3,7 +3,14 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Check, Copy, Download, FileCode, Layers, Plus, Save, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
-import { type SavedJsonSchema, savedJsonSchemasAtom, schemaBuilderCurrentSchemaAtom } from "@/entities/sandbox";
+import {
+  createJsonSchema,
+  deleteJsonSchema,
+  type SavedJsonSchema,
+  savedJsonSchemasAtom,
+  schemaBuilderCurrentSchemaAtom,
+  updateJsonSchema,
+} from "@/entities/sandbox";
 import { hubJsonSchemaSeedAtom } from "@/features/panel-stack";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "@/features/sandbox";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
@@ -53,6 +60,7 @@ const ko = {
 function JsonSchemaPage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const isKo = lang === "ko";
   const isEmbedded = useIsEmbeddedPage();
 
   const [savedSchemas, setSavedSchemas] = useAtom(savedJsonSchemasAtom);
@@ -91,24 +99,31 @@ function JsonSchemaPage() {
       return;
     }
 
-    const newId = `handoff-${Date.now()}`;
     const schemaText = generateJsonSchema(jsonSchemaSeed.title, jsonSchemaSeed.description, jsonSchemaSeed.properties);
-    const newSchema: SavedJsonSchema = {
-      id: newId,
-      name: jsonSchemaSeed.title,
-      description: jsonSchemaSeed.description,
-      properties: jsonSchemaSeed.properties,
-      schemaText,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    setSavedSchemas((prev) => [newSchema, ...prev]);
-    setSelectedId(newId);
-    setTitle(newSchema.name);
-    setDescription(newSchema.description);
-    setProperties(newSchema.properties as SchemaProperty[]);
-    setJsonSchemaSeed(null);
+    void (async () => {
+      try {
+        const created = await createJsonSchema(
+          jsonSchemaSeed.title,
+          jsonSchemaSeed.description,
+          jsonSchemaSeed.properties,
+          schemaText,
+        );
+        const newSchema: SavedJsonSchema = {
+          ...created,
+          createdAt: created.createdAt ?? Date.now(),
+          updatedAt: created.updatedAt ?? Date.now(),
+        };
+        setSavedSchemas((prev) => [newSchema, ...prev]);
+        setSelectedId(newSchema.id);
+        setTitle(newSchema.name);
+        setDescription(newSchema.description);
+        setProperties(newSchema.properties as SchemaProperty[]);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setJsonSchemaSeed(null);
+      }
+    })();
   }, [jsonSchemaSeed, setJsonSchemaSeed, setSavedSchemas]);
 
   // Search filter
@@ -147,22 +162,17 @@ function JsonSchemaPage() {
   }, [selectedId, savedSchemas, title, description, properties]);
 
   // CRUD Operations
-  const handleAddSchema = () => {
-    const newId = Math.random().toString(36).substring(2, 9);
-    const newSchema: SavedJsonSchema = {
-      id: newId,
-      name: "NewSchema",
-      description: "A newly created JSON Schema",
-      properties: [
-        {
-          id: "1",
-          name: "id",
-          type: "integer",
-          description: "The identifier",
-          required: true,
-        },
-      ],
-      schemaText: `{
+  const handleAddSchema = async () => {
+    const propertiesSeed: SchemaProperty[] = [
+      {
+        id: "1",
+        name: "id",
+        type: "integer",
+        description: "The identifier",
+        required: true,
+      },
+    ];
+    const schemaText = `{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "NewSchema",
   "description": "A newly created JSON Schema",
@@ -176,36 +186,54 @@ function JsonSchemaPage() {
   "required": [
     "id"
   ]
-}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setSavedSchemas([...savedSchemas, newSchema]);
-    setSelectedId(newId);
+}`;
+    try {
+      const created = await createJsonSchema("NewSchema", "A newly created JSON Schema", propertiesSeed, schemaText);
+      const normalized: SavedJsonSchema = {
+        ...created,
+        createdAt: created.createdAt ?? Date.now(),
+        updatedAt: created.updatedAt ?? Date.now(),
+      };
+      setSavedSchemas([...savedSchemas, normalized]);
+      setSelectedId(normalized.id);
+    } catch (e) {
+      console.error(e);
+      window.alert(isKo ? "스키마 추가에 실패했습니다." : "Failed to add schema.");
+    }
   };
 
-  const handleSave = () => {
-    const updated = savedSchemas.map((s) => {
-      if (s.id === selectedId) {
-        return {
-          ...s,
-          name: title,
-          description,
-          properties,
-          schemaText: generatedSchema,
-          updatedAt: Date.now(),
-        };
+  const handleSave = async () => {
+    try {
+      const updatedItem = await updateJsonSchema(selectedId, {
+        name: title,
+        description,
+        properties,
+        schemaText: generatedSchema,
+      });
+      if (!updatedItem) {
+        throw new Error("Not found");
       }
-      return s;
-    });
-    setSavedSchemas(updated);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
+      const normalized: SavedJsonSchema = {
+        ...updatedItem,
+        createdAt: updatedItem.createdAt ?? Date.now(),
+        updatedAt: updatedItem.updatedAt ?? Date.now(),
+      };
+      setSavedSchemas(savedSchemas.map((s) => (s.id === selectedId ? normalized : s)));
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save schema.");
+    }
   };
 
-  const handleDeleteSchema = (id: string, e: React.MouseEvent) => {
+  const handleDeleteSchema = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(t.deleteConfirm)) {
+    if (!window.confirm(t.deleteConfirm)) {
+      return;
+    }
+    try {
+      await deleteJsonSchema(id);
       const remaining = savedSchemas.filter((s) => s.id !== id);
       setSavedSchemas(remaining);
       if (selectedId === id) {
@@ -215,6 +243,9 @@ function JsonSchemaPage() {
           setSelectedId("");
         }
       }
+    } catch (err) {
+      console.error(err);
+      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete schema.");
     }
   };
 

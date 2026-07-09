@@ -6,8 +6,10 @@ use tauri::State;
 
 pub const GET_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_annotations",
-    description: "UX 인스펝터 정책(주석) 전체 목록을 조회합니다.",
+    description: "UX 인스펙터 정책(주석) 전체 목록을 조회합니다.",
     payload_example: "{}",
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -30,8 +32,10 @@ pub struct DeleteAnnotationPayload {
 
 pub const ADD_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_annotation",
-    description: "UX 인스펝터 정책(주석)을 추가합니다.",
-    payload_example: r#"{"id": "uuid", "selector": ".btn", "role": "button", "description": "Submit button"}"#,
+    description: "UX 인스펙터 정책(주석)을 추가합니다.",
+    payload_example: r#"{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "Submit button", "timestamp": 0, "domain": "", "url": ""}"#,
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -58,8 +62,10 @@ pub struct UpdateAnnotationPayload {
 
 pub const UPDATE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_annotation",
-    description: "UX 인스펝터 정책(주석)을 수정합니다.",
+    description: "UX 인스펙터 정책(주석)을 수정합니다.",
     payload_example: r#"{"id": "uuid", "role": "button", "description": "Updated description"}"#,
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -79,8 +85,10 @@ pub fn update_annotation(
 
 pub const DELETE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "delete_annotation",
-    description: "UX 인스펝터 정책(주석)을 삭제합니다.",
+    description: "UX 인스펙터 정책(주석)을 삭제합니다.",
     payload_example: r#"{"id": "uuid"}"#,
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -105,8 +113,10 @@ pub struct ImportAnnotationsPayload {
 
 pub const IMPORT_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "import_annotations",
-    description: "UX 인스펝터 정책 목록을 일괄 임포트합니다.",
-    payload_example: r#"{"annotations": [{"id": "uuid", "selector": ".btn", "role": "button", "description": "desc"}]}"#,
+    description: "UX 인스펙터 정책 목록을 일괄 임포트합니다.",
+    payload_example: r#"{"annotations": [{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "desc", "timestamp": 0, "domain": "", "url": ""}]}"#,
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -126,8 +136,10 @@ pub fn import_annotations(
 
 pub const SET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "set_global_inspector_enabled",
-    description: "UI 인스펝터 전역 활성화 여부를 설정합니다.",
+    description: "UI 인스펙터 전역 활성화 여부를 설정합니다.",
     payload_example: "true",
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -143,8 +155,10 @@ pub fn set_global_inspector_enabled(
 
 pub const GET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_global_inspector_enabled",
-    description: "UI 인스펝터 전역 활성화 상태를 조회합니다.",
+    description: "UI 인스펙터 전역 활성화 상태를 조회합니다.",
     payload_example: "{}",
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -161,8 +175,10 @@ pub fn get_global_inspector_enabled() -> Result<ApiResponse<bool>, String> {
 
 pub const GET_INJECTION_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_injection_domains",
-    description: "UI 인스펝터 스크립트를 주입할 도메인 목록을 조회합니다.",
+    description: "UI 인스펙터 스크립트를 주입할 도메인 목록을 조회합니다.",
     payload_example: "{}",
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -185,8 +201,10 @@ pub struct SetInjectionDomainsPayload {
 
 pub const SET_INJECTION_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "set_injection_domains",
-    description: "UI 인스펝터 스크립트를 주입할 도메인 목록을 설정합니다.",
+    description: "UI 인스펙터 스크립트를 주입할 도메인 목록을 설정합니다.",
     payload_example: r#"{"domains": ["example.com", "test.com"]}"#,
+    category: "inspector",
+    gui_only: false,
 };
 
 #[tauri::command]

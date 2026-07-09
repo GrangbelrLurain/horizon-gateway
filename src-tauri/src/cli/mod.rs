@@ -14,6 +14,9 @@ use crate::service::proxy_settings_service::ProxySettingsService;
 use crate::service::ca_service::CaService;
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
+use crate::service::pipeline_library_service::PipelineLibraryService;
+use crate::service::json_schema_registry_service::JsonSchemaRegistryService;
+use crate::service::crypto_preset_service::CryptoPresetService;
 use crate::command;
 use serde::Serialize;
 use serde_json::Value;
@@ -25,6 +28,8 @@ pub struct CliCommandInfo {
     pub name: &'static str,
     pub description: &'static str,
     pub payload_example: &'static str,
+    pub category: &'static str,
+    pub gui_only: bool,
 }
 
 pub const CLI_COMMANDS: &[CliCommandInfo] = &[
@@ -111,6 +116,25 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     // --- Pipeline ---
     crate::command::pipeline_commands::EXECUTE_PIPELINE_CLI_INFO,
     crate::command::pipeline_commands::EXECUTE_PIPELINE_API_NODE_CLI_INFO,
+    // --- Sandbox Library ---
+    crate::command::pipeline_library_commands::GET_SAVED_PIPELINES_CLI_INFO,
+    crate::command::pipeline_library_commands::GET_SAVED_PIPELINE_CLI_INFO,
+    crate::command::pipeline_library_commands::CREATE_SAVED_PIPELINE_CLI_INFO,
+    crate::command::pipeline_library_commands::UPDATE_SAVED_PIPELINE_CLI_INFO,
+    crate::command::pipeline_library_commands::DELETE_SAVED_PIPELINE_CLI_INFO,
+    crate::command::pipeline_library_commands::IMPORT_SAVED_PIPELINES_CLI_INFO,
+    crate::command::json_schema_registry_commands::GET_JSON_SCHEMAS_CLI_INFO,
+    crate::command::json_schema_registry_commands::GET_JSON_SCHEMA_CLI_INFO,
+    crate::command::json_schema_registry_commands::CREATE_JSON_SCHEMA_CLI_INFO,
+    crate::command::json_schema_registry_commands::UPDATE_JSON_SCHEMA_CLI_INFO,
+    crate::command::json_schema_registry_commands::DELETE_JSON_SCHEMA_CLI_INFO,
+    crate::command::json_schema_registry_commands::IMPORT_JSON_SCHEMAS_CLI_INFO,
+    crate::command::crypto_preset_commands::GET_CRYPTO_PRESETS_CLI_INFO,
+    crate::command::crypto_preset_commands::GET_CRYPTO_PRESET_CLI_INFO,
+    crate::command::crypto_preset_commands::CREATE_CRYPTO_PRESET_CLI_INFO,
+    crate::command::crypto_preset_commands::UPDATE_CRYPTO_PRESET_CLI_INFO,
+    crate::command::crypto_preset_commands::DELETE_CRYPTO_PRESET_CLI_INFO,
+    crate::command::crypto_preset_commands::IMPORT_CRYPTO_PRESETS_CLI_INFO,
     // --- Settings ---
     crate::command::settings_commands::EXPORT_ALL_SETTINGS_CLI_INFO,
     crate::command::settings_commands::IMPORT_ALL_SETTINGS_CLI_INFO,
@@ -297,6 +321,112 @@ fn print_error(msg: &str) {
     });
     cli_eprintln(&serde_json::to_string_pretty(&output).unwrap());
 }
+
+/// Names handled by [`dispatch_command`]. Keep in sync when adding CLI commands:
+/// `CLI_INFO` → `CLI_COMMANDS` → match arm → this list.
+const DISPATCHED_COMMAND_NAMES: &[&str] = &[
+    "get_domain_api_logging_links",
+    "set_domain_api_logging",
+    "remove_domain_api_logging",
+    "get_api_schema_content",
+    "list_api_log_dates",
+    "get_api_logs",
+    "clear_api_logs",
+    "get_domains",
+    "get_domain_by_id",
+    "regist_domains",
+    "update_domain_by_id",
+    "remove_domains",
+    "import_domains",
+    "clear_all_domains",
+    "get_groups",
+    "create_group",
+    "update_group",
+    "delete_group",
+    "get_domain_group_links",
+    "set_domain_groups",
+    "set_group_domains",
+    "get_domains_by_group",
+    "get_groups_for_domain",
+    "get_latest_status",
+    "get_domain_monitor_list",
+    "set_domain_monitor_check_enabled",
+    "get_domain_status_logs",
+    "get_local_routes",
+    "add_local_route",
+    "update_local_route",
+    "remove_local_route",
+    "set_local_route_enabled",
+    "get_proxy_status",
+    "get_proxy_auto_start_error",
+    "get_proxy_settings",
+    "set_proxy_dns_server",
+    "set_proxy_port",
+    "set_proxy_reverse_ports",
+    "get_proxy_setup_url",
+    "stop_local_proxy",
+    "set_local_routing_enabled",
+    "get_mocking_status",
+    "set_mocking_enabled",
+    "get_scenarios",
+    "create_scenario",
+    "update_scenario",
+    "set_scenario_enabled",
+    "delete_scenario",
+    "get_mock_rules",
+    "get_mock_rules_by_scenario",
+    "create_mock_rule",
+    "update_mock_rule",
+    "delete_mock_rule",
+    "process_crypto",
+    "validate_json_schema",
+    "get_annotations",
+    "add_annotation",
+    "update_annotation",
+    "delete_annotation",
+    "import_annotations",
+    "get_global_inspector_enabled",
+    "set_global_inspector_enabled",
+    "get_injection_domains",
+    "set_injection_domains",
+    "export_all_settings",
+    "import_all_settings",
+    "save_root_ca",
+    "download_api_schema",
+    "send_api_request",
+    "check_domain_status",
+    "start_local_proxy",
+    "create_mock_rule_from_log",
+    "get_tailscale_ip",
+    "start_cloudflare_tunnel",
+    "stop_cloudflare_tunnel",
+    "check_adb_status",
+    "start_usb_reverse",
+    "stop_usb_reverse",
+    "open_window",
+    "open_inspector_window",
+    "open_annotation_dialog",
+    "execute_pipeline",
+    "execute_pipeline_api_node",
+    "get_saved_pipelines",
+    "get_saved_pipeline",
+    "create_saved_pipeline",
+    "update_saved_pipeline",
+    "delete_saved_pipeline",
+    "import_saved_pipelines",
+    "get_json_schemas",
+    "get_json_schema",
+    "create_json_schema",
+    "update_json_schema",
+    "delete_json_schema",
+    "import_json_schemas",
+    "get_crypto_presets",
+    "get_crypto_preset",
+    "create_crypto_preset",
+    "update_crypto_preset",
+    "delete_crypto_preset",
+    "import_crypto_presets",
+];
 
 fn dispatch_command(
     cmd_name: &str,
@@ -518,6 +648,14 @@ fn dispatch_command(
             let result = command::local_route_commands::add_local_route(parsed_payload, route_service, domain_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "update_local_route" => {
+            let route_service = app_handle.state::<Arc<LocalRouteService>>();
+            let domain_service = app_handle.state::<DomainService>();
+            let parsed: command::local_route_commands::UpdateLocalRoutePayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::local_route_commands::update_local_route(parsed, route_service, domain_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "remove_local_route" => {
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let parsed_payload: command::local_route_commands::RemoveLocalRoutePayload = serde_json::from_value(payload)
@@ -688,6 +826,34 @@ fn dispatch_command(
         "get_annotations" => {
             let service = app_handle.state::<InspectorService>();
             let result = command::inspector_commands::get_annotations(service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "add_annotation" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: crate::model::inspector::Annotation = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::add_annotation(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "update_annotation" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::UpdateAnnotationPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::update_annotation(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "delete_annotation" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::DeleteAnnotationPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::delete_annotation(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "import_annotations" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::ImportAnnotationsPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::import_annotations(service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "get_global_inspector_enabled" => {
@@ -887,6 +1053,277 @@ fn dispatch_command(
             let result = tauri::async_runtime::block_on(command::pipeline_commands::execute_pipeline_api_node(config_json))?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        // --- Sandbox Library ---
+        "get_saved_pipelines" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let result = command::pipeline_library_commands::get_saved_pipelines(service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_saved_pipeline" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let parsed: command::pipeline_library_commands::GetSavedPipelinePayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::pipeline_library_commands::get_saved_pipeline(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "create_saved_pipeline" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let parsed: command::pipeline_library_commands::CreateSavedPipelinePayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::pipeline_library_commands::create_saved_pipeline(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "update_saved_pipeline" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let parsed: command::pipeline_library_commands::UpdateSavedPipelinePayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::pipeline_library_commands::update_saved_pipeline(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "delete_saved_pipeline" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let parsed: command::pipeline_library_commands::DeleteSavedPipelinePayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::pipeline_library_commands::delete_saved_pipeline(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "import_saved_pipelines" => {
+            let service = app_handle.state::<Arc<PipelineLibraryService>>();
+            let parsed: command::pipeline_library_commands::ImportSavedPipelinesPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::pipeline_library_commands::import_saved_pipelines(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_json_schemas" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let result = command::json_schema_registry_commands::get_json_schemas(service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_json_schema" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let parsed: command::json_schema_registry_commands::GetJsonSchemaPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::json_schema_registry_commands::get_json_schema(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "create_json_schema" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let parsed: command::json_schema_registry_commands::CreateJsonSchemaPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::json_schema_registry_commands::create_json_schema(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "update_json_schema" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let parsed: command::json_schema_registry_commands::UpdateJsonSchemaPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::json_schema_registry_commands::update_json_schema(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "delete_json_schema" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let parsed: command::json_schema_registry_commands::DeleteJsonSchemaPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::json_schema_registry_commands::delete_json_schema(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "import_json_schemas" => {
+            let service = app_handle.state::<Arc<JsonSchemaRegistryService>>();
+            let parsed: command::json_schema_registry_commands::ImportJsonSchemasPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::json_schema_registry_commands::import_json_schemas(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_crypto_presets" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let result = command::crypto_preset_commands::get_crypto_presets(service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_crypto_preset" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let parsed: command::crypto_preset_commands::GetCryptoPresetPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::crypto_preset_commands::get_crypto_preset(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "create_crypto_preset" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let parsed: command::crypto_preset_commands::CreateCryptoPresetPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::crypto_preset_commands::create_crypto_preset(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "update_crypto_preset" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let parsed: command::crypto_preset_commands::UpdateCryptoPresetPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::crypto_preset_commands::update_crypto_preset(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "delete_crypto_preset" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let parsed: command::crypto_preset_commands::DeleteCryptoPresetPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::crypto_preset_commands::delete_crypto_preset(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "import_crypto_presets" => {
+            let service = app_handle.state::<Arc<CryptoPresetService>>();
+            let parsed: command::crypto_preset_commands::ImportCryptoPresetsPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::crypto_preset_commands::import_crypto_presets(parsed, service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         _ => Err(format!("지원되지 않는 CLI 명령어입니다: {}", cmd_name)),
+    }
+}
+
+#[cfg(test)]
+mod parity_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn cli_list_matches_dispatch() {
+        let listed: HashSet<&str> = CLI_COMMANDS.iter().map(|c| c.name).collect();
+        let dispatched: HashSet<&str> = DISPATCHED_COMMAND_NAMES.iter().copied().collect();
+        let mut diff: Vec<&&str> = listed.symmetric_difference(&dispatched).collect();
+        diff.sort();
+        assert!(
+            diff.is_empty(),
+            "CLI_COMMANDS and DISPATCHED_COMMAND_NAMES must stay in sync. Diff: {diff:?}"
+        );
+    }
+
+    /// Keep in sync with `collect_commands!` in lib.rs — every registered Tauri
+    /// command name must appear in CLI_COMMANDS (agent visibility).
+    const SPECTA_COMMAND_NAMES: &[&str] = &[
+        "regist_domains",
+        "get_domains",
+        "remove_domains",
+        "get_domain_by_id",
+        "update_domain_by_id",
+        "import_domains",
+        "clear_all_domains",
+        "get_latest_status",
+        "check_domain_status",
+        "get_domain_status_logs",
+        "get_domain_group_links",
+        "set_domain_groups",
+        "set_group_domains",
+        "get_domains_by_group",
+        "get_groups_for_domain",
+        "create_group",
+        "get_groups",
+        "delete_group",
+        "update_group",
+        "get_local_routes",
+        "add_local_route",
+        "update_local_route",
+        "remove_local_route",
+        "set_local_route_enabled",
+        "get_proxy_status",
+        "start_local_proxy",
+        "stop_local_proxy",
+        "get_proxy_settings",
+        "set_proxy_dns_server",
+        "set_proxy_port",
+        "set_proxy_reverse_ports",
+        "get_proxy_setup_url",
+        "export_all_settings",
+        "import_all_settings",
+        "save_root_ca",
+        "get_domain_monitor_list",
+        "set_domain_monitor_check_enabled",
+        "get_domain_api_logging_links",
+        "set_domain_api_logging",
+        "remove_domain_api_logging",
+        "download_api_schema",
+        "get_api_schema_content",
+        "send_api_request",
+        "set_local_routing_enabled",
+        "get_proxy_auto_start_error",
+        "list_api_log_dates",
+        "get_api_logs",
+        "clear_api_logs",
+        "open_window",
+        "open_inspector_window",
+        "open_annotation_dialog",
+        "get_annotations",
+        "add_annotation",
+        "update_annotation",
+        "delete_annotation",
+        "import_annotations",
+        "set_global_inspector_enabled",
+        "get_global_inspector_enabled",
+        "get_injection_domains",
+        "set_injection_domains",
+        "get_scenarios",
+        "create_scenario",
+        "update_scenario",
+        "delete_scenario",
+        "get_mock_rules",
+        "get_mock_rules_by_scenario",
+        "create_mock_rule",
+        "update_mock_rule",
+        "delete_mock_rule",
+        "create_mock_rule_from_log",
+        "get_mocking_status",
+        "set_mocking_enabled",
+        "set_scenario_enabled",
+        "get_tailscale_ip",
+        "start_cloudflare_tunnel",
+        "stop_cloudflare_tunnel",
+        "check_adb_status",
+        "start_usb_reverse",
+        "stop_usb_reverse",
+        "process_crypto",
+        "validate_json_schema",
+        "execute_pipeline",
+        "execute_pipeline_api_node",
+        "get_saved_pipelines",
+        "get_saved_pipeline",
+        "create_saved_pipeline",
+        "update_saved_pipeline",
+        "delete_saved_pipeline",
+        "import_saved_pipelines",
+        "get_json_schemas",
+        "get_json_schema",
+        "create_json_schema",
+        "update_json_schema",
+        "delete_json_schema",
+        "import_json_schemas",
+        "get_crypto_presets",
+        "get_crypto_preset",
+        "create_crypto_preset",
+        "update_crypto_preset",
+        "delete_crypto_preset",
+        "import_crypto_presets",
+    ];
+
+    #[test]
+    fn cli_list_matches_specta_commands() {
+        let listed: HashSet<&str> = CLI_COMMANDS.iter().map(|c| c.name).collect();
+        let specta: HashSet<&str> = SPECTA_COMMAND_NAMES.iter().copied().collect();
+        let mut diff: Vec<&&str> = listed.symmetric_difference(&specta).collect();
+        diff.sort();
+        assert!(
+            diff.is_empty(),
+            "CLI_COMMANDS and collect_commands! must stay in sync. Diff: {diff:?}"
+        );
+    }
+
+    #[test]
+    fn cli_info_has_category_and_gui_flag() {
+        for info in CLI_COMMANDS {
+            assert!(!info.category.is_empty(), "{} missing category", info.name);
+            if info.gui_only {
+                assert!(
+                    info.description.contains("[GUI]"),
+                    "{} is gui_only but description lacks [GUI]",
+                    info.name
+                );
+            }
+        }
     }
 }

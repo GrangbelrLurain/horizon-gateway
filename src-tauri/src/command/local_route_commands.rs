@@ -62,6 +62,8 @@ pub const GET_LOCAL_ROUTES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "get_local_routes",
     description: "로컬 라우팅(리다이렉트) 규칙 목록을 조회합니다.",
     payload_example: "{}",
+    category: "routing",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -89,6 +91,8 @@ pub const ADD_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     name: "add_local_route",
     description: "새로운 로컬 라우팅 규칙을 추가합니다.",
     payload_example: r#"{"domainId": 1, "targetHost": "localhost", "targetPort": 3000}"#,
+    category: "routing",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -138,6 +142,8 @@ pub const UPDATE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     name: "update_local_route",
     description: "로컬 라우팅 규칙을 수정합니다.",
     payload_example: r#"{"id": 1, "targetHost": "localhost", "targetPort": 3000}"#,
+    category: "routing",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -177,6 +183,8 @@ pub const REMOVE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     name: "remove_local_route",
     description: "로컬 라우팅 규칙을 삭제합니다.",
     payload_example: r#"{"id": 1}"#,
+    category: "routing",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -209,6 +217,8 @@ pub const SET_LOCAL_ROUTE_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::
     name: "set_local_route_enabled",
     description: "로컬 라우팅 규칙 활성화 여부를 설정합니다.",
     payload_example: r#"{"id": 1, "enabled": true}"#,
+    category: "routing",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -255,6 +265,8 @@ pub const GET_PROXY_AUTO_START_ERROR_CLI_INFO: crate::cli::CliCommandInfo = crat
     name: "get_proxy_auto_start_error",
     description: "프록시 자동 시작 실패 에러 메시지를 조회합니다. 정상이면 null을 반환합니다.",
     payload_example: "{}",
+    category: "proxy",
+    gui_only: false,
 };
 
 /// Returns the auto-start error if proxy failed to start on launch, or null if OK.
@@ -281,6 +293,8 @@ pub const GET_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "get_proxy_status",
     description: "프록시 서버의 현재 상태를 조회합니다.",
     payload_example: "{}",
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -318,6 +332,8 @@ pub const GET_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     name: "get_proxy_settings",
     description: "프록시 서버 설정(포트, DNS, 리버스 포트 등)을 조회합니다.",
     payload_example: "{}",
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -343,6 +359,8 @@ pub const SET_PROXY_DNS_SERVER_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     name: "set_proxy_dns_server",
     description: "프록시가 사용할 사용자 지정 DNS 서버를 설정합니다.",
     payload_example: r#"{"dnsServer": "8.8.8.8"}"#,
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -369,6 +387,8 @@ pub const SET_PROXY_PORT_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "set_proxy_port",
     description: "프록시 서버가 사용할 포트를 설정합니다.",
     payload_example: r#"{"port": 8080}"#,
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -395,6 +415,8 @@ pub const START_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     name: "start_local_proxy",
     description: "로컬 프록시 서버를 시작합니다.",
     payload_example: r#"{"port": null}"#,
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -558,8 +580,10 @@ pub async fn start_local_proxy(
 
 pub const GET_PROXY_SETUP_URL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_proxy_setup_url",
-    description: "프록시가 실행 중일 때 세틈 페이지 URL을 반환합니다.",
+    description: "프록시가 실행 중일 때 셋업 페이지 URL을 반환합니다.",
     payload_example: "{}",
+    category: "proxy",
+    gui_only: false,
 };
 
 /// Returns the setup page URL when proxy is running and a reverse port is configured.
@@ -601,6 +625,8 @@ pub const SET_PROXY_REVERSE_PORTS_CLI_INFO: crate::cli::CliCommandInfo = crate::
     name: "set_proxy_reverse_ports",
     description: "리버스 HTTP/HTTPS 포트를 설정합니다. 다음 프록시 시작시에 적용됩니다.",
     payload_example: r#"{"reverseHttpPort": 8081, "reverseHttpsPort": 8443}"#,
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -622,6 +648,8 @@ pub const STOP_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "stop_local_proxy",
     description: "실행 중인 로컬 프록시 서버를 중지합니다.",
     payload_example: "{}",
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -665,6 +693,8 @@ pub const SET_LOCAL_ROUTING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate
     name: "set_local_routing_enabled",
     description: "로컬 라우팅 적용 여부를 토글합니다.",
     payload_example: r#"{"enabled": true}"#,
+    category: "proxy",
+    gui_only: false,
 };
 
 #[tauri::command]

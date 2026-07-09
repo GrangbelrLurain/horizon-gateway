@@ -106,6 +106,24 @@ export const commands = {
 	validateJsonSchema: (payload: ValidateSchemaPayload) => typedError<ApiResponse<SchemaValidationResult>, string>(__TAURI_INVOKE("validate_json_schema", { payload })),
 	executePipeline: (payload: PipelineFlow) => typedError<ApiResponse<PipelineExecutionReport>, string>(__TAURI_INVOKE("execute_pipeline", { payload })),
 	executePipelineApiNode: (configJson: string) => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("execute_pipeline_api_node", { configJson })),
+	getSavedPipelines: () => typedError<ApiResponse<SavedPipeline_Serialize[]>, string>(__TAURI_INVOKE("get_saved_pipelines")),
+	getSavedPipeline: (payload: GetSavedPipelinePayload) => typedError<ApiResponse<SavedPipeline_Serialize | null>, string>(__TAURI_INVOKE("get_saved_pipeline", { payload })),
+	createSavedPipeline: (payload: CreateSavedPipelinePayload_Deserialize) => typedError<ApiResponse<SavedPipeline_Serialize>, string>(__TAURI_INVOKE("create_saved_pipeline", { payload })),
+	updateSavedPipeline: (payload: UpdateSavedPipelinePayload_Deserialize) => typedError<ApiResponse<SavedPipeline_Serialize | null>, string>(__TAURI_INVOKE("update_saved_pipeline", { payload })),
+	deleteSavedPipeline: (payload: DeleteSavedPipelinePayload) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("delete_saved_pipeline", { payload })),
+	importSavedPipelines: (payload: ImportSavedPipelinesPayload_Deserialize) => typedError<ApiResponse<SavedPipeline_Serialize[]>, string>(__TAURI_INVOKE("import_saved_pipelines", { payload })),
+	getJsonSchemas: () => typedError<ApiResponse<SavedJsonSchema_Serialize[]>, string>(__TAURI_INVOKE("get_json_schemas")),
+	getJsonSchema: (payload: GetJsonSchemaPayload) => typedError<ApiResponse<SavedJsonSchema_Serialize | null>, string>(__TAURI_INVOKE("get_json_schema", { payload })),
+	createJsonSchema: (payload: CreateJsonSchemaPayload_Deserialize) => typedError<ApiResponse<SavedJsonSchema_Serialize>, string>(__TAURI_INVOKE("create_json_schema", { payload })),
+	updateJsonSchema: (payload: UpdateJsonSchemaPayload_Deserialize) => typedError<ApiResponse<SavedJsonSchema_Serialize | null>, string>(__TAURI_INVOKE("update_json_schema", { payload })),
+	deleteJsonSchema: (payload: DeleteJsonSchemaPayload) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("delete_json_schema", { payload })),
+	importJsonSchemas: (payload: ImportJsonSchemasPayload_Deserialize) => typedError<ApiResponse<SavedJsonSchema_Serialize[]>, string>(__TAURI_INVOKE("import_json_schemas", { payload })),
+	getCryptoPresets: () => typedError<ApiResponse<SavedCryptoPreset_Serialize[]>, string>(__TAURI_INVOKE("get_crypto_presets")),
+	getCryptoPreset: (payload: GetCryptoPresetPayload) => typedError<ApiResponse<SavedCryptoPreset_Serialize | null>, string>(__TAURI_INVOKE("get_crypto_preset", { payload })),
+	createCryptoPreset: (payload: CreateCryptoPresetPayload) => typedError<ApiResponse<SavedCryptoPreset_Serialize>, string>(__TAURI_INVOKE("create_crypto_preset", { payload })),
+	updateCryptoPreset: (payload: UpdateCryptoPresetPayload) => typedError<ApiResponse<SavedCryptoPreset_Serialize | null>, string>(__TAURI_INVOKE("update_crypto_preset", { payload })),
+	deleteCryptoPreset: (payload: DeleteCryptoPresetPayload) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("delete_crypto_preset", { payload })),
+	importCryptoPresets: (payload: ImportCryptoPresetsPayload_Deserialize) => typedError<ApiResponse<SavedCryptoPreset_Serialize[]>, string>(__TAURI_INVOKE("import_crypto_presets", { payload })),
 };
 
 /* Types */
@@ -165,8 +183,34 @@ export type ClearApiLogsPayload = {
 	date: string | null,
 };
 
+export type CreateCryptoPresetPayload = {
+	name: string,
+	description?: string,
+	action: string,
+	payload?: string,
+	key?: string,
+	iv?: string,
+	code: string | null,
+};
+
 export type CreateGroupPayload = {
 	name: string,
+};
+
+export type CreateJsonSchemaPayload = CreateJsonSchemaPayload_Serialize | CreateJsonSchemaPayload_Deserialize;
+
+export type CreateJsonSchemaPayload_Deserialize = {
+	name: string,
+	description?: string,
+	properties?: SchemaProperty_Deserialize[],
+	schemaText?: string,
+};
+
+export type CreateJsonSchemaPayload_Serialize = {
+	name: string,
+	description: string,
+	properties: SchemaProperty_Serialize[],
+	schemaText: string,
 };
 
 export type CreateMockFromLogPayload = {
@@ -188,6 +232,20 @@ export type CreateMockRulePayload = {
 	enabled: boolean,
 };
 
+export type CreateSavedPipelinePayload = CreateSavedPipelinePayload_Serialize | CreateSavedPipelinePayload_Deserialize;
+
+export type CreateSavedPipelinePayload_Deserialize = {
+	name: string,
+	description?: string,
+	flow: SavedPipelineFlow_Deserialize,
+};
+
+export type CreateSavedPipelinePayload_Serialize = {
+	name: string,
+	description: string,
+	flow: SavedPipelineFlow_Serialize,
+};
+
 export type CreateScenarioPayload = {
 	name: string,
 	description: string | null,
@@ -199,8 +257,20 @@ export type DeleteAnnotationPayload = {
 	id: string,
 };
 
+export type DeleteCryptoPresetPayload = {
+	id: string,
+};
+
 export type DeleteGroupPayload = {
 	id: number,
+};
+
+export type DeleteJsonSchemaPayload = {
+	id: string,
+};
+
+export type DeleteSavedPipelinePayload = {
+	id: string,
 };
 
 export type Domain = {
@@ -296,6 +366,10 @@ export type GetApiSchemaPayload = {
 	domainId: number,
 };
 
+export type GetCryptoPresetPayload = {
+	id: string,
+};
+
 export type GetDomainByIdPayload = {
 	id: number,
 };
@@ -312,16 +386,54 @@ export type GetGroupsForDomainPayload = {
 	domainId: number,
 };
 
+export type GetJsonSchemaPayload = {
+	id: string,
+};
+
 export type GetMockRulesByScenarioPayload = {
 	scenarioId: string,
+};
+
+export type GetSavedPipelinePayload = {
+	id: string,
 };
 
 export type ImportAnnotationsPayload = {
 	annotations: Annotation[],
 };
 
+export type ImportCryptoPresetsPayload = ImportCryptoPresetsPayload_Serialize | ImportCryptoPresetsPayload_Deserialize;
+
+export type ImportCryptoPresetsPayload_Deserialize = {
+	presets: SavedCryptoPreset_Deserialize[],
+};
+
+export type ImportCryptoPresetsPayload_Serialize = {
+	presets: SavedCryptoPreset_Serialize[],
+};
+
 export type ImportDomainsPayload = {
 	domains: Domain[],
+};
+
+export type ImportJsonSchemasPayload = ImportJsonSchemasPayload_Serialize | ImportJsonSchemasPayload_Deserialize;
+
+export type ImportJsonSchemasPayload_Deserialize = {
+	schemas: SavedJsonSchema_Deserialize[],
+};
+
+export type ImportJsonSchemasPayload_Serialize = {
+	schemas: SavedJsonSchema_Serialize[],
+};
+
+export type ImportSavedPipelinesPayload = ImportSavedPipelinesPayload_Serialize | ImportSavedPipelinesPayload_Deserialize;
+
+export type ImportSavedPipelinesPayload_Deserialize = {
+	pipelines: SavedPipeline_Deserialize[],
+};
+
+export type ImportSavedPipelinesPayload_Serialize = {
+	pipelines: SavedPipeline_Serialize[],
 };
 
 export type LocalRoute = {
@@ -387,6 +499,11 @@ export type PipelineNode = {
 	config: string,
 };
 
+export type PipelineNodePosition = {
+	x: number | null,
+	y: number | null,
+};
+
 export type ProcessCryptoPayload = {
 	action: CryptoAction,
 	payload: string,
@@ -441,6 +558,112 @@ export type RemoveLocalRoutePayload = {
 	id: number,
 };
 
+export type SavedCryptoPreset = SavedCryptoPreset_Serialize | SavedCryptoPreset_Deserialize;
+
+export type SavedCryptoPreset_Deserialize = {
+	id: string,
+	name: string,
+	description: string,
+	action: string,
+	payload: string,
+	key: string,
+	iv: string,
+	code?: string | null,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
+export type SavedCryptoPreset_Serialize = {
+	id: string,
+	name: string,
+	description: string,
+	action: string,
+	payload: string,
+	key: string,
+	iv: string,
+	code?: string | null,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
+export type SavedJsonSchema = SavedJsonSchema_Serialize | SavedJsonSchema_Deserialize;
+
+export type SavedJsonSchema_Deserialize = {
+	id: string,
+	name: string,
+	description: string,
+	properties: SchemaProperty_Deserialize[],
+	schemaText: string,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
+export type SavedJsonSchema_Serialize = {
+	id: string,
+	name: string,
+	description: string,
+	properties: SchemaProperty_Serialize[],
+	schemaText: string,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
+export type SavedPipeline = SavedPipeline_Serialize | SavedPipeline_Deserialize;
+
+export type SavedPipelineEdge = {
+	id: string,
+	source: string,
+	target: string,
+};
+
+export type SavedPipelineFlow = SavedPipelineFlow_Serialize | SavedPipelineFlow_Deserialize;
+
+export type SavedPipelineFlow_Deserialize = {
+	nodes: SavedPipelineNode_Deserialize[],
+	edges: SavedPipelineEdge[],
+};
+
+export type SavedPipelineFlow_Serialize = {
+	nodes: SavedPipelineNode_Serialize[],
+	edges: SavedPipelineEdge[],
+};
+
+export type SavedPipelineNode = SavedPipelineNode_Serialize | SavedPipelineNode_Deserialize;
+
+export type SavedPipelineNode_Deserialize = {
+	id: string,
+	label: string,
+	type: string,
+	config: string,
+	position?: PipelineNodePosition | null,
+};
+
+export type SavedPipelineNode_Serialize = {
+	id: string,
+	label: string,
+	type: string,
+	config: string,
+	position?: PipelineNodePosition | null,
+};
+
+export type SavedPipeline_Deserialize = {
+	id: string,
+	name: string,
+	description: string,
+	flow: SavedPipelineFlow_Deserialize,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
+export type SavedPipeline_Serialize = {
+	id: string,
+	name: string,
+	description: string,
+	flow: SavedPipelineFlow_Serialize,
+	createdAt: number | null,
+	updatedAt: number | null,
+};
+
 export type Scenario = {
 	id: string,
 	name: string,
@@ -455,6 +678,26 @@ export type SchemaDownloadResult = {
 	sizeBytes: number | null,
 	/**  처음 N 글자 미리보기 (최대 500자). */
 	preview: string,
+};
+
+export type SchemaProperty = SchemaProperty_Serialize | SchemaProperty_Deserialize;
+
+export type SchemaProperty_Deserialize = {
+	id: string,
+	name: string,
+	type: string,
+	description: string,
+	required: boolean,
+	parentId?: string | null,
+};
+
+export type SchemaProperty_Serialize = {
+	id: string,
+	name: string,
+	type: string,
+	description: string,
+	required: boolean,
+	parentId?: string | null,
 };
 
 export type SchemaValidationResult = {
@@ -561,6 +804,18 @@ export type UpdateAnnotationPayload = {
 	description: string,
 };
 
+export type UpdateCryptoPresetPayload = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	action: string | null,
+	payload: string | null,
+	key: string | null,
+	iv: string | null,
+	/**  Nested Option: omit = no change; null = clear code; string = set */
+	code?: string | null,
+};
+
 export type UpdateDomainByIdPayload = {
 	id: number,
 	url: string | null,
@@ -569,6 +824,24 @@ export type UpdateDomainByIdPayload = {
 export type UpdateGroupPayload = {
 	id: number,
 	name: string,
+};
+
+export type UpdateJsonSchemaPayload = UpdateJsonSchemaPayload_Serialize | UpdateJsonSchemaPayload_Deserialize;
+
+export type UpdateJsonSchemaPayload_Deserialize = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	properties: SchemaProperty_Deserialize[] | null,
+	schemaText: string | null,
+};
+
+export type UpdateJsonSchemaPayload_Serialize = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	properties: SchemaProperty_Serialize[] | null,
+	schemaText: string | null,
 };
 
 export type UpdateLocalRoutePayload = {
@@ -588,6 +861,22 @@ export type UpdateMockRulePayload = {
 	responseHeaders: { [key in string]: string } | null,
 	responseBody: string | null,
 	enabled: boolean | null,
+};
+
+export type UpdateSavedPipelinePayload = UpdateSavedPipelinePayload_Serialize | UpdateSavedPipelinePayload_Deserialize;
+
+export type UpdateSavedPipelinePayload_Deserialize = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	flow: SavedPipelineFlow_Deserialize | null,
+};
+
+export type UpdateSavedPipelinePayload_Serialize = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	flow: SavedPipelineFlow_Serialize | null,
 };
 
 export type ValidateSchemaPayload = {

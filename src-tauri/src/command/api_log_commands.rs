@@ -11,6 +11,8 @@ pub const GET_DOMAIN_API_LOGGING_LINKS_CLI_INFO: crate::cli::CliCommandInfo = cr
     name: "get_domain_api_logging_links",
     description: "도메인별 API 로깅 설정 링크 목록을 조회합니다.",
     payload_example: "{}",
+    category: "api",
+    gui_only: false,
 };
 
 /// 모든 도메인 API 로깅 링크 조회.
@@ -40,6 +42,8 @@ pub const SET_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate::c
     name: "set_domain_api_logging",
     description: "도메인 API 로깅 설정을 추가하거나 변경합니다.",
     payload_example: r#"{"domainId": 1, "loggingEnabled": true, "bodyEnabled": false, "schemaUrl": null}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// 도메인 API 로깅 설정 추가/변경.
@@ -84,6 +88,8 @@ pub const REMOVE_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate
     name: "remove_domain_api_logging",
     description: "도메인 API 로깅 설정을 제거합니다.",
     payload_example: r#"{"domainId": 1}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// 도메인 API 로깅 설정 제거.
@@ -140,6 +146,8 @@ pub const DOWNLOAD_API_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     name: "download_api_schema",
     description: "Schema URL에서 OpenAPI/Swagger 스키마를 다운로드하여 로컬에 저장합니다.",
     payload_example: r#"{"domainId": 1, "url": "https://api.example.com/openapi.json"}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// Schema URL에서 JSON/YAML을 다운로드하여 로컬 저장.
@@ -207,6 +215,8 @@ pub const GET_API_SCHEMA_CONTENT_CLI_INFO: crate::cli::CliCommandInfo = crate::c
     name: "get_api_schema_content",
     description: "로컬에 저장된 API Schema 파일의 내용을 조회합니다.",
     payload_example: r#"{"domainId": 1}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// 로컬에 저장된 Schema 내용 조회.
@@ -276,6 +286,8 @@ pub const SEND_API_REQUEST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "send_api_request",
     description: "임의의 HTTP 요청을 전송하고 응답을 반환합니다 (Schema Try-it-out).",
     payload_example: r#"{"method": "GET", "url": "https://api.example.com/users", "headers": {}, "body": null}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// 임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
@@ -401,6 +413,8 @@ pub const LIST_API_LOG_DATES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     name: "list_api_log_dates",
     description: "API 로그가 존재하는 날짜 목록을 조회합니다 (YYYY-MM-DD 형식).",
     payload_example: "{}",
+    category: "api",
+    gui_only: false,
 };
 
 /// API 로그 날짜 목록 조회. (YYYY-MM-DD)
@@ -431,6 +445,8 @@ pub const GET_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     name: "get_api_logs",
     description: "API 로그 목록을 조회합니다.",
     payload_example: r#"{"date": "2026-07-06", "domainFilter": null, "methodFilter": null, "hostFilter": null, "exactMatch": null}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// 특정 날짜의 API 로그 조회.
@@ -464,6 +480,8 @@ pub const CLEAR_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "clear_api_logs",
     description: "API 로그를 삭제합니다.",
     payload_example: r#"{"date": "2026-07-06"}"#,
+    category: "api",
+    gui_only: false,
 };
 
 /// API 로그 삭제 (특정 날짜 또는 전체).

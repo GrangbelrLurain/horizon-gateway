@@ -13,6 +13,8 @@ pub const GET_MOCKING_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     name: "get_mocking_status",
     description: "모킹 활성화 상태 및 설정을 조회합니다.",
     payload_example: "{}",
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -37,6 +39,8 @@ pub const SET_MOCKING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     name: "set_mocking_enabled",
     description: "모킹 활성화 여부를 변경합니다.",
     payload_example: r#"{"enabled": true}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -69,6 +73,8 @@ pub const GET_SCENARIOS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCo
     name: "get_scenarios",
     description: "모킹 시나리오 목록을 조회합니다.",
     payload_example: "{}",
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -94,6 +100,8 @@ pub const CREATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     name: "create_scenario",
     description: "새로운 모킹 시나리오를 생성합니다.",
     payload_example: r#"{"name": "Scenario Name", "description": "Description"}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -114,6 +122,8 @@ pub const UPDATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     name: "update_scenario",
     description: "모킹 시나리오를 수정합니다.",
     payload_example: r#"{"id": "scenario-uuid", "name": "New Name", "description": null, "enabled": null}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -134,6 +144,8 @@ pub const SET_SCENARIO_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     name: "set_scenario_enabled",
     description: "모킹 시나리오의 활성화 여부를 설정합니다.",
     payload_example: r#"{"id": "scenario-uuid", "enabled": true}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -150,6 +162,8 @@ pub const DELETE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     name: "delete_scenario",
     description: "모킹 시나리오를 삭제합니다.",
     payload_example: r#""scenario-uuid""#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -165,6 +179,8 @@ pub const GET_MOCK_RULES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "get_mock_rules",
     description: "모킹 룰 목록을 조회합니다.",
     payload_example: "{}",
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -189,6 +205,8 @@ pub const GET_MOCK_RULES_BY_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crat
     name: "get_mock_rules_by_scenario",
     description: "특정 시나리오에 속한 모킹 룰 목록을 조회합니다.",
     payload_example: r#"{"scenarioId": "scenario-uuid"}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -222,6 +240,8 @@ pub const CREATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "create_mock_rule",
     description: "새로운 모킹 룰을 생성합니다.",
     payload_example: r#"{"name": "test rule", "scenarioId": "scenario-uuid", "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -266,6 +286,8 @@ pub const UPDATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "update_mock_rule",
     description: "모킹 룰을 수정합니다.",
     payload_example: r#"{"id": "rule-uuid", "name": null, "host": null, "method": null, "urlPattern": null, "responseStatus": null, "responseHeaders": null, "responseBody": null, "enabled": null}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -299,6 +321,8 @@ pub const DELETE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "delete_mock_rule",
     description: "모킹 룰을 삭제합니다.",
     payload_example: r#""rule-uuid""#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -322,7 +346,9 @@ pub struct CreateMockFromLogPayload {
 pub const CREATE_MOCK_RULE_FROM_LOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "create_mock_rule_from_log",
     description: "API 로그 항목을 기반으로 모킹 룰을 생성합니다.",
-    payload_example: r#"{"logId": "log-uuid", "scenarioId": "scenario-uuid"}"#,
+    payload_example: r#"{"logId": "log-uuid", "scenarioId": "scenario-uuid", "name": "Mock from log", "logDate": "2026-07-09"}"#,
+    category: "mocking",
+    gui_only: false,
 };
 
 #[tauri::command]

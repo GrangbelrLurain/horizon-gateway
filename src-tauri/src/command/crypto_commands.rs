@@ -28,6 +28,8 @@ pub const PROCESS_CRYPTO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "process_crypto",
     description: "대칭키 암복호화, Base64/Hex 인코딩 등의 보안 작업을 실행합니다. (action: base64Encode, base64Decode, urlEncode, urlDecode, hexEncode, hexDecode, jwtDecode, aesEncrypt, aesDecrypt, sha256, hmacSha256)",
     payload_example: r#"{"action": "base64Encode", "payload": "hello", "key": null, "iv": null}"#,
+    category: "sandbox",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -59,6 +61,8 @@ pub const VALIDATE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     name: "validate_json_schema",
     description: "JSON 문자열이 지정된 JSON 스키마를 만족하는지 검증합니다.",
     payload_example: r#"{"payload": "{\"a\": 1}", "schema": "{\"$schema\": \"http://json-schema.org/draft-07/schema#\", \"type\": \"object\"}"}"#,
+    category: "sandbox",
+    gui_only: false,
 };
 
 #[tauri::command]

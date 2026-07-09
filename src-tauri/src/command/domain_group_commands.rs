@@ -11,6 +11,8 @@ pub const GET_DOMAIN_GROUP_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::c
     name: "get_domain_group_links",
     description: "도메인과 그룹 간의 연결 링크 전체 목록을 조회합니다.",
     payload_example: "{}",
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -37,6 +39,8 @@ pub const SET_DOMAIN_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     name: "set_domain_groups",
     description: "특정 도메인에 속하는 그룹 목록을 설정합니다.",
     payload_example: r#"{"domainId": 1, "groupIds": [1, 2]}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -64,6 +68,8 @@ pub const SET_GROUP_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     name: "set_group_domains",
     description: "특정 그룹에 속하는 도메인 목록을 설정합니다.",
     payload_example: r#"{"groupId": 1, "domainIds": [1, 2, 3]}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -90,6 +96,8 @@ pub const GET_DOMAINS_BY_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     name: "get_domains_by_group",
     description: "특정 그룹에 속한 도메인 목록을 조회합니다.",
     payload_example: r#"{"groupId": 1}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -122,6 +130,8 @@ pub const GET_GROUPS_FOR_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     name: "get_groups_for_domain",
     description: "특정 도메인이 속한 그룹 목록을 조회합니다.",
     payload_example: r#"{"domainId": 1}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -154,6 +164,8 @@ pub const CREATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     name: "create_group",
     description: "새로운 도메인 그룹을 생성합니다.",
     payload_example: r#"{"name": "My Group"}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -174,6 +186,8 @@ pub const GET_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComma
     name: "get_groups",
     description: "도메인 그룹 전체 목록을 조회합니다.",
     payload_example: "{}",
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -199,6 +213,8 @@ pub const DELETE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     name: "delete_group",
     description: "도메인 그룹을 삭제합니다.",
     payload_example: r#"{"id": 1}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -228,6 +244,8 @@ pub const UPDATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     name: "update_group",
     description: "도메인 그룹의 이름을 수정합니다.",
     payload_example: r#"{"id": 1, "name": "New Group Name"}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]

@@ -12,8 +12,10 @@ use tauri_plugin_dialog::DialogExt;
 
 pub const SAVE_ROOT_CA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "save_root_ca",
-    description: "Root CA 인증서를 파일로 저장합니다 (저장 다이얼로그 피요).",
+    description: "[GUI] Root CA 인증서를 파일로 저장합니다 (저장 다이얼로그 필요).",
     payload_example: "{}",
+    category: "settings",
+    gui_only: true,
 };
 
 #[tauri::command]
@@ -52,6 +54,8 @@ pub const EXPORT_ALL_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     name: "export_all_settings",
     description: "도메인, 그룹, 라우팅 등 앱의 모든 설정을 JSON으로 내보냅니다.",
     payload_example: "{}",
+    category: "settings",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -85,7 +89,9 @@ pub fn export_all_settings(
 pub const IMPORT_ALL_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "import_all_settings",
     description: "JSON 설정 파일을 일괄 임포트하여 모든 설정을 복원합니다.",
-    payload_example: r#"{"version": 1, "domains": [], "groups": [], "domainGroupLinks": [], "localRoutes": [], "proxySettings": {}}"#,
+    payload_example: r#"{"version": 2, "exportedAt": "2026-07-09T00:00:00Z", "domains": [], "groups": [], "domainGroupLinks": [], "localRoutes": [], "proxySettings": {"dnsServer": null, "proxyPort": 8888, "reverseHttpPort": null, "reverseHttpsPort": null, "localRoutingEnabled": true}, "domainMonitor": []}"#,
+    category: "settings",
+    gui_only: false,
 };
 
 #[tauri::command]

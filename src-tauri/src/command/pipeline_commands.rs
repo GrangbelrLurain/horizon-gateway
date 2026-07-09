@@ -5,6 +5,8 @@ pub const EXECUTE_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "execute_pipeline",
     description: "API 노드 체인으로 구성된 파이프라인을 실행합니다.",
     payload_example: r#"{"nodes": [], "edges": []}"#,
+    category: "sandbox",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -29,6 +31,8 @@ pub const EXECUTE_PIPELINE_API_NODE_CLI_INFO: crate::cli::CliCommandInfo = crate
     name: "execute_pipeline_api_node",
     description: "파이프라인 API 노드 하나를 단독으로 실행합니다.",
     payload_example: r#"{"url": "https://api.example.com/data", "method": "GET"}"#,
+    category: "sandbox",
+    gui_only: false,
 };
 
 #[tauri::command]

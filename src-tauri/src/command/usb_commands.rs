@@ -7,6 +7,8 @@ pub const CHECK_ADB_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "check_adb_status",
     description: "ADB 연결 상태와 연결된 디바이스 목록을 조회합니다.",
     payload_example: "{}",
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -26,6 +28,8 @@ pub const START_USB_REVERSE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     name: "start_usb_reverse",
     description: "ADB를 통해 USB 리버스 터널을 시작합니다.",
     payload_example: r#"{"port": 8080}"#,
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -48,6 +52,8 @@ pub const STOP_USB_REVERSE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "stop_usb_reverse",
     description: "ADB USB 리버스 터널을 중지합니다.",
     payload_example: r#"{"port": 8080}"#,
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]

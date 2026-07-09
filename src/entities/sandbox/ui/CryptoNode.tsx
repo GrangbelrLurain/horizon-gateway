@@ -4,7 +4,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Check, Copy, Eye, EyeOff, Layers, Lock, Plus, Save, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom, themeAtom } from "@/entities/app";
-import { processCrypto } from "../api";
+import { createCryptoPreset, deleteCryptoPreset, processCrypto, updateCryptoPreset } from "../api";
 import { cryptoToolCurrentConfigAtom, savedCryptoPresetsAtom } from "../store";
 import type { CryptoAction, SavedCryptoPreset } from "../types";
 
@@ -124,6 +124,7 @@ export function CryptoNode({
   const lang = useAtomValue(languageAtom);
   const theme = useAtomValue(themeAtom);
   const t = lang === "ko" ? ko : en;
+  const isKo = lang === "ko";
 
   const [selectedId, setSelectedId] = useState<string>(() => {
     return savedPresets.length > 0 ? savedPresets[0].id : "";
@@ -270,54 +271,72 @@ export function CryptoNode({
   }, [selectedId, savedPresets, title, description, action, payload, secretKey, iv, customCode]);
 
   // CRUD Actions
-  const handleAddPreset = () => {
-    const newId = Math.random().toString(36).substring(2, 9);
-    const newPreset: SavedCryptoPreset = {
-      id: newId,
-      name: "New Preset",
-      description: "A newly created crypto preset",
-      action: "base64Encode",
-      payload: "Hello, Watchtower!",
-      key: "",
-      iv: "",
-      code: `export default function(payload, key, iv) {
+  const handleAddPreset = async () => {
+    try {
+      const created = await createCryptoPreset({
+        name: "New Preset",
+        description: "A newly created crypto preset",
+        action: "base64Encode",
+        payload: "Hello, Watchtower!",
+        key: "",
+        iv: "",
+        code: `export default function(payload, key, iv) {
   // CryptoJS 라이브러리가 전역(window.CryptoJS)에 제공되므로 바로 사용할 수 있습니다.
   // 예: const hash = CryptoJS.SHA256(payload).toString();
   
   return payload;
 }`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    setSavedPresets([...savedPresets, newPreset]);
-    setSelectedId(newId);
+      });
+      const normalized: SavedCryptoPreset = {
+        ...created,
+        action: created.action as CryptoAction,
+        createdAt: created.createdAt ?? Date.now(),
+        updatedAt: created.updatedAt ?? Date.now(),
+      };
+      setSavedPresets([...savedPresets, normalized]);
+      setSelectedId(normalized.id);
+    } catch (e) {
+      console.error(e);
+      window.alert(isKo ? "프리셋 추가에 실패했습니다." : "Failed to add preset.");
+    }
   };
 
-  const handleSavePreset = () => {
-    const updated = savedPresets.map((p) => {
-      if (p.id === selectedId) {
-        return {
-          ...p,
-          name: title,
-          description,
-          action,
-          payload,
-          key: secretKey,
-          iv,
-          code: customCode,
-          updatedAt: Date.now(),
-        };
+  const handleSavePreset = async () => {
+    try {
+      const updatedItem = await updateCryptoPreset(selectedId, {
+        name: title,
+        description,
+        action,
+        payload,
+        key: secretKey,
+        iv,
+        code: customCode,
+      });
+      if (!updatedItem) {
+        throw new Error("Not found");
       }
-      return p;
-    });
-    setSavedPresets(updated);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
+      const normalized: SavedCryptoPreset = {
+        ...updatedItem,
+        action: updatedItem.action as CryptoAction,
+        createdAt: updatedItem.createdAt ?? Date.now(),
+        updatedAt: updatedItem.updatedAt ?? Date.now(),
+      };
+      setSavedPresets(savedPresets.map((p) => (p.id === selectedId ? normalized : p)));
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch (e) {
+      console.error(e);
+      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save preset.");
+    }
   };
 
-  const handleDeletePreset = (id: string, e: React.MouseEvent) => {
+  const handleDeletePreset = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(t.deleteConfirm)) {
+    if (!window.confirm(t.deleteConfirm)) {
+      return;
+    }
+    try {
+      await deleteCryptoPreset(id);
       const remaining = savedPresets.filter((p) => p.id !== id);
       setSavedPresets(remaining);
       if (selectedId === id) {
@@ -327,6 +346,9 @@ export function CryptoNode({
           setSelectedId("");
         }
       }
+    } catch (err) {
+      console.error(err);
+      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete preset.");
     }
   };
 

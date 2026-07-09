@@ -1,7 +1,7 @@
 import { useAtom } from "jotai";
 import { Check, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type SavedJsonSchema, savedJsonSchemasAtom } from "@/entities/sandbox";
+import { createJsonSchema, type SavedJsonSchema, savedJsonSchemasAtom, updateJsonSchema } from "@/entities/sandbox";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "./SchemaPropertiesEditor";
 
 interface SchemaEditorModalProps {
@@ -51,38 +51,48 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
     return generateJsonSchema(title, description, properties);
   }, [title, description, properties]);
 
-  // Save changes back to Jotai
-  const handleSave = () => {
+  const handleSave = async () => {
     const targetTitle = title.trim() || "UntitledSchema";
     const targetDesc = description.trim();
-    const finalSchemaId = schemaId || `schema_${Math.random().toString(36).substring(2, 9)}`;
 
-    const newSchemaEntry: SavedJsonSchema = {
-      id: finalSchemaId,
-      name: targetTitle,
-      description: targetDesc,
-      schemaText: generatedSchemaText,
-      properties: properties,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    try {
+      const savedRaw = schemaId
+        ? await updateJsonSchema(schemaId, {
+            name: targetTitle,
+            description: targetDesc,
+            properties,
+            schemaText: generatedSchemaText,
+          })
+        : await createJsonSchema(targetTitle, targetDesc, properties, generatedSchemaText);
 
-    if (schemaId) {
-      // Update existing schema
-      setSavedSchemas(savedSchemas.map((s) => (s.id === schemaId ? newSchemaEntry : s)));
-    } else {
-      // Insert new schema
-      setSavedSchemas([...savedSchemas, newSchemaEntry]);
-    }
-
-    setJustSaved(true);
-    setTimeout(() => {
-      setJustSaved(false);
-      if (onSave) {
-        onSave(finalSchemaId);
+      if (!savedRaw) {
+        throw new Error("Save failed");
       }
-      onClose();
-    }, 800);
+
+      const newSchemaEntry: SavedJsonSchema = {
+        ...savedRaw,
+        createdAt: savedRaw.createdAt ?? Date.now(),
+        updatedAt: savedRaw.updatedAt ?? Date.now(),
+      };
+
+      if (schemaId) {
+        setSavedSchemas(savedSchemas.map((s) => (s.id === schemaId ? newSchemaEntry : s)));
+      } else {
+        setSavedSchemas([...savedSchemas, newSchemaEntry]);
+      }
+
+      setJustSaved(true);
+      setTimeout(() => {
+        setJustSaved(false);
+        if (onSave) {
+          onSave(newSchemaEntry.id);
+        }
+        onClose();
+      }, 800);
+    } catch (e) {
+      console.error(e);
+      window.alert("Failed to save schema.");
+    }
   };
 
   if (!isOpen) {

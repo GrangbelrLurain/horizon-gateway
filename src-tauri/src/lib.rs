@@ -18,6 +18,9 @@ mod model {
     pub mod proxy_settings;
     pub mod scenario;
     pub mod settings_export;
+    pub mod saved_pipeline;
+    pub mod saved_json_schema;
+    pub mod saved_crypto_preset;
 }
 mod service {
     pub mod api_log_service;
@@ -38,6 +41,9 @@ mod service {
     pub mod usb_service;
     pub mod crypto_service;
     pub mod pipeline_runner;
+    pub mod pipeline_library_service;
+    pub mod json_schema_registry_service;
+    pub mod crypto_preset_service;
 }
 
 use crate::service::api_log_service::ApiLogService;
@@ -68,6 +74,9 @@ mod command {
     pub mod usb_commands;
     pub mod crypto_commands;
     pub mod pipeline_commands;
+    pub mod pipeline_library_commands;
+    pub mod json_schema_registry_commands;
+    pub mod crypto_preset_commands;
 }
 
 use command::inspector_commands::{
@@ -111,6 +120,18 @@ use command::tunnel_commands::{get_tailscale_ip, start_cloudflare_tunnel, stop_c
 use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_reverse};
 use command::crypto_commands::{process_crypto, validate_json_schema};
 use command::pipeline_commands::{execute_pipeline, execute_pipeline_api_node};
+use command::pipeline_library_commands::{
+    create_saved_pipeline, delete_saved_pipeline, get_saved_pipeline, get_saved_pipelines,
+    import_saved_pipelines, update_saved_pipeline,
+};
+use command::json_schema_registry_commands::{
+    create_json_schema, delete_json_schema, get_json_schema, get_json_schemas, import_json_schemas,
+    update_json_schema,
+};
+use command::crypto_preset_commands::{
+    create_crypto_preset, delete_crypto_preset, get_crypto_preset, get_crypto_presets,
+    import_crypto_presets, update_crypto_preset,
+};
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
 
@@ -200,6 +221,24 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             validate_json_schema,
             execute_pipeline,
             execute_pipeline_api_node,
+            get_saved_pipelines,
+            get_saved_pipeline,
+            create_saved_pipeline,
+            update_saved_pipeline,
+            delete_saved_pipeline,
+            import_saved_pipelines,
+            get_json_schemas,
+            get_json_schema,
+            create_json_schema,
+            update_json_schema,
+            delete_json_schema,
+            import_json_schemas,
+            get_crypto_presets,
+            get_crypto_preset,
+            create_crypto_preset,
+            update_crypto_preset,
+            delete_crypto_preset,
+            import_crypto_presets,
         ])
 }
 
@@ -268,6 +307,9 @@ pub fn run() {
             let inspector_path = app_data_dir.join("inspector_annotations.json");
             let injection_domains_path = app_data_dir.join("injection_domains.json");
             let inspector_settings_path = app_data_dir.join("inspector_settings.json");
+            let pipelines_path = app_data_dir.join("pipelines.json");
+            let json_schemas_path = app_data_dir.join("json_schemas.json");
+            let crypto_presets_path = app_data_dir.join("crypto_presets.json");
             let ca_service =
                 Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
             let domain_service = DomainService::new(storage_path);
@@ -286,6 +328,17 @@ pub fn run() {
             let inspector_service = InspectorService::new(inspector_path, injection_domains_path, inspector_settings_path);
             let tunnel_service = Arc::new(TunnelService::new());
             let usb_service = Arc::new(UsbService::new());
+            let pipeline_library_service = Arc::new(
+                crate::service::pipeline_library_service::PipelineLibraryService::new(pipelines_path),
+            );
+            let json_schema_registry_service = Arc::new(
+                crate::service::json_schema_registry_service::JsonSchemaRegistryService::new(
+                    json_schemas_path,
+                ),
+            );
+            let crypto_preset_service = Arc::new(
+                crate::service::crypto_preset_service::CryptoPresetService::new(crypto_presets_path),
+            );
 
             crate::service::local_proxy::set_mocking_enabled(
                 mocking_service.get_settings().enabled,
@@ -319,6 +372,9 @@ pub fn run() {
             app.manage(inspector_service);
             app.manage(tunnel_service.clone());
             app.manage(usb_service);
+            app.manage(pipeline_library_service);
+            app.manage(json_schema_registry_service);
+            app.manage(crypto_preset_service);
 
             // CLI 명령형 인자 인터셉트
             let args: Vec<String> = std::env::args().collect();

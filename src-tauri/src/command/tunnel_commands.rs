@@ -7,6 +7,8 @@ pub const GET_TAILSCALE_IP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "get_tailscale_ip",
     description: "Tailscale VPN을 통해 할당된 로컬 IP를 조회합니다.",
     payload_example: "{}",
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -26,6 +28,8 @@ pub const START_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::
     name: "start_cloudflare_tunnel",
     description: "Cloudflare 터널을 시작하고 표준 툰널 URL을 반환합니다.",
     payload_example: "{}",
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -47,6 +51,8 @@ pub const STOP_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::c
     name: "stop_cloudflare_tunnel",
     description: "실행 중인 Cloudflare 터널을 중지합니다.",
     payload_example: "{}",
+    category: "mobile",
+    gui_only: false,
 };
 
 #[tauri::command]

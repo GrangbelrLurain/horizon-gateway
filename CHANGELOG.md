@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.3.1] - 2026-07-09
+
+### Added
+
+- **Sandbox Library CLI**: Persisted pipeline library, JSON Schema registry, and crypto presets to app_data (`pipelines.json`, `json_schemas.json`, `crypto_presets.json`) with full CRUD + import commands for agents (`get/create/update/delete/import_*`).
+- **CLI Command Metadata**: `cli list` / `help` now include `category` and `guiOnly` so agents can filter GUI-only window/dialog commands.
+- **CLI Specta Parity Tests**: Added regression tests that keep `CLI_COMMANDS`, `dispatch_command`, and `collect_commands!` in sync.
+
+### Fixed
+
+- **CLI list/run Parity**: Wired `update_local_route`, `add_annotation`, `update_annotation`, `delete_annotation`, and `import_annotations` into `dispatch_command` so commands shown by `cli list`/`help` no longer fail on `cli run`.
+- **Agent Payload Examples**: Corrected broken `payload_example` values for `add_annotation`, `import_annotations`, `create_mock_rule_from_log`, and `import_all_settings`.
+- **CLI Description Typos**: Fixed inspector/window/settings description typos and marked GUI-only commands with `[GUI]`.
+
+### Changed
+
+- **Agent Skill Docs**: Expanded bundled `SKILL.md` with recommended commands by task, CLI limits, and sandbox library examples; synced to `.agents/skills/watchtower/`.
+- **Sandbox Bootstrap**: On app start, migrates localStorage sandbox libraries into Rust storage when app_data is empty, then hydrates FE atoms from the backend.
+
 ## [v2.3.0] - 2026-07-08
 
 ### Added

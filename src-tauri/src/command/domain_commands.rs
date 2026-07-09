@@ -18,6 +18,8 @@ pub const REGIST_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "regist_domains",
     description: "새로운 도메인들을 등록합니다.",
     payload_example: r#"{"urls": ["http://test.com"], "groupId": null}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -52,6 +54,8 @@ pub const GET_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComm
     name: "get_domains",
     description: "등록된 도메인 목록을 조회합니다.",
     payload_example: "{}",
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -77,6 +81,8 @@ pub const GET_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     name: "get_domain_by_id",
     description: "ID로 특정 도메인을 조회합니다.",
     payload_example: r#"{"id": 1}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -112,6 +118,8 @@ pub const UPDATE_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     name: "update_domain_by_id",
     description: "ID로 특정 도메인 정보를 수정합니다.",
     payload_example: r#"{"id": 1, "url": "https://new.example.com"}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -149,6 +157,8 @@ pub const REMOVE_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "remove_domains",
     description: "등록된 도메인을 제거합니다.",
     payload_example: r#"{"id": 1}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -192,6 +202,8 @@ pub const IMPORT_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     name: "import_domains",
     description: "JSON 배열 형태로 도메인 목록을 일괄 임포트합니다.",
     payload_example: r#"{"domains": [{"id": 1, "url": "https://example.com"}]}"#,
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]
@@ -217,6 +229,8 @@ pub const CLEAR_ALL_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     name: "clear_all_domains",
     description: "등록된 모든 도메인을 삭제합니다.",
     payload_example: "{}",
+    category: "domains",
+    gui_only: false,
 };
 
 #[tauri::command]

@@ -1,6 +1,6 @@
 ---
 name: watchtower
-description: Inspect HTTP/API traffic, proxy status, domain monitoring, and mock rules captured by Watchtower. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, or local routing.
+description: Inspect HTTP/API traffic, proxy status, domain monitoring, mock rules, and sandbox libraries captured by Watchtower. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, local routing, pipelines, JSON schemas, or crypto presets.
 ---
 
 # Watchtower Skill
@@ -10,7 +10,7 @@ Watchtower is a local HTTP proxy/debugging app. Agents interact with it in two w
 | Tool | Use when |
 |------|----------|
 | `scripts/logs.mjs` | Read API logs **directly from disk** (fast, no app startup) |
-| `watchtower cli` | Call **any Watchtower command** (domains, proxy, mocking, settings, …) |
+| `watchtower cli` | Call **any Watchtower command** (domains, proxy, mocking, sandbox, settings, …) |
 
 ## Install this skill
 
@@ -85,7 +85,7 @@ On Windows use `watchtower.exe`.
 | Subcommand | Description |
 |------------|-------------|
 | `init` | Install this skill for coding agents |
-| `list` | List all available commands |
+| `list` | List all available commands (`category`, `guiOnly`, `payloadExample`) |
 | `help <command>` | Show payload schema for one command |
 | `run <command> [payload] [--query <path>]` | Execute a command |
 
@@ -97,7 +97,23 @@ watchtower cli help get_api_logs
 watchtower cli run get_domains '{}'
 watchtower cli run get_domains '{}' --query data.[].url
 watchtower cli run get_api_logs '{"date":"2026-07-06"}' --query data.logs[statusCode>=500].path
+watchtower cli run get_saved_pipelines '{}' --query data.[].{id,name}
 ```
+
+### Recommended commands by task
+
+| Task | Start with |
+|------|------------|
+| Domains / groups | `get_domains`, `get_groups`, `regist_domains` |
+| Proxy / routing | `get_proxy_status`, `get_local_routes`, `start_local_proxy` |
+| API logs | Prefer `logs.mjs`; or `get_api_logs`, `list_api_log_dates` |
+| Mocking | `get_scenarios`, `get_mock_rules`, `create_mock_rule` |
+| Pipeline library | `get_saved_pipelines`, `create_saved_pipeline`, `execute_pipeline` |
+| JSON Schema registry | `get_json_schemas`, `create_json_schema`, `validate_json_schema` |
+| Crypto presets | `get_crypto_presets`, `create_crypto_preset`, `process_crypto` |
+| Inspector policies | `get_annotations`, `add_annotation` |
+
+Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
 
 ### Query syntax (`--query`)
 
@@ -113,8 +129,15 @@ watchtower cli run get_api_logs '{"date":"2026-07-06"}' --query data.logs[status
 | Task | Prefer |
 |------|--------|
 | Search/filter API logs | `logs.mjs` |
-| Get domains, proxy status, mocking rules | `watchtower cli` |
+| Get domains, proxy status, mocking rules, sandbox libraries | `watchtower cli` |
 | Mutate settings | `watchtower cli` |
+
+### CLI limits
+
+- `init` / `list` / `help` run standalone (no GUI). `run` needs the Watchtower app process (Tauri init).
+- GUI-only (`guiOnly: true`): `save_root_ca`, `open_window`, `open_inspector_window`, `open_annotation_dialog`.
+- `execute_pipeline` uses the Rust runner; FE-only `script` nodes are not supported via CLI.
+- Always call `cli help <command>` before `run` if unsure — use the returned `payloadExample` as the template.
 
 ---
 
