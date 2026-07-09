@@ -25,6 +25,10 @@ fn main() {
             watchtower_lib::execute_cli_standalone(&args[2..]);
             std::process::exit(0);
         }
+        if args.len() > 2 && args[2] == "run" {
+            let code = watchtower_lib::execute_cli_headless(&args[2..]);
+            std::process::exit(code);
+        }
     }
 
     watchtower_lib::run();

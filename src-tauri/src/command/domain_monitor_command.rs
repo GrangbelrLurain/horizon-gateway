@@ -20,6 +20,10 @@ pub const GET_LATEST_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
 pub fn get_latest_status(
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
+    get_latest_status_svc(&monitor_service)
+}
+
+pub fn get_latest_status_svc(monitor_service: &DomainMonitorService) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
     let list = monitor_service.get_last_status();
     Ok(ApiResponse {
         message: format!("{}개의 최신 상태 조회 완료", list.len()),
@@ -45,6 +49,10 @@ pub async fn check_domain_status(
     monitor_service: tauri::State<'_, DomainMonitorService>,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
+    check_domain_status_svc(&domain_service, &group_service, &link_service, &monitor_service, &proxy_settings_service).await
+}
+
+pub async fn check_domain_status_svc(domain_service: &DomainService, group_service: &DomainGroupService, link_service: &DomainGroupLinkService, monitor_service: &DomainMonitorService, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
     let results = monitor_service
         .check_domains(
             &domain_service,
@@ -74,6 +82,10 @@ pub fn get_domain_monitor_list(
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<DomainMonitorWithUrl>>, String> {
+    get_domain_monitor_list_svc(&domain_service, &monitor_service)
+}
+
+pub fn get_domain_monitor_list_svc(domain_service: &DomainService, monitor_service: &DomainMonitorService) -> Result<ApiResponse<Vec<DomainMonitorWithUrl>>, String> {
     let list = monitor_service.get_domain_monitor_list(&domain_service);
     Ok(ApiResponse {
         message: format!("{}개 도메인 monitor 설정 조회", list.len()),
@@ -103,6 +115,10 @@ pub fn set_domain_monitor_check_enabled(
     payload: SetDomainMonitorCheckEnabledPayload,
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<bool>, String> {
+    set_domain_monitor_check_enabled_svc(payload, &monitor_service)
+}
+
+pub fn set_domain_monitor_check_enabled_svc(payload: SetDomainMonitorCheckEnabledPayload, monitor_service: &DomainMonitorService) -> Result<ApiResponse<bool>, String> {
     monitor_service.set_domain_monitor_check_enabled(&payload.domain_ids, payload.enabled);
     Ok(ApiResponse {
         message: format!(
@@ -135,6 +151,10 @@ pub fn get_domain_status_logs(
     payload: GetDomainStatusLogsPayload,
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
+    get_domain_status_logs_svc(payload, &monitor_service)
+}
+
+pub fn get_domain_status_logs_svc(payload: GetDomainStatusLogsPayload, monitor_service: &DomainMonitorService) -> Result<ApiResponse<Vec<DomainStatusLog>>, String> {
     let logs = monitor_service.get_logs_by_date(payload.date);
     Ok(ApiResponse {
         message: format!("{} 건의 로그가 조회되었습니다.", logs.len()),

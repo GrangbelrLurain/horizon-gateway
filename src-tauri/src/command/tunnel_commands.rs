@@ -16,6 +16,10 @@ pub const GET_TAILSCALE_IP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub fn get_tailscale_ip(
     tunnel_service: State<'_, Arc<TunnelService>>,
 ) -> Result<ApiResponse<Option<String>>, String> {
+    get_tailscale_ip_svc(&tunnel_service)
+}
+
+pub fn get_tailscale_ip_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<Option<String>>, String> {
     let ip = tunnel_service.get_tailscale_ip();
     Ok(ApiResponse {
         message: "OK".to_string(),
@@ -37,6 +41,10 @@ pub const START_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::
 pub async fn start_cloudflare_tunnel(
     tunnel_service: State<'_, Arc<TunnelService>>,
 ) -> Result<ApiResponse<String>, String> {
+    start_cloudflare_tunnel_svc(&tunnel_service).await
+}
+
+pub async fn start_cloudflare_tunnel_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<String>, String> {
     match tunnel_service.start_tunnel().await {
         Ok(url) => Ok(ApiResponse {
             message: "Tunnel started successfully".to_string(),
@@ -60,6 +68,10 @@ pub const STOP_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::c
 pub async fn stop_cloudflare_tunnel(
     tunnel_service: State<'_, Arc<TunnelService>>,
 ) -> Result<ApiResponse<()>, String> {
+    stop_cloudflare_tunnel_svc(&tunnel_service).await
+}
+
+pub async fn stop_cloudflare_tunnel_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<()>, String> {
     match tunnel_service.stop_tunnel().await {
         Ok(()) => Ok(ApiResponse {
             message: "Tunnel stopped successfully".to_string(),

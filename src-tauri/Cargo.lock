@@ -6032,12 +6032,13 @@ dependencies = [
 
 [[package]]
 name = "watchtower"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "aes-gcm",
  "axum",
  "base64 0.21.7",
  "chrono",
+ "dirs",
  "futures",
  "get_if_addrs",
  "hex",

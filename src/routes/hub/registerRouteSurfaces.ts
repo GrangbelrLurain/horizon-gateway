@@ -55,3 +55,9 @@ registerRouteSurface("/profile", () =>
     default: asComponent(m.Route.options.component),
   })),
 );
+
+registerRouteSurface("/proxy/connections", () =>
+  import("../proxy/connections/index").then((m) => ({
+    default: asComponent(m.Route.options.component),
+  })),
+);

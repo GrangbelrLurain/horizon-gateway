@@ -24,6 +24,11 @@ pub async fn save_root_ca(
     app: tauri::AppHandle,
     ca_service: tauri::State<'_, Arc<CaService>>,
 ) -> Result<ApiResponse<String>, String> {
+    save_root_ca_svc(Some(app.clone()), &ca_service).await
+}
+
+pub async fn save_root_ca_svc(app: Option<tauri::AppHandle>, ca_service: &std::sync::Arc<CaService>) -> Result<ApiResponse<String>, String> {
+    let app = app.ok_or_else(|| "GUI required".to_string())?;
     let pem = ca_service.ca_cert_pem();
 
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -68,6 +73,10 @@ pub fn export_all_settings(
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<SettingsExport>, String> {
+    export_all_settings_svc(&domain_service, &group_service, &link_service, &route_service, &proxy_settings_service, &monitor_service)
+}
+
+pub fn export_all_settings_svc(domain_service: &DomainService, group_service: &DomainGroupService, link_service: &DomainGroupLinkService, route_service: &std::sync::Arc<LocalRouteService>, proxy_settings_service: &ProxySettingsService, monitor_service: &DomainMonitorService) -> Result<ApiResponse<SettingsExport>, String> {
     let exported_at = chrono::Utc::now().to_rfc3339();
     let payload = SettingsExport {
         version: SETTINGS_EXPORT_VERSION,
@@ -105,6 +114,10 @@ pub fn import_all_settings(
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<bool>, String> {
+    import_all_settings_svc(payload, &domain_service, &group_service, &link_service, &route_service, &proxy_settings_service, &monitor_service)
+}
+
+pub fn import_all_settings_svc(payload: SettingsExport, domain_service: &DomainService, group_service: &DomainGroupService, link_service: &DomainGroupLinkService, route_service: &std::sync::Arc<LocalRouteService>, proxy_settings_service: &ProxySettingsService, monitor_service: &DomainMonitorService) -> Result<ApiResponse<bool>, String> {
     if payload.version > SETTINGS_EXPORT_VERSION {
         return Err(format!(
             "Unsupported export version {} (max {})",

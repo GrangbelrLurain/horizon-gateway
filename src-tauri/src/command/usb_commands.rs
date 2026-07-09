@@ -16,6 +16,10 @@ pub const CHECK_ADB_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub async fn check_adb_status(
     usb_service: State<'_, Arc<UsbService>>,
 ) -> Result<ApiResponse<AdbStatus>, String> {
+    check_adb_status_svc(&usb_service).await
+}
+
+pub async fn check_adb_status_svc(usb_service: &Arc<UsbService>) -> Result<ApiResponse<AdbStatus>, String> {
     let status = usb_service.check_status();
     Ok(ApiResponse {
         message: "OK".to_string(),
@@ -38,6 +42,10 @@ pub async fn start_usb_reverse(
     usb_service: State<'_, Arc<UsbService>>,
     port: u16,
 ) -> Result<ApiResponse<()>, String> {
+    start_usb_reverse_svc(&usb_service, port).await
+}
+
+pub async fn start_usb_reverse_svc(usb_service: &Arc<UsbService>, port: u16) -> Result<ApiResponse<()>, String> {
     match usb_service.start_reverse(port) {
         Ok(()) => Ok(ApiResponse {
             message: "Reverse tunnel started successfully".to_string(),
@@ -62,6 +70,10 @@ pub async fn stop_usb_reverse(
     usb_service: State<'_, Arc<UsbService>>,
     port: u16,
 ) -> Result<ApiResponse<()>, String> {
+    stop_usb_reverse_svc(&usb_service, port).await
+}
+
+pub async fn stop_usb_reverse_svc(usb_service: &Arc<UsbService>, port: u16) -> Result<ApiResponse<()>, String> {
     match usb_service.stop_reverse(port) {
         Ok(()) => Ok(ApiResponse {
             message: "Reverse tunnel stopped successfully".to_string(),

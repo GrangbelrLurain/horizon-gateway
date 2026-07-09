@@ -15,7 +15,8 @@ export type SurfaceTitleKey =
   | "toolsServerLogs"
   | "apiLogs"
   | "apiMocking"
-  | "apiSchema";
+  | "apiSchema"
+  | "toolsProxyGraph";
 
 export interface SurfaceRegistryEntry {
   id: HubSurfaceId;
@@ -56,6 +57,9 @@ const GlobalSchemaExplorer = lazy(() =>
 );
 const GlobalRoutePage = lazy(() =>
   import("../ui/surfaces/GlobalRoutePageSurface").then((m) => ({ default: m.GlobalRoutePageSurface })),
+);
+const GlobalProxyGraph = lazy(() =>
+  import("../ui/surfaces/GlobalProxyGraphSurface").then((m) => ({ default: m.GlobalProxyGraphSurface })),
 );
 
 export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
@@ -185,6 +189,15 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     kind: "global",
     Component: GlobalSchemaExplorer,
   },
+  "global/proxy-graph": {
+    id: "global/proxy-graph",
+    titleKey: "toolsProxyGraph",
+    route: "/proxy/connections",
+    detachWidth: 1100,
+    detachHeight: 780,
+    kind: "global",
+    Component: GlobalProxyGraph,
+  },
 };
 
 export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
@@ -195,6 +208,7 @@ export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
   "global/json-schema",
   "global/schema-explorer",
   "global/server-logs",
+  "global/proxy-graph",
 ];
 
 export function getSurfaceEntry(id: HubSurfaceId): SurfaceRegistryEntry {

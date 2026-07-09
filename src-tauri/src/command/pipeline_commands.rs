@@ -14,6 +14,10 @@ pub const EXECUTE_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub async fn execute_pipeline(
     payload: PipelineFlow,
 ) -> Result<ApiResponse<PipelineExecutionReport>, String> {
+    execute_pipeline_svc(payload).await
+}
+
+pub async fn execute_pipeline_svc(payload: PipelineFlow) -> Result<ApiResponse<PipelineExecutionReport>, String> {
     let runner = PipelineRunner::new();
     let report = runner.run(payload).await;
     Ok(ApiResponse {
@@ -40,6 +44,10 @@ pub const EXECUTE_PIPELINE_API_NODE_CLI_INFO: crate::cli::CliCommandInfo = crate
 pub async fn execute_pipeline_api_node(
     config_json: String,
 ) -> Result<ApiResponse<String>, String> {
+    execute_pipeline_api_node_svc(config_json).await
+}
+
+pub async fn execute_pipeline_api_node_svc(config_json: String) -> Result<ApiResponse<String>, String> {
     let runner = PipelineRunner::new();
     let config: serde_json::Value = serde_json::from_str(&config_json)
         .map_err(|e| format!("Failed to parse config JSON: {}", e))?;

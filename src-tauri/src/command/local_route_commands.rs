@@ -71,6 +71,10 @@ pub const GET_LOCAL_ROUTES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub fn get_local_routes(
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<LocalRoute>>, String> {
+    get_local_routes_svc(&route_service)
+}
+
+pub fn get_local_routes_svc(route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<LocalRoute>>, String> {
     let list = route_service.get_all();
     Ok(ApiResponse {
         message: format!("{} routes", list.len()),
@@ -102,6 +106,10 @@ pub fn add_local_route(
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<LocalRoute>, String> {
+    add_local_route_svc(payload, &route_service, &domain_service)
+}
+
+pub fn add_local_route_svc(payload: AddLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<LocalRoute>, String> {
     let domains = domain_service.get_all();
     match route_service.add(
         payload.domain_id,
@@ -153,6 +161,10 @@ pub fn update_local_route(
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+    update_local_route_svc(payload, &route_service, &domain_service)
+}
+
+pub fn update_local_route_svc(payload: UpdateLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let domains = domain_service.get_all();
     let route = route_service.update(
         payload.id,
@@ -193,6 +205,10 @@ pub fn remove_local_route(
     payload: RemoveLocalRoutePayload,
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+    remove_local_route_svc(payload, &route_service)
+}
+
+pub fn remove_local_route_svc(payload: RemoveLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let route = route_service.remove(payload.id);
     Ok(ApiResponse {
         message: if route.is_some() {
@@ -228,6 +244,10 @@ pub fn set_local_route_enabled(
     route_service: tauri::State<'_, std::sync::Arc<LocalRouteService>>,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+    set_local_route_enabled_svc(payload, &route_service, &domain_service)
+}
+
+pub fn set_local_route_enabled_svc(payload: SetLocalRouteEnabledPayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let domains = domain_service.get_all();
     let route = route_service.set_enabled(payload.id, payload.enabled, &domains)?;
     Ok(ApiResponse {
@@ -273,6 +293,10 @@ pub const GET_PROXY_AUTO_START_ERROR_CLI_INFO: crate::cli::CliCommandInfo = crat
 #[tauri::command]
 #[specta::specta]
 pub fn get_proxy_auto_start_error() -> Result<ApiResponse<Option<String>>, String> {
+    get_proxy_auto_start_error_svc()
+}
+
+pub fn get_proxy_auto_start_error_svc() -> Result<ApiResponse<Option<String>>, String> {
     let err = PROXY_AUTO_START_ERR
         .lock()
         .map_err(|e| e.to_string())?
@@ -300,6 +324,10 @@ pub const GET_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 #[tauri::command]
 #[specta::specta]
 pub async fn get_proxy_status() -> Result<ApiResponse<ProxyStatusPayload>, String> {
+    get_proxy_status_svc().await
+}
+
+pub async fn get_proxy_status_svc() -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let status = current_proxy_status();
     Ok(ApiResponse {
         message: if status.running {
@@ -341,6 +369,10 @@ pub const GET_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
 pub fn get_proxy_settings(
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxySettings>, String> {
+    get_proxy_settings_svc(&proxy_settings_service)
+}
+
+pub fn get_proxy_settings_svc(proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.get();
     Ok(ApiResponse {
         message: "OK".to_string(),
@@ -369,6 +401,10 @@ pub fn set_proxy_dns_server(
     payload: SetProxyDnsServerPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxySettings>, String> {
+    set_proxy_dns_server_svc(payload, &proxy_settings_service)
+}
+
+pub fn set_proxy_dns_server_svc(payload: SetProxyDnsServerPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.set_dns_server(payload.dns_server);
     Ok(ApiResponse {
         message: "DNS server updated".to_string(),
@@ -397,6 +433,10 @@ pub fn set_proxy_port(
     payload: SetProxyPortPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxySettings>, String> {
+    set_proxy_port_svc(payload, &proxy_settings_service)
+}
+
+pub fn set_proxy_port_svc(payload: SetProxyPortPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.set_proxy_port(payload.port);
     Ok(ApiResponse {
         message: format!("Proxy port set to {}", settings.proxy_port),
@@ -436,6 +476,23 @@ pub async fn start_local_proxy(
     >,
     inspector_service: tauri::State<'_, crate::service::inspector_service::InspectorService>,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
+    start_local_proxy_svc(Some(app.clone()), payload, &route_service, &proxy_settings_service, &api_logging_service, &api_log_service, &ca_service, &mocking_service, &inspector_service).await
+}
+
+pub async fn start_local_proxy_svc(
+    app: Option<tauri::AppHandle>,
+    payload: Option<StartLocalProxyPayload>,
+    route_service: &std::sync::Arc<LocalRouteService>,
+    proxy_settings_service: &ProxySettingsService,
+    api_logging_service: &ApiLoggingSettingsService,
+    api_log_service: &ApiLogService,
+    ca_service: &std::sync::Arc<CaService>,
+    mocking_service: &std::sync::Arc<crate::service::mocking_service::MockingService>,
+    inspector_service: &crate::service::inspector_service::InspectorService,
+) -> Result<ApiResponse<ProxyStatusPayload>, String> {
+    let app = app.ok_or_else(|| {
+        "start_local_proxy requires the Watchtower GUI AppHandle (proxy runtime). Close other instances or start proxy from the desktop app.".to_string()
+    })?;
     let port = payload
         .and_then(|p| p.port)
         .unwrap_or_else(|| proxy_settings_service.get().proxy_port);
@@ -591,6 +648,10 @@ pub const GET_PROXY_SETUP_URL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
 #[tauri::command]
 #[specta::specta]
 pub fn get_proxy_setup_url() -> Result<ApiResponse<String>, String> {
+    get_proxy_setup_url_svc()
+}
+
+pub fn get_proxy_setup_url_svc() -> Result<ApiResponse<String>, String> {
     let port = PROXY_PORT.load(Ordering::Relaxed);
     if port == 0 {
         return Err("Proxy is not running".to_string());
@@ -635,6 +696,10 @@ pub fn set_proxy_reverse_ports(
     payload: SetProxyReversePortsPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxySettings>, String> {
+    set_proxy_reverse_ports_svc(payload, &proxy_settings_service)
+}
+
+pub fn set_proxy_reverse_ports_svc(payload: SetProxyReversePortsPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service
         .set_reverse_ports(payload.reverse_http_port, payload.reverse_https_port);
     Ok(ApiResponse {
@@ -655,6 +720,10 @@ pub const STOP_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 #[tauri::command]
 #[specta::specta]
 pub fn stop_local_proxy(app: AppHandle) -> Result<ApiResponse<ProxyStatusPayload>, String> {
+    stop_local_proxy_svc(Some(app.clone()))
+}
+
+pub fn stop_local_proxy_svc(app: Option<tauri::AppHandle>) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     for h in guard.drain(..) {
         h.abort();
@@ -673,7 +742,7 @@ pub fn stop_local_proxy(app: AppHandle) -> Result<ApiResponse<ProxyStatusPayload
         reverse_https_port: None,
         local_routing_enabled: local_proxy::is_local_routing_enabled(),
     };
-    let _ = app.emit(PROXY_STATUS_CHANGED, &payload);
+    if let Some(app) = app { let _ = app.emit(PROXY_STATUS_CHANGED, &payload); }
     Ok(ApiResponse {
         message: "Proxy stopped".to_string(),
         success: true,
@@ -704,13 +773,17 @@ pub fn set_local_routing_enabled(
     payload: SetLocalRoutingEnabledPayload,
     proxy_settings_service: tauri::State<'_, ProxySettingsService>,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
+    set_local_routing_enabled_svc(Some(app.clone()), payload, &proxy_settings_service)
+}
+
+pub fn set_local_routing_enabled_svc(app: Option<tauri::AppHandle>, payload: SetLocalRoutingEnabledPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     // Update runtime flag
     local_proxy::set_local_routing_enabled(payload.enabled);
     // Persist
     proxy_settings_service.set_local_routing_enabled(payload.enabled);
 
     let status = current_proxy_status();
-    let _ = app.emit(PROXY_STATUS_CHANGED, &status);
+    if let Some(app) = app { let _ = app.emit(PROXY_STATUS_CHANGED, &status); }
     Ok(ApiResponse {
         message: format!(
             "Local routing {}",

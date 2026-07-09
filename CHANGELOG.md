@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.4.0] - 2026-07-09
+
+### Added
+
+- **Proxy Connections Graph View**: Added an interactive graph view (`global/proxy-graph`) that visualizes connections between domains and local proxy targets (host + port) using SVG Bezier curves with flowing traffic animations. Supports toggling route status, inline host/port editing, and adding/removing routes directly.
+- **List Virtualization**: Integrated `@tanstack/react-virtual` in the domain list to support efficient rendering and eliminate UI lag when managing hundreds of domains.
+- **Smart Sorting**: Prioritizes domains with enabled proxy routes at the top, followed by disabled proxy routes, and places unconfigured domains at the bottom of the list.
+- **Headless `cli run`**: `watchtower cli run` now bootstraps services without Tauri/WebView and exits after JSON output — safe for agents, CI, and non-interactive terminals.
+- **`AppContext` runtime**: Shared service bootstrap for GUI and CLI (`runtime/app_context.rs`, `runtime/paths.rs`).
+- **Payload file/stdin**: `cli run <cmd> @payload.json`, `cli run <cmd> -`, or `--payload @file` for PowerShell-friendly input.
+- **Command `*_svc` layer**: Tauri commands delegate to reference-based service functions; headless dispatch uses `cli/dispatch_headless.rs`.
+
+### Changed
+
+- **`main.rs` routing**: `cli init|list|help` and `cli run` exit before `watchtower_lib::run()`; only bare `watchtower` starts the GUI.
+- **GUI `cli run`**: Still supported when launched from the desktop app process (Tauri setup intercept).
+
+### Known limits
+
+- **`start_local_proxy` headless**: Requires GUI `AppHandle` for proxy runtime (v2.4.1 candidate).
+- **GUI + headless CLI**: Avoid running `cli run` while the GUI app is open if both write the same settings.
+
 ## [v2.3.1] - 2026-07-09
 
 ### Added

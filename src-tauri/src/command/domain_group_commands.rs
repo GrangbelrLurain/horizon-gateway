@@ -20,6 +20,10 @@ pub const GET_DOMAIN_GROUP_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::c
 pub fn get_domain_group_links(
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<Vec<DomainGroupLink>>, String> {
+    get_domain_group_links_svc(&link_service)
+}
+
+pub fn get_domain_group_links_svc(link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroupLink>>, String> {
     let links = link_service.get_all_links();
     Ok(ApiResponse {
         success: true,
@@ -49,6 +53,10 @@ pub fn set_domain_groups(
     payload: SetDomainGroupsPayload,
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<()>, String> {
+    set_domain_groups_svc(payload, &link_service)
+}
+
+pub fn set_domain_groups_svc(payload: SetDomainGroupsPayload, link_service: &DomainGroupLinkService) -> Result<ApiResponse<()>, String> {
     link_service.set_groups_for_domain(payload.domain_id, payload.group_ids);
     Ok(ApiResponse {
         success: true,
@@ -78,6 +86,10 @@ pub fn set_group_domains(
     payload: SetGroupDomainsPayload,
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<()>, String> {
+    set_group_domains_svc(payload, &link_service)
+}
+
+pub fn set_group_domains_svc(payload: SetGroupDomainsPayload, link_service: &DomainGroupLinkService) -> Result<ApiResponse<()>, String> {
     link_service.set_domains_for_group(payload.group_id, payload.domain_ids);
     Ok(ApiResponse {
         success: true,
@@ -107,6 +119,10 @@ pub fn get_domains_by_group(
     domain_service: State<'_, DomainService>,
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
+    get_domains_by_group_svc(payload, &domain_service, &link_service)
+}
+
+pub fn get_domains_by_group_svc(payload: GetDomainsByGroupPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<Domain>>, String> {
     let domain_ids = link_service.get_domain_ids_for_group(payload.group_id);
     let all_domains = domain_service.get_all();
     let domains: Vec<Domain> = domain_ids
@@ -141,6 +157,10 @@ pub fn get_groups_for_domain(
     group_service: State<'_, DomainGroupService>,
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+    get_groups_for_domain_svc(payload, &group_service, &link_service)
+}
+
+pub fn get_groups_for_domain_svc(payload: GetGroupsForDomainPayload, group_service: &DomainGroupService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let group_ids = link_service.get_group_ids_for_domain(payload.domain_id);
     let all_groups = group_service.get_all();
     let groups: Vec<DomainGroup> = group_ids
@@ -174,6 +194,10 @@ pub async fn create_group(
     payload: CreateGroupPayload,
     service: State<'_, DomainGroupService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+    create_group_svc(payload, &service).await
+}
+
+pub async fn create_group_svc(payload: CreateGroupPayload, service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.add_group(payload.name);
     Ok(ApiResponse {
         success: true,
@@ -195,6 +219,10 @@ pub const GET_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComma
 pub async fn get_groups(
     service: State<'_, DomainGroupService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+    get_groups_svc(&service).await
+}
+
+pub async fn get_groups_svc(service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.get_all();
     Ok(ApiResponse {
         success: true,
@@ -224,6 +252,10 @@ pub async fn delete_group(
     service: State<'_, DomainGroupService>,
     link_service: State<'_, DomainGroupLinkService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+    delete_group_svc(payload, &service, &link_service).await
+}
+
+pub async fn delete_group_svc(payload: DeleteGroupPayload, service: &DomainGroupService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     link_service.remove_links_for_group(payload.id);
     let groups = service.delete_group(payload.id);
     Ok(ApiResponse {
@@ -254,6 +286,10 @@ pub async fn update_group(
     payload: UpdateGroupPayload,
     service: State<'_, DomainGroupService>,
 ) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+    update_group_svc(payload, &service).await
+}
+
+pub async fn update_group_svc(payload: UpdateGroupPayload, service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.update_group(payload.id, payload.name);
     Ok(ApiResponse {
         success: true,

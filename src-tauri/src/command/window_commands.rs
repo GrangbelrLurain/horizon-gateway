@@ -18,6 +18,11 @@ pub async fn open_window(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
+    open_window_svc(Some(app.clone()), label, title, url, width, height).await
+}
+
+pub async fn open_window_svc(app: Option<tauri::AppHandle>, label: String, title: String, url: String, width: f64, height: f64) -> Result<(), String> {
+    let app = app.ok_or_else(|| "GUI required".to_string())?;
     if let Some(window) = app.get_webview_window(&label) {
         window.set_focus().map_err(|e| e.to_string())?;
         return Ok(());
@@ -48,6 +53,11 @@ pub async fn open_inspector_window(
     url: String,
     script: Option<String>,
 ) -> Result<(), String> {
+    open_inspector_window_svc(Some(app.clone()), url, script).await
+}
+
+pub async fn open_inspector_window_svc(app: Option<tauri::AppHandle>, url: String, script: Option<String>) -> Result<(), String> {
+    let app = app.ok_or_else(|| "GUI required".to_string())?;
     let label = "inspector";
 
     // Close existing inspector if any
@@ -86,6 +96,11 @@ pub async fn open_annotation_dialog(
     tag_name: String,
     thumbnail: String,
 ) -> Result<(), String> {
+    open_annotation_dialog_svc(Some(app.clone()), selector, content, tag_name, thumbnail).await
+}
+
+pub async fn open_annotation_dialog_svc(app: Option<tauri::AppHandle>, selector: String, content: String, tag_name: String, thumbnail: String) -> Result<(), String> {
+    let app = app.ok_or_else(|| "GUI required".to_string())?;
     app.emit(
         "annotation-dialog-requested",
         serde_json::json!({

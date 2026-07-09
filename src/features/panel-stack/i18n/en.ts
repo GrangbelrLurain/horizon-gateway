@@ -237,4 +237,13 @@ export const en = {
   schemaOpenExplorerOverlay: "Open schema explorer",
   bulkBlocksGlobal: "Finish bulk manage before opening global tools",
   debugSubmenu: "Debug Settings",
+  toolsProxyGraph: "Proxy Connections",
+  proxyGraphDesc: "Visualize and control active connections between domains and local proxy targets.",
+  proxyGraphSearchPlaceholder: "Search domains or targets...",
+  proxyGraphAddRoute: "Add Proxy Route",
+  proxyGraphActiveRoutes: "Active Routes",
+  proxyGraphInactiveRoutes: "Inactive Routes",
+  proxyGraphUnrouted: "Not Routed",
+  proxyGraphNoRoutes: "No proxy routes configured.",
+  proxyGraphEmptySearch: "No domains or routes match your search.",
 } as const;

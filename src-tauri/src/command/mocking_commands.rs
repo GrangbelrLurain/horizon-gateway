@@ -22,6 +22,10 @@ pub const GET_MOCKING_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
 pub fn get_mocking_status(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockingSettings>, String> {
+    get_mocking_status_svc(&service)
+}
+
+pub fn get_mocking_status_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockingSettings>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -50,11 +54,15 @@ pub fn set_mocking_enabled(
     payload: SetMockingEnabledPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockingSettings>, String> {
+    set_mocking_enabled_svc(Some(app.clone()), payload, &service)
+}
+
+pub fn set_mocking_enabled_svc(app: Option<tauri::AppHandle>, payload: SetMockingEnabledPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockingSettings>, String> {
     use tauri::Emitter;
     let settings = service.set_enabled(payload.enabled);
     crate::service::local_proxy::set_mocking_enabled(payload.enabled);
 
-    let _ = app.emit(MOCKING_STATUS_CHANGED, &settings);
+    if let Some(app) = app { let _ = app.emit(MOCKING_STATUS_CHANGED, &settings); }
     Ok(ApiResponse {
         message: format!(
             "Mocking {}",
@@ -82,6 +90,10 @@ pub const GET_SCENARIOS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCo
 pub fn get_scenarios(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Vec<Scenario>>, String> {
+    get_scenarios_svc(&service)
+}
+
+pub fn get_scenarios_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<Scenario>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -110,6 +122,10 @@ pub fn create_scenario(
     payload: CreateScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Scenario>, String> {
+    create_scenario_svc(payload, &service)
+}
+
+pub fn create_scenario_svc(payload: CreateScenarioPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Scenario>, String> {
     let scenario = service.create_scenario(payload.name, payload.description);
     Ok(ApiResponse {
         message: "시나리오가 생성되었습니다.".to_string(),
@@ -135,6 +151,10 @@ pub fn update_scenario(
     enabled: Option<bool>,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<Scenario, String> {
+    update_scenario_svc(id, name, description, enabled, &service)
+}
+
+pub fn update_scenario_svc(id: String, name: Option<String>, description: Option<String>, enabled: Option<bool>, service: &std::sync::Arc<MockingService>) -> Result<Scenario, String> {
     service
         .update_scenario(id, name, description, enabled)
         .ok_or_else(|| "Scenario not found".to_string())
@@ -155,6 +175,10 @@ pub fn set_scenario_enabled(
     enabled: bool,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<Vec<Scenario>, String> {
+    set_scenario_enabled_svc(id, enabled, &service)
+}
+
+pub fn set_scenario_enabled_svc(id: String, enabled: bool, service: &std::sync::Arc<MockingService>) -> Result<Vec<Scenario>, String> {
     Ok(service.set_scenario_enabled(id, enabled))
 }
 
@@ -172,6 +196,10 @@ pub fn delete_scenario(
     id: String,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<bool, String> {
+    delete_scenario_svc(id, &service)
+}
+
+pub fn delete_scenario_svc(id: String, service: &std::sync::Arc<MockingService>) -> Result<bool, String> {
     Ok(service.delete_scenario(id))
 }
 
@@ -188,6 +216,10 @@ pub const GET_MOCK_RULES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
 pub fn get_mock_rules(
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Vec<MockRule>>, String> {
+    get_mock_rules_svc(&service)
+}
+
+pub fn get_mock_rules_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<MockRule>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -215,6 +247,10 @@ pub fn get_mock_rules_by_scenario(
     payload: GetMockRulesByScenarioPayload,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<Vec<MockRule>>, String> {
+    get_mock_rules_by_scenario_svc(payload, &service)
+}
+
+pub fn get_mock_rules_by_scenario_svc(payload: GetMockRulesByScenarioPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<MockRule>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -250,6 +286,10 @@ pub fn create_mock_rule(
     payload: CreateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockRule>, String> {
+    create_mock_rule_svc(payload, &service)
+}
+
+pub fn create_mock_rule_svc(payload: CreateMockRulePayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
     let rule = service.create_mock_rule(
         payload.name,
         payload.scenario_id,
@@ -296,6 +336,10 @@ pub fn update_mock_rule(
     payload: UpdateMockRulePayload,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockRule>, String> {
+    update_mock_rule_svc(payload, &service)
+}
+
+pub fn update_mock_rule_svc(payload: UpdateMockRulePayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
     let rule = service
         .update_mock_rule(
             payload.id,
@@ -331,6 +375,10 @@ pub fn delete_mock_rule(
     id: String,
     service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<bool, String> {
+    delete_mock_rule_svc(id, &service)
+}
+
+pub fn delete_mock_rule_svc(id: String, service: &std::sync::Arc<MockingService>) -> Result<bool, String> {
     Ok(service.delete_mock_rule(id))
 }
 
@@ -358,6 +406,10 @@ pub fn create_mock_rule_from_log(
     log_service: State<'_, ApiLogService>,
     mock_service: State<'_, std::sync::Arc<MockingService>>,
 ) -> Result<ApiResponse<MockRule>, String> {
+    create_mock_rule_from_log_svc(payload, &log_service, &mock_service)
+}
+
+pub fn create_mock_rule_from_log_svc(payload: CreateMockFromLogPayload, log_service: &ApiLogService, mock_service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
     let logs = log_service.get_logs(&payload.log_date, None, None, None, false);
 
     let log = logs

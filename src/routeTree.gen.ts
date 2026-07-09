@@ -28,6 +28,7 @@ import { Route as ProxySetupIndexRouteImport } from './routes/proxy/setup/index'
 import { Route as ProxyMobileIndexRouteImport } from './routes/proxy/mobile/index'
 import { Route as ProxyInspectorIndexRouteImport } from './routes/proxy/inspector/index'
 import { Route as ProxyDashboardIndexRouteImport } from './routes/proxy/dashboard/index'
+import { Route as ProxyConnectionsIndexRouteImport } from './routes/proxy/connections/index'
 import { Route as PopupToolsIndexRouteImport } from './routes/popup/tools/index'
 import { Route as PopupSettingsIndexRouteImport } from './routes/popup/settings/index'
 import { Route as PopupSchemaExplorerIndexRouteImport } from './routes/popup/schema-explorer/index'
@@ -141,6 +142,11 @@ const ProxyInspectorIndexRoute = ProxyInspectorIndexRouteImport.update({
 const ProxyDashboardIndexRoute = ProxyDashboardIndexRouteImport.update({
   id: '/proxy/dashboard/',
   path: '/proxy/dashboard/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProxyConnectionsIndexRoute = ProxyConnectionsIndexRouteImport.update({
+  id: '/proxy/connections/',
+  path: '/proxy/connections/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PopupToolsIndexRoute = PopupToolsIndexRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/popup/schema-explorer/': typeof PopupSchemaExplorerIndexRoute
   '/popup/settings/': typeof PopupSettingsIndexRoute
   '/popup/tools/': typeof PopupToolsIndexRoute
+  '/proxy/connections/': typeof ProxyConnectionsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/popup/schema-explorer': typeof PopupSchemaExplorerIndexRoute
   '/popup/settings': typeof PopupSettingsIndexRoute
   '/popup/tools': typeof PopupToolsIndexRoute
+  '/proxy/connections': typeof ProxyConnectionsIndexRoute
   '/proxy/dashboard': typeof ProxyDashboardIndexRoute
   '/proxy/inspector': typeof ProxyInspectorIndexRoute
   '/proxy/mobile': typeof ProxyMobileIndexRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/popup/schema-explorer/': typeof PopupSchemaExplorerIndexRoute
   '/popup/settings/': typeof PopupSettingsIndexRoute
   '/popup/tools/': typeof PopupToolsIndexRoute
+  '/proxy/connections/': typeof ProxyConnectionsIndexRoute
   '/proxy/dashboard/': typeof ProxyDashboardIndexRoute
   '/proxy/inspector/': typeof ProxyInspectorIndexRoute
   '/proxy/mobile/': typeof ProxyMobileIndexRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/popup/schema-explorer/'
     | '/popup/settings/'
     | '/popup/tools/'
+    | '/proxy/connections/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
     | '/proxy/mobile/'
@@ -434,6 +444,7 @@ export interface FileRouteTypes {
     | '/popup/schema-explorer'
     | '/popup/settings'
     | '/popup/tools'
+    | '/proxy/connections'
     | '/proxy/dashboard'
     | '/proxy/inspector'
     | '/proxy/mobile'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/popup/schema-explorer/'
     | '/popup/settings/'
     | '/popup/tools/'
+    | '/proxy/connections/'
     | '/proxy/dashboard/'
     | '/proxy/inspector/'
     | '/proxy/mobile/'
@@ -515,6 +527,7 @@ export interface RootRouteChildren {
   PopupSchemaExplorerIndexRoute: typeof PopupSchemaExplorerIndexRoute
   PopupSettingsIndexRoute: typeof PopupSettingsIndexRoute
   PopupToolsIndexRoute: typeof PopupToolsIndexRoute
+  ProxyConnectionsIndexRoute: typeof ProxyConnectionsIndexRoute
   ProxyDashboardIndexRoute: typeof ProxyDashboardIndexRoute
   ProxyInspectorIndexRoute: typeof ProxyInspectorIndexRoute
   ProxyMobileIndexRoute: typeof ProxyMobileIndexRoute
@@ -659,6 +672,13 @@ declare module '@tanstack/react-router' {
       path: '/proxy/dashboard'
       fullPath: '/proxy/dashboard/'
       preLoaderRoute: typeof ProxyDashboardIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proxy/connections/': {
+      id: '/proxy/connections/'
+      path: '/proxy/connections'
+      fullPath: '/proxy/connections/'
+      preLoaderRoute: typeof ProxyConnectionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/popup/tools/': {
@@ -827,6 +847,7 @@ const rootRouteChildren: RootRouteChildren = {
   PopupSchemaExplorerIndexRoute: PopupSchemaExplorerIndexRoute,
   PopupSettingsIndexRoute: PopupSettingsIndexRoute,
   PopupToolsIndexRoute: PopupToolsIndexRoute,
+  ProxyConnectionsIndexRoute: ProxyConnectionsIndexRoute,
   ProxyDashboardIndexRoute: ProxyDashboardIndexRoute,
   ProxyInspectorIndexRoute: ProxyInspectorIndexRoute,
   ProxyMobileIndexRoute: ProxyMobileIndexRoute,

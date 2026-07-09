@@ -17,6 +17,10 @@ pub const GET_SAVED_PIPELINES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
 pub fn get_saved_pipelines(
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
+    get_saved_pipelines_svc(&service)
+}
+
+pub fn get_saved_pipelines_svc(service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{} pipelines", list.len()),
@@ -45,6 +49,10 @@ pub fn get_saved_pipeline(
     payload: GetSavedPipelinePayload,
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
+    get_saved_pipeline_svc(payload, &service)
+}
+
+pub fn get_saved_pipeline_svc(payload: GetSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
     let item = service.get_by_id(&payload.id);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -80,6 +88,10 @@ pub fn create_saved_pipeline(
     payload: CreateSavedPipelinePayload,
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<SavedPipeline>, String> {
+    create_saved_pipeline_svc(payload, &service)
+}
+
+pub fn create_saved_pipeline_svc(payload: CreateSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<SavedPipeline>, String> {
     let item = service.create(payload.name, payload.description, payload.flow);
     Ok(ApiResponse {
         message: "Created".to_string(),
@@ -111,6 +123,10 @@ pub fn update_saved_pipeline(
     payload: UpdateSavedPipelinePayload,
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
+    update_saved_pipeline_svc(payload, &service)
+}
+
+pub fn update_saved_pipeline_svc(payload: UpdateSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
     let item = service.update(payload.id, payload.name, payload.description, payload.flow);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -143,6 +159,10 @@ pub fn delete_saved_pipeline(
     payload: DeleteSavedPipelinePayload,
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<bool>, String> {
+    delete_saved_pipeline_svc(payload, &service)
+}
+
+pub fn delete_saved_pipeline_svc(payload: DeleteSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<bool>, String> {
     let ok = service.delete(&payload.id);
     Ok(ApiResponse {
         message: if ok {
@@ -175,6 +195,10 @@ pub fn import_saved_pipelines(
     payload: ImportSavedPipelinesPayload,
     service: State<'_, Arc<PipelineLibraryService>>,
 ) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
+    import_saved_pipelines_svc(payload, &service)
+}
+
+pub fn import_saved_pipelines_svc(payload: ImportSavedPipelinesPayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
     service.replace_all(payload.pipelines);
     let list = service.get_all();
     Ok(ApiResponse {

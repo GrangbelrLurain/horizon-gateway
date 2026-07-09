@@ -399,6 +399,29 @@ export function DomainListPanel({
     return map;
   }, [filteredDomains, getGroupId]);
 
+  const sortedGroups = useMemo(() => {
+    if (sortMode !== "activity") {
+      return groups;
+    }
+    const groupsWithIndex = groups.map((g, idx) => ({ g, idx }));
+    groupsWithIndex.sort((a, b) => {
+      const aItems = grouped.get(a.g.id) ?? [];
+      const bItems = grouped.get(b.g.id) ?? [];
+
+      const aHasActive = aItems.some((d) => isDomainActive(getFeatureState(d.id)));
+      const bHasActive = bItems.some((d) => isDomainActive(getFeatureState(d.id)));
+
+      if (aHasActive && !bHasActive) {
+        return -1;
+      }
+      if (!aHasActive && bHasActive) {
+        return 1;
+      }
+      return a.idx - b.idx;
+    });
+    return groupsWithIndex.map((x) => x.g);
+  }, [groups, sortMode, grouped, getFeatureState]);
+
   const domainListMeta = useMemo(() => {
     const meta = new Map<number, { displayUrl: string; featureState: DomainFeatureState }>();
     for (const d of filteredDomains) {
@@ -586,7 +609,7 @@ export function DomainListPanel({
         </div>
       ) : (
         <>
-          {groups.map((g) => {
+          {sortedGroups.map((g) => {
             const items = grouped.get(g.id);
             if (!items?.length) {
               return null;

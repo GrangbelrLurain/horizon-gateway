@@ -17,6 +17,10 @@ pub const GET_JSON_SCHEMAS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub fn get_json_schemas(
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
+    get_json_schemas_svc(&service)
+}
+
+pub fn get_json_schemas_svc(service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{} schemas", list.len()),
@@ -45,6 +49,10 @@ pub fn get_json_schema(
     payload: GetJsonSchemaPayload,
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
+    get_json_schema_svc(payload, &service)
+}
+
+pub fn get_json_schema_svc(payload: GetJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
     let item = service.get_by_id(&payload.id);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -83,6 +91,10 @@ pub fn create_json_schema(
     payload: CreateJsonSchemaPayload,
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<SavedJsonSchema>, String> {
+    create_json_schema_svc(payload, &service)
+}
+
+pub fn create_json_schema_svc(payload: CreateJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<SavedJsonSchema>, String> {
     let item = service.create(
         payload.name,
         payload.description,
@@ -120,6 +132,10 @@ pub fn update_json_schema(
     payload: UpdateJsonSchemaPayload,
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
+    update_json_schema_svc(payload, &service)
+}
+
+pub fn update_json_schema_svc(payload: UpdateJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
     let item = service.update(
         payload.id,
         payload.name,
@@ -158,6 +174,10 @@ pub fn delete_json_schema(
     payload: DeleteJsonSchemaPayload,
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<bool>, String> {
+    delete_json_schema_svc(payload, &service)
+}
+
+pub fn delete_json_schema_svc(payload: DeleteJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<bool>, String> {
     let ok = service.delete(&payload.id);
     Ok(ApiResponse {
         message: if ok {
@@ -190,6 +210,10 @@ pub fn import_json_schemas(
     payload: ImportJsonSchemasPayload,
     service: State<'_, Arc<JsonSchemaRegistryService>>,
 ) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
+    import_json_schemas_svc(payload, &service)
+}
+
+pub fn import_json_schemas_svc(payload: ImportJsonSchemasPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
     service.replace_all(payload.schemas);
     let list = service.get_all();
     Ok(ApiResponse {

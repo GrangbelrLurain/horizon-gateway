@@ -1,6 +1,8 @@
 pub mod init;
 pub mod query;
+pub mod dispatch_headless;
 
+use crate::runtime::CommandEnv;
 use crate::service::api_log_service::ApiLogService;
 use crate::service::mocking_service::MockingService;
 use crate::service::domain_service::DomainService;
@@ -162,16 +164,28 @@ fn get_arg_val(args: &[String], flag: &str) -> Option<String> {
     }
 }
 
-pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
+pub enum CliExecutionMode<'a> {
+    StandaloneMeta,
+    Headless { env: CommandEnv<'a> },
+    Gui { app_handle: &'a tauri::AppHandle },
+}
+
+pub fn print_cli_error(msg: &str) {
+    print_error(msg);
+}
+
+/// Returns process exit code for `run` (0 success, 1 error). Other subcommands always return 0.
+pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
     if args.is_empty() {
         print_error("명령어가 지정되지 않았습니다. (사용 가능한 명령: init, list, help, run)");
-        return;
+        return 1;
     }
 
     let command = &args[0];
     match command.as_str() {
         "init" => {
             init::execute_init(&args[1..]);
+            0
         }
         "list" => {
             let output = serde_json::json!({
@@ -179,11 +193,12 @@ pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
                 "data": CLI_COMMANDS
             });
             cli_println(&serde_json::to_string_pretty(&output).unwrap());
+            0
         }
         "help" => {
             if args.len() < 2 {
                 print_error("help 명령어 뒤에 조회할 명령어 이름을 입력해주세요. (예: cli help get_api_logs)");
-                return;
+                return 1;
             }
             let cmd_name = &args[1];
             if let Some(info) = CLI_COMMANDS.iter().find(|c| c.name == cmd_name) {
@@ -192,37 +207,52 @@ pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
                     "data": info
                 });
                 cli_println(&serde_json::to_string_pretty(&output).unwrap());
+                0
             } else {
                 print_error(&format!("존재하지 않는 명령어입니다: {}", cmd_name));
+                1
             }
         }
         "run" => {
             if args.len() < 2 {
                 print_error("실행할 명령어 이름을 입력해주세요. (예: cli run get_api_logs '{}')");
-                return;
+                return 1;
             }
             let cmd_name = &args[1];
-            let raw_payload = args.get(2).cloned().unwrap_or_else(|| "{}".to_string());
+            let raw_payload = resolve_payload_arg(args).unwrap_or_else(|| "{}".to_string());
             let query = get_arg_val(args, "--query");
 
             let payload: Value = match serde_json::from_str(&raw_payload) {
                 Ok(v) => v,
                 Err(e) => {
                     print_error(&format!("요청 페이로드가 올바른 JSON 형식이 아닙니다: {}", e));
-                    return;
+                    return 1;
                 }
             };
 
-            let handle = match app_handle {
-                Some(h) => h,
-                None => {
-                    print_error("Tauri handle is not initialized. Run commands are not supported standalone.");
-                    return;
+            let dispatch_result = match mode {
+                CliExecutionMode::Headless { env } => {
+                    let ctx = match env.require_ctx() {
+                        Ok(c) => c,
+                        Err(e) => {
+                            print_error(&e);
+                            return 1;
+                        }
+                    };
+                    dispatch_headless::dispatch_headless(cmd_name, payload, ctx, &env.runtime)
+                }
+                CliExecutionMode::Gui { app_handle } => {
+                    dispatch_command(cmd_name, payload, app_handle)
+                }
+                CliExecutionMode::StandaloneMeta => {
+                    print_error(
+                        "cli run requires a running context. Use `watchtower cli run` from the shell.",
+                    );
+                    return 1;
                 }
             };
 
-            // Dispatch command
-            match dispatch_command(cmd_name, payload, handle) {
+            match dispatch_result {
                 Ok(response) => {
                     let final_response = if let Some(ref q) = query {
                         query::apply_query(&response, q)
@@ -230,9 +260,11 @@ pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
                         response
                     };
                     cli_println(&serde_json::to_string_pretty(&final_response).unwrap());
+                    0
                 }
                 Err(e) => {
                     print_error(&e);
+                    1
                 }
             }
         }
@@ -241,10 +273,37 @@ pub fn execute_cli(args: &[String], app_handle: Option<&tauri::AppHandle>) {
                 "알 수 없는 명령어입니다: {}. (사용 가능한 명령: init, list, help, run)",
                 command
             ));
+            1
         }
     }
 }
 
+fn resolve_payload_arg(args: &[String]) -> Option<String> {
+    if let Some(file_flag) = get_arg_val(args, "--payload") {
+        return read_payload_source(&file_flag);
+    }
+    let positional = args.get(2)?;
+    if positional == "--query" {
+        return None;
+    }
+    if positional.starts_with("--") {
+        return None;
+    }
+    read_payload_source(positional)
+}
+
+fn read_payload_source(source: &str) -> Option<String> {
+    if source == "-" {
+        use std::io::Read;
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf).ok()?;
+        return Some(buf);
+    }
+    if let Some(path) = source.strip_prefix('@') {
+        return std::fs::read_to_string(path).ok();
+    }
+    Some(source.to_string())
+}
 pub fn cli_println(text: &str) {
     #[cfg(windows)]
     {

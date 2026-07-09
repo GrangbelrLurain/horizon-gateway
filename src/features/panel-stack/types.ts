@@ -25,7 +25,8 @@ export type HubSurfaceId =
   | "global/server-logs"
   | "global/api-logs"
   | "global/mocking"
-  | "global/schema-explorer";
+  | "global/schema-explorer"
+  | "global/proxy-graph";
 
 const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "chrome/infrastructure",
@@ -42,6 +43,7 @@ const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "global/api-logs",
   "global/mocking",
   "global/schema-explorer",
+  "global/proxy-graph",
 ];
 
 export function parseHubSurfaceId(value: string | undefined): HubSurfaceId | null {

@@ -17,6 +17,10 @@ pub const GET_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
 pub fn get_annotations(
     service: State<'_, InspectorService>,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    get_annotations_svc(&service)
+}
+
+pub fn get_annotations_svc(service: &InspectorService) -> Result<ApiResponse<Vec<Annotation>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{}개의 정책 조회 완료", list.len()),
@@ -44,6 +48,10 @@ pub fn add_annotation(
     service: State<'_, InspectorService>,
     payload: Annotation,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    add_annotation_svc(&service, payload)
+}
+
+pub fn add_annotation_svc(service: &InspectorService, payload: Annotation) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.add_annotation(payload);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -74,6 +82,10 @@ pub fn update_annotation(
     service: State<'_, InspectorService>,
     payload: UpdateAnnotationPayload,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    update_annotation_svc(&service, payload)
+}
+
+pub fn update_annotation_svc(service: &InspectorService, payload: UpdateAnnotationPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.update_annotation(payload.id, payload.role, payload.description);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -97,6 +109,10 @@ pub fn delete_annotation(
     service: State<'_, InspectorService>,
     payload: DeleteAnnotationPayload,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    delete_annotation_svc(&service, payload)
+}
+
+pub fn delete_annotation_svc(service: &InspectorService, payload: DeleteAnnotationPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.delete_annotation(payload.id);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -125,6 +141,10 @@ pub fn import_annotations(
     service: State<'_, InspectorService>,
     payload: ImportAnnotationsPayload,
 ) -> Result<ApiResponse<Vec<Annotation>>, String> {
+    import_annotations_svc(&service, payload)
+}
+
+pub fn import_annotations_svc(service: &InspectorService, payload: ImportAnnotationsPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.import_annotations(payload.annotations);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -148,6 +168,10 @@ pub fn set_global_inspector_enabled(
     service: State<'_, InspectorService>,
     payload: bool,
 ) -> Result<(), String> {
+    set_global_inspector_enabled_svc(&service, payload)
+}
+
+pub fn set_global_inspector_enabled_svc(service: &InspectorService, payload: bool) -> Result<(), String> {
     service.set_enabled(payload);
     local_proxy::set_inspector_enabled(payload);
     Ok(())
@@ -164,6 +188,10 @@ pub const GET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = cr
 #[tauri::command]
 #[specta::specta]
 pub fn get_global_inspector_enabled() -> Result<ApiResponse<bool>, String> {
+    get_global_inspector_enabled_svc()
+}
+
+pub fn get_global_inspector_enabled_svc() -> Result<ApiResponse<bool>, String> {
     Ok(ApiResponse {
         message: "인스펙터 상태 조회 완료".to_string(),
         success: true,
@@ -186,6 +214,10 @@ pub const GET_INJECTION_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
 pub fn get_injection_domains(
     service: State<'_, InspectorService>,
 ) -> Result<ApiResponse<Vec<String>>, String> {
+    get_injection_domains_svc(&service)
+}
+
+pub fn get_injection_domains_svc(service: &InspectorService) -> Result<ApiResponse<Vec<String>>, String> {
     let list = service.get_injection_domains();
     Ok(ApiResponse {
         message: "인젝션 도메인 목록 조회 완료".to_string(),
@@ -213,6 +245,10 @@ pub fn set_injection_domains(
     service: State<'_, InspectorService>,
     payload: SetInjectionDomainsPayload,
 ) -> Result<ApiResponse<Vec<String>>, String> {
+    set_injection_domains_svc(&service, payload)
+}
+
+pub fn set_injection_domains_svc(service: &InspectorService, payload: SetInjectionDomainsPayload) -> Result<ApiResponse<Vec<String>>, String> {
     service.set_injection_domains(payload.domains);
     let list = service.get_injection_domains();
     Ok(ApiResponse {

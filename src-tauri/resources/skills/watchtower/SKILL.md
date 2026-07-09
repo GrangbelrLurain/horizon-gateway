@@ -87,7 +87,18 @@ On Windows use `watchtower.exe`.
 | `init` | Install this skill for coding agents |
 | `list` | List all available commands (`category`, `guiOnly`, `payloadExample`) |
 | `help <command>` | Show payload schema for one command |
-| `run <command> [payload] [--query <path>]` | Execute a command |
+| `run <command> [payload] [--query <path>]` | Execute a command (headless — no GUI required) |
+
+`cli run` works **without** starting the Watchtower GUI. It bootstraps app services, prints JSON to stdout, and exits.
+
+Payload forms:
+
+```bash
+watchtower cli run get_domains '{}'
+watchtower cli run regist_domains @domains.json
+watchtower cli run create_scenario -   # JSON from stdin
+watchtower cli run get_domains '{}' --payload @body.json
+```
 
 ### Examples
 
@@ -134,9 +145,12 @@ Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
 
 ### CLI limits
 
-- `init` / `list` / `help` run standalone (no GUI). `run` needs the Watchtower app process (Tauri init).
-- GUI-only (`guiOnly: true`): `save_root_ca`, `open_window`, `open_inspector_window`, `open_annotation_dialog`.
-- `execute_pipeline` uses the Rust runner; FE-only `script` nodes are not supported via CLI.
+- **`cli init` / `list` / `help` / `run`**: Run without the GUI (preferred for agents).
+- **`guiOnly` commands** (`open_window`, `save_root_ca`, …): Fail in headless `cli run` with a clear error — use the desktop app.
+- **`start_local_proxy`**: Headless not supported yet (needs GUI `AppHandle` for proxy runtime).
+- **Reading API logs**: Prefer `logs.mjs` (streaming, token-efficient).
+- **GUI open + CLI write**: Avoid concurrent writes to the same app_data JSON files.
+- **`execute_pipeline`**: Rust runner only; FE-only `script` nodes are not supported via CLI.
 - Always call `cli help <command>` before `run` if unsure — use the returned `payloadExample` as the template.
 
 ---

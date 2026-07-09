@@ -60,6 +60,7 @@ use std::sync::Arc;
 
 mod logging;
 mod cli;
+mod runtime;
 mod command {
     pub mod api_log_commands;
     pub mod domain_commands;
@@ -261,7 +262,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(|app| {
-            use std::fs;
             use tauri::Manager;
             use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
@@ -282,74 +282,28 @@ pub fn run() {
                 .with(tauri_layer.with_filter(log_level))
                 .try_init();
 
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("failed to get app data dir");
-            if !app_data_dir.exists() {
-                fs::create_dir_all(&app_data_dir).expect("failed to create app data dir");
-            }
+            let ctx = crate::runtime::bootstrap_app_context()
+                .expect("failed to bootstrap app context");
 
-            // Tauri 메인 로직 시작 전 마이그레이션 (1→2→3 순차)
-            crate::storage::migration::run_all(&app_data_dir);
-
-            let storage_path = app_data_dir.join("domains.json");
-            let groups_storage_path = app_data_dir.join("groups.json");
-            let links_storage_path = app_data_dir.join("domain_group_links.json");
-            let logs_dir = app_data_dir.join("logs");
-            let monitor_links_path = app_data_dir.join("domain_monitor_links.json");
-            let local_routes_path = app_data_dir.join("domain_local_routes.json");
-            let proxy_settings_path = app_data_dir.join("proxy_settings.json");
-            let api_logging_path = app_data_dir.join("domain_api_logging_links.json");
-            let scenarios_path = app_data_dir.join("scenarios.json");
-            let mock_rules_path = app_data_dir.join("mock_rules.json");
-            let mocking_settings_path = app_data_dir.join("mocking_settings.json");
-            let inspector_path = app_data_dir.join("inspector_annotations.json");
-            let injection_domains_path = app_data_dir.join("injection_domains.json");
-            let inspector_settings_path = app_data_dir.join("inspector_settings.json");
-            let pipelines_path = app_data_dir.join("pipelines.json");
-            let json_schemas_path = app_data_dir.join("json_schemas.json");
-            let crypto_presets_path = app_data_dir.join("crypto_presets.json");
-            let ca_service =
-                Arc::new(CaService::new(&app_data_dir).expect("failed to init ca service"));
-            let domain_service = DomainService::new(storage_path);
-            let group_service = DomainGroupService::new(groups_storage_path);
-            let link_service = DomainGroupLinkService::new(links_storage_path);
-            let monitor_service = DomainMonitorService::new(logs_dir, monitor_links_path);
-            let local_route_service = Arc::new(LocalRouteService::new(local_routes_path));
-            let proxy_settings_service = ProxySettingsService::new(proxy_settings_path);
-            let api_logging_service = ApiLoggingSettingsService::new(api_logging_path);
-            let api_log_service = ApiLogService::new(app_data_dir.clone());
-            let mocking_service = Arc::new(crate::service::mocking_service::MockingService::new(
-                scenarios_path.clone(),
-                mock_rules_path.clone(),
-                mocking_settings_path.clone(),
-            ));
-            let inspector_service = InspectorService::new(inspector_path, injection_domains_path, inspector_settings_path);
-            let tunnel_service = Arc::new(TunnelService::new());
-            let usb_service = Arc::new(UsbService::new());
-            let pipeline_library_service = Arc::new(
-                crate::service::pipeline_library_service::PipelineLibraryService::new(pipelines_path),
-            );
-            let json_schema_registry_service = Arc::new(
-                crate::service::json_schema_registry_service::JsonSchemaRegistryService::new(
-                    json_schemas_path,
-                ),
-            );
-            let crypto_preset_service = Arc::new(
-                crate::service::crypto_preset_service::CryptoPresetService::new(crypto_presets_path),
-            );
-
-            crate::service::local_proxy::set_mocking_enabled(
-                mocking_service.get_settings().enabled,
-            );
-            crate::service::local_proxy::set_inspector_enabled(
-                inspector_service.get_settings().enabled,
-            );
-
-            monitor_service.sync_with_domains(&domain_service.get_all());
-            api_logging_service.refresh_map(&domain_service.get_all());
-            local_route_service.sync_with_domains(&domain_service.get_all());
+            let crate::runtime::AppContext {
+                app_data_dir: _,
+                ca_service,
+                domain_service,
+                group_service,
+                link_service,
+                monitor_service,
+                local_route_service,
+                proxy_settings_service,
+                api_logging_service,
+                api_log_service,
+                mocking_service,
+                inspector_service,
+                tunnel_service,
+                usb_service,
+                pipeline_library_service,
+                json_schema_registry_service,
+                crypto_preset_service,
+            } = ctx;
 
             // Clone/read values needed for auto-start before `app.manage()` moves them.
             let route_svc_for_proxy = Arc::clone(&local_route_service);
@@ -379,8 +333,13 @@ pub fn run() {
             // CLI 명령형 인자 인터셉트
             let args: Vec<String> = std::env::args().collect();
             if args.len() > 1 && args[1] == "cli" {
-                cli::execute_cli(&args[2..], Some(app.handle()));
-                std::process::exit(0);
+                let code = cli::execute_cli(
+                    &args[2..],
+                    cli::CliExecutionMode::Gui {
+                        app_handle: app.handle(),
+                    },
+                );
+                std::process::exit(code);
             }
 
             // Start the Hand-off diagnostic Axum server
@@ -495,5 +454,47 @@ pub fn run() {
 }
 
 pub fn execute_cli_standalone(args: &[String]) {
-    cli::execute_cli(args, None);
+    cli::execute_cli(args, cli::CliExecutionMode::StandaloneMeta);
+}
+
+pub fn install_rustls_provider() {
+    let () = rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("rustls default crypto provider");
+}
+
+/// Headless `cli run` — bootstraps services without Tauri/WebView.
+pub fn execute_cli_headless(args: &[String]) -> i32 {
+    use tracing_subscriber::{filter::LevelFilter, util::SubscriberInitExt};
+
+    install_rustls_provider();
+
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::ERROR)
+        .try_init();
+
+    let ctx = match crate::runtime::bootstrap_app_context() {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            cli::print_cli_error(&e);
+            return 1;
+        }
+    };
+
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            cli::print_cli_error(&format!("failed to start async runtime: {e}"));
+            return 1;
+        }
+    };
+
+    let runtime = crate::runtime::CliRuntime::Tokio(&rt);
+    let env = crate::runtime::CommandEnv {
+        ctx: Some(&ctx),
+        app_handle: None,
+        runtime,
+    };
+
+    cli::execute_cli(args, cli::CliExecutionMode::Headless { env })
 }

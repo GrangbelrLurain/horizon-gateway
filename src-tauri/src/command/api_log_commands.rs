@@ -21,6 +21,10 @@ pub const GET_DOMAIN_API_LOGGING_LINKS_CLI_INFO: crate::cli::CliCommandInfo = cr
 pub fn get_domain_api_logging_links(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
 ) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+    get_domain_api_logging_links_svc(&api_logging_service)
+}
+
+pub fn get_domain_api_logging_links_svc(api_logging_service: &ApiLoggingSettingsService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     let links = api_logging_service.get_links();
     Ok(ApiResponse {
         message: format!("{}개 로깅 링크 조회", links.len()),
@@ -54,6 +58,10 @@ pub fn set_domain_api_logging(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+    set_domain_api_logging_svc(payload, &api_logging_service, &domain_service)
+}
+
+pub fn set_domain_api_logging_svc(payload: SetDomainApiLoggingPayload, api_logging_service: &ApiLoggingSettingsService, domain_service: &DomainService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     // 도메인 존재 확인
     let domain = domain_service.get_domain_by_id(payload.domain_id);
     if domain.is_none() {
@@ -100,6 +108,10 @@ pub fn remove_domain_api_logging(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+    remove_domain_api_logging_svc(payload, &api_logging_service, &domain_service)
+}
+
+pub fn remove_domain_api_logging_svc(payload: RemoveDomainApiLoggingPayload, api_logging_service: &ApiLoggingSettingsService, domain_service: &DomainService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     let all_domains = domain_service.get_all();
     api_logging_service.remove_link(payload.domain_id, &all_domains);
     let links = api_logging_service.get_links();
@@ -113,12 +125,16 @@ pub fn remove_domain_api_logging(
 // ─── Schema download ────────────────────────────────────────────────────────
 
 /// Schema 파일 저장 경로: `{app_data_dir}/schemas/{domain_id}.json`
-fn schemas_dir(app: &tauri::AppHandle) -> PathBuf {
+fn schemas_dir_from_app(app: &tauri::AppHandle) -> PathBuf {
     use tauri::Manager;
     let base = app
         .path()
         .app_data_dir()
         .expect("failed to get app data dir");
+    schemas_dir(&base)
+}
+
+fn schemas_dir(base: &std::path::Path) -> PathBuf {
     base.join("schemas")
 }
 
@@ -157,6 +173,10 @@ pub async fn download_api_schema(
     payload: DownloadApiSchemaPayload,
     app: tauri::AppHandle,
 ) -> Result<ApiResponse<SchemaDownloadResult>, String> {
+    download_api_schema_svc(payload, &schemas_dir_from_app(&app)).await
+}
+
+pub async fn download_api_schema_svc(payload: DownloadApiSchemaPayload, schemas_base: &std::path::Path) -> Result<ApiResponse<SchemaDownloadResult>, String> {
     let url = payload.url.trim().to_string();
     if url.is_empty() {
         return Ok(ApiResponse {
@@ -193,7 +213,7 @@ pub async fn download_api_schema(
         .map_err(|e| format!("응답 읽기 실패: {e}"))?;
 
     // Save
-    let dir = schemas_dir(&app);
+    let dir = schemas_dir(schemas_base);
     std::fs::create_dir_all(&dir).map_err(|e| format!("디렉토리 생성 실패: {e}"))?;
     let file_path = dir.join(format!("{}.json", payload.domain_id));
     std::fs::write(&file_path, &body).map_err(|e| format!("파일 저장 실패: {e}"))?;
@@ -226,7 +246,11 @@ pub fn get_api_schema_content(
     payload: GetApiSchemaPayload,
     app: tauri::AppHandle,
 ) -> Result<ApiResponse<Option<String>>, String> {
-    let file_path = schemas_dir(&app).join(format!("{}.json", payload.domain_id));
+    get_api_schema_content_svc(payload, &schemas_dir_from_app(&app))
+}
+
+pub fn get_api_schema_content_svc(payload: GetApiSchemaPayload, schemas_base: &std::path::Path) -> Result<ApiResponse<Option<String>>, String> {
+    let file_path = schemas_dir(schemas_base).join(format!("{}.json", payload.domain_id));
     if file_path.exists() {
         let content = std::fs::read_to_string(&file_path)
             .map_err(|e| format!("파일 읽기 실패: {e}"))?;
@@ -297,6 +321,10 @@ pub const SEND_API_REQUEST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 pub async fn send_api_request(
     payload: SendApiRequestPayload,
 ) -> Result<ApiResponse<ApiRequestResult>, String> {
+    send_api_request_svc(payload).await
+}
+
+pub async fn send_api_request_svc(payload: SendApiRequestPayload) -> Result<ApiResponse<ApiRequestResult>, String> {
     use std::time::Instant;
 
     let method: reqwest::Method = match payload.method.to_uppercase().parse() {
@@ -423,6 +451,10 @@ pub const LIST_API_LOG_DATES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
 pub fn list_api_log_dates(
     api_log_service: tauri::State<'_, ApiLogService>,
 ) -> Result<ApiResponse<Vec<String>>, String> {
+    list_api_log_dates_svc(&api_log_service)
+}
+
+pub fn list_api_log_dates_svc(api_log_service: &ApiLogService) -> Result<ApiResponse<Vec<String>>, String> {
     let dates = api_log_service.list_dates();
     Ok(ApiResponse {
         message: format!("{}개 날짜 조회", dates.len()),
@@ -456,6 +488,10 @@ pub fn get_api_logs(
     payload: GetApiLogsPayload,
     api_log_service: tauri::State<'_, ApiLogService>,
 ) -> Result<ApiResponse<Vec<ApiLogEntry>>, String> {
+    get_api_logs_svc(payload, &api_log_service)
+}
+
+pub fn get_api_logs_svc(payload: GetApiLogsPayload, api_log_service: &ApiLogService) -> Result<ApiResponse<Vec<ApiLogEntry>>, String> {
     let logs = api_log_service.get_logs(
         &payload.date,
         payload.domain_filter,
@@ -491,6 +527,10 @@ pub fn clear_api_logs(
     payload: ClearApiLogsPayload,
     api_log_service: tauri::State<'_, ApiLogService>,
 ) -> Result<ApiResponse<()>, String> {
+    clear_api_logs_svc(payload, &api_log_service)
+}
+
+pub fn clear_api_logs_svc(payload: ClearApiLogsPayload, api_log_service: &ApiLogService) -> Result<ApiResponse<()>, String> {
     if let Err(e) = api_log_service.clear_logs(payload.date) {
         return Ok(ApiResponse {
             message: format!("삭제 실패: {e}"),

@@ -37,6 +37,10 @@ pub const PROCESS_CRYPTO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
 pub fn process_crypto(
     payload: ProcessCryptoPayload,
 ) -> Result<ApiResponse<String>, String> {
+    process_crypto_svc(payload)
+}
+
+pub fn process_crypto_svc(payload: ProcessCryptoPayload) -> Result<ApiResponse<String>, String> {
     let service = CryptoService::new();
     match service.process_crypto(
         payload.action,
@@ -70,6 +74,10 @@ pub const VALIDATE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
 pub fn validate_json_schema(
     payload: ValidateSchemaPayload,
 ) -> Result<ApiResponse<SchemaValidationResult>, String> {
+    validate_json_schema_svc(payload)
+}
+
+pub fn validate_json_schema_svc(payload: ValidateSchemaPayload) -> Result<ApiResponse<SchemaValidationResult>, String> {
     let service = CryptoService::new();
     match service.validate_json_schema(&payload.payload, &payload.schema) {
         Ok(()) => Ok(ApiResponse {

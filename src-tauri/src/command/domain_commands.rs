@@ -30,6 +30,10 @@ pub fn regist_domains(
     link_service: tauri::State<'_, DomainGroupLinkService>,
     _monitor_service: tauri::State<'_, DomainMonitorService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
+    regist_domains_svc(payload, &domain_service, &link_service, &_monitor_service)
+}
+
+pub fn regist_domains_svc(payload: RegistDomainsPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService, _monitor_service: &DomainMonitorService) -> Result<ApiResponse<Vec<Domain>>, String> {
     let requested = payload.urls.len();
     let list = domain_service.add_domains(payload.urls);
     if let Some(gid) = payload.group_id {
@@ -63,6 +67,10 @@ pub const GET_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComm
 pub fn get_domains(
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
+    get_domains_svc(&domain_service)
+}
+
+pub fn get_domains_svc(domain_service: &DomainService) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.get_all();
     Ok(ApiResponse {
         message: format!("{}개 조회 완료!", list.len()),
@@ -91,6 +99,10 @@ pub fn get_domain_by_id(
     payload: GetDomainByIdPayload,
     domain_service: tauri::State<'_, DomainService>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
+    get_domain_by_id_svc(payload, &domain_service)
+}
+
+pub fn get_domain_by_id_svc(payload: GetDomainByIdPayload, domain_service: &DomainService) -> Result<ApiResponse<Option<Domain>>, String> {
     let domain = domain_service.get_domain_by_id(payload.id);
     if let Some(domain) = domain {
         Ok(ApiResponse {
@@ -129,6 +141,10 @@ pub fn update_domain_by_id(
     domain_service: tauri::State<'_, DomainService>,
     route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
+    update_domain_by_id_svc(payload, &domain_service, &route_service)
+}
+
+pub fn update_domain_by_id_svc(payload: UpdateDomainByIdPayload, domain_service: &DomainService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<Domain>>, String> {
     let url = payload.url.filter(|s| !s.is_empty());
     let domain = domain_service.update_domain(payload.id, url);
     if domain.is_empty() {
@@ -171,6 +187,10 @@ pub fn remove_domains(
     api_logging_service: tauri::State<'_, ApiLoggingSettingsService>,
     route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
+    remove_domains_svc(payload, &domain_service, &link_service, &monitor_service, &api_logging_service, &route_service)
+}
+
+pub fn remove_domains_svc(payload: RemoveDomainsPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService, monitor_service: &DomainMonitorService, api_logging_service: &ApiLoggingSettingsService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<Domain>>, String> {
     link_service.remove_links_for_domain(payload.id);
     route_service.remove_for_domain(payload.id);
     let domain = domain_service.delete_domain(payload.id);
@@ -214,6 +234,10 @@ pub fn import_domains(
     monitor_service: tauri::State<'_, DomainMonitorService>,
     route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
+    import_domains_svc(payload, &domain_service, &monitor_service, &route_service)
+}
+
+pub fn import_domains_svc(payload: ImportDomainsPayload, domain_service: &DomainService, monitor_service: &DomainMonitorService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(payload.domains);
     let all_domains = domain_service.get_all();
     monitor_service.sync_with_domains(&all_domains);
@@ -240,6 +264,10 @@ pub fn clear_all_domains(
     monitor_service: tauri::State<'_, DomainMonitorService>,
     route_service: tauri::State<'_, Arc<LocalRouteService>>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
+    clear_all_domains_svc(&domain_service, &monitor_service, &route_service)
+}
+
+pub fn clear_all_domains_svc(domain_service: &DomainService, monitor_service: &DomainMonitorService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(vec![]);
     monitor_service.sync_with_domains(&domain_service.get_all());
     route_service.sync_with_domains(&domain_service.get_all());

@@ -243,4 +243,13 @@ export const ko: TranslationSchema = {
   schemaOpenExplorerOverlay: "스키마 탐색기 열기",
   bulkBlocksGlobal: "일괄 관리 중에는 전체 도구를 열 수 없습니다",
   debugSubmenu: "디버그 설정",
+  toolsProxyGraph: "프록시 연결 맵",
+  proxyGraphDesc: "도메인과 로컬 프록시 대상 간의 활성 연결을 시각화하고 제어합니다.",
+  proxyGraphSearchPlaceholder: "도메인 또는 대상 검색...",
+  proxyGraphAddRoute: "프록시 라우트 추가",
+  proxyGraphActiveRoutes: "활성 라우트",
+  proxyGraphInactiveRoutes: "비활성 라우트",
+  proxyGraphUnrouted: "라우트 미연결",
+  proxyGraphNoRoutes: "등록된 프록시 라우트가 없습니다.",
+  proxyGraphEmptySearch: "검색 결과와 일치하는 도메인 또는 라우트가 없습니다.",
 };
