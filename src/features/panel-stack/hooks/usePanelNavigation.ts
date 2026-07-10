@@ -59,6 +59,27 @@ function searchFromState(
   return result;
 }
 
+function panelsEqual(a: PanelEntry[], b: PanelEntry[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((panel, index) => {
+    const other = b[index];
+    if (!other || panel.id !== other.id) {
+      return false;
+    }
+    const left = panel.params;
+    const right = other.params;
+    if (!left && !right) {
+      return true;
+    }
+    if (!left || !right) {
+      return false;
+    }
+    return left.logId === right.logId;
+  });
+}
+
 export function usePanelNavigation() {
   const navigate = useNavigate({ from: "/" });
   const search = useSearch({ from: "/" });
@@ -78,8 +99,10 @@ export function usePanelNavigation() {
 
   useEffect(() => {
     const built = buildPanelsFromSearch(search.d, search.p, search.logId);
-    setDomainId(built.domainId);
-    setPanels(built.panels);
+    setDomainId((prev) => (prev === built.domainId ? prev : built.domainId));
+    setPanels((prev) => (panelsEqual(prev, built.panels) ? prev : built.panels));
+    domainIdRef.current = built.domainId;
+    panelsRef.current = panelsEqual(panelsRef.current, built.panels) ? panelsRef.current : built.panels;
   }, [search.d, search.p, search.logId, setDomainId, setPanels]);
 
   const syncUrl = useCallback(
@@ -92,6 +115,17 @@ export function usePanelNavigation() {
     [navigate],
   );
 
+  const applyNavigation = useCallback(
+    (nextDomainId: number | null, nextPanels: PanelEntry[], nextGlobalSurface: HubSurfaceId | null) => {
+      domainIdRef.current = nextDomainId;
+      panelsRef.current = nextPanels;
+      setDomainId(nextDomainId);
+      setPanels(nextPanels);
+      syncUrl(nextDomainId, nextPanels, nextGlobalSurface);
+    },
+    [setDomainId, setPanels, syncUrl],
+  );
+
   const syncUrlPreserveGlobal = useCallback(
     (nextDomainId: number | null, nextPanels: PanelEntry[]) => {
       syncUrl(nextDomainId, nextPanels, globalSurfaceRef.current);
@@ -99,18 +133,7 @@ export function usePanelNavigation() {
     [syncUrl],
   );
 
-  useEffect(() => {
-    if (!domainId) {
-      return;
-    }
-    const active = panels[panels.length - 1];
-    if (!active || active.id === "overview") {
-      return;
-    }
-    if (!canOpenPanel(active.id, getFeatureState(domainId))) {
-      syncUrlPreserveGlobal(domainId, [{ id: "overview" }]);
-    }
-  }, [domainId, panels, getFeatureState, syncUrlPreserveGlobal]);
+  // Removed automatic panel reset on feature inactive to keep open depth and show disabled states.
 
   const openGlobalSurface = useCallback(
     (id: HubSurfaceId, opts?: { detach?: boolean }) => {
@@ -138,12 +161,12 @@ export function usePanelNavigation() {
   const selectDomain = useCallback(
     (id: number) => {
       if (domainIdRef.current === id) {
-        syncUrl(null, [], globalSurfaceRef.current);
+        applyNavigation(null, [], globalSurfaceRef.current);
         return;
       }
-      syncUrl(id, [{ id: "overview" }], globalSurfaceRef.current);
+      applyNavigation(id, [{ id: "overview" }], globalSurfaceRef.current);
     },
-    [syncUrl],
+    [applyNavigation],
   );
 
   const openPanel = useCallback(
@@ -212,14 +235,14 @@ export function usePanelNavigation() {
   }, [domainId, syncUrlPreserveGlobal]);
 
   const clearDomain = useCallback(() => {
-    syncUrl(null, [], globalSurfaceRef.current);
-  }, [syncUrl]);
+    applyNavigation(null, [], globalSurfaceRef.current);
+  }, [applyNavigation]);
 
   const restoreNavigation = useCallback(
     (id: number, nextPanels: PanelEntry[]) => {
-      syncUrl(id, nextPanels.length > 0 ? nextPanels : [{ id: "overview" }], globalSurfaceRef.current);
+      applyNavigation(id, nextPanels.length > 0 ? nextPanels : [{ id: "overview" }], globalSurfaceRef.current);
     },
-    [syncUrl],
+    [applyNavigation],
   );
 
   const dispatchHandoff = useCallback(

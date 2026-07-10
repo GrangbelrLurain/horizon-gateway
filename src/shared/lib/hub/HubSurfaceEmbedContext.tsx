@@ -1,11 +1,29 @@
-import { createContext, type ReactNode, useContext } from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 
-const HubSurfaceEmbedContext = createContext(false);
+type HubSurfaceEmbedContextValue = {
+  embedded: boolean;
+  dismiss?: () => void;
+};
 
-export function HubSurfaceEmbedProvider({ children }: { children: ReactNode }) {
-  return <HubSurfaceEmbedContext.Provider value={true}>{children}</HubSurfaceEmbedContext.Provider>;
+const HubSurfaceEmbedContext = createContext<HubSurfaceEmbedContextValue>({ embedded: false });
+
+export function HubSurfaceEmbedProvider({ children, onDismiss }: { children: ReactNode; onDismiss?: () => void }) {
+  const parent = useContext(HubSurfaceEmbedContext);
+  const value = useMemo(
+    () => ({
+      embedded: true,
+      dismiss: onDismiss ?? parent.dismiss,
+    }),
+    [onDismiss, parent.dismiss],
+  );
+
+  return <HubSurfaceEmbedContext.Provider value={value}>{children}</HubSurfaceEmbedContext.Provider>;
 }
 
 export function useIsHubSurfaceEmbed(): boolean {
-  return useContext(HubSurfaceEmbedContext);
+  return useContext(HubSurfaceEmbedContext).embedded;
+}
+
+export function useHubSurfaceDismiss(): (() => void) | undefined {
+  return useContext(HubSurfaceEmbedContext).dismiss;
 }

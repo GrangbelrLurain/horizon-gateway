@@ -40,8 +40,11 @@ export const domainListFeatureRequireAtom = atomWithWindowStorage<DomainFeatureK
 export const domainListSortAtom = atomWithWindowStorage<DomainListSortMode>("domain-list-sort", "activity");
 export const domainApiLogsSearchAtom = atomWithWindowStorage("domain-api-logs-search", "");
 export const domainApiLogsMethodAtom = atomWithWindowStorage<string>("domain-api-logs-method", "ALL");
-export const domainListBulkModeAtom = atomWithWindowStorage("domain-list-bulk-mode", false);
-export const domainListBulkSelectedIdsAtom = atom<number[]>([]);
+/** Transient UI state — not persisted (avoids localStorage sync on every toggle). */
+export const domainListBulkModeAtom = atom(false);
+export const domainListBulkSelectedIdsAtom = atom<ReadonlySet<number>>(new Set<number>());
+/** Filtered domain ids in list order — used for range select / copy ordering */
+export const domainListFilteredIdsAtom = atom<number[]>([]);
 export const domainListBulkSnapshotAtom = atom<{ domainId: number; panels: PanelEntry[] } | null>(null);
 export const collapsedPanelsAtom = atom<Record<string, boolean>>({});
 /** User manually expanded panels — auto-collapse skips these */

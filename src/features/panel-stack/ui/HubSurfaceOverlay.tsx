@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { ExternalLink, X } from "lucide-react";
 import { Suspense } from "react";
 import { languageAtom } from "@/entities/app";
+import { HubSurfaceEmbedProvider } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { notifyHubHandoff } from "@/shared/lib/tauri/hubEvents";
 import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
@@ -99,11 +100,13 @@ export function HubSurfaceOverlay({ surfaceId, onClose, onDetach }: HubSurfaceOv
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ActiveSurfaceProvider surfaceId={surfaceId}>
-            <Suspense fallback={<LoadingScreen />}>
-              <SurfaceComponent />
-            </Suspense>
-          </ActiveSurfaceProvider>
+          <HubSurfaceEmbedProvider onDismiss={onClose}>
+            <ActiveSurfaceProvider surfaceId={surfaceId}>
+              <Suspense fallback={<LoadingScreen />}>
+                <SurfaceComponent />
+              </Suspense>
+            </ActiveSurfaceProvider>
+          </HubSurfaceEmbedProvider>
         </div>
       </motion.div>
     </AnimatePresence>

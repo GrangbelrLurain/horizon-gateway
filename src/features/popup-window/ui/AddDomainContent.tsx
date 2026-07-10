@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import { useDomainHubData } from "@/entities/domain-hub";
 import { commands, unwrap } from "@/shared/api";
+import { useHubSurfaceDismiss, useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
 import { Textarea } from "@/shared/ui/textarea/Textarea";
@@ -18,6 +19,16 @@ export function AddDomainContent() {
   const [urls, setUrls] = useState("");
   const [groupId, setGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const isHubEmbed = useIsHubSurfaceEmbed();
+  const dismissHubSurface = useHubSurfaceDismiss();
+
+  const dismiss = useCallback(async () => {
+    if (isHubEmbed && dismissHubSurface) {
+      dismissHubSurface();
+      return;
+    }
+    await getCurrentWindow().close();
+  }, [dismissHubSurface, isHubEmbed]);
 
   const handleSubmit = useCallback(async () => {
     const list = urls
@@ -33,7 +44,7 @@ export function AddDomainContent() {
       await fetchAll();
       await notifyHubDataChanged("domains");
       setUrls("");
-      await getCurrentWindow().close();
+      await dismiss();
     } catch (e) {
       console.error(e);
       await showAlert(
@@ -44,7 +55,7 @@ export function AddDomainContent() {
     } finally {
       setLoading(false);
     }
-  }, [urls, groupId, fetchAll]);
+  }, [urls, groupId, fetchAll, dismiss, lang, showAlert]);
 
   return (
     <div className="space-y-4">
@@ -71,7 +82,7 @@ export function AddDomainContent() {
         </select>
       </div>
       <div className="flex gap-2 pt-2">
-        <Button variant="secondary" className="flex-1" onClick={() => getCurrentWindow().close()} disabled={loading}>
+        <Button variant="secondary" className="flex-1" onClick={() => void dismiss()} disabled={loading}>
           {t.addDomainCancel}
         </Button>
         <Button variant="primary" className="flex-1" onClick={handleSubmit} disabled={loading || !urls.trim()}>

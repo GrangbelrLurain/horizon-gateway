@@ -1,7 +1,7 @@
 import clsx from "clsx";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Activity, ListChecks, Loader2, Server, Trash2, Wifi } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import { Button } from "@/shared/ui/button/Button";
@@ -10,6 +10,7 @@ import { useDomainBulkActions } from "../hooks/useDomainBulkActions";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import { domainListBulkSelectedCountAtom } from "../lib/bulkSelectionAtoms";
 import { domainListBulkSelectedIdsAtom } from "../store";
 import { Panel } from "./Panel";
 
@@ -17,10 +18,54 @@ interface DomainBulkManagePanelProps {
   onClose: () => void;
 }
 
+function summarizeFeatureStates(
+  selectedIds: ReadonlySet<number>,
+  getFeatureState: ReturnType<typeof useDomainHubData>["getFeatureState"],
+  key: "monitor" | "proxy" | "api",
+) {
+  if (selectedIds.size === 0) {
+    return { allEnabled: false, noneEnabled: true, isMixed: false };
+  }
+  let enabledCount = 0;
+  for (const id of selectedIds) {
+    const state = getFeatureState(id);
+    const enabled =
+      key === "monitor" ? !!state.monitorEnabled : key === "proxy" ? !!state.proxyEnabled : !!state.apiLoggingEnabled;
+    if (enabled) {
+      enabledCount++;
+    }
+  }
+  const allEnabled = enabledCount === selectedIds.size;
+  const noneEnabled = enabledCount === 0;
+  return { allEnabled, noneEnabled, isMixed: !allEnabled && !noneEnabled };
+}
+
+function summarizeApiBodyStates(
+  selectedIds: ReadonlySet<number>,
+  apiLinks: { domainId: number; bodyEnabled?: boolean | null }[],
+) {
+  if (selectedIds.size === 0) {
+    return { allBodyEnabled: false, noneBodyEnabled: true, isBodyMixed: false };
+  }
+  let enabledCount = 0;
+  for (const id of selectedIds) {
+    const link = apiLinks.find((l) => l.domainId === id);
+    if (link?.bodyEnabled) {
+      enabledCount++;
+    }
+  }
+  const allBodyEnabled = enabledCount === selectedIds.size;
+  const noneBodyEnabled = enabledCount === 0;
+  return { allBodyEnabled, noneBodyEnabled, isBodyMixed: !allBodyEnabled && !noneBodyEnabled };
+}
+
 export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const [selectedIds, setSelectedIds] = useAtom(domainListBulkSelectedIdsAtom);
+  const selectedIds = useAtomValue(domainListBulkSelectedIdsAtom);
+  const selectedCount = useAtomValue(domainListBulkSelectedCountAtom);
+  const selectedIdList = useMemo(() => Array.from(selectedIds), [selectedIds]);
+  const setSelectedIds = useSetAtom(domainListBulkSelectedIdsAtom);
   const { groups, getFeatureState } = useDomainHubData();
   const { bulkLoading, bulkFeatureToggle, bulkApiBodyToggle, bulkAssign, bulkDelete } = useDomainBulkActions();
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
@@ -28,60 +73,32 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [localLoading, setLocalLoading] = useState<Record<string, boolean>>({});
 
-  const getFeatureStates = (key: "monitor" | "proxy" | "api") => {
-    if (selectedIds.length === 0) {
-      return { allEnabled: false, noneEnabled: true, isMixed: false };
-    }
-    const states = selectedIds.map((id) => getFeatureState(id));
-    const enabledCount = states.filter((s) => {
-      if (key === "monitor") {
-        return !!s.monitorEnabled;
-      }
-      if (key === "proxy") {
-        return !!s.proxyEnabled;
-      }
-      return !!s.apiLoggingEnabled;
-    }).length;
-
-    const allEnabled = enabledCount === selectedIds.length;
-    const noneEnabled = enabledCount === 0;
-    const isMixed = !allEnabled && !noneEnabled;
-
-    return { allEnabled, noneEnabled, isMixed };
-  };
-
-  const getApiBodyStates = () => {
-    if (selectedIds.length === 0) {
-      return { allBodyEnabled: false, noneBodyEnabled: true, isBodyMixed: false };
-    }
-    const enabledCount = selectedIds.filter((id) => {
-      const link = apiLinks.find((l) => l.domainId === id);
-      return !!link?.bodyEnabled;
-    }).length;
-
-    const allBodyEnabled = enabledCount === selectedIds.length;
-    const noneBodyEnabled = enabledCount === 0;
-    const isBodyMixed = !allBodyEnabled && !noneBodyEnabled;
-
-    return { allBodyEnabled, noneBodyEnabled, isBodyMixed };
-  };
+  const featureSummary = useMemo(
+    () => ({
+      monitor: summarizeFeatureStates(selectedIds, getFeatureState, "monitor"),
+      proxy: summarizeFeatureStates(selectedIds, getFeatureState, "proxy"),
+      api: summarizeFeatureStates(selectedIds, getFeatureState, "api"),
+      apiBody: summarizeApiBodyStates(selectedIds, apiLinks),
+    }),
+    [apiLinks, getFeatureState, selectedIds],
+  );
 
   const handleAssignGroup = async () => {
-    const ids = [...selectedIds];
+    const ids = selectedIdList;
     await bulkAssign(ids, bulkGroupId === "" ? null : bulkGroupId);
-    setSelectedIds([]);
+    setSelectedIds(new Set());
   };
 
   const handleUngroup = async () => {
-    const ids = [...selectedIds];
+    const ids = selectedIdList;
     await bulkAssign(ids, null);
-    setSelectedIds([]);
+    setSelectedIds(new Set());
   };
 
   const handleDelete = async () => {
-    const ids = [...selectedIds];
+    const ids = selectedIdList;
     await bulkDelete(ids);
-    setSelectedIds([]);
+    setSelectedIds(new Set());
     setBulkDeleteConfirm(false);
   };
 
@@ -90,11 +107,11 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
       <Panel
         id="bulk-manage"
         title={t.bulkPanelTitle}
-        subtitle={t.bulkSelected(selectedIds.length)}
+        subtitle={t.bulkSelected(selectedCount)}
         onClose={onClose}
         width="lg"
       >
-        {selectedIds.length === 0 ? (
+        {selectedCount === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="w-14 h-14 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
               <ListChecks className="w-7 h-7 text-base-content/25" />
@@ -110,12 +127,12 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
               </h3>
               <div className="grid grid-cols-1 gap-3">
                 {(["monitor", "proxy", "api"] as const).map((key) => {
-                  const { allEnabled, noneEnabled, isMixed } = getFeatureStates(key);
+                  const { allEnabled, noneEnabled, isMixed } = featureSummary[key];
                   const anyEnabled = !noneEnabled;
                   const isLoading = localLoading[key];
 
                   const { allBodyEnabled, isBodyMixed } =
-                    key === "api" ? getApiBodyStates() : { allBodyEnabled: false, isBodyMixed: false };
+                    key === "api" ? featureSummary.apiBody : { allBodyEnabled: false, isBodyMixed: false };
 
                   return (
                     <div
@@ -188,7 +205,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                 const targetVal = e.target.checked;
                                 setLocalLoading((prev) => ({ ...prev, [key]: true }));
                                 try {
-                                  await bulkFeatureToggle(selectedIds, key, targetVal);
+                                  await bulkFeatureToggle(selectedIdList, key, targetVal);
                                 } finally {
                                   setLocalLoading((prev) => ({ ...prev, [key]: false }));
                                 }
@@ -198,7 +215,6 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                         </div>
                       </div>
 
-                      {/* Sub-row for API Body Logging */}
                       {key === "api" && anyEnabled && (
                         <div className="w-full pl-11 pt-2 border-t border-base-300/30 mt-2">
                           <div className="flex items-center justify-between text-xs py-1 px-2">
@@ -220,7 +236,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                   const targetVal = e.target.checked;
                                   setLocalLoading((prev) => ({ ...prev, "api-body": true }));
                                   try {
-                                    await bulkApiBodyToggle(selectedIds, targetVal);
+                                    await bulkApiBodyToggle(selectedIdList, targetVal);
                                   } finally {
                                     setLocalLoading((prev) => ({ ...prev, "api-body": false }));
                                   }
@@ -296,7 +312,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
         onClose={() => setBulkDeleteConfirm(false)}
         onConfirm={handleDelete}
         title={t.bulkDeleteConfirmTitle}
-        message={t.bulkDeleteConfirmMessage(selectedIds.length)}
+        message={t.bulkDeleteConfirmMessage(selectedCount)}
         confirmText={t.domainDeleteConfirm}
         cancelText={t.domainEditCancel}
         type="danger"

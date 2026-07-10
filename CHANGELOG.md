@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.4.3] - 2026-07-10
+
+### Added
+
+- **DisabledPanel**: Panels for features not available on the selected domain are now shown in a disabled state instead of being silently reset to `overview`. Users can see which features are inactive and enable them directly from the panel.
+- **Bulk URL Copy**: New bulk toolbar (`DomainListBulkToolbar`) exposes a "Copy URLs" action that copies all selected domain URLs to the clipboard in list order.
+- **Bulk range & toggle select**: Shift+click for range selection and Ctrl+click for individual toggle are now supported in bulk mode with a visual hint.
+- **`HubSurfaceEmbedContext` dismiss callback**: `HubSurfaceEmbedProvider` now accepts an `onDismiss` prop and exposes `useHubSurfaceDismiss()`. Embedded surfaces (e.g. Add Domain opened from the overlay) close the overlay rather than the Tauri window.
+- **i18n**: Added `bulkCopyUrls`, `bulkCopied`, `bulkSelectionHint` strings to both `en` and `ko` locales.
+
+### Changed
+
+- **Panel depth preserved on domain switch**: Switching domains no longer resets the panel stack to `overview`. The current depth is kept; panels for disabled features render in a disabled state.
+- **Bulk mode not persisted**: `domainListBulkModeAtom` changed from `atomWithWindowStorage` to a plain `atom` — bulk mode resets on page reload to avoid stale UI state.
+- **Bulk selection type**: `domainListBulkSelectedIdsAtom` changed from `number[]` to `ReadonlySet<number>` for O(1) membership checks.
+- **Domain list refactored**: `DomainListItem`, `VirtualizedGroupedDomainList`, and `DomainListInteractionContext` extracted from `DomainListPanel` for maintainability.
+- **`applyNavigation` helper**: Synchronously updates both Jotai atoms and internal refs before pushing the URL, eliminating a race where stale refs caused double navigation.
+
+### Fixed
+
+- **Stale ref race on domain deselect / clear**: `selectDomain`, `clearDomain`, and `restoreNavigation` now use `applyNavigation` to keep `domainIdRef` / `panelsRef` in sync with state before URL navigation.
+- **Redundant panel resets**: Removed the `useEffect` that reset panels to `overview` whenever the active panel was inaccessible — replaced by `DisabledPanel` rendering.
+
 ## [v2.4.2] - 2026-07-09
 
 ### Fixed

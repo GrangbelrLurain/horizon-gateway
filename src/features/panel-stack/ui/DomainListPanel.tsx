@@ -1,19 +1,7 @@
 import clsx from "clsx";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Folder,
-  Globe,
-  ListChecks,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-import { memo, type ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
+import { ChevronLeft, Folder, Globe, ListChecks, Plus, Search, X } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
 import type { Domain } from "@/shared/api";
@@ -27,12 +15,21 @@ import { useDomainHubData } from "../hooks/useDomainHubData";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import {
+  type BulkPointerModifiers,
+  mergeRangeIntoSelection,
+  rangeIdsBetween,
+  toggleInSelection,
+} from "../lib/bulkSelection";
+import { domainListBulkAnchorIdAtom } from "../lib/bulkSelectionAtoms";
+import { buildDomainListVirtualRows } from "../lib/domainListVirtualRows";
+import {
   type DomainFeatureFilterMode,
   type DomainFeatureKey,
   domainListBulkModeAtom,
   domainListBulkSelectedIdsAtom,
   domainListFeatureFilterAtom,
   domainListFeatureRequireAtom,
+  domainListFilteredIdsAtom,
   domainListGroupFilterAtom,
   domainListOverlayOpenAtom,
   domainListPinnedOpenAtom,
@@ -43,7 +40,9 @@ import {
 import { CollapseOverlay } from "./CollapseOverlay";
 import { CollapseStrip } from "./CollapseStrip";
 import { DomainEditModal } from "./DomainEditModal";
-import { DomainListBulkSelectRow } from "./DomainListBulkSelectRow";
+import { DomainListBulkToolbar } from "./DomainListBulkToolbar";
+import { DomainListInteractionContext } from "./DomainListInteractionContext";
+import { VirtualizedGroupedDomainList } from "./VirtualizedGroupedDomainList";
 
 interface DomainListPanelProps {
   selectedDomainId: number | null;
@@ -124,140 +123,6 @@ function FilterChip({
   );
 }
 
-function FeatureBadge({
-  label,
-  shortLabel,
-  active,
-  title,
-}: {
-  label: string;
-  shortLabel: string;
-  active: boolean;
-  title: string;
-}) {
-  return (
-    <span
-      title={title}
-      className={clsx(
-        "inline-flex items-center justify-center min-w-[18px] h-[18px] px-0.5 rounded text-[8px] font-black leading-none",
-        active ? "bg-success/20 text-success ring-1 ring-success/30" : "bg-base-content/8 text-base-content/25",
-      )}
-      aria-label={`${label}: ${active ? "ON" : "OFF"}`}
-    >
-      {shortLabel}
-    </span>
-  );
-}
-
-function FeatureBadges({
-  state,
-  labels,
-}: {
-  state: DomainFeatureState;
-  labels: { monitor: string; proxy: string; api: string };
-}) {
-  return (
-    <div className="flex items-center gap-0.5 shrink-0">
-      <FeatureBadge
-        shortLabel="M"
-        label={labels.monitor}
-        active={state.monitorEnabled === true}
-        title={`${labels.monitor}: ${state.monitorEnabled === true ? "ON" : "OFF"}`}
-      />
-      <FeatureBadge
-        shortLabel="P"
-        label={labels.proxy}
-        active={state.proxyEnabled === true}
-        title={`${labels.proxy}: ${state.proxyEnabled === true ? "ON" : "OFF"}`}
-      />
-      <FeatureBadge
-        shortLabel="A"
-        label={labels.api}
-        active={state.apiLoggingEnabled === true}
-        title={`${labels.api}: ${state.apiLoggingEnabled === true ? "ON" : "OFF"}`}
-      />
-    </div>
-  );
-}
-
-function DomainListItem({
-  domainId,
-  displayUrl,
-  selected,
-  featureState,
-  badgeLabels,
-  onSelectDomain,
-  onEditDomain,
-  onDeleteDomain,
-}: {
-  domainId: number;
-  displayUrl: string;
-  selected: boolean;
-  featureState: DomainFeatureState;
-  badgeLabels: { monitor: string; proxy: string; api: string };
-  onSelectDomain: (id: number) => void;
-  onEditDomain: (id: number) => void;
-  onDeleteDomain: (id: number) => void;
-}) {
-  return (
-    <div className="group relative flex items-center">
-      <button
-        type="button"
-        onClick={() => onSelectDomain(domainId)}
-        className={clsx(
-          "w-full flex items-center gap-2 px-3 py-2.5 pr-14 rounded-xl text-left",
-          selected
-            ? "bg-primary/15 border border-primary/30 text-primary"
-            : "hover:bg-base-200 border border-transparent text-base-content/80",
-        )}
-      >
-        <Globe className={clsx("w-3.5 h-3.5 shrink-0", selected ? "text-primary" : "text-base-content/30")} />
-        <span className="text-xs font-bold truncate flex-1 min-w-0">{displayUrl}</span>
-        <FeatureBadges state={featureState} labels={badgeLabels} />
-      </button>
-      <div className="absolute right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditDomain(domainId);
-          }}
-          className="p-1 rounded-md hover:bg-base-300 text-base-content/50 hover:text-primary"
-          title="Edit"
-        >
-          <Pencil className="w-3 h-3" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteDomain(domainId);
-          }}
-          className="p-1 rounded-md hover:bg-error/10 text-base-content/50 hover:text-error"
-          title="Delete"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const MemoDomainListItem = memo(DomainListItem, (prev, next) => {
-  return (
-    prev.domainId === next.domainId &&
-    prev.displayUrl === next.displayUrl &&
-    prev.selected === next.selected &&
-    prev.featureState.monitorEnabled === next.featureState.monitorEnabled &&
-    prev.featureState.proxyEnabled === next.featureState.proxyEnabled &&
-    prev.featureState.apiLoggingEnabled === next.featureState.apiLoggingEnabled &&
-    prev.badgeLabels === next.badgeLabels &&
-    prev.onSelectDomain === next.onSelectDomain &&
-    prev.onEditDomain === next.onEditDomain &&
-    prev.onDeleteDomain === next.onDeleteDomain
-  );
-});
-
 export function DomainListPanel({
   selectedDomainId,
   onSelectDomain,
@@ -277,7 +142,10 @@ export function DomainListPanel({
   const [featureRequire, setFeatureRequire] = useAtom(domainListFeatureRequireAtom);
   const [sortMode, setSortMode] = useAtom(domainListSortAtom);
   const [bulkMode] = useAtom(domainListBulkModeAtom);
-  const [selectedIds, setSelectedIds] = useAtom(domainListBulkSelectedIdsAtom);
+  const setSelectedIds = useSetAtom(domainListBulkSelectedIdsAtom);
+  const setBulkAnchorId = useSetAtom(domainListBulkAnchorIdAtom);
+  const store = useStore();
+  const setFilteredIds = useSetAtom(domainListFilteredIdsAtom);
   const [overlayOpen, setOverlayOpen] = useAtom(domainListOverlayOpenAtom);
   const [listPinned, setListPinned] = useAtom(domainListPinnedOpenAtom);
   const setPanelOverlayOpen = useSetAtom(panelOverlayOpenAtom);
@@ -288,13 +156,13 @@ export function DomainListPanel({
   const domainsRef = useRef(domains);
   domainsRef.current = domains;
 
-  const handleSelectDomain = useCallback(
-    (id: number) => {
-      onSelectDomain(id);
-      setOverlayOpen(false);
-    },
-    [onSelectDomain, setOverlayOpen],
-  );
+  useEffect(() => {
+    if (!bulkMode) {
+      setBulkAnchorId(null);
+    }
+  }, [bulkMode, setBulkAnchorId]);
+
+  const idToUrl = useMemo(() => new Map(domains.map((d) => [d.id, d.url])), [domains]);
 
   const handleEditDomain = useCallback((id: number) => {
     const domain = domainsRef.current.find((d) => d.id === id);
@@ -309,8 +177,6 @@ export function DomainListPanel({
       setDeleteDomain(domain);
     }
   }, []);
-
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const badgeLabels = useMemo(
     () => ({
@@ -422,6 +288,117 @@ export function DomainListPanel({
     return groupsWithIndex.map((x) => x.g);
   }, [groups, sortMode, grouped, getFeatureState]);
 
+  /** 화면에 보이는 그룹 순서 — Shift+클릭 범위 선택 / URL 복사 순서 */
+  const displayOrderedDomainIds = useMemo(() => {
+    const ids: number[] = [];
+    for (const g of sortedGroups) {
+      const items = grouped.get(g.id);
+      if (!items) {
+        continue;
+      }
+      for (const d of items) {
+        ids.push(d.id);
+      }
+    }
+    const ungrouped = grouped.get("none");
+    if (ungrouped) {
+      for (const d of ungrouped) {
+        ids.push(d.id);
+      }
+    }
+    return ids;
+  }, [sortedGroups, grouped]);
+
+  const filteredDomainIds = useMemo(() => filteredDomains.map((d) => d.id), [filteredDomains]);
+
+  useEffect(() => {
+    setFilteredIds(displayOrderedDomainIds);
+  }, [displayOrderedDomainIds, setFilteredIds]);
+
+  const applyRangeSelection = useCallback(
+    (anchorId: number, targetId: number) => {
+      const rangeIds = rangeIdsBetween(displayOrderedDomainIds, anchorId, targetId);
+      setSelectedIds((prev: ReadonlySet<number>) => mergeRangeIntoSelection(prev, rangeIds));
+    },
+    [displayOrderedDomainIds, setSelectedIds],
+  );
+
+  const handleBulkPointer = useCallback(
+    (id: number, mods: BulkPointerModifiers) => {
+      const ctrl = mods.ctrlKey || mods.metaKey;
+      const anchor = store.get(domainListBulkAnchorIdAtom);
+
+      if (mods.shiftKey) {
+        if (anchor != null) {
+          applyRangeSelection(anchor, id);
+        } else {
+          setSelectedIds(new Set([id]));
+        }
+      } else if (ctrl) {
+        setSelectedIds((prev: ReadonlySet<number>) => toggleInSelection(prev, id));
+      } else {
+        setSelectedIds(new Set([id]));
+      }
+      setBulkAnchorId(id);
+    },
+    [applyRangeSelection, setBulkAnchorId, setSelectedIds, store],
+  );
+
+  const handleListPointer = useCallback(
+    (id: number, mods: BulkPointerModifiers) => {
+      if (mods.shiftKey) {
+        const anchor = bulkMode ? store.get(domainListBulkAnchorIdAtom) : selectedDomainId;
+        if (!bulkMode) {
+          onEnterBulkMode();
+        }
+        if (anchor != null) {
+          applyRangeSelection(anchor, id);
+        } else {
+          setSelectedIds(new Set([id]));
+        }
+        setBulkAnchorId(id);
+      } else if (bulkMode) {
+        handleBulkPointer(id, mods);
+      } else {
+        onSelectDomain(id);
+      }
+      setOverlayOpen(false);
+    },
+    [
+      bulkMode,
+      selectedDomainId,
+      onEnterBulkMode,
+      applyRangeSelection,
+      setSelectedIds,
+      setBulkAnchorId,
+      handleBulkPointer,
+      onSelectDomain,
+      setOverlayOpen,
+      store,
+    ],
+  );
+
+  const handlersRef = useRef({
+    onPointer: handleListPointer,
+    onEditDomain: handleEditDomain,
+    onDeleteDomain: handleDeleteDomain,
+  });
+  handlersRef.current = {
+    onPointer: handleListPointer,
+    onEditDomain: handleEditDomain,
+    onDeleteDomain: handleDeleteDomain,
+  };
+
+  const interactionValue = useMemo(
+    () => ({
+      onPointer: (id: number, mods: BulkPointerModifiers) => handlersRef.current.onPointer(id, mods),
+      onEditDomain: (id: number) => handlersRef.current.onEditDomain(id),
+      onDeleteDomain: (id: number) => handlersRef.current.onDeleteDomain(id),
+      badgeLabels,
+    }),
+    [badgeLabels],
+  );
+
   const domainListMeta = useMemo(() => {
     const meta = new Map<number, { displayUrl: string; featureState: DomainFeatureState }>();
     for (const d of filteredDomains) {
@@ -447,7 +424,7 @@ export function DomainListPanel({
     return getDomainHostname(d).charAt(0).toUpperCase();
   }, [selectedDomainId, domains]);
 
-  const toggleGroup = (gid: number | "none") => {
+  const toggleGroup = useCallback((gid: number | "none") => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(gid)) {
@@ -457,7 +434,12 @@ export function DomainListPanel({
       }
       return next;
     });
-  };
+  }, []);
+
+  const virtualRows = useMemo(
+    () => buildDomainListVirtualRows(sortedGroups, grouped, collapsedGroups, t.ungrouped),
+    [sortedGroups, grouped, collapsedGroups, t.ungrouped],
+  );
 
   const handleDelete = async () => {
     if (!deleteDomain) {
@@ -482,18 +464,31 @@ export function DomainListPanel({
     setFeatureFilter(mode);
   };
 
-  const toggleSelected = (domainId: number, checked: boolean) => {
-    setSelectedIds((prev) => {
-      if (checked) {
-        return prev.includes(domainId) ? prev : [...prev, domainId];
-      }
-      return prev.filter((id) => id !== domainId);
-    });
-  };
-
-  const selectAllFiltered = () => {
-    setSelectedIds(filteredDomains.map((d) => d.id));
-  };
+  const listSection =
+    filteredDomains.length === 0 ? (
+      <div className="flex-1 overflow-y-auto p-2 min-h-0 select-none">
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <Globe className="w-8 h-8 text-base-content/20 mb-3" />
+          <p className="text-xs font-bold text-base-content/60">{t.noDomains}</p>
+          <p className="text-[10px] text-base-content/40 mt-1">{t.noDomainsDesc}</p>
+          {!bulkMode && (
+            <Button variant="primary" size="sm" className="mt-4 gap-1" onClick={onAddDomain}>
+              <Plus className="w-3.5 h-3.5" />
+              {t.addDomain}
+            </Button>
+          )}
+        </div>
+      </div>
+    ) : (
+      <DomainListInteractionContext.Provider value={interactionValue}>
+        <VirtualizedGroupedDomainList
+          virtualRows={virtualRows}
+          domainListMeta={domainListMeta}
+          collapsedGroups={collapsedGroups}
+          onToggleGroup={toggleGroup}
+        />
+      </DomainListInteractionContext.Provider>
+    );
 
   if (loading && domains.length === 0) {
     return (
@@ -556,149 +551,6 @@ export function DomainListPanel({
         </FilterChip>
       </FilterRow>
     </>
-  );
-
-  const listSection = (
-    <div className="flex-1 overflow-y-auto p-2 space-y-3 min-h-0">
-      {filteredDomains.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-          <Globe className="w-8 h-8 text-base-content/20 mb-3" />
-          <p className="text-xs font-bold text-base-content/60">{t.noDomains}</p>
-          <p className="text-[10px] text-base-content/40 mt-1">{t.noDomainsDesc}</p>
-          <Button variant="primary" size="sm" className="mt-4 gap-1" onClick={onAddDomain}>
-            <Plus className="w-3.5 h-3.5" />
-            {t.addDomain}
-          </Button>
-        </div>
-      ) : bulkMode ? (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between px-2 pb-1">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="text-[10px] font-bold text-primary hover:underline"
-                onClick={selectAllFiltered}
-              >
-                {t.bulkSelectAll}
-              </button>
-              {selectedIds.length > 0 && (
-                <>
-                  <span className="text-base-content/20">·</span>
-                  <button
-                    type="button"
-                    className="text-[10px] font-bold text-base-content/50 hover:underline"
-                    onClick={() => setSelectedIds([])}
-                  >
-                    {t.bulkClearSelection}
-                  </button>
-                </>
-              )}
-            </div>
-            {selectedIds.length > 0 && (
-              <span className="text-[10px] font-bold text-base-content/40">{t.bulkSelected(selectedIds.length)}</span>
-            )}
-          </div>
-          {filteredDomains.map((d) => (
-            <DomainListBulkSelectRow
-              key={d.id}
-              displayUrl={getDomainHostname(d)}
-              checked={selectedIdSet.has(d.id)}
-              onCheck={(checked) => toggleSelected(d.id, checked)}
-            />
-          ))}
-        </div>
-      ) : (
-        <>
-          {sortedGroups.map((g) => {
-            const items = grouped.get(g.id);
-            if (!items?.length) {
-              return null;
-            }
-            const collapsed = collapsedGroups.has(g.id);
-            return (
-              <div key={g.id}>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(g.id)}
-                  className="flex items-center gap-1.5 w-full px-2 py-1 text-[10px] font-black uppercase tracking-widest text-base-content/40 hover:text-base-content/60"
-                >
-                  {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  <Folder className="w-3 h-3" />
-                  {g.name}
-                  <span className="ml-auto">{items.length}</span>
-                </button>
-                {!collapsed && (
-                  <div className="space-y-0.5 mt-0.5">
-                    {items.map((d) => {
-                      const meta = domainListMeta.get(d.id);
-                      if (!meta) {
-                        return null;
-                      }
-                      return (
-                        <MemoDomainListItem
-                          key={d.id}
-                          domainId={d.id}
-                          displayUrl={meta.displayUrl}
-                          selected={selectedDomainId === d.id}
-                          featureState={meta.featureState}
-                          badgeLabels={badgeLabels}
-                          onSelectDomain={handleSelectDomain}
-                          onEditDomain={handleEditDomain}
-                          onDeleteDomain={handleDeleteDomain}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {(() => {
-            const ungrouped = grouped.get("none");
-            if (!ungrouped?.length) {
-              return null;
-            }
-            const collapsed = collapsedGroups.has("none");
-            return (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup("none")}
-                  className="flex items-center gap-1.5 w-full px-2 py-1 text-[10px] font-black uppercase tracking-widest text-base-content/40 hover:text-base-content/60"
-                >
-                  {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  {t.ungrouped}
-                  <span className="ml-auto">{ungrouped.length}</span>
-                </button>
-                {!collapsed && (
-                  <div className="space-y-0.5 mt-0.5">
-                    {ungrouped.map((d) => {
-                      const meta = domainListMeta.get(d.id);
-                      if (!meta) {
-                        return null;
-                      }
-                      return (
-                        <MemoDomainListItem
-                          key={d.id}
-                          domainId={d.id}
-                          displayUrl={meta.displayUrl}
-                          selected={selectedDomainId === d.id}
-                          featureState={meta.featureState}
-                          badgeLabels={badgeLabels}
-                          onSelectDomain={handleSelectDomain}
-                          onEditDomain={handleEditDomain}
-                          onDeleteDomain={handleDeleteDomain}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </>
-      )}
-    </div>
   );
 
   const footerSection = !bulkMode ? (
@@ -772,7 +624,15 @@ export function DomainListPanel({
                   variant={bulkMode ? "primary" : "ghost"}
                   size="sm"
                   className="h-7 px-2 gap-1 text-[10px] font-bold"
-                  onClick={() => (bulkMode ? onExitBulkMode() : onEnterBulkMode())}
+                  onClick={() => {
+                    if (bulkMode) {
+                      onExitBulkMode();
+                    } else {
+                      setSelectedIds(new Set());
+                      setBulkAnchorId(null);
+                      onEnterBulkMode();
+                    }
+                  }}
                 >
                   <ListChecks className="w-3.5 h-3.5" />
                   {bulkMode ? t.bulkModeExit : t.bulkModeEnter}
@@ -793,6 +653,8 @@ export function DomainListPanel({
         </div>
 
         {filterSection}
+
+        {bulkMode && <DomainListBulkToolbar filteredDomainIds={filteredDomainIds} idToUrl={idToUrl} />}
       </div>
 
       {listSection}
