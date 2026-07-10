@@ -17,12 +17,21 @@ import {
   X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom } from "@/entities/app";
+import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
-import { ApiLogExchangeDetail, savedJsonSchemasAtom, validateJsonSchema } from "@/entities/sandbox";
+import {
+  ApiLogExchangeDetail,
+  ApiLogsBulkExportBar,
+  apiLogEntryToCopyInput,
+  downloadApiExchangesHtml,
+  revealDownloadedApiExchangesHtml,
+  savedJsonSchemasAtom,
+  validateJsonSchema,
+} from "@/entities/sandbox";
 import { hubApiLogsHostSeedAtom } from "@/features/panel-stack";
 import type { ApiLogEntry } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { offerRevealSavedDownload } from "@/shared/lib/tauri/offerRevealSavedDownload";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -42,66 +51,82 @@ export const Route = createFileRoute("/apis/logs/")({
 interface LogRowProps {
   entry: ApiLogEntry;
   formattedTime: string;
+  selected: boolean;
   onClick: (entry: ApiLogEntry) => void;
+  onToggleSelect: (id: string, checked: boolean) => void;
 }
 
-const LogRow = React.memo(function LogRowItem({ entry, formattedTime, onClick }: LogRowProps) {
+const LogRow = React.memo(function LogRowItem({
+  entry,
+  formattedTime,
+  selected,
+  onClick,
+  onToggleSelect,
+}: LogRowProps) {
   return (
-    <button
-      type="button"
-      className="w-full grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all text-left group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50"
-      onClick={() => onClick(entry)}
-    >
-      <div className="flex shrink-0">
-        <Badge
-          variant={{
-            color:
-              (entry.status_code ?? 0) >= 500
-                ? "red"
-                : (entry.status_code ?? 0) >= 400
-                  ? "amber"
-                  : (entry.status_code ?? 0) >= 300
-                    ? "blue"
-                    : "green",
-            size: "sm",
-          }}
-          className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
-        >
-          {entry.status_code ?? "-"}
-        </Badge>
+    <div className="w-full grid grid-cols-[32px_60px_50px_1fr] tablet:grid-cols-[32px_80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50">
+      <div className="flex items-center justify-center">
+        <input
+          type="checkbox"
+          className="checkbox checkbox-xs checkbox-primary"
+          checked={selected}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => onToggleSelect(entry.id, e.target.checked)}
+          aria-label={`Select ${entry.method} ${entry.path}`}
+        />
       </div>
-      <span
-        className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
-          entry.method === "GET"
-            ? "text-success"
-            : entry.method === "POST"
-              ? "text-info"
-              : entry.method === "PUT"
-                ? "text-warning"
-                : entry.method === "DELETE"
-                  ? "text-error"
-                  : "text-base-content/60"
-        }`}
-      >
-        {entry.method}
-      </span>
-
-      <div className="min-w-0 flex flex-col gap-0.5">
+      <button type="button" className="contents" onClick={() => onClick(entry)}>
+        <div className="flex shrink-0">
+          <Badge
+            variant={{
+              color:
+                (entry.status_code ?? 0) >= 500
+                  ? "red"
+                  : (entry.status_code ?? 0) >= 400
+                    ? "amber"
+                    : (entry.status_code ?? 0) >= 300
+                      ? "blue"
+                      : "green",
+              size: "sm",
+            }}
+            className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
+          >
+            {entry.status_code ?? "-"}
+          </Badge>
+        </div>
         <span
-          className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-          title={entry.url}
+          className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
+            entry.method === "GET"
+              ? "text-success"
+              : entry.method === "POST"
+                ? "text-info"
+                : entry.method === "PUT"
+                  ? "text-warning"
+                  : entry.method === "DELETE"
+                    ? "text-error"
+                    : "text-base-content/60"
+          }`}
         >
-          {entry.path}
+          {entry.method}
         </span>
-        <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
-          {entry.host}
-        </span>
-      </div>
 
-      <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
-        {formattedTime}
-      </span>
-    </button>
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <span
+            className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+            title={entry.url}
+          >
+            {entry.path}
+          </span>
+          <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
+            {entry.host}
+          </span>
+        </div>
+
+        <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
+          {formattedTime}
+        </span>
+      </button>
+    </div>
   );
 });
 
@@ -109,6 +134,7 @@ const LogRow = React.memo(function LogRowItem({ entry, formattedTime, onClick }:
 function ApiLogs() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const { show: showModal } = usePromiseModal();
   const [date, setDate] = useAtom(apiLogsDateAtom);
   const [, setAvailableDates] = useState<string[]>([]);
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
@@ -123,6 +149,8 @@ function ApiLogs() {
   const [apiLogsHostSeed, setApiLogsHostSeed] = useAtom(hubApiLogsHostSeedAtom);
   const [methodFilter, setMethodFilter] = useAtom(apiLogsMethodFilterAtom);
   const [selectedLog, setSelectedLog] = useState<ApiLogEntry | null>(null);
+  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(() => new Set());
+  const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
@@ -417,6 +445,92 @@ function ApiLogs() {
     setSelectedLog(log);
   }, []);
 
+  const handleToggleSelect = useCallback((id: string, checked: boolean) => {
+    setSelectedLogIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllFiltered = useCallback(() => {
+    setSelectedLogIds(new Set(filteredLogs.map((log) => log.id)));
+  }, [filteredLogs]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedLogIds(new Set());
+  }, []);
+
+  const handleOpenSavedFolder = useCallback(async () => {
+    if (!lastSavedPath) {
+      return;
+    }
+    try {
+      await revealDownloadedApiExchangesHtml(lastSavedPath);
+    } catch (e) {
+      console.error("revealDownloadedApiExchangesHtml:", e);
+    }
+  }, [lastSavedPath]);
+
+  const copyFieldLabels = useMemo(
+    () => ({
+      requestHeaders: t.requestHeaders,
+      requestBody: t.requestBody,
+      responseHeaders: t.responseHeaders,
+      responseBody: t.responseBody,
+    }),
+    [t],
+  );
+
+  const handleDownloadSelectedHtml = useCallback(async () => {
+    const selected = filteredLogs.filter((log) => selectedLogIds.has(log.id));
+    if (selected.length === 0) {
+      return;
+    }
+    const inputs = selected.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
+    try {
+      const result = await downloadApiExchangesHtml(
+        inputs,
+        {
+          ...copyFieldLabels,
+          documentTitle: t.exportDocumentTitle,
+          exportedAt: t.exportExportedAt,
+          entryCount: t.exportEntryCount,
+          tableOfContents: t.exportTableOfContents,
+          copyResponse: t.exportCopyResponse,
+          copyRequest: t.exportCopyRequest,
+          copyExchange: t.exportCopyExchange,
+          copyAllResponses: t.exportCopyAllResponses,
+          copied: t.copied,
+          generatedBy: t.exportGeneratedBy,
+          jumpToEntry: t.exportJumpToEntry,
+        },
+        `watchtower-api-logs-${date}-${selected.length}.html`,
+      );
+      if (result.status !== "saved") {
+        return;
+      }
+      setLastSavedPath(result.path);
+      await offerRevealSavedDownload({
+        path: result.path,
+        title: t.downloadComplete,
+        message: t.downloadCompleteMessage(result.path),
+        openFolderText: t.openFolder,
+        closeText: t.close,
+        show: showModal,
+      });
+    } catch (e) {
+      console.error("downloadApiExchangesHtml:", e);
+    }
+  }, [copyFieldLabels, date, filteredLogs, selectedLogIds, showModal, t]);
+
+  const allFilteredSelected = filteredLogs.length > 0 && filteredLogs.every((log) => selectedLogIds.has(log.id));
+  const someFilteredSelected = filteredLogs.some((log) => selectedLogIds.has(log.id));
+
   const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 
   return (
@@ -589,9 +703,47 @@ function ApiLogs() {
             </div>
           </div>
 
+          <ApiLogsBulkExportBar
+            selectedCount={selectedLogIds.size}
+            totalCount={filteredLogs.length}
+            labels={{
+              selected: t.bulkSelected,
+              selectAll: t.bulkSelectAll,
+              clearSelection: t.bulkClearSelection,
+              downloadHtml: t.bulkDownloadHtml,
+              openFolder: t.openFolder,
+              downloadComplete: t.downloadComplete,
+            }}
+            onSelectAll={handleSelectAllFiltered}
+            onClearSelection={handleClearSelection}
+            onDownloadHtml={() => void handleDownloadSelectedHtml()}
+            lastSavedPath={lastSavedPath}
+            onOpenFolder={() => void handleOpenSavedFolder()}
+          />
+
           {/* Log List */}
           <div className="bg-base-100 rounded-2xl border border-base-300 shadow-xl overflow-hidden flex flex-col flex-1 min-h-0">
-            <div className="grid grid-cols-[60px_50px_1fr] tablet:grid-cols-[80px_60px_1fr_120px] gap-2 tablet:gap-4 px-4 tablet:px-6 py-3 bg-base-200/50 border-b border-base-300 text-[9px] tablet:text-[10px] font-black text-base-content/40 uppercase tracking-widest shrink-0">
+            <div className="grid grid-cols-[32px_60px_50px_1fr] tablet:grid-cols-[32px_80px_60px_1fr_120px] gap-2 tablet:gap-4 px-4 tablet:px-6 py-3 bg-base-200/50 border-b border-base-300 text-[9px] tablet:text-[10px] font-black text-base-content/40 uppercase tracking-widest shrink-0 items-center">
+              <div className="flex justify-center">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-xs checkbox-primary"
+                  checked={allFilteredSelected}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = someFilteredSelected && !allFilteredSelected;
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleSelectAllFiltered();
+                    } else {
+                      handleClearSelection();
+                    }
+                  }}
+                  aria-label={t.bulkSelectAll}
+                />
+              </div>
               <div>{t.status}</div>
               <div>{t.method}</div>
               <div>{t.urlPath}</div>
@@ -649,7 +801,9 @@ function ApiLogs() {
                         <LogRow
                           entry={log}
                           formattedTime={formattedTimestamps[virtualRow.index] ?? ""}
+                          selected={selectedLogIds.has(log.id)}
                           onClick={handleRowClick}
+                          onToggleSelect={handleToggleSelect}
                         />
                       </div>
                     );

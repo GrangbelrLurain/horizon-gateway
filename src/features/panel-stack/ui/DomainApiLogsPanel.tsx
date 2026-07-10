@@ -2,9 +2,16 @@ import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import { languageAtom, usePromiseModal } from "@/entities/app";
+import {
+  ApiLogsBulkExportBar,
+  apiLogEntryToCopyInput,
+  downloadApiExchangesHtml,
+  revealDownloadedApiExchangesHtml,
+} from "@/entities/sandbox";
 import type { ApiLogEntry, Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { offerRevealSavedDownload } from "@/shared/lib/tauri/offerRevealSavedDownload";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
@@ -26,12 +33,15 @@ const METHODS = ["ALL", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as c
 export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId }: DomainApiLogsPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const { show: showModal } = usePromiseModal();
   const { getDomainHost } = useDomainHubData();
   const host = getDomainHost(domain);
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useAtom(domainApiLogsSearchAtom);
   const [methodFilter, setMethodFilter] = useAtom(domainApiLogsMethodAtom);
+  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(() => new Set());
+  const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -70,6 +80,93 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   }, [logs, search, methodFilter]);
 
   const hasFilters = search.trim().length > 0 || methodFilter !== "ALL";
+
+  const copyFieldLabels = useMemo(
+    () => ({
+      requestHeaders: t.apiLogRequestHeaders,
+      requestBody: t.apiLogRequestBody,
+      responseHeaders: t.apiLogResponseHeaders,
+      responseBody: t.apiLogResponseBody,
+    }),
+    [t],
+  );
+
+  const handleToggleSelect = useCallback((id: string, checked: boolean) => {
+    setSelectedLogIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllFiltered = useCallback(() => {
+    setSelectedLogIds(new Set(filteredLogs.map((log) => log.id)));
+  }, [filteredLogs]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedLogIds(new Set());
+  }, []);
+
+  const handleOpenSavedFolder = useCallback(async () => {
+    if (!lastSavedPath) {
+      return;
+    }
+    try {
+      await revealDownloadedApiExchangesHtml(lastSavedPath);
+    } catch (e) {
+      console.error("revealDownloadedApiExchangesHtml:", e);
+    }
+  }, [lastSavedPath]);
+
+  const handleDownloadSelectedHtml = useCallback(async () => {
+    const selected = filteredLogs.filter((log) => selectedLogIds.has(log.id));
+    if (selected.length === 0) {
+      return;
+    }
+    const today = new Date().toISOString().split("T")[0];
+    const inputs = selected.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
+    try {
+      const result = await downloadApiExchangesHtml(
+        inputs,
+        {
+          ...copyFieldLabels,
+          documentTitle: t.apiLogsExportDocumentTitle,
+          exportedAt: t.apiLogsExportExportedAt,
+          entryCount: t.apiLogsExportEntryCount,
+          tableOfContents: t.apiLogsExportTableOfContents,
+          copyResponse: t.apiLogsExportCopyResponse,
+          copyRequest: t.apiLogsExportCopyRequest,
+          copyExchange: t.apiLogsExportCopyExchange,
+          copyAllResponses: t.apiLogsExportCopyAllResponses,
+          copied: t.apiLogCopied,
+          generatedBy: t.apiLogsExportGeneratedBy,
+          jumpToEntry: t.apiLogsExportJumpToEntry,
+        },
+        `watchtower-api-logs-${host}-${today}-${selected.length}.html`,
+      );
+      if (result.status !== "saved") {
+        return;
+      }
+      setLastSavedPath(result.path);
+      await offerRevealSavedDownload({
+        path: result.path,
+        title: t.apiLogsDownloadComplete,
+        message: t.apiLogsDownloadCompleteMessage(result.path),
+        openFolderText: t.apiLogsOpenFolder,
+        closeText: lang === "ko" ? "닫기" : "Close",
+        show: showModal,
+      });
+    } catch (e) {
+      console.error("downloadApiExchangesHtml:", e);
+    }
+  }, [copyFieldLabels, filteredLogs, host, lang, selectedLogIds, showModal, t]);
+
+  const allFilteredSelected = filteredLogs.length > 0 && filteredLogs.every((log) => selectedLogIds.has(log.id));
+  const someFilteredSelected = filteredLogs.some((log) => selectedLogIds.has(log.id));
 
   return (
     <Panel id="api/logs" title={t.apiLogs} subtitle={host} onClose={onClose} width="lg">
@@ -117,6 +214,23 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
             {filteredLogs.length}/{logs.length}
           </p>
         )}
+        <ApiLogsBulkExportBar
+          selectedCount={selectedLogIds.size}
+          totalCount={filteredLogs.length}
+          labels={{
+            selected: t.apiLogsBulkSelected,
+            selectAll: t.apiLogsBulkSelectAll,
+            clearSelection: t.apiLogsBulkClearSelection,
+            downloadHtml: t.apiLogsBulkDownloadHtml,
+            openFolder: t.apiLogsOpenFolder,
+            downloadComplete: t.apiLogsDownloadComplete,
+          }}
+          onSelectAll={handleSelectAllFiltered}
+          onClearSelection={handleClearSelection}
+          onDownloadHtml={() => void handleDownloadSelectedHtml()}
+          lastSavedPath={lastSavedPath}
+          onOpenFolder={() => void handleOpenSavedFolder()}
+        />
       </div>
 
       {loading && logs.length === 0 ? (
@@ -127,30 +241,62 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
         <p className="text-xs text-base-content/50">{t.apiLogsNoMatch}</p>
       ) : (
         <div className="space-y-1 overflow-y-auto min-h-0 flex-1">
+          <div className="flex items-center gap-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-base-content/35">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-xs checkbox-primary"
+              checked={allFilteredSelected}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = someFilteredSelected && !allFilteredSelected;
+                }
+              }}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  handleSelectAllFiltered();
+                } else {
+                  handleClearSelection();
+                }
+              }}
+              aria-label={t.apiLogsBulkSelectAll}
+            />
+            <span>{t.apiLogsBulkSelectAll}</span>
+          </div>
           {filteredLogs.map((log) => (
-            <button
+            <div
               key={log.id}
-              type="button"
-              onClick={() => onSelectLog(log.id)}
               className={clsx(
-                "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors border",
+                "w-full flex items-center gap-2 px-2 py-2 rounded-lg border transition-colors",
                 selectedLogId === log.id ? "bg-primary/10 border-primary/30" : "border-transparent hover:bg-base-200",
               )}
             >
-              <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
-              <span className="text-[10px] font-mono truncate flex-1">{log.path}</span>
-              <span
-                className={clsx(
-                  "text-[9px] font-bold shrink-0",
-                  (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
-                )}
+              <input
+                type="checkbox"
+                className="checkbox checkbox-xs checkbox-primary shrink-0"
+                checked={selectedLogIds.has(log.id)}
+                onChange={(e) => handleToggleSelect(log.id, e.target.checked)}
+                aria-label={`Select ${log.method} ${log.path}`}
+              />
+              <button
+                type="button"
+                onClick={() => onSelectLog(log.id)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
               >
-                {log.status_code ?? "-"}
-              </span>
-              <span className="text-[9px] text-base-content/30 shrink-0">
-                {new Date(log.timestamp).toLocaleTimeString()}
-              </span>
-            </button>
+                <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
+                <span className="text-[10px] font-mono truncate flex-1">{log.path}</span>
+                <span
+                  className={clsx(
+                    "text-[9px] font-bold shrink-0",
+                    (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
+                  )}
+                >
+                  {log.status_code ?? "-"}
+                </span>
+                <span className="text-[9px] text-base-content/30 shrink-0">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </span>
+              </button>
+            </div>
           ))}
         </div>
       )}

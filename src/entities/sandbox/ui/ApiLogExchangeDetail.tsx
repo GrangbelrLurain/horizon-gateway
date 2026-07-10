@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback } from "react";
 import type { ApiLogEntry } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
+import { apiLogEntryToCopyInput } from "../lib/apiLogCopyInput";
 import type { ApiExchangeCopyInput } from "../lib/copyApiExchange";
 import { ApiExchangeCopyDropdown, type ApiExchangeCopyDropdownLabels } from "./ApiExchangeCopyDropdown";
 import { ApiRequestViewer } from "./ApiRequestViewer";
@@ -30,25 +31,12 @@ export interface ApiLogExchangeDetailProps {
 }
 
 function buildLogCopyInput(log: ApiLogEntry, labels: ApiLogExchangeDetailLabels): ApiExchangeCopyInput {
-  return {
-    method: log.method,
-    url: log.url,
-    requestHeaders: log.request_headers ?? {},
-    requestBody: log.request_body,
-    timestamp: log.timestamp,
-    labels: {
-      requestHeaders: labels.requestHeaders,
-      requestBody: labels.requestBody,
-      responseHeaders: labels.responseHeaders,
-      responseBody: labels.responseBody,
-    },
-    response: {
-      statusCode: log.status_code ?? 0,
-      headers: log.response_headers ?? {},
-      body: log.response_body ?? "",
-      elapsedMs: null,
-    },
-  };
+  return apiLogEntryToCopyInput(log, {
+    requestHeaders: labels.requestHeaders,
+    requestBody: labels.requestBody,
+    responseHeaders: labels.responseHeaders,
+    responseBody: labels.responseBody,
+  });
 }
 
 export function ApiLogExchangeDetail({ log, labels, actions, responseViewerProps }: ApiLogExchangeDetailProps) {

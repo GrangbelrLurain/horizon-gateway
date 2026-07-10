@@ -1,3 +1,4 @@
+import { escapeHtml } from "./escapeHtml";
 import { formatHttpBody } from "./formatHttpBody";
 
 export interface ApiExchangeCopyInput {
@@ -70,7 +71,7 @@ function formatHeadersHtml(headers: Record<string, string>): string {
     .map(
       ([key, value]) => `
         <div style="margin-bottom: 4px; font-family: monospace; font-size: 11px;">
-          <strong style="color: #605e5c;">${key}:</strong> <span style="color: #323130; word-break: break-all;">${value}</span>
+          <strong style="color: #605e5c;">${escapeHtml(key)}:</strong> <span style="color: #323130; word-break: break-all;">${escapeHtml(value)}</span>
         </div>`,
     )
     .join("");
@@ -78,30 +79,32 @@ function formatHeadersHtml(headers: Record<string, string>): string {
 
 export function buildApiExchangeCardHtml(input: ApiExchangeCopyInput): string {
   const method = input.method.toUpperCase();
-  const formattedReqBody = formatHttpBody(input.requestBody);
-  const formattedResBody = formatHttpBody(input.response.body);
+  const formattedReqBody = escapeHtml(formatHttpBody(input.requestBody));
+  const formattedResBody = escapeHtml(formatHttpBody(input.response.body));
   const methodColor = getMethodBgColor(method);
   const statusColor = getStatusColor(input.response.statusCode);
   const reqHeadersHtml = formatHeadersHtml(input.requestHeaders);
   const resHeadersHtml = formatHeadersHtml(input.response.headers ?? {});
-  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
-  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
-  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
-  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
+  const reqHeadersTitle = escapeHtml(input.labels?.requestHeaders ?? "Request Headers");
+  const reqBodyTitle = escapeHtml(input.labels?.requestBody ?? "Request Body");
+  const resHeadersTitle = escapeHtml(input.labels?.responseHeaders ?? "Response Headers");
+  const resBodyTitle = escapeHtml(input.labels?.responseBody ?? "Response Body");
+  const safeUrl = escapeHtml(input.url);
   const timeDisplay = input.timestamp
     ? new Date(input.timestamp).toLocaleString()
     : `${input.response.elapsedMs ?? "-"}ms`;
+  const safeTimeDisplay = escapeHtml(timeDisplay);
   const metaTimeLine = input.timestamp
-    ? `<strong>Time:</strong> <span style="font-family: monospace;">${timeDisplay}</span>`
-    : `<strong>Time:</strong> <span style="font-family: monospace;">${timeDisplay}</span>
+    ? `<strong>Time:</strong> <span style="font-family: monospace;">${safeTimeDisplay}</span>`
+    : `<strong>Time:</strong> <span style="font-family: monospace;">${safeTimeDisplay}</span>
     <span style="margin: 0 10px; color: #edebe9;">|</span>
-    <strong>Time Copied:</strong> <span style="font-family: monospace;">${new Date().toLocaleString()}</span>`;
+    <strong>Time Copied:</strong> <span style="font-family: monospace;">${escapeHtml(new Date().toLocaleString())}</span>`;
 
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #323130; max-width: 800px; border: 1px solid #edebe9; border-radius: 6px; overflow: hidden; margin-bottom: 20px;">
   <div style="padding: 12px 16px; background-color: #f3f2f1; border-bottom: 1px solid #edebe9;">
-    <span style="display: inline-block; font-weight: bold; background-color: ${methodColor}; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin-right: 8px;">${method}</span>
-    <strong style="font-family: monospace; font-size: 12px; word-break: break-all;">${input.url}</strong>
+    <span style="display: inline-block; font-weight: bold; background-color: ${methodColor}; color: #ffffff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace; margin-right: 8px;">${escapeHtml(method)}</span>
+    <strong style="font-family: monospace; font-size: 12px; word-break: break-all;">${safeUrl}</strong>
   </div>
   
   <div style="padding: 8px 16px; background-color: #faf9f8; border-bottom: 1px solid #edebe9; font-size: 11px; color: #605e5c;">
@@ -203,29 +206,29 @@ export function buildApiExchangeMarkdown(input: ApiExchangeCopyInput): string {
 
 export function buildApiExchangeMarkdownHtml(input: ApiExchangeCopyInput): string {
   const method = input.method.toUpperCase();
-  const formattedReqBody = formatHttpBody(input.requestBody);
-  const formattedResBody = formatHttpBody(input.response.body);
-  const reqHeadersStr = formatHeadersPlain(input.requestHeaders);
-  const resHeadersStr = formatHeadersPlain(input.response.headers);
+  const formattedReqBody = escapeHtml(formatHttpBody(input.requestBody));
+  const formattedResBody = escapeHtml(formatHttpBody(input.response.body));
+  const reqHeadersStr = escapeHtml(formatHeadersPlain(input.requestHeaders));
+  const resHeadersStr = escapeHtml(formatHeadersPlain(input.response.headers));
   const methodColor = getMethodBgColor(method);
   const timeDisplay = input.timestamp
     ? new Date(input.timestamp).toLocaleString()
     : `${input.response.elapsedMs ?? "-"}ms`;
-  const reqHeadersTitle = input.labels?.requestHeaders ?? "Request Headers";
-  const reqBodyTitle = input.labels?.requestBody ?? "Request Body";
-  const resHeadersTitle = input.labels?.responseHeaders ?? "Response Headers";
-  const resBodyTitle = input.labels?.responseBody ?? "Response Body";
+  const reqHeadersTitle = escapeHtml(input.labels?.requestHeaders ?? "Request Headers");
+  const reqBodyTitle = escapeHtml(input.labels?.requestBody ?? "Request Body");
+  const resHeadersTitle = escapeHtml(input.labels?.responseHeaders ?? "Response Headers");
+  const resBodyTitle = escapeHtml(input.labels?.responseBody ?? "Response Body");
 
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #242424; max-width: 800px;">
   <div style="margin-bottom: 8px;">
-    <span style="font-weight: bold; font-family: monospace; font-size: 12px; color: ${methodColor};">[${method}]</span> 
-    <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 12px;">${input.url}</code>
+    <span style="font-weight: bold; font-family: monospace; font-size: 12px; color: ${methodColor};">[${escapeHtml(method)}]</span> 
+    <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 12px;">${escapeHtml(input.url)}</code>
   </div>
   <div style="font-size: 12px; color: #616161; margin-bottom: 16px;">
     <strong>Status:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${input.response.statusCode}</code>
     <span style="margin: 0 8px; color: #d2d2d2;">|</span>
-    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${timeDisplay}</code>
+    <strong>Time:</strong> <code style="font-family: Consolas, monospace; background-color: #f1f1f1; padding: 2px 4px; border-radius: 4px; font-size: 11px;">${escapeHtml(timeDisplay)}</code>
   </div>
 
   <div style="margin-bottom: 12px;">

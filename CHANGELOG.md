@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.4.4] - 2026-07-10
+
+### Added
+
+- **API Logs bulk HTML export**: Select multiple API log entries and download them as a single HTML report with table of contents, per-entry copy actions, and scrollable long bodies.
+- **Save & reveal folder**: HTML export uses the native save dialog (Tauri) and offers "Open folder" after a successful save via `revealItemInDir`.
+- **Shared download helpers**: `saveTextDownload`, `revealInFolder`, and `offerRevealSavedDownload` for reusable file export flows.
+
+### Changed
+
+- **HTTP body display**: `formatHttpBody` restores literal `\n` / `\t` escapes and unwraps double-encoded JSON strings so exported/copied bodies read closer to the original payload.
+- **HTML card escaping**: API exchange HTML cards escape user content before embedding in `<pre>` / headers.
+
 ## [v2.4.3] - 2026-07-10
 
 ### Added
