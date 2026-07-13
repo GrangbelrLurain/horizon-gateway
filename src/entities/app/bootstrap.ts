@@ -12,8 +12,10 @@ import {
   savedCryptoPresetsAtom,
   savedJsonSchemasAtom,
 } from "@/entities/sandbox";
+import { supabase } from "@/shared/api/supabase";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { appStatusLoadedAtom, appStatusLoadingAtom } from "./status/store";
+import { type DBProfile, supabaseProfileAtom, supabaseSessionAtom } from "./user/store";
 
 export function useAppBootstrap() {
   const setDomains = useSetAtom(domainsAtom);
@@ -26,6 +28,8 @@ export function useAppBootstrap() {
   const setSavedCryptoPresets = useSetAtom(savedCryptoPresetsAtom);
   const setLoading = useSetAtom(appStatusLoadingAtom);
   const setLoaded = useSetAtom(appStatusLoadedAtom);
+  const setSession = useSetAtom(supabaseSessionAtom);
+  const setSupaProfile = useSetAtom(supabaseProfileAtom);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -112,17 +116,127 @@ export function useAppBootstrap() {
       void refresh();
     });
 
+    const unlistenDeepLink = listen<string>("deep-link-received", async (event) => {
+      const urlStr = event.payload;
+      if (urlStr && (urlStr.startsWith("watchtower://") || urlStr.startsWith("horizon-gateway://"))) {
+        let paramsString = "";
+        if (urlStr.includes("#")) {
+          paramsString = urlStr.split("#")[1];
+        } else if (urlStr.includes("?")) {
+          paramsString = urlStr.split("?")[1];
+        }
+        if (paramsString) {
+          const params = new URLSearchParams(paramsString);
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (error) {
+              console.error("Failed to set session from deep link:", error.message);
+            } else {
+              console.log("Supabase session established successfully from deep link!");
+            }
+          }
+        }
+      }
+    });
+
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      console.log("Supabase AuthStateChange triggered. Session User:", session?.user?.id);
+      if (session?.user) {
+        const metaName =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          session.user.user_metadata?.user_name ||
+          null;
+        const metaAvatar = session.user.user_metadata?.avatar_url || null;
+        console.log("GitHub Auth User Metadata:", { metaName, metaAvatar });
+
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+
+        let currentProfile: DBProfile | null = null;
+
+        if (!error && data) {
+          currentProfile = data as DBProfile;
+          console.log("Existing Profile loaded from database:", currentProfile);
+          if (!currentProfile.display_name || !currentProfile.avatar_url) {
+            const updatedFields: Partial<DBProfile> = {};
+            if (!currentProfile.display_name && metaName) {
+              updatedFields.display_name = metaName;
+            }
+            if (!currentProfile.avatar_url && metaAvatar) {
+              updatedFields.avatar_url = metaAvatar;
+            }
+
+            if (Object.keys(updatedFields).length > 0) {
+              console.log("Attempting to sync missing fields in database profile:", updatedFields);
+              const { data: updatedData, error: updateError } = await supabase
+                .from("profiles")
+                .update(updatedFields)
+                .eq("id", session.user.id)
+                .select()
+                .single();
+              if (updateError) {
+                console.error(
+                  "Database profile update FAILED (check RLS policies?):",
+                  updateError.message,
+                  updateError.details,
+                );
+              } else if (updatedData) {
+                console.log("Database profile successfully updated from GitHub Metadata!", updatedData);
+                currentProfile = updatedData as DBProfile;
+              }
+            }
+          }
+          setSupaProfile(currentProfile);
+        } else if (error && (error as any).code === "PGRST116") {
+          console.log("No profile row found. Creating a new profile for user:", session.user.id);
+          const newProfile = {
+            id: session.user.id,
+            email: session.user.email || "",
+            display_name: metaName,
+            avatar_url: metaAvatar,
+            is_sponsor: false,
+          };
+          const { data: createdData, error: createError } = await supabase
+            .from("profiles")
+            .upsert(newProfile)
+            .select()
+            .single();
+          if (createError) {
+            console.error("Failed to create new profile (check insert RLS?):", createError.message);
+          } else if (createdData) {
+            console.log("Successfully created database profile:", createdData);
+            currentProfile = createdData as DBProfile;
+            setSupaProfile(currentProfile);
+          }
+        } else if (error) {
+          console.error("Failed to fetch profiles table:", error.message);
+        }
+      } else {
+        setSupaProfile(null);
+      }
+    });
+
     const interval = setInterval(() => {
       void refresh();
     }, 60_000);
 
     return () => {
       clearInterval(interval);
+      authSubscription.unsubscribe();
       void unlistenProxy.then((fn) => fn());
       void unlistenMocking.then((fn) => fn());
       void unlistenHub.then((fn) => fn());
+      void unlistenDeepLink.then((fn) => fn());
     };
-  }, [refresh, setProxyStatus, setMockingEnabled]);
+  }, [refresh, setProxyStatus, setMockingEnabled, setSession, setSupaProfile]);
 
   return { refresh };
 }

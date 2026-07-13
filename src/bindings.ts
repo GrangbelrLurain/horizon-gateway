@@ -72,6 +72,7 @@ export const commands = {
 	/**  API 로그 삭제 (특정 날짜 또는 전체). */
 	clearApiLogs: (payload: ClearApiLogsPayload) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("clear_api_logs", { payload })),
 	openWindow: (label: string, title: string, url: string, width: number | null, height: number | null) => typedError<null, string>(__TAURI_INVOKE("open_window", { label, title, url, width, height })),
+	openExternalUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_external_url", { url })),
 	openInspectorWindow: (url: string, script: string | null) => typedError<null, string>(__TAURI_INVOKE("open_inspector_window", { url, script })),
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
 	getAnnotations: () => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("get_annotations")),

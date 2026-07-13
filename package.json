@@ -1,7 +1,7 @@
 {
-  "name": "watchtower",
+  "name": "horizon-gateway",
   "private": true,
-  "version": "2.4.4",
+  "version": "2.5.0",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
@@ -25,6 +25,7 @@
   "dependencies": {
     "@babel/standalone": "^8.0.2",
     "@monaco-editor/react": "^4.7.0",
+    "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-router": "^1.158.1",
     "@tanstack/react-virtual": "^3.13.18",

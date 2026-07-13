@@ -44,3 +44,27 @@ export function getInitials(name: string): string {
 
   return trimmed.substring(0, 2).toUpperCase();
 }
+
+import type { Session } from "@supabase/supabase-js";
+import { atom } from "jotai";
+
+export interface DBProfile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_sponsor: boolean;
+  sponsor_tier: string | null;
+  created_at: string;
+}
+
+export const supabaseSessionAtom = atom<Session | null>(null);
+export const supabaseProfileAtom = atom<DBProfile | null>(null);
+
+// Experimental Labs Feature Flags
+import { atomWithStorage as jotaiAtomWithStorage } from "jotai/utils";
+export const experimentalAiAutocompleteAtom = jotaiAtomWithStorage<boolean>(
+  "horizon-experimental-ai-autocomplete",
+  false,
+);
+export const experimentalCustomThemeAtom = jotaiAtomWithStorage<boolean>("horizon-experimental-custom-theme", false);

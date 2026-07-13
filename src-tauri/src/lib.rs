@@ -116,7 +116,7 @@ use command::local_route_commands::{
     start_local_proxy, stop_local_proxy, update_local_route,
 };
 use command::settings_commands::{export_all_settings, import_all_settings, save_root_ca};
-use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window};
+use command::window_commands::{open_annotation_dialog, open_inspector_window, open_window, open_external_url};
 use command::tunnel_commands::{get_tailscale_ip, start_cloudflare_tunnel, stop_cloudflare_tunnel};
 use command::usb_commands::{check_adb_status, start_usb_reverse, stop_usb_reverse};
 use command::crypto_commands::{process_crypto, validate_json_schema};
@@ -188,6 +188,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_api_logs,
             clear_api_logs,
             open_window,
+            open_external_url,
             open_inspector_window,
             open_annotation_dialog,
             get_annotations,
@@ -243,17 +244,53 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         ])
 }
 
+fn load_dotenv_manually() {
+    if let Ok(mut exe_path) = std::env::current_exe() {
+        for _ in 0..6 {
+            if exe_path.pop() {
+                let dotenv_path = exe_path.join(".env");
+                if dotenv_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&dotenv_path) {
+                        for line in content.lines() {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() || trimmed.starts_with('#') {
+                                continue;
+                            }
+                            if let Some((key, val)) = trimmed.split_once('=') {
+                                let key = key.trim();
+                                let val = val.trim().trim_matches('"').trim_matches('\'');
+                                std::env::set_var(key, val);
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    load_dotenv_manually();
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .try_init();
     let specta_builder = get_specta_builder();
 
     #[cfg(debug_assertions)]
-    specta_builder
-        .export(
-            specta_typescript::Typescript::default(),
-            "../src/bindings.ts",
-        )
-        .expect("Failed to export typescript bindings");
+    {
+        let args: Vec<String> = std::env::args().collect();
+        let is_deep_link = args.iter().any(|arg| arg.starts_with("watchtower://") || arg.starts_with("horizon-gateway://"));
+        if !is_deep_link {
+            specta_builder
+                .export(
+                    specta_typescript::Typescript::default(),
+                    "../src/bindings.ts",
+                )
+                .expect("Failed to export typescript bindings");
+        }
+    }
 
     // Required by rustls 0.23: set process-wide crypto provider before any TLS (e.g. reverse HTTPS proxy).
     let () = rustls::crypto::ring::default_provider()
@@ -261,8 +298,24 @@ pub fn run() {
         .expect("rustls default crypto provider");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            tracing::info!("RUST DEBUG - Single Instance triggered with args: {:?}", argv);
+            use tauri::{Manager, Emitter};
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+                let _ = window.unminimize();
+            }
+            // Manually capture deep link urls from secondary process arguments and hand-off to frontend
+            for arg in argv {
+                if arg.starts_with("watchtower://") || arg.starts_with("horizon-gateway://") {
+                    tracing::info!("RUST DEBUG - Handed-off deep link URL from single instance: {}", arg);
+                    let _ = app.emit("deep-link-received", arg);
+                }
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
-            use tauri::Manager;
+            use tauri::{Manager, Emitter};
             use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
             let is_cli_mode = std::env::args().nth(1).as_deref() == Some("cli");
@@ -329,6 +382,21 @@ pub fn run() {
             app.manage(pipeline_library_service);
             app.manage(json_schema_registry_service);
             app.manage(crypto_preset_service);
+            // Deep Link Listener
+            use tauri_plugin_deep_link::DeepLinkExt;
+            let handle = app.handle().clone();
+            #[cfg(target_os = "windows")]
+            match handle.deep_link().register("horizon-gateway") {
+                Ok(_) => tracing::info!("RUST DEBUG - Successfully registered deep link scheme: horizon-gateway"),
+                Err(e) => tracing::info!("RUST DEBUG - Failed to register deep link scheme: {:?}", e),
+            }
+            let handle_clone = handle.clone();
+            let _ = handle.deep_link().on_open_url(move |event| {
+                if let Some(url) = event.urls().first() {
+                    tracing::info!("RUST DEBUG - Deep link received URL: {}", url);
+                    let _ = handle_clone.emit("deep-link-received", url.as_str());
+                }
+            });
 
             // CLI 명령형 인자 인터셉트
             let args: Vec<String> = std::env::args().collect();

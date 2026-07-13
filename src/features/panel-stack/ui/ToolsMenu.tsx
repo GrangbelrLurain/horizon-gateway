@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { ChevronDown, FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
+import { FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
 import { useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
@@ -73,7 +73,6 @@ export function ToolsMenu({ onOpenTool }: ToolsMenuProps) {
       >
         <GitBranch className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">{t.tools}</span>
-        <ChevronDown className="w-3 h-3 opacity-60" />
       </Button>
 
       {open && (

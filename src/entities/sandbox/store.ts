@@ -52,7 +52,7 @@ export default function Preview({ data }: Props) {
   // Try sending a request in the pipeline or API client
   // And map the response here!
   const displayData = data || {
-    title: "Welcome to Watchtower Sandbox",
+    title: "Welcome to Horizon Gateway Sandbox",
     message: "Connect an API node or pipeline output to bind dynamic props.",
     items: ["Base64 Encoding", "AES-256-GCM Encryption", "Promise Pipelines"]
   };
@@ -170,13 +170,13 @@ export const savedComponentsAtom = atomWithStorage<SavedComponent[]>("watchtower
   {
     id: "welcome-card",
     name: "WelcomeCard",
-    description: "Default welcome card for Watchtower Sandbox",
+    description: "Default welcome card for Horizon Gateway Sandbox",
     code: `import React from 'react';
 
 export default function Preview({ title, message, items }: Props) {
   // Try sending a request in the pipeline or API client
   // And map the response here!
-  const displayTitle = title || "Welcome to Watchtower Sandbox";
+  const displayTitle = title || "Welcome to Horizon Gateway Sandbox";
   const displayMessage = message || "Connect an API node or pipeline output to bind dynamic props.";
   const displayItems = items || ["Base64 Encoding", "AES-256-GCM Encryption", "Promise Pipelines"];
 
@@ -199,7 +199,7 @@ export default function Preview({ title, message, items }: Props) {
   );
 }`,
     mockData: `{
-  "title": "Welcome to Watchtower Sandbox",
+  "title": "Welcome to Horizon Gateway Sandbox",
   "message": "Connect an API node or pipeline output to bind dynamic props.",
   "items": [
     "Base64 Encoding",
@@ -221,7 +221,7 @@ export const savedCryptoPresetsAtom = atomWithStorage<SavedCryptoPreset[]>("watc
     name: "Base64 Encode Default",
     description: "Standard Base64 encoding preset",
     action: "base64Encode",
-    payload: "Hello, Watchtower!",
+    payload: "Hello, Horizon Gateway!",
     key: "",
     iv: "",
     createdAt: 1719500000000,

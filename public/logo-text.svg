@@ -1,4 +1,4 @@
-<svg viewBox="0 0 240 40" width="240" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 280 40" width="280" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <!-- Subtle glow filter -->
     <filter id="subtleGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -16,10 +16,10 @@
         letter-spacing: 4.5px; /* Wide tracking for premium tech aesthetic */
       }
       .text-left {
-        text-anchor: end; /* Align right edge of WATCH to x-coordinate */
+        text-anchor: end; /* Align right edge of HORIZON to x-coordinate */
       }
       .text-right {
-        text-anchor: start; /* Align left edge of TOWER to x-coordinate */
+        text-anchor: start; /* Align left edge of GATEWAY to x-coordinate */
       }
       .logo-icon-rhombus {
         stroke: #E2E8F0;
@@ -44,22 +44,22 @@
     </style>
   </defs>
 
-  <!-- Left Side: WATCH (Compensated for trailing letter-spacing to end glyph at x=99.5) -->
-  <text x="104" y="25" class="brand-text text-left">WATCH</text>
+  <!-- Left Side: HORIZON (Ends exactly at x=124) -->
+  <text x="124" y="25" class="brand-text text-left">HORIZON</text>
 
-  <!-- Center: Refined Micro Core Icon (Centered exactly at x=120, bounds at 108-132) -->
+  <!-- Center: Refined Micro Core Icon (Centered exactly at x=140, bounds at 128-152) -->
   <g id="micro-logo-icon">
     <!-- Rhombus base outline -->
-    <path d="M 120 10 L 130 20 L 120 30 L 110 20 Z" class="logo-icon-rhombus" />
+    <path d="M 140 10 L 150 20 L 140 30 L 130 20 Z" class="logo-icon-rhombus" />
     
     <!-- Tilted orbit ring -->
-    <ellipse cx="120" cy="20" rx="12" ry="3.5" class="logo-icon-ring" transform="rotate(-15 120 20)" />
+    <ellipse cx="140" cy="20" rx="12" ry="3.5" class="logo-icon-ring" transform="rotate(-15 140 20)" />
     
     <!-- Minimal core light -->
-    <circle cx="120" cy="20" r="3.5" class="logo-icon-glow" />
-    <circle cx="120" cy="20" r="1.2" class="logo-icon-core" />
+    <circle cx="140" cy="20" r="3.5" class="logo-icon-glow" />
+    <circle cx="140" cy="20" r="1.2" class="logo-icon-core" />
   </g>
 
-  <!-- Right Side: TOWER (Starts exactly at x=140) -->
-  <text x="140" y="25" class="brand-text text-right">TOWER</text>
+  <!-- Right Side: GATEWAY (Starts exactly at x=160) -->
+  <text x="160" y="25" class="brand-text text-right">GATEWAY</text>
 </svg>

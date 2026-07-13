@@ -13,14 +13,14 @@ fn main() {
     // If it's a standalone command (init, list, help), execute directly and exit to prevent Tauri/WebView2 hangs
     if is_cli {
         if args.len() > 2 && (args[2] == "init" || args[2] == "list" || args[2] == "help") {
-            watchtower_lib::execute_cli_standalone(&args[2..]);
+            horizon_gateway_lib::execute_cli_standalone(&args[2..]);
             std::process::exit(0);
         }
         if args.len() > 2 && args[2] == "run" {
-            let code = watchtower_lib::execute_cli_headless(&args[2..]);
+            let code = horizon_gateway_lib::execute_cli_headless(&args[2..]);
             std::process::exit(code);
         }
     }
 
-    watchtower_lib::run();
+    horizon_gateway_lib::run();
 }

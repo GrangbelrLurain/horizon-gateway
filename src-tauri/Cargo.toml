@@ -19,12 +19,12 @@ similar_names = "allow"
 unused_async = "allow"
 
 [package]
-name = "watchtower"
-version = "2.4.4"
+name = "horizon-gateway"
+version = "2.5.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
-default-run = "watchtower"
+default-run = "horizon-gateway"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,7 +32,7 @@ default-run = "watchtower"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "watchtower_lib"
+name = "horizon_gateway_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -48,6 +48,8 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = "2"
 dirs = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

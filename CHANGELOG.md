@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.5.0] - 2026-07-13
+
+### Added
+
+- **Supabase Authentication & Database Integration**: Supabase JS SDK integrated into the app. Supports Social OAuth login using GitHub.
+- **Tauri v2 Deep-Link Routing**: Enabled custom URL scheme handler (`horizon-gateway://`) with Windows Registry auto-registration on startup.
+- **Windows Single-Instance & Arg Forwarding**: Added `tauri-plugin-single-instance` to prevent multiple window spans. Implemented manual CLI argument parsing to route OAuth callback URL params to the active main window without communication drops.
+- **GitHub Sponsors Integration**: Shifted developer donation platform to GitHub Sponsors to avoid payment service restrictions in Korea. Includes visual pulsing Rose button theme.
+- **Early Access Labs & Developer Feedback**: Added user settings page options for experimental features (locked behind Sponsor status) and direct feedback forms inserting reports into Supabase DB.
+- **Consolidated Settings & Clean Profile Dropdowns**: Reorganized TopBar buttons. Infrastructure configuration merged inside the new click-based Settings dropdown menu. Profile settings and logout buttons unified under a click-based dropdown menu with all visual headers removed.
+- **Minimal Design Chevron Removal**: Removed Chevron indicators on TopBar menu buttons to achieve consistent minimal icon+text layout.
+- **Automatic GitHub Profile Sync**: Automatic local name and avatar picture synchronization using OAuth user metadata.
+
+### Changed
+
+- **App rebranding**: Continued name and configurations migration from `watchtower` to `horizon-gateway`.
+- **Tauri Opener Bypass**: Handled external URL navigation through custom Rust back-channel `open_external_url` to bypass Tauri opener limitations.
+
 ## [v2.4.4] - 2026-07-10
 
 ### Added

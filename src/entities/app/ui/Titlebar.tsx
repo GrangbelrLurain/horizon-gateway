@@ -50,7 +50,7 @@ export function Titlebar() {
   const openInNewWindow = async () => {
     const pathLabel = location.pathname.replace(/\//g, "-").slice(1) || "dashboard";
     const label = `window-${pathLabel}-${Date.now()}`;
-    unwrap(await commands.openWindow(label, `Watchtower - ${pathLabel}`, location.pathname, 1000, 700));
+    unwrap(await commands.openWindow(label, `Horizon Gateway - ${pathLabel}`, location.pathname, 1000, 700));
   };
 
   return (
@@ -60,7 +60,7 @@ export function Titlebar() {
       className="bg-slate-950 flex items-center justify-between select-none z-110 border-b border-slate-800/50 h-10 shrink-0 backdrop-blur-md bg-opacity-80 cursor-default"
     >
       <div className="flex items-center gap-2 px-3 pointer-events-none">
-        <img src="/logo-text.svg" alt="Watchtower" className="h-4 w-auto object-contain shrink-0" />
+        <img src="/logo-text.svg" alt="Horizon Gateway" className="h-4 w-auto object-contain shrink-0" />
         {isDetached && (
           <span className="text-[8px] font-bold text-blue-400/80 uppercase tracking-wider ml-1">
             {location.pathname.replace(/\//g, " ").trim() || "Dashboard"}

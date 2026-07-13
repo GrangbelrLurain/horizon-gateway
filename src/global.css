@@ -66,3 +66,42 @@ body {
     }
   }
 }
+
+/* Sponsor Gold Glow Effect */
+.sponsor-glow {
+  position: relative;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4), 0 0 20px rgba(234, 179, 8, 0.2);
+  animation: sponsor-pulse 2s infinite alternate;
+}
+
+.sponsor-glow::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706, #fbbf24);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: rotate-gradient 3s linear infinite;
+}
+
+@keyframes sponsor-pulse {
+  0% {
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4), 0 0 15px rgba(234, 179, 8, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.7), 0 0 25px rgba(234, 179, 8, 0.4);
+  }
+}
+
+@keyframes rotate-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

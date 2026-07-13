@@ -7,7 +7,7 @@ type TranslationSchema = {
 export const ko: TranslationSchema = {
   // Header
   title: "대시보드",
-  subtitle: "Watchtower의 현재 상태를 한눈에 확인하세요.",
+  subtitle: "Horizon Gateway의 현재 상태를 한눈에 확인하세요.",
   proxyStatus: "프록시 상태",
 
   // Setup steps

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "watchtower",
-  "version": "2.4.4",
-  "identifier": "com.lurain.watchtower",
+  "productName": "horizon-gateway",
+  "version": "2.5.0",
+  "identifier": "com.lurain.horizon-gateway",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Watchtower",
+        "title": "Horizon Gateway",
         "width": 1200,
         "height": 800,
         "maximized": true,
@@ -51,8 +51,15 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQzQzYwMjMwNzk3RjZFRUEKUldUcWJuOTVNQUxHMHdvRGJTdFI5d3VNUmJ6TWZ3QnVtODNEb3dSTGE4dmNXWi85L3BwRGRiaEIK",
       "endpoints": [
-        "https://github.com/GrangbelrLurain/watchtower/releases/latest/download/latest.json"
+        "https://github.com/GrangbelrLurain/horizon-gateway/releases/latest/download/latest.json"
       ]
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "horizon-gateway"
+        ]
+      }
     }
   }
 }

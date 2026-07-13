@@ -1,7 +1,7 @@
 export const en = {
   // Header
   title: "Dashboard",
-  subtitle: "Your Watchtower at a glance.",
+  subtitle: "Your Horizon Gateway at a glance.",
   proxyStatus: "Proxy Status",
 
   // Setup steps
