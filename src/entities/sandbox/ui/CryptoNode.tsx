@@ -277,7 +277,7 @@ export function CryptoNode({
         name: "New Preset",
         description: "A newly created crypto preset",
         action: "base64Encode",
-        payload: "Hello, Watchtower!",
+        payload: "Hello, Horizon Gateway!",
         key: "",
         iv: "",
         code: `export default function(payload, key, iv) {

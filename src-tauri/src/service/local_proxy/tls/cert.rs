@@ -82,7 +82,7 @@ pub(crate) fn serve_cert_pem(state: Arc<ProxyState>, host: &str) -> Response {
             .into_response();
     };
     // .crt 확장자로 내려주면 Windows에서 더블클릭 시 인증서 설치 마법사가 뜸 (.pem은 연결 프로그램 없음)
-    let filename = format!("watchtower-{}.crt", host.replace(['.', ':'], "-"));
+    let filename = format!("horizon-gateway-{}.crt", host.replace(['.', ':'], "-"));
     let disposition = format!("attachment; filename=\"{filename}\"");
     (
         StatusCode::OK,

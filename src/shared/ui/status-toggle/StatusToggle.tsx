@@ -12,7 +12,7 @@ interface StatusToggleProps {
 }
 
 /**
- * A premium, unified status toggle button for the Watchtower dashboard.
+ * A premium, unified status toggle button for the Horizon Gateway dashboard.
  * Designed to feel "alive" with hover effects and consistent branding.
  */
 export function StatusToggle({ label, checked, onChange, icon, disabled, loading, className }: StatusToggleProps) {

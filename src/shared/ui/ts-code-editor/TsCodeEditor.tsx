@@ -20,7 +20,7 @@ interface TsCodeEditorProps {
   rows?: number; // if rows === 1, it runs in single-line mode
   language?: "typescript" | "json" | "css" | "javascript";
   onEvaluate?: (result: any, error: string | null) => void;
-  theme?: "watchtower-light" | "watchtower-dark";
+  theme?: "horizon-gateway-light" | "horizon-gateway-dark";
 }
 
 // Generate TS declarations (.d.ts) from runtime context object
@@ -124,7 +124,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
   rows = 4,
   language = "typescript",
   onEvaluate,
-  theme = "watchtower-light",
+  theme = "horizon-gateway-light",
 }) => {
   const [editorKey] = useState(() => Math.random().toString(36).substring(2, 9));
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
@@ -164,7 +164,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
     if (dts) {
       extraLibRef.current = monacoInstance.languages.typescript.typescriptDefaults.addExtraLib(
         dts,
-        `ts:filename/watchtower-context-${editorKey}.d.ts`,
+        `ts:filename/horizon-gateway-context-${editorKey}.d.ts`,
       );
     }
 
@@ -237,8 +237,8 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
   const handleEditorWillMount = (monaco: Monaco) => {
     setMonacoInstance(monaco);
 
-    // Register premium watchtower-dark theme
-    monaco.editor.defineTheme("watchtower-dark", {
+    // Register premium horizon-gateway-dark theme
+    monaco.editor.defineTheme("horizon-gateway-dark", {
       base: "vs-dark",
       inherit: true,
       rules: [
@@ -261,8 +261,8 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
       },
     });
 
-    // Register premium watchtower-light theme
-    monaco.editor.defineTheme("watchtower-light", {
+    // Register premium horizon-gateway-light theme
+    monaco.editor.defineTheme("horizon-gateway-light", {
       base: "vs",
       inherit: true,
       rules: [
@@ -366,7 +366,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
                 ? `file:///mock_${editorKey}.json`
                 : undefined
         }
-        theme={theme === "watchtower-light" ? "watchtower-light" : "watchtower-dark"}
+        theme={theme === "horizon-gateway-light" ? "horizon-gateway-light" : "horizon-gateway-dark"}
         value={value}
         onChange={(val) => onChange(val || "")}
         beforeMount={handleEditorWillMount}

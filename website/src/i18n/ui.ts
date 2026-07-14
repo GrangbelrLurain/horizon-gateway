@@ -21,7 +21,7 @@ export const ui = {
     'hero.download.sub.all': 'View All Installers',
     'features.title': '로컬 인프라 제어의 ',
     'features.title.accent': '핵심 기능',
-    'features.subtitle': 'Watchtower 하나로 로컬 개발망 통제와 프록시 디버깅을 손쉽게 구성하세요.',
+    'features.subtitle': 'Horizon Gateway 하나로 로컬 개발망 통제와 프록시 디버깅을 손쉽게 구성하세요.',
     'features.domain.title': '도메인 헬스체크',
     'features.domain.desc': '등록된 도메인의 상태를 실시간으로 모니터링합니다. 그룹화된 대시보드를 통해 주기적인 Ping 및 HTTP 코드를 체크하고 직관적으로 관리할 수 있습니다.',
     'features.proxy.title': '로컬 MITM 프록시',
@@ -36,7 +36,7 @@ export const ui = {
     'terminal.title': '강력한 ',
     'terminal.title.accent': 'CLI 명령어',
     'terminal.title.post': ' 인터페이스',
-    'terminal.desc': 'Watchtower는 GUI 외에도 터미널 명령어를 지원하여 Cursor, Gemini, Claude와 같은 AI 에이전트와 완벽하게 통합됩니다. 에이전트가 로컬 개발 서버와 도메인 구성을 직접 인지하고 제어하도록 만들어 보세요.',
+    'terminal.desc': 'Horizon Gateway는 GUI 외에도 터미널 명령어를 지원하여 Cursor, Gemini, Claude와 같은 AI 에이전트와 완벽하게 통합됩니다. 에이전트가 로컬 개발 서버와 도메인 구성을 직접 인지하고 제어하도록 만들어 보세요.',
     'perf.title': 'Rust & Tauri 2 기반의 ',
     'perf.title.accent': '가벼움과 고성능',
     'perf.subtitle': '웹뷰 패키징의 무거움을 덜어내고 네이티브 수준의 속도와 안정성을 보장합니다.',
@@ -49,11 +49,11 @@ export const ui = {
     'cta.title': '개발 흐름을 ',
     'cta.title.accent': '실시간',
     'cta.title.post': '으로 관측하세요',
-    'cta.desc': '복잡한 터미널 프록시 도구, 모바일 연결 작업, 도메인 연결 모니터링을 Watchtower가 하나로 통합해 드립니다. 지금 즉시 시도해 보세요.',
+    'cta.desc': '복잡한 터미널 프록시 도구, 모바일 연결 작업, 도메인 연결 모니터링을 Horizon Gateway가 하나로 통합해 드립니다. 지금 즉시 시도해 보세요.',
     'cta.btn': '최신 릴리즈 다운로드',
     'footer.desc': '로컬 개발 인프라 도메인 관리, MITM 프록시 패킷 분석 및 OpenAPI Mocking 기능을 통합하여 개발 효율성을 향상시킵니다.',
     'footer.license': 'Copyright © 2026 규연. All rights reserved.',
-    'changelog.subtitle': 'Watchtower의 최신 기능 추가 및 업데이트 이력입니다.'
+    'changelog.subtitle': 'Horizon Gateway의 최신 기능 추가 및 업데이트 이력입니다.'
   },
   en: {
     'nav.home': 'Home',
@@ -70,7 +70,7 @@ export const ui = {
     'hero.download.sub.all': 'View All Installers',
     'features.title': 'Core features of ',
     'features.title.accent': 'Infra Control',
-    'features.subtitle': 'Easily control local development networks and proxy debugging with Watchtower.',
+    'features.subtitle': 'Easily control local development networks and proxy debugging with Horizon Gateway.',
     'features.domain.title': 'Domain Health Check',
     'features.domain.desc': 'Monitor the health of registered domains in real-time. Check Ping and HTTP status codes periodically on a grouped dashboard.',
     'features.proxy.title': 'Local MITM Proxy',
@@ -85,7 +85,7 @@ export const ui = {
     'terminal.title': 'Powerful ',
     'terminal.title.accent': 'CLI Command',
     'terminal.title.post': ' Interface',
-    'terminal.desc': 'Watchtower supports terminal commands to integrate seamlessly with AI coding assistants like Cursor, Gemini, and Claude. Let the agent recognize and control local configs.',
+    'terminal.desc': 'Horizon Gateway supports terminal commands to integrate seamlessly with AI coding assistants like Cursor, Gemini, and Claude. Let the agent recognize and control local configs.',
     'perf.title': 'Rust & Tauri 2 Powered ',
     'perf.title.accent': 'Light & Fast',
     'perf.subtitle': 'Discard heavy webview packaging. Enjoy native-level speeds and resource footprint.',
@@ -98,11 +98,11 @@ export const ui = {
     'cta.title': 'Observe your dev flow in ',
     'cta.title.accent': 'Real-time',
     'cta.title.post': '',
-    'cta.desc': 'Watchtower unifies complex terminal proxies, mobile debugging, and health monitors into one app. Try it right now.',
+    'cta.desc': 'Horizon Gateway unifies complex terminal proxies, mobile debugging, and health monitors into one app. Try it right now.',
     'cta.btn': 'Download Latest Release',
     'footer.desc': 'Boost development efficiency by unifying local domain health monitoring, MITM proxy analysis, and OpenAPI mocking.',
     'footer.license': 'Copyright © 2026 Gyuyeon. All rights reserved.',
-    'changelog.subtitle': 'Version history and release notes for Watchtower.'
+    'changelog.subtitle': 'Version history and release notes for Horizon Gateway.'
   }
 } as const;
 

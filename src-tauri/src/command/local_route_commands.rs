@@ -491,7 +491,7 @@ pub async fn start_local_proxy_svc(
     inspector_service: &crate::service::inspector_service::InspectorService,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let app = app.ok_or_else(|| {
-        "start_local_proxy requires the Watchtower GUI AppHandle (proxy runtime). Close other instances or start proxy from the desktop app.".to_string()
+        "start_local_proxy requires the Horizon Gateway GUI AppHandle (proxy runtime). Close other instances or start proxy from the desktop app.".to_string()
     })?;
     let port = payload
         .and_then(|p| p.port)
@@ -608,7 +608,7 @@ pub async fn start_local_proxy_svc(
     *guard = handles;
 
     // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{port}/.watchtower/proxy.pac");
+    let pac_url = format!("http://127.0.0.1:{port}/.horizon-gateway/proxy.pac");
     if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
         eprintln!("Failed to set system proxy: {e}");
     }
@@ -659,9 +659,9 @@ pub fn get_proxy_setup_url_svc() -> Result<ApiResponse<String>, String> {
     let rh = PROXY_REVERSE_HTTP.load(Ordering::Relaxed);
     let rht = PROXY_REVERSE_HTTPS.load(Ordering::Relaxed);
     let url = if rh != 0 {
-        format!("http://127.0.0.1:{rh}/.watchtower/setup")
+        format!("http://127.0.0.1:{rh}/.horizon-gateway/setup")
     } else if rht != 0 {
-        format!("https://127.0.0.1:{rht}/.watchtower/setup")
+        format!("https://127.0.0.1:{rht}/.horizon-gateway/setup")
     } else {
         return Err(
             "No reverse port configured. Set reverse HTTP or HTTPS port and start the proxy."
@@ -914,7 +914,7 @@ pub async fn auto_start_proxy(
     *guard = handles;
 
     // Set system PAC URL
-    let pac_url = format!("http://127.0.0.1:{port}/.watchtower/proxy.pac");
+    let pac_url = format!("http://127.0.0.1:{port}/.horizon-gateway/proxy.pac");
     if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
         eprintln!("[auto-start] Failed to set system proxy: {e}");
     }

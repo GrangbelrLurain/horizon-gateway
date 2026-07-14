@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Watchtower Mobile Setup</title>
+  <title>Horizon Gateway Mobile Setup</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
@@ -307,7 +307,7 @@
           <div class="step-number">1</div>
           <div class="step-title">Root CA 인증서 다운로드 & 설치</div>
         </div>
-        <p class="step-desc">모바일 기기에서 HTTPS 패킷 모니터링을 허용하기 위해 Watchtower의 인증서를 다운로드해 신뢰 설정을 켭니다.</p>
+        <p class="step-desc">모바일 기기에서 HTTPS 패킷 모니터링을 허용하기 위해 Horizon Gateway의 인증서를 다운로드해 신뢰 설정을 켭니다.</p>
         <a href="" id="cert-link" class="download-cert-btn" download>
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path>
@@ -362,8 +362,8 @@
     const proxyPort = "{{PROXY_PORT}}";
 
     const baseProxyUrl = `http://${tailscaleIp}:${proxyPort}`;
-    document.getElementById('cert-link').href = `${baseProxyUrl}/.watchtower/root.crt`;
-    document.getElementById('pac-text').textContent = `${baseProxyUrl}/.watchtower/proxy.pac`;
+    document.getElementById('cert-link').href = `${baseProxyUrl}/.horizon-gateway/root.crt`;
+    document.getElementById('pac-text').textContent = `${baseProxyUrl}/.horizon-gateway/proxy.pac`;
     document.getElementById('ip-text').textContent = tailscaleIp;
     document.getElementById('port-text').textContent = proxyPort;
 

@@ -3,11 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use super::{cli_println, cli_eprintln};
 
-const SKILL_MD: &str = include_str!("../../resources/skills/watchtower/SKILL.md");
-const LOGS_MJS: &str = include_str!("../../resources/skills/watchtower/scripts/logs.mjs");
+const SKILL_MD: &str = include_str!("../../resources/skills/horizon-gateway/SKILL.md");
+const LOGS_MJS: &str = include_str!("../../resources/skills/horizon-gateway/scripts/logs.mjs");
 
-const SKILL_DIR_NAME: &str = "watchtower";
-const PROJECT_SKILL_REL: &str = ".agents/skills/watchtower";
+const SKILL_DIR_NAME: &str = "horizon-gateway";
+const PROJECT_SKILL_REL: &str = ".agents/skills/horizon-gateway";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AgentTarget {
@@ -326,17 +326,17 @@ mod tests {
         let home = PathBuf::from("/home/user");
         assert!(
             global_skill_dir(&home, AgentTarget::Cursor)
-                .ends_with(".cursor/skills/watchtower")
+                .ends_with(".cursor/skills/horizon-gateway")
         );
         assert!(
             global_skill_dir(&home, AgentTarget::Gemini)
-                .ends_with(".gemini/config/skills/watchtower")
+                .ends_with(".gemini/config/skills/horizon-gateway")
         );
     }
 
     #[test]
     fn embedded_skill_has_frontmatter() {
-        assert!(SKILL_MD.contains("name: watchtower"));
-        assert!(LOGS_MJS.contains("getWatchtowerLogsDir"));
+        assert!(SKILL_MD.contains("name: horizon-gateway"));
+        assert!(LOGS_MJS.contains("getHorizonGatewayLogsDir"));
     }
 }

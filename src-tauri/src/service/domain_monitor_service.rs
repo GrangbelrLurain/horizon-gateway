@@ -202,7 +202,7 @@ impl DomainMonitorService {
 
         let mut client_builder = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
-            .user_agent("Watchtower/0.1.0");
+            .user_agent("horizon-gateway/0.1.0");
 
         if let Some(ref dns) = dns_server {
             if let Some((ip, port)) = parse_dns_server(dns) {

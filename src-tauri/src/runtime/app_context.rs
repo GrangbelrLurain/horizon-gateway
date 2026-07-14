@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::service::api_log_service::ApiLogService;
@@ -43,6 +43,30 @@ pub struct AppContext {
 
 pub fn bootstrap_app_context() -> Result<AppContext, String> {
     let app_data_dir = resolve_app_data_dir()?;
+
+    // Migration from Watchtower (com.lurain.watchtower) to Horizon Gateway (com.lurain.horizon-gateway)
+    // Robust check: check if domains.json does not exist in new location, but does in old location
+    let old_domains_path = dirs::data_dir()
+        .map(|base| base.join("com.lurain.watchtower").join("domains.json"));
+    let new_domains_path = app_data_dir.join("domains.json");
+
+    if !new_domains_path.exists() {
+        if let Some(old_path) = old_domains_path {
+            if old_path.exists() {
+                if let Some(old_dir) = dirs::data_dir().map(|base| base.join("com.lurain.watchtower")) {
+                    if !app_data_dir.exists() {
+                        let _ = fs::create_dir_all(&app_data_dir);
+                    }
+                    if let Err(e) = copy_dir_all(&old_dir, &app_data_dir) {
+                        eprintln!("Failed to copy app data directory: {e}");
+                    } else {
+                        println!("Successfully migrated app data from Watchtower to Horizon Gateway.");
+                    }
+                }
+            }
+        }
+    }
+
     if !app_data_dir.exists() {
         fs::create_dir_all(&app_data_dir).map_err(|e| format!("failed to create app data dir: {e}"))?;
     }
@@ -123,6 +147,21 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     })
 }
 
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,7 +171,7 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         // Override via direct construction is not exposed; smoke-test default path resolves.
         let dir = super::super::paths::resolve_app_data_dir().expect("resolve");
-        assert!(dir.ends_with("com.lurain.watchtower"));
+        assert!(dir.ends_with("com.lurain.horizon-gateway"));
         let _ = temp;
     }
 }

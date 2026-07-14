@@ -178,7 +178,7 @@ function LiveCapturePage() {
     // 3. Listen for Messages from iframe
     const handleMessage = (event: MessageEvent) => {
       // Debug log
-      console.log("Watchtower App received message:", event.data.type, event.data);
+      console.log("Horizon Gateway App received message:", event.data.type, event.data);
 
       if (event.data.type === "WT_INSPECT_MODE_CHANGED") {
         setIsSelecting(event.data.enabled);

@@ -32,7 +32,7 @@ const INSPECTOR_COPY = {
   en: {
     title: "Inspector & Settings",
     subtitle: "Configure injection policies and capture new UX elements from browser.",
-    statusActive: "Watchtower Proxy is active.",
+    statusActive: "Horizon Gateway Proxy is active.",
     statusInactive: "Proxy is not running. Please start the proxy to use the inspector.",
     capturedTitle: "Define New Policy",
     rolePlaceholder: "Element Title (e.g. Main Login Button)",

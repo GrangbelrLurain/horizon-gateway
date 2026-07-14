@@ -33,7 +33,7 @@ impl CommandEnv<'_> {
             Ok(())
         } else {
             Err(format!(
-                "gui_only: `{command}` requires the Watchtower GUI (native dialog/window). Use the desktop app or export data via other CLI commands."
+                "gui_only: `{command}` requires the Horizon Gateway GUI (native dialog/window). Use the desktop app or export data via other CLI commands."
             ))
         }
     }

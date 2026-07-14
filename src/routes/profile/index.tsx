@@ -260,10 +260,10 @@ function ProfilePage() {
               <div className="flex gap-2 bg-base-200 p-1.5 rounded-2xl border border-base-300">
                 <button
                   type="button"
-                  onClick={() => setTempTheme("watchtower-light")}
+                  onClick={() => setTempTheme("horizon-gateway-light")}
                   className={clsx(
                     "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                    tempTheme === "watchtower-light"
+                    tempTheme === "horizon-gateway-light"
                       ? "bg-base-100 text-primary shadow-sm"
                       : "text-base-content/60 hover:text-base-content hover:bg-base-content/5",
                   )}
@@ -272,10 +272,10 @@ function ProfilePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTempTheme("watchtower-dark")}
+                  onClick={() => setTempTheme("horizon-gateway-dark")}
                   className={clsx(
                     "flex-1 py-2.5 rounded-xl text-sm font-bold transition-all",
-                    tempTheme === "watchtower-dark"
+                    tempTheme === "horizon-gateway-dark"
                       ? "bg-base-100 text-primary shadow-sm"
                       : "text-base-content/60 hover:text-base-content hover:bg-base-content/5",
                   )}

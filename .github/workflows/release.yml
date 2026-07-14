@@ -25,8 +25,8 @@ jobs:
         with:
           # 푸시된 태그 이름을 사용하여 Draft를 만듭니다.
           tag_name: ${{ github.ref_name }}
-          name: "Watchtower v${{ github.ref_name }}"
-          body: "See the assets below to download the latest version of Watchtower."
+          name: "Horizon Gateway v${{ github.ref_name }}"
+          body: "See the assets below to download the latest version of Horizon Gateway."
           draft: true
           prerelease: false
 

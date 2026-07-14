@@ -45,7 +45,7 @@ export function LoadingScreen({ onCancel, message = "Synchronizing Data..." }: L
         transition={{ duration: 0.8, delay: 0.2 }}
         className="flex flex-col items-center gap-3"
       >
-        <h2 className="text-2xl font-black text-base-content tracking-tight">Watchtower</h2>
+        <h2 className="text-2xl font-black text-base-content tracking-tight">Horizon Gateway</h2>
 
         <div className="flex items-center gap-1.5 py-1">
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />

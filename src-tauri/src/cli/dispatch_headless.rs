@@ -382,7 +382,7 @@ pub fn dispatch_headless(
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
-        "save_root_ca" => Err("gui_only: `save_root_ca` requires the Watchtower GUI.".to_string()),
+        "save_root_ca" => Err("gui_only: `save_root_ca` requires the Horizon Gateway GUI.".to_string()),
         "download_api_schema" => {
             let parsed: command::api_log_commands::DownloadApiSchemaPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
@@ -449,9 +449,9 @@ pub fn dispatch_headless(
             let result = runtime.block_on(command::usb_commands::stop_usb_reverse_svc(&ctx.usb_service, parsed.port))?;
             Ok(serde_json::to_value(result).unwrap())
         }
-        "open_window" => Err("gui_only: `open_window` requires the Watchtower GUI.".to_string()),
-        "open_inspector_window" => Err("gui_only: `open_inspector_window` requires the Watchtower GUI.".to_string()),
-        "open_annotation_dialog" => Err("gui_only: `open_annotation_dialog` requires the Watchtower GUI.".to_string()),
+        "open_window" => Err("gui_only: `open_window` requires the Horizon Gateway GUI.".to_string()),
+        "open_inspector_window" => Err("gui_only: `open_inspector_window` requires the Horizon Gateway GUI.".to_string()),
+        "open_annotation_dialog" => Err("gui_only: `open_annotation_dialog` requires the Horizon Gateway GUI.".to_string()),
         "execute_pipeline" => {
             let parsed: crate::service::pipeline_runner::PipelineFlow = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
@@ -569,6 +569,6 @@ pub fn dispatch_headless(
             let result = command::crypto_preset_commands::import_crypto_presets_svc(parsed, &ctx.crypto_preset_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
-        _ => Err(format!("Unknown command: {cmd_name}. Run `watchtower cli list`.")),
+        _ => Err(format!("Unknown command: {cmd_name}. Run `horizon-gateway cli list`.")),
     }
 }

@@ -8,7 +8,7 @@ use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
 
 pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str =
-    r#"<script id="wt-injection-marker" type="module" src="/.watchtower/inspector.js"></script>"#;
+    r#"<script id="wt-injection-marker" type="module" src="/.horizon-gateway/inspector.js"></script>"#;
 
 pub(crate) fn apply_html_injection_cache_headers(headers: &mut HeaderMap) {
     headers.insert(
@@ -33,7 +33,7 @@ pub(crate) fn inject_inspector_script(mut body: Vec<u8>) -> Vec<u8> {
                 new_body.push_str(&body_str[pos..]);
                 body = new_body.into_bytes();
                 injected = true;
-                crate::proxy_log!("✅ [Watchtower] Inspector injected (UTF-8).");
+                crate::proxy_log!("✅ [Horizon Gateway] Inspector injected (UTF-8).");
             }
         }
     }
@@ -51,7 +51,7 @@ pub(crate) fn inject_inspector_script(mut body: Vec<u8>) -> Vec<u8> {
                 new_bytes.extend_from_slice(injection_script.as_bytes());
                 new_bytes.extend_from_slice(&body[pos..]);
                 body = new_bytes;
-                crate::proxy_log!("✅ [Watchtower] Inspector injected (Byte-level).");
+                crate::proxy_log!("✅ [Horizon Gateway] Inspector injected (Byte-level).");
             }
         }
     }

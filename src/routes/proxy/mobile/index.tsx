@@ -479,8 +479,8 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   <span className="font-bold text-primary shrink-0">2.</span>
                   <span>
                     {lang === "ko"
-                      ? "QR 코드를 찍어 Watchtower 가이드 페이지에 접속합니다."
-                      : "Scan the QR code to open the Watchtower diagnostics page."}
+                      ? "QR 코드를 찍어 Horizon Gateway 가이드 페이지에 접속합니다."
+                      : "Scan the QR code to open the Horizon Gateway diagnostics page."}
                   </span>
                 </li>
                 <li className="flex gap-2">
@@ -639,8 +639,8 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
               </H2>
               <P className="text-base-content/60 text-sm mb-6 leading-relaxed">
                 {lang === "ko"
-                  ? `안드로이드 폰의 로컬 ${proxyStatus.port || 8888} 포트를 PC의 Watchtower 프록시 서버로 다이렉트 바인딩해주는 USB 터널을 켭니다. 무선 공유기 상태에 구애받지 않고 오프라인 상태에서도 온전히 감시와 모킹이 가능합니다.`
-                  : `Forward your Android device's local port ${proxyStatus.port || 8888} back to the Watchtower proxy server on your host PC via USB. This operates offline and bypasses Wi-Fi router / corporate intranet restrictions.`}
+                  ? `안드로이드 폰의 로컬 ${proxyStatus.port || 8888} 포트를 PC의 Horizon Gateway 프록시 서버로 다이렉트 바인딩해주는 USB 터널을 켭니다. 무선 공유기 상태에 구애받지 않고 오프라인 상태에서도 온전히 감시와 모킹이 가능합니다.`
+                  : `Forward your Android device's local port ${proxyStatus.port || 8888} back to the Horizon Gateway proxy server on your host PC via USB. This operates offline and bypasses Wi-Fi router / corporate intranet restrictions.`}
               </P>
 
               <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
@@ -716,8 +716,8 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                     </span>
                     <span>
                       {lang === "ko"
-                        ? "위의 스위치를 켜는 즉시 Watchtower가 폰의 전체 시스템 프록시를 127.0.0.1:8888로 자동 주입합니다. 혹시 이전에 와이파이 설정에서 수동으로 프록시를 설정하셨다면 충돌 방지를 위해 반드시 '없음(안함)' 상태로 원복해 주세요."
-                        : "Upon toggling the switch, Watchtower will automatically configure your device's global HTTP proxy to 127.0.0.1:8888. If you have previously set a manual Wi-Fi proxy on your device, please revert it back to 'None'."}
+                        ? "위의 스위치를 켜는 즉시 Horizon Gateway가 폰의 전체 시스템 프록시를 127.0.0.1:8888로 자동 주입합니다. 혹시 이전에 와이파이 설정에서 수동으로 프록시를 설정하셨다면 충돌 방지를 위해 반드시 '없음(안함)' 상태로 원복해 주세요."
+                        : "Upon toggling the switch, Horizon Gateway will automatically configure your device's global HTTP proxy to 127.0.0.1:8888. If you have previously set a manual Wi-Fi proxy on your device, please revert it back to 'None'."}
                     </span>
                   </div>
                 </li>

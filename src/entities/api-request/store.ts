@@ -32,26 +32,29 @@ function uniqueAppendMap(
   };
 }
 
-export const autocompleteOriginsAtom = atomWithStorage<string[]>("watchtower-autocomplete-origins", []);
+export const autocompleteOriginsAtom = atomWithStorage<string[]>("horizon-gateway-autocomplete-origins", []);
 
-export const autocompletePathnamesAtom = atomWithStorage<string[]>("watchtower-autocomplete-pathnames", []);
+export const autocompletePathnamesAtom = atomWithStorage<string[]>("horizon-gateway-autocomplete-pathnames", []);
 
-export const autocompleteBodiesAtom = atomWithStorage<string[]>("watchtower-autocomplete-bodies", []);
+export const autocompleteBodiesAtom = atomWithStorage<string[]>("horizon-gateway-autocomplete-bodies", []);
 
 export const autocompleteParamValuesAtom = atomWithStorage<Record<string, string[]>>(
-  "watchtower-autocomplete-param-values",
+  "horizon-gateway-autocomplete-param-values",
   {},
 );
 
 /** @deprecated use autocompleteHeaderValuesAtom — kept for storage key compatibility */
 export const autocompleteValuesAtom = atomWithStorage<Record<string, string[]>>(
-  "watchtower-autocomplete-values",
+  "horizon-gateway-autocomplete-values",
   STANDARD_HEADER_VALUES,
 );
 
 export const autocompleteHeaderValuesAtom = autocompleteValuesAtom;
 
-export const autocompleteHeadersAtom = atomWithStorage<string[]>("watchtower-autocomplete-headers", STANDARD_HEADERS);
+export const autocompleteHeadersAtom = atomWithStorage<string[]>(
+  "horizon-gateway-autocomplete-headers",
+  STANDARD_HEADERS,
+);
 
 export function appendOriginSuggestion(origins: string[], origin: string): string[] {
   return uniqueAppend(origins, origin, 30);
@@ -104,7 +107,7 @@ export function mergeExtractedFieldValues(
 }
 
 export const autocompletePathnamesByOriginAtom = atomWithStorage<Record<string, string[]>>(
-  "watchtower-autocomplete-pathnames-by-origin",
+  "horizon-gateway-autocomplete-pathnames-by-origin",
   {},
 );
 

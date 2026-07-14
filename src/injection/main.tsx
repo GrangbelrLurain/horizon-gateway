@@ -4,27 +4,27 @@ import { InjectionApp } from "./InjectionApp";
 
 declare global {
   interface Window {
-    __WATCHTOWER_LOADED__?: boolean;
+    __HORIZON_GATEWAY_LOADED__?: boolean;
   }
 }
 
 /**
- * Watchtower Injection Entry Point
+ * Horizon Gateway Injection Entry Point
  */
 function initInjection() {
   // 1. 전역 플래그 체크
-  if (window.__WATCHTOWER_LOADED__) {
+  if (window.__HORIZON_GATEWAY_LOADED__) {
     return;
   }
 
   // 2. DOM에 이미 컨테이너가 있는지 확인
-  const containerId = "watchtower-injection-container";
+  const containerId = "horizon-gateway-injection-container";
   if (document.getElementById(containerId)) {
     return;
   }
 
-  window.__WATCHTOWER_LOADED__ = true;
-  console.log("🚀 [Watchtower] Injection Script Starting...");
+  window.__HORIZON_GATEWAY_LOADED__ = true;
+  console.log("🚀 [Horizon Gateway] Injection Script Starting...");
 
   const host = document.createElement("div");
   host.id = containerId;
@@ -66,7 +66,7 @@ function initInjection() {
         <InjectionApp />
       </React.StrictMode>,
     );
-    console.log("✅ [Watchtower] App Mounted.");
+    console.log("✅ [Horizon Gateway] App Mounted.");
   };
 
   mount();

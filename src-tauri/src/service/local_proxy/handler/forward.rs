@@ -166,7 +166,7 @@ pub(crate) async fn handle_pass_through(
                 let full_body = match res.bytes().await {
                     Ok(b) => b,
                     Err(e) => {
-                        crate::proxy_log!("❌ [Watchtower] Failed to read HTML body: {}", e);
+                        crate::proxy_log!("❌ [Horizon Gateway] Failed to read HTML body: {}", e);
                         return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}"))
                             .into_response();
                     }

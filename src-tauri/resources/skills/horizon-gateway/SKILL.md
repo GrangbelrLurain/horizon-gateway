@@ -1,27 +1,27 @@
 ---
-name: watchtower
-description: Inspect HTTP/API traffic, proxy status, domain monitoring, mock rules, and sandbox libraries captured by Watchtower. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, local routing, pipelines, JSON schemas, or crypto presets.
+name: horizon-gateway
+description: Inspect HTTP/API traffic, proxy status, domain monitoring, mock rules, and sandbox libraries captured by Horizon Gateway. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, local routing, pipelines, JSON schemas, or crypto presets.
 ---
 
-# Watchtower Skill
+# Horizon Gateway Skill
 
-Watchtower is a local HTTP proxy/debugging app. Agents interact with it in two ways:
+Horizon Gateway is a local HTTP proxy/debugging app. Agents interact with it in two ways:
 
 | Tool | Use when |
 |------|----------|
 | `scripts/logs.mjs` | Read API logs **directly from disk** (fast, no app startup) |
-| `watchtower cli` | Call **any Watchtower command** (domains, proxy, mocking, sandbox, settings, …) |
+| `horizon-gateway cli` | Call **any Horizon Gateway command** (domains, proxy, mocking, sandbox, settings, …) |
 
 ## Install this skill
 
-Run once so your agent discovers Watchtower automatically:
+Run once so your agent discovers Horizon Gateway automatically:
 
 ```bash
-watchtower cli init                  # global install (auto-detect agent)
-watchtower cli init --target cursor  # specific agent
-watchtower cli init --target all     # all supported agents
-watchtower cli init --project        # current repo: .agents/skills/watchtower/
-watchtower cli init --print          # print SKILL.md without installing
+horizon-gateway cli init                  # global install (auto-detect agent)
+horizon-gateway cli init --target cursor  # specific agent
+horizon-gateway cli init --target all     # all supported agents
+horizon-gateway cli init --project        # current repo: .agents/skills/horizon-gateway/
+horizon-gateway cli init --print          # print SKILL.md without installing
 ```
 
 Supported `--target` values: `auto`, `all`, `cursor`, `claude`, `codex`, `gemini`, `copilot`, `windsurf`.
@@ -29,21 +29,21 @@ Supported `--target` values: `auto`, `all`, `cursor`, `claude`, `codex`, `gemini
 Without this skill, bootstrap from the binary:
 
 ```bash
-watchtower cli list
-watchtower cli help <command>
+horizon-gateway cli list
+horizon-gateway cli help <command>
 ```
 
 ---
 
 ## 1. API Logs (disk reader)
 
-Best for searching and inspecting captured API traffic. Does **not** start the Watchtower app.
+Best for searching and inspecting captured API traffic. Does **not** start the Horizon Gateway app.
 
 ```bash
 node <skill-dir>/scripts/logs.mjs [options]
 ```
 
-After `cli init`, `<skill-dir>` is typically `~/.cursor/skills/watchtower` or `.agents/skills/watchtower`.
+After `cli init`, `<skill-dir>` is typically `~/.cursor/skills/horizon-gateway` or `.agents/skills/horizon-gateway`.
 
 ### Options
 
@@ -66,19 +66,19 @@ After `cli init`, `<skill-dir>` is typically `~/.cursor/skills/watchtower` or `.
 2. **Drill down** by `--id` with `--fields response_body --truncate 500`.
 
 ```bash
-node .agents/skills/watchtower/scripts/logs.mjs --host modetour.dev --status 500 --limit 5
-node .agents/skills/watchtower/scripts/logs.mjs --id <uuid> --fields response_body --truncate 1000
+node .agents/skills/horizon-gateway/scripts/logs.mjs --host modetour.dev --status 500 --limit 5
+node .agents/skills/horizon-gateway/scripts/logs.mjs --id <uuid> --fields response_body --truncate 1000
 ```
 
 ---
 
-## 2. Watchtower CLI (full app commands)
+## 2. Horizon Gateway CLI (full app commands)
 
 ```bash
-watchtower cli <subcommand> [args]
+horizon-gateway cli <subcommand> [args]
 ```
 
-On Windows use `watchtower.exe`.
+On Windows use `horizon-gateway.exe`.
 
 ### Subcommands
 
@@ -89,15 +89,15 @@ On Windows use `watchtower.exe`.
 | `help <command>` | Show payload schema for one command |
 | `run <command> [payload] [--query <path>]` | Execute a command (headless — no GUI required) |
 
-`cli run` works **without** starting the Watchtower GUI. It bootstraps app services, prints JSON to stdout, and exits.
+`cli run` works **without** starting the Horizon Gateway GUI. It bootstraps app services, prints JSON to stdout, and exits.
 
 Payload forms:
 
 ```bash
-watchtower cli run get_domains '{}'
-watchtower cli run regist_domains @domains.json
-watchtower cli run create_scenario -   # JSON from stdin
-watchtower cli run get_domains '{}' --payload @body.json
+horizon-gateway cli run get_domains '{}'
+horizon-gateway cli run regist_domains @domains.json
+horizon-gateway cli run create_scenario -   # JSON from stdin
+horizon-gateway cli run get_domains '{}' --payload @body.json
 ```
 
 ### Windows PowerShell
@@ -107,31 +107,31 @@ Release builds use the **console subsystem** so pipes, `spawn`, and file redirec
 **JSON escaping** — wrap the payload in single quotes and escape inner double quotes:
 
 ```powershell
-watchtower cli run set_local_route_enabled '{\"id\": 24, \"enabled\": true}'
+horizon-gateway cli run set_local_route_enabled '{\"id\": 24, \"enabled\": true}'
 ```
 
 **Prefer file payloads** for complex JSON (avoids escaping issues):
 
 ```powershell
-watchtower cli run regist_domains @domains.json
-watchtower cli run create_scenario - --payload @body.json   # stdin
+horizon-gateway cli run regist_domains @domains.json
+horizon-gateway cli run create_scenario - --payload @body.json   # stdin
 ```
 
 If a terminal still drops output, `| Out-String` remains a safe fallback:
 
 ```powershell
-watchtower cli run get_proxy_status '{}' | Out-String
+horizon-gateway cli run get_proxy_status '{}' | Out-String
 ```
 
 ### Examples
 
 ```bash
-watchtower cli list
-watchtower cli help get_api_logs
-watchtower cli run get_domains '{}'
-watchtower cli run get_domains '{}' --query data.[].url
-watchtower cli run get_api_logs '{"date":"2026-07-06"}' --query data.logs[statusCode>=500].path
-watchtower cli run get_saved_pipelines '{}' --query data.[].{id,name}
+horizon-gateway cli list
+horizon-gateway cli help get_api_logs
+horizon-gateway cli run get_domains '{}'
+horizon-gateway cli run get_domains '{}' --query data.[].url
+horizon-gateway cli run get_api_logs '{"date":"2026-07-06"}' --query data.logs[statusCode>=500].path
+horizon-gateway cli run get_saved_pipelines '{}' --query data.[].{id,name}
 ```
 
 ### Recommended commands by task
@@ -163,8 +163,8 @@ Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
 | Task | Prefer |
 |------|--------|
 | Search/filter API logs | `logs.mjs` |
-| Get domains, proxy status, mocking rules, sandbox libraries | `watchtower cli` |
-| Mutate settings | `watchtower cli` |
+| Get domains, proxy status, mocking rules, sandbox libraries | `horizon-gateway cli` |
+| Mutate settings | `horizon-gateway cli` |
 
 ### CLI limits
 

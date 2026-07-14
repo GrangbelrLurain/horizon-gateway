@@ -222,7 +222,7 @@ mod tests {
 
     fn temp_service() -> LocalRouteService {
         let dir = std::env::temp_dir().join(format!(
-            "watchtower-route-test-{}",
+            "horizon-gateway-route-test-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

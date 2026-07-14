@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 /// Must match `tauri.conf.json` identifier and `logs.mjs` app id.
-pub const APP_IDENTIFIER: &str = "com.lurain.watchtower";
+pub const APP_IDENTIFIER: &str = "com.lurain.horizon-gateway";
 
-/// Resolves the Watchtower app data directory (same layout as Tauri `app_data_dir`).
+/// Resolves the Horizon Gateway app data directory (same layout as Tauri `app_data_dir`).
 pub fn resolve_app_data_dir() -> Result<PathBuf, String> {
     let base = dirs::data_dir().ok_or_else(|| "failed to resolve platform data directory".to_string())?;
     Ok(base.join(APP_IDENTIFIER))
@@ -15,7 +15,7 @@ mod tests {
 
     #[test]
     fn app_identifier_matches_bundle() {
-        assert_eq!(APP_IDENTIFIER, "com.lurain.watchtower");
+        assert_eq!(APP_IDENTIFIER, "com.lurain.horizon-gateway");
     }
 
     #[test]

@@ -91,7 +91,7 @@ export function InfrastructureContent() {
   };
 
   const port = proxyStatus.running ? proxyStatus.port : 0;
-  const pacUrl = port > 0 ? `http://127.0.0.1:${port}/.watchtower/proxy.pac` : "";
+  const pacUrl = port > 0 ? `http://127.0.0.1:${port}/.horizon-gateway/proxy.pac` : "";
 
   return (
     <div className="space-y-5">

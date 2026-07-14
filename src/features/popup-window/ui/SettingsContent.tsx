@@ -172,7 +172,7 @@ export function SettingsContent() {
       const { writeTextFile } = await import("@tauri-apps/plugin-fs");
       const path = await save({
         filters: [{ name: "JSON", extensions: ["json"] }],
-        defaultPath: `watchtower-settings-${new Date().toISOString().slice(0, 10)}.json`,
+        defaultPath: `horizon-gateway-settings-${new Date().toISOString().slice(0, 10)}.json`,
       });
       if (path) {
         await writeTextFile(path, JSON.stringify(res.data, null, 2));

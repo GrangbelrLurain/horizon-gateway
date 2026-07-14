@@ -246,7 +246,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
                 }
                 CliExecutionMode::StandaloneMeta => {
                     print_error(
-                        "cli run requires a running context. Use `watchtower cli run` from the shell.",
+                        "cli run requires a running context. Use `horizon-gateway cli run` from the shell.",
                     );
                     return 1;
                 }

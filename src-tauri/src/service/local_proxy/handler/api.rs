@@ -8,7 +8,7 @@ use tauri::{Emitter, Manager};
 
 use crate::model::inspector::Annotation;
 
-use super::super::reserved::{serve_watchtower_reserved_path, WATCHTOWER_PATH_PREFIX};
+use super::super::reserved::{serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX};
 use super::super::state::ProxyState;
 
 /// Handled API / reserved-path requests. `Err(req)` means the caller should continue the pipeline.
@@ -20,7 +20,7 @@ pub(crate) async fn try_handle_api(
 ) -> Result<Response, Request> {
     if path == "/api/ping" {
         let json = serde_json::json!({
-            "app": "watchtower_proxy",
+            "app": "horizon_gateway_proxy",
             "status": "ok"
         });
         return Ok((
@@ -35,14 +35,14 @@ pub(crate) async fn try_handle_api(
     }
 
     let uri_str = uri.to_string();
-    let is_watchtower_path =
-        path.starts_with(WATCHTOWER_PATH_PREFIX) || uri_str.contains(WATCHTOWER_PATH_PREFIX);
+    let is_horizon_gateway_path =
+        path.starts_with(HORIZON_GATEWAY_PATH_PREFIX) || uri_str.contains(HORIZON_GATEWAY_PATH_PREFIX);
 
-    if !is_watchtower_path {
+    if !is_horizon_gateway_path {
         return Err(req);
     }
 
-    let normalized_path = if let Some(idx) = uri_str.find(WATCHTOWER_PATH_PREFIX) {
+    let normalized_path = if let Some(idx) = uri_str.find(HORIZON_GATEWAY_PATH_PREFIX) {
         &uri_str[idx..]
     } else {
         path
@@ -57,12 +57,12 @@ pub(crate) async fn try_handle_api(
         .unwrap_or_default();
 
     crate::proxy_log!(
-        "-> watchtower reserved: {} (Original: {})",
+        "-> horizon-gateway reserved: {} (Original: {})",
         clean_path,
         path
     );
 
-    if clean_path == "/.watchtower/api/focus" {
+    if clean_path == "/.horizon-gateway/api/focus" {
         if let Some(main) = state.app_handle.get_webview_window("main") {
             let _ = main.set_focus();
         }
@@ -74,7 +74,7 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.watchtower/api/status" {
+    if clean_path == "/.horizon-gateway/api/status" {
         let mocking_enabled = state.mocking_service.get_settings().enabled;
         let json = serde_json::json!({
             "proxy": true,
@@ -92,7 +92,7 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.watchtower/api/annotations" && req.method() == hyper::Method::GET {
+    if clean_path == "/.horizon-gateway/api/annotations" && req.method() == hyper::Method::GET {
         let list = state.inspector_service.get_all();
         let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
         return Ok((
@@ -106,7 +106,7 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.watchtower/api/annotation" && req.method() == hyper::Method::POST {
+    if clean_path == "/.horizon-gateway/api/annotation" && req.method() == hyper::Method::POST {
         let host_h = req
             .headers()
             .get(hyper::header::HOST)
@@ -139,13 +139,13 @@ pub(crate) async fn try_handle_api(
                     state.inspector_service.add_annotation(ann);
                     let count = state.inspector_service.get_all().len();
                     crate::proxy_log!(
-                        "✅ [Watchtower] Annotation saved to file. Total count: {}",
+                        "✅ [Horizon Gateway] Annotation saved to file. Total count: {}",
                         count
                     );
                     let _ = state.app_handle.emit("annotations-updated", ());
                 }
                 Err(e) => {
-                    crate::proxy_log!("❌ [Watchtower] Failed to parse annotation JSON: {}", e);
+                    crate::proxy_log!("❌ [Horizon Gateway] Failed to parse annotation JSON: {}", e);
                 }
             }
 
@@ -157,5 +157,5 @@ pub(crate) async fn try_handle_api(
         return Ok((StatusCode::BAD_REQUEST, "Invalid JSON").into_response());
     }
 
-    Ok(serve_watchtower_reserved_path(state.clone(), clean_path, &host_h).await)
+    Ok(serve_horizon_gateway_reserved_path(state.clone(), clean_path, &host_h).await)
 }

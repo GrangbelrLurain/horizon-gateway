@@ -32,10 +32,10 @@ impl CaService {
         let mut params = CertificateParams::default();
         params
             .distinguished_name
-            .push(rcgen::DnType::CommonName, "Watchtower Root CA");
+            .push(rcgen::DnType::CommonName, "Horizon Gateway Root CA");
         params
             .distinguished_name
-            .push(rcgen::DnType::OrganizationName, "Watchtower");
+            .push(rcgen::DnType::OrganizationName, "Horizon Gateway");
         params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         params.key_usages = vec![
             rcgen::KeyUsagePurpose::KeyCertSign,

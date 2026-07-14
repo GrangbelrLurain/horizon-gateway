@@ -268,7 +268,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
             <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
             <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
             <style>
-              [data-theme="watchtower-light"] {
+              [data-theme="horizon-gateway-light"] {
                 --color-base-100: #ffffff;
                 --color-base-200: #f8fafc;
                 --color-base-300: #f1f5f9;
@@ -282,7 +282,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
                 --color-warning: #f59e0b;
                 --color-error: #ef4444;
               }
-              [data-theme="watchtower-dark"] {
+              [data-theme="horizon-gateway-dark"] {
                 --color-base-100: #0f172a;
                 --color-base-200: #020617;
                 --color-base-300: #1e293b;

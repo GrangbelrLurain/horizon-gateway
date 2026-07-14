@@ -50,7 +50,7 @@ export function CreateMockModal() {
         const res = unwrap(
           await commands.createScenario({
             name: newScenarioName,
-            description: "Auto-created from Watchtower Workspace",
+            description: "Auto-created from Horizon Gateway Workspace",
           }),
         );
         if (res.success && res.data) {

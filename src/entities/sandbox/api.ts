@@ -205,10 +205,10 @@ export async function importCryptoPresets(presets: SavedCryptoPreset[]): Promise
   return (res.data ?? []) as SavedCryptoPreset[];
 }
 
-const LS_PIPELINES = "watchtower-saved-pipelines";
-const LS_SCHEMAS = "watchtower-saved-json-schemas";
-const LS_CRYPTO = "watchtower-saved-crypto-presets";
-const MIGRATED_FLAG = "watchtower-sandbox-library-migrated-v1";
+const LS_PIPELINES = "horizon-gateway-saved-pipelines";
+const LS_SCHEMAS = "horizon-gateway-saved-json-schemas";
+const LS_CRYPTO = "horizon-gateway-saved-crypto-presets";
+const MIGRATED_FLAG = "horizon-gateway-sandbox-library-migrated-v1";
 
 function readLocalStorageJson<T>(key: string): T | null {
   try {

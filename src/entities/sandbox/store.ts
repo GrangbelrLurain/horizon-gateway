@@ -26,7 +26,7 @@ export interface CryptoConfig {
 }
 
 // Stores historical API requests sent via API Client
-export const apiClientHistoryAtom = atomWithStorage<ApiClientHistoryItem[]>("watchtower-api-client-history", []);
+export const apiClientHistoryAtom = atomWithStorage<ApiClientHistoryItem[]>("horizon-gateway-api-client-history", []);
 
 // Stores autocomplete header suggestions (initially standard ones, updated when users add new)
 export {
@@ -45,7 +45,7 @@ export const livePreviewDataAtom = atom<unknown | null>(null);
 
 // Stores dynamic component TSX source code for live preview
 export const livePreviewCodeAtom = atomWithStorage<string>(
-  "watchtower-live-preview-code",
+  "horizon-gateway-live-preview-code",
   `import React from 'react';
 
 export default function Preview({ data }: Props) {
@@ -116,7 +116,7 @@ export interface SavedJsonSchema {
   updatedAt: number;
 }
 
-export const savedJsonSchemasAtom = atomWithStorage<SavedJsonSchema[]>("watchtower-saved-json-schemas", [
+export const savedJsonSchemasAtom = atomWithStorage<SavedJsonSchema[]>("horizon-gateway-saved-json-schemas", [
   {
     id: "default-user-payload",
     name: "UserPayload",
@@ -166,7 +166,7 @@ export const savedJsonSchemasAtom = atomWithStorage<SavedJsonSchema[]>("watchtow
   },
 ]);
 
-export const savedComponentsAtom = atomWithStorage<SavedComponent[]>("watchtower-saved-components", [
+export const savedComponentsAtom = atomWithStorage<SavedComponent[]>("horizon-gateway-saved-components", [
   {
     id: "welcome-card",
     name: "WelcomeCard",
@@ -213,9 +213,9 @@ export default function Preview({ title, message, items }: Props) {
   },
 ]);
 
-export const selectedComponentIdAtom = atomWithStorage<string>("watchtower-selected-component-id", "welcome-card");
+export const selectedComponentIdAtom = atomWithStorage<string>("horizon-gateway-selected-component-id", "welcome-card");
 
-export const savedCryptoPresetsAtom = atomWithStorage<SavedCryptoPreset[]>("watchtower-saved-crypto-presets", [
+export const savedCryptoPresetsAtom = atomWithStorage<SavedCryptoPreset[]>("horizon-gateway-saved-crypto-presets", [
   {
     id: "default-base64-encode",
     name: "Base64 Encode Default",

@@ -52,7 +52,7 @@ export function UserProfileSetupView({
           <div className="text-center flex flex-col gap-1">
             <h2 className="text-2xl font-black text-base-content flex items-center justify-center gap-2">
               <Sparkles className="w-5 h-5 text-indigo-500" />
-              Welcome to Watchtower
+              Welcome to Horizon Gateway
             </h2>
             <p className="text-sm text-base-content/60">How should we address you?</p>
           </div>

@@ -1,10 +1,10 @@
-# Watchtower
+# Horizon Gateway
 
 <p align="right">
   <a href="./README.md"><strong>한국어 버전 🌐</strong></a>
 </p>
 
-**Watchtower** is a desktop application built with Tauri 2 + Rust + React. It provides domain health checking, local proxy capabilities (MITM, mocking, routing), an OpenAPI viewer, inspector injection, and mobile connectivity (USB/tunnel) all in one development and operation infrastructure toolbox.
+**Horizon Gateway** is a desktop application built with Tauri 2 + Rust + React. It provides domain health checking, local proxy capabilities (MITM, mocking, routing), an OpenAPI viewer, inspector injection, and mobile connectivity (USB/tunnel) all in one development and operation infrastructure toolbox.
 
 ---
 
@@ -54,8 +54,8 @@ If you want to build and run the application from source, please refer to the [G
 - Define scenarios (Scenarios) and mocking rules (Mock Rules) to return mock responses (status codes, headers, JSON body, etc.) for specific incoming API requests intercepted by the proxy.
 
 ### 4. Inspector Injection
-- Dynamically inject Watchtower's debugging Inspector script into any monitored web page domain.
-- This allows you to remotely inspect and control console logs, network requests, and DOM tree states of the client browser directly inside the Watchtower application in real time.
+- Dynamically inject Horizon Gateway's debugging Inspector script into any monitored web page domain.
+- This allows you to remotely inspect and control console logs, network requests, and DOM tree states of the client browser directly inside the Horizon Gateway application in real time.
 
 ### 5. Mobile Connection
 - Intercept and reverse-forward traffic from connected Android devices to your local proxy server using **USB Debugging (ADB)** integration.
@@ -65,12 +65,12 @@ If you want to build and run the application from source, please refer to the [G
 
 ## CLI Usage
 
-Watchtower features a robust Command Line Interface (CLI) in addition to its GUI client, facilitating configuration management via terminal and automated integration with AI coding assistants (such as Cursor, Gemini, Claude, etc.).
+Horizon Gateway features a robust Command Line Interface (CLI) in addition to its GUI client, facilitating configuration management via terminal and automated integration with AI coding assistants (such as Cursor, Gemini, Claude, etc.).
 
 ### How to Run CLI
 - **Using packaged binary**:
   ```bash
-  watchtower.exe cli <subcommand> [arguments]
+  Horizon Gateway.exe cli <subcommand> [arguments]
   ```
 - **From development environment (Source Code)**:
   ```bash
@@ -81,15 +81,15 @@ Watchtower features a robust Command Line Interface (CLI) in addition to its GUI
 ### Main CLI Subcommands
 
 #### 1. `init` (Initialize Agent Skill Configuration)
-Installs the custom skill document so that AI assistants can automatically discover and control Watchtower capabilities within your workspace.
+Installs the custom skill document so that AI assistants can automatically discover and control Horizon Gateway capabilities within your workspace.
 - **Local Workspace Installation**:
   ```bash
-  watchtower cli init --project
+  Horizon Gateway cli init --project
   ```
-  Creates `SKILL.md` and helper scripts in the `.agents/skills/watchtower` directory of the current project.
+  Creates `SKILL.md` and helper scripts in the `.agents/skills/Horizon Gateway` directory of the current project.
 - **Global Agent Installation**:
   ```bash
-  watchtower cli init --target gemini
+  Horizon Gateway cli init --target gemini
   ```
   Links the skill to a specific agent platform's global configuration (e.g., `gemini`, `cursor`, `claude`, `copilot`, `windsurf`, etc.).
 - **Options**:
@@ -97,30 +97,30 @@ Installs the custom skill document so that AI assistants can automatically disco
   - `--print`: Print the contents of `SKILL.md` directly to the console as JSON instead of writing to files.
 
 #### 2. `list` (List Available API Commands)
-Outputs all internal Watchtower API commands that can be invoked via the CLI in JSON format.
+Outputs all internal Horizon Gateway API commands that can be invoked via the CLI in JSON format.
 ```bash
-watchtower cli list
+Horizon Gateway cli list
 ```
 
 #### 3. `help` (Detailed Command Guide)
 Queries descriptions and the expected input JSON Payload format for a specific API command.
 ```bash
-watchtower cli help get_domains
+Horizon Gateway cli help get_domains
 ```
 
 #### 4. `run` (Execute API Command)
-Directly invokes Watchtower's backend business logic. Pass the input parameters as a JSON payload in the second argument. You can filter the output using a simple jq-like JSON query with the `--query` option.
+Directly invokes Horizon Gateway's backend business logic. Pass the input parameters as a JSON payload in the second argument. You can filter the output using a simple jq-like JSON query with the `--query` option.
 - **Get All Domains**:
   ```bash
-  watchtower cli run get_domains '{}'
+  Horizon Gateway cli run get_domains '{}'
   ```
 - **Create a Domain Group**:
   ```bash
-  watchtower cli run create_group '{"name": "Production Domains"}'
+  Horizon Gateway cli run create_group '{"name": "Production Domains"}'
   ```
 - **Example of Filtering Output**:
   ```bash
-  watchtower cli run get_domains '{}' --query 'data[].domainName'
+  Horizon Gateway cli run get_domains '{}' --query 'data[].domainName'
   ```
 
 ---
@@ -168,7 +168,7 @@ This updates `CHANGELOG.md`, commits the changes, creates the `v<VERSION>` git t
 
 ### Updater Signing Key setup
 1. Generate your private signing key locally:
-   `pnpm tauri signer generate -w ~/.tauri/watchtower.key`
+   `pnpm tauri signer generate -w ~/.tauri/Horizon Gateway.key`
 2. Configure the generated public key in `tauri.conf.json` under `plugins.updater.pubkey`.
 3. Add the private key string as a repository secret called `TAURI_SIGNING_PRIVATE_KEY` on GitHub Actions.
 

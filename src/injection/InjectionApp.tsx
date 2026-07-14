@@ -72,7 +72,7 @@ function generateRobustSelector(el: HTMLElement): string {
  */
 function normalizeUrl(urlStr: string): { host: string; path: string } {
   try {
-    const url = new URL(urlStr.split("/.watchtower")[0]);
+    const url = new URL(urlStr.split("/.horizon-gateway")[0]);
     return {
       host: url.host,
       path: url.pathname.replace(/\/$/, "") || "/",
@@ -104,7 +104,7 @@ export function InjectionApp() {
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
 
   const fetchAnnotations = useCallback(() => {
-    fetch("/.watchtower/api/annotations")
+    fetch("/.horizon-gateway/api/annotations")
       .then((res) => res.json())
       .then((data) => {
         setAnnotations(Array.isArray(data) ? data : []);
@@ -145,7 +145,7 @@ export function InjectionApp() {
     if (!confirm("Delete this policy?")) {
       return;
     }
-    const res = await fetch("/.watchtower/api/annotation", {
+    const res = await fetch("/.horizon-gateway/api/annotation", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
@@ -161,7 +161,7 @@ export function InjectionApp() {
         return;
       }
       const target = e.target as HTMLElement;
-      if (target && !target.closest("#watchtower-injection-container") && target !== hoveredElement) {
+      if (target && !target.closest("#horizon-gateway-injection-container") && target !== hoveredElement) {
         setHoveredElement(target);
       }
     },
@@ -174,7 +174,7 @@ export function InjectionApp() {
         return;
       }
       const target = e.target as HTMLElement;
-      if (target.closest("#watchtower-injection-container")) {
+      if (target.closest("#horizon-gateway-injection-container")) {
         return;
       }
 
@@ -261,7 +261,7 @@ export function InjectionApp() {
       thumbnail = canvas.toDataURL("image/webp", 0.3);
     } catch (_err) {}
 
-    const cleanUrl = window.location.href.split("/.watchtower")[0];
+    const cleanUrl = window.location.href.split("/.horizon-gateway")[0];
 
     const payload = {
       id: crypto.randomUUID(),
@@ -276,7 +276,7 @@ export function InjectionApp() {
       thumbnail,
     };
 
-    const res = await fetch("/.watchtower/api/annotation", {
+    const res = await fetch("/.horizon-gateway/api/annotation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

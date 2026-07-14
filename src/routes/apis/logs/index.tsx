@@ -509,7 +509,7 @@ function ApiLogs() {
           generatedBy: t.exportGeneratedBy,
           jumpToEntry: t.exportJumpToEntry,
         },
-        `watchtower-api-logs-${date}-${selected.length}.html`,
+        `horizon-gateway-api-logs-${date}-${selected.length}.html`,
       );
       if (result.status !== "saved") {
         return;

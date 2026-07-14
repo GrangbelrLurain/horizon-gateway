@@ -529,7 +529,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   // CryptoJS 라이브러리가 전역에 제공되므로 바로 사용할 수 있습니다.
   // 예: const hash = CryptoJS.SHA256("test").toString();
   
-  return "Hello, Watchtower!";
+  return "Hello, Horizon Gateway!";
 }`,
         errorPolicy: "fastFail",
       };

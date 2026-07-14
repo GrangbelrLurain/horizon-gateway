@@ -24,7 +24,7 @@ export const defaultProfile: UserProfile = {
   isSetupComplete: false,
 };
 
-export const userProfileAtom = atomWithStorage<UserProfile>("watchtower-user-profile", defaultProfile);
+export const userProfileAtom = atomWithStorage<UserProfile>("horizon-gateway-user-profile", defaultProfile);
 
 export function getInitials(name: string): string {
   const trimmed = name.trim();

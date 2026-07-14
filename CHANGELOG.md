@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.5.1] - 2026-07-14
+
+### Changed
+
+- **App rebranding completion**: Migrated remaining files, internal variables, directories, and selectors from `watchtower` to `horizon-gateway`.
+- **Robust data migration**: Added robust app data migration logic that checks for existing user databases (like `domains.json`) and copies configuration files seamlessly, ensuring no settings or domain lists are lost when upgrading.
+
 ## [v2.5.0] - 2026-07-13
 
 ### Added

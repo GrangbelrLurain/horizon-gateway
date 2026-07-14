@@ -1,5 +1,5 @@
 import { atomWithStorage } from "jotai/utils";
 
-export type AppTheme = "watchtower-light" | "watchtower-dark";
+export type AppTheme = "horizon-gateway-light" | "horizon-gateway-dark";
 
-export const themeAtom = atomWithStorage<AppTheme>("watchtower-theme", "watchtower-light");
+export const themeAtom = atomWithStorage<AppTheme>("horizon-gateway-theme", "horizon-gateway-light");

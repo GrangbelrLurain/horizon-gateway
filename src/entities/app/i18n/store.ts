@@ -11,7 +11,7 @@ const getDefaultLanguage = (): SupportedLanguage => {
 };
 
 export const languageAtom = atomWithBroadcast<SupportedLanguage>(
-  "watchtower-language",
+  "horizon-gateway-language",
   getDefaultLanguage(),
-  atomWithStorage<SupportedLanguage>("watchtower-language", getDefaultLanguage()),
+  atomWithStorage<SupportedLanguage>("horizon-gateway-language", getDefaultLanguage()),
 );

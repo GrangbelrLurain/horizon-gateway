@@ -262,7 +262,7 @@ fn parse_cloudflare_url(line: &str) -> Option<String> {
 
 async fn ping_handler() -> impl IntoResponse {
     axum::Json(serde_json::json!({
-        "app": "watchtower_proxy",
+        "app": "horizon_gateway_proxy",
         "status": "ok"
     }))
 }

@@ -1,7 +1,7 @@
 mod paths;
 
 pub(crate) use paths::{
-    serve_watchtower_reserved_path, WATCHTOWER_PATH_PREFIX,
+    serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX,
 };
 
 #[cfg(test)]

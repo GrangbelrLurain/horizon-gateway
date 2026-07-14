@@ -8,7 +8,8 @@ export const popupEn = {
   infraCertDesc: "Install this Root CA as a trusted certificate in your OS/browser to inspect HTTPS traffic.",
   infraCertSave: "Save Certificate",
   infraPac: "PAC URL",
-  infraPacDesc: "Register this PAC address in system or browser proxy settings to route traffic through Watchtower.",
+  infraPacDesc:
+    "Register this PAC address in system or browser proxy settings to route traffic through Horizon Gateway.",
   infraMobile: "Mobile Connection",
   infraMobileDesc: "Connect device to proxy via ADB or wireless",
   infraMobileOpen: "Mobile Connection Setup",
@@ -31,7 +32,7 @@ export const popupEn = {
   toolsApiClient: "API Client",
   toolsJsonSchema: "JSON Schema",
   toolsServerLogs: "Server Logs",
-  detachedDefault: "Watchtower",
+  detachedDefault: "Horizon Gateway",
   detachedMocking: "API Mocking",
   detachedApiClient: "API Client",
   detachedJsonSchema: "JSON Schema",

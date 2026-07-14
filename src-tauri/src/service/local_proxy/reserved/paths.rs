@@ -9,7 +9,7 @@ use super::super::state::ProxyState;
 use super::super::tls::serve_cert_pem;
 
 /// Reserved path prefix: proxy serves setup page and assets (no forward to local route).
-pub(crate) const WATCHTOWER_PATH_PREFIX: &str = "/.watchtower/";
+pub(crate) const HORIZON_GATEWAY_PATH_PREFIX: &str = "/.horizon-gateway/";
 
 /// PAC (Proxy Auto-Config). Returns PROXY for ALL traffic; filtering logic is handled in the proxy itself.
 pub(crate) fn build_pac_js(proxy_host: &str, forward_port: u16) -> String {
@@ -27,12 +27,12 @@ format!(
 }
 
 
-pub(crate) async fn serve_watchtower_reserved_path(
+pub(crate) async fn serve_horizon_gateway_reserved_path(
     state: Arc<ProxyState>,
     path: &str,
     host_h: &str,
 ) -> Response {
-    if path == "/.watchtower/proxy.pac" || path.starts_with("/.watchtower/proxy.pac") {
+    if path == "/.horizon-gateway/proxy.pac" || path.starts_with("/.horizon-gateway/proxy.pac") {
         let Some(port) = state.forward_proxy_port else {
             return (StatusCode::NOT_FOUND, "Forward proxy port not configured").into_response();
         };
@@ -70,7 +70,7 @@ pub(crate) async fn serve_watchtower_reserved_path(
         )
             .into_response();
     }
-    if path == "/.watchtower/setup" || path.starts_with("/.watchtower/setup") {
+    if path == "/.horizon-gateway/setup" || path.starts_with("/.horizon-gateway/setup") {
         let proxy_port_msg = state
             .forward_proxy_port
             .map(|p| format!(" (Forward proxy: 127.0.0.1:{p})"))
@@ -81,7 +81,7 @@ pub(crate) async fn serve_watchtower_reserved_path(
             .replace("%PROXY_PORT%", &port.to_string());
         return Html(html).into_response();
     }
-    if path == "/.watchtower/root.crt" {
+    if path == "/.horizon-gateway/root.crt" {
         let ca_pem = state.ca_service.ca_cert_pem();
         return (
             StatusCode::OK,
@@ -92,25 +92,25 @@ pub(crate) async fn serve_watchtower_reserved_path(
                 ),
                 (
                     header::CONTENT_DISPOSITION,
-                    HeaderValue::from_static("attachment; filename=\"watchtower-root-ca.crt\""),
+                    HeaderValue::from_static("attachment; filename=\"horizon-gateway-root-ca.crt\""),
                 ),
             ],
             ca_pem,
         )
             .into_response();
     }
-    if path.starts_with("/.watchtower/cert/") {
-        let host = path.trim_start_matches("/.watchtower/cert/").trim();
+    if path.starts_with("/.horizon-gateway/cert/") {
+        let host = path.trim_start_matches("/.horizon-gateway/cert/").trim();
         if host.is_empty() {
             return (
                 StatusCode::BAD_REQUEST,
-                "Missing host in path: /.watchtower/cert/<host>",
+                "Missing host in path: /.horizon-gateway/cert/<host>",
             )
                 .into_response();
         }
         return serve_cert_pem(Arc::clone(&state), host).into_response();
     }
-    if path == "/.watchtower/ca.crt" || path.starts_with("/.watchtower/ca.crt") {
+    if path == "/.horizon-gateway/ca.crt" || path.starts_with("/.horizon-gateway/ca.crt") {
         let pem = state.ca_service.ca_cert_pem();
         return (
             StatusCode::OK,
@@ -121,16 +121,16 @@ pub(crate) async fn serve_watchtower_reserved_path(
                 ),
                 (
                     axum::http::header::CONTENT_DISPOSITION,
-                    HeaderValue::from_static("attachment; filename=\"watchtower-ca.crt\""),
+                    HeaderValue::from_static("attachment; filename=\"horizon-gateway-ca.crt\""),
                 ),
             ],
             pem,
         )
             .into_response();
     }
-    if path == "/.watchtower/inspector.js" {
+    if path == "/.horizon-gateway/inspector.js" {
         const INSPECTOR_JS_FALLBACK: &str =
-            "console.warn('[watchtower] inspector.js not built; run pnpm build:injection');";
+            "console.warn('[horizon-gateway] inspector.js not built; run pnpm build:injection');";
         // Try to read from filesystem first (for live updates during dev)
         let js = std::fs::read_to_string("resources/inspector.js")
             .or_else(|_| std::fs::read_to_string("src-tauri/resources/inspector.js"))
@@ -153,7 +153,7 @@ pub(crate) async fn serve_watchtower_reserved_path(
         )
             .into_response();
     }
-    if path == "/.watchtower/logo.svg" {
+    if path == "/.horizon-gateway/logo.svg" {
         let svg = include_str!("../../../../../app-icon.svg");
         return (
             StatusCode::OK,
@@ -162,9 +162,9 @@ pub(crate) async fn serve_watchtower_reserved_path(
         )
             .into_response();
     }
-    if path == "/.watchtower/api/annotation" {
+    if path == "/.horizon-gateway/api/annotation" {
         // We'll handle POST request in a separate part or here by checking method
-        // But serve_watchtower_reserved_path is called with the whole request context in proxy_handler_inner
+        // But serve_horizon_gateway_reserved_path is called with the whole request context in proxy_handler_inner
         return (StatusCode::METHOD_NOT_ALLOWED, "Use POST for this endpoint").into_response();
     }
     (StatusCode::NOT_FOUND, "Not found").into_response()

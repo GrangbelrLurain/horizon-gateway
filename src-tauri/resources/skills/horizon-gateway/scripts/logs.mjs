@@ -33,8 +33,8 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === '--summary') options.summary = true;
 }
 
-function getWatchtowerLogsDir() {
-  const appId = 'com.lurain.watchtower';
+function getHorizonGatewayLogsDir() {
+  const appId = 'com.lurain.horizon-gateway';
   if (process.platform === 'win32') {
     const appData = process.env.APPDATA;
     if (!appData) return null;
@@ -47,9 +47,9 @@ function getWatchtowerLogsDir() {
   return path.join(xdgData, appId, 'api_logs');
 }
 
-const logsDir = getWatchtowerLogsDir();
+const logsDir = getHorizonGatewayLogsDir();
 if (!logsDir) {
-  console.error(JSON.stringify({ error: 'Could not resolve Watchtower app data directory.' }, null, 2));
+  console.error(JSON.stringify({ error: 'Could not resolve Horizon Gateway app data directory.' }, null, 2));
   process.exit(1);
 }
 

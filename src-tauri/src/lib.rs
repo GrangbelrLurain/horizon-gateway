@@ -281,7 +281,7 @@ pub fn run() {
     #[cfg(debug_assertions)]
     {
         let args: Vec<String> = std::env::args().collect();
-        let is_deep_link = args.iter().any(|arg| arg.starts_with("watchtower://") || arg.starts_with("horizon-gateway://"));
+        let is_deep_link = args.iter().any(|arg| arg.starts_with("horizon-gateway://"));
         if !is_deep_link {
             specta_builder
                 .export(
@@ -307,7 +307,7 @@ pub fn run() {
             }
             // Manually capture deep link urls from secondary process arguments and hand-off to frontend
             for arg in argv {
-                if arg.starts_with("watchtower://") || arg.starts_with("horizon-gateway://") {
+                if arg.starts_with("horizon-gateway://") {
                     tracing::info!("RUST DEBUG - Handed-off deep link URL from single instance: {}", arg);
                     let _ = app.emit("deep-link-received", arg);
                 }

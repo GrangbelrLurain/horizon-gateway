@@ -264,7 +264,7 @@ function PolicyListPage() {
     try {
       const filePath = await save({
         filters: [{ name: "JSON", extensions: ["json"] }],
-        defaultPath: "watchtower-policies.json",
+        defaultPath: "horizon-gateway-policies.json",
       });
       if (!filePath) {
         return;

@@ -1,9 +1,9 @@
 import type { PipelineFlow, SandboxActiveFlow } from "../types";
 import { emptyPipelineFlow } from "./serialize";
 
-export const LEGACY_ACTIVE_FLOW_KEY = "watchtower-active-pipeline-flow";
-export const SANDBOX_ACTIVE_FLOW_KEY = "watchtower-sandbox-active-pipeline";
-export const SAVED_PIPELINES_KEY = "watchtower-saved-pipelines";
+export const LEGACY_ACTIVE_FLOW_KEY = "horizon-gateway-active-pipeline-flow";
+export const SANDBOX_ACTIVE_FLOW_KEY = "horizon-gateway-sandbox-active-pipeline";
+export const SAVED_PIPELINES_KEY = "horizon-gateway-saved-pipelines";
 
 export function createDefaultActiveFlow(): SandboxActiveFlow {
   return {

@@ -25,14 +25,14 @@ export const getWindowId = () => {
  */
 export function atomWithWindowStorage<T>(key: string, initialValue: T) {
   const windowId = getWindowId();
-  const fullKey = `watchtower_${windowId}_${key}`;
+  const fullKey = `horizon_gateway_${windowId}_${key}`;
 
   // State Inheritance: If this is a detached window and we don't have our own state yet,
   // try to clone the current state from the 'main' window.
   if (typeof window !== "undefined" && windowId !== "main") {
     try {
       if (localStorage.getItem(fullKey) === null) {
-        const mainKey = `watchtower_main_${key}`;
+        const mainKey = `horizon_gateway_main_${key}`;
         const mainValue = localStorage.getItem(mainKey);
         if (mainValue !== null) {
           localStorage.setItem(fullKey, mainValue);

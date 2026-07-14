@@ -146,7 +146,7 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
           generatedBy: t.apiLogsExportGeneratedBy,
           jumpToEntry: t.apiLogsExportJumpToEntry,
         },
-        `watchtower-api-logs-${host}-${today}-${selected.length}.html`,
+        `horizon-gateway-api-logs-${host}-${today}-${selected.length}.html`,
       );
       if (result.status !== "saved") {
         return;

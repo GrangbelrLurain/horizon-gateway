@@ -27,13 +27,13 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
     <section class="hero-section container">
       <div class="hero-content">
         <div class="badge">{t('hero.badge')}</div>
-        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src={`${baseUrl}/logo-text.svg`} alt="Watchtower" class="hero-logo-text" /></h1>
+        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src={`${baseUrl}/logo-text.svg`} alt="Horizon Gateway" class="hero-logo-text" /></h1>
         <p class="hero-subtitle">
           {t('hero.subtitle')}
         </p>
         
         <div class="hero-actions">
-          <a href="https://github.com/GrangbelrLurain/watchtower/releases" class="btn btn-primary btn-hero-download" id="primary-download-btn">
+          <a href="https://github.com/GrangbelrLurain/horizon-gateway/releases" class="btn btn-primary btn-hero-download" id="primary-download-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -47,7 +47,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
           
           <div class="cli-copy-box">
             <span class="cli-prefix">$</span>
-            <code class="cli-code">watchtower cli init --project</code>
+            <code class="cli-code">horizon-gateway cli init --project</code>
             <button class="cli-copy-btn" id="copy-cli-btn" aria-label="Copy command">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="copy-icon">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -70,7 +70,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
               <span class="dot yellow"></span>
               <span class="dot green"></span>
             </div>
-            <div class="mockup-address">watchtower.app / dashboard</div>
+            <div class="mockup-address">horizon-gateway.app / dashboard</div>
           </div>
           <div class="mockup-body">
             <div class="mockup-sidebar">
@@ -216,9 +216,9 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
             {t('terminal.desc')}
           </p>
           <div class="terminal-buttons">
-            <button class="btn btn-secondary terminal-tab active" data-command="init">watchtower cli init</button>
-            <button class="btn btn-secondary terminal-tab" data-command="list">watchtower cli list</button>
-            <button class="btn btn-secondary terminal-tab" data-command="run">watchtower cli run</button>
+            <button class="btn btn-secondary terminal-tab active" data-command="init">horizon-gateway cli init</button>
+            <button class="btn btn-secondary terminal-tab" data-command="list">horizon-gateway cli list</button>
+            <button class="btn btn-secondary terminal-tab" data-command="run">horizon-gateway cli run</button>
           </div>
         </div>
 
@@ -234,12 +234,12 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
           <div class="terminal-body">
             <div class="terminal-line input-line">
               <span class="prompt-prefix">PS C:\project></span>
-              <span id="terminal-input-text">watchtower cli init --project</span><span class="terminal-cursor"></span>
+              <span id="terminal-input-text">horizon-gateway cli init --project</span><span class="terminal-cursor"></span>
             </div>
             <div class="terminal-output" id="terminal-output-text">
               [Info] Initializing agent skill settings...
-              [Success] Created skill folder: .agents/skills/watchtower/
-              [Success] Created file: .agents/skills/watchtower/SKILL.md
+              [Success] Created skill folder: .agents/skills/horizon-gateway/
+              [Success] Created file: .agents/skills/horizon-gateway/SKILL.md
               [Info] Skill documentation registration completed.
             </div>
           </div>
@@ -284,7 +284,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
           {t('cta.desc')}
         </p>
         <div style="display: flex; justify-content: center; gap: 20px;">
-          <a href="https://github.com/GrangbelrLurain/watchtower/releases" class="btn btn-primary" style="padding: 1rem 2rem;">
+          <a href="https://github.com/GrangbelrLurain/horizon-gateway/releases" class="btn btn-primary" style="padding: 1rem 2rem;">
             {t('cta.btn')}
           </a>
         </div>
@@ -306,15 +306,15 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
   
   if (downloadBtn && downloadText && downloadSubText) {
     if (userAgent.includes('win')) {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
       downloadText.textContent = lang === 'ko' ? 'Windows용 다운로드' : 'Download for Windows';
       downloadSubText.textContent = 'Download .msi (v2.1.2)';
     } else if (userAgent.includes('mac')) {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
       downloadText.textContent = lang === 'ko' ? 'macOS용 다운로드' : 'Download for macOS';
       downloadSubText.textContent = 'Download .dmg (v2.1.2)';
     } else {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/watchtower/releases/latest';
+      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
       downloadText.textContent = lang === 'ko' ? 'GitHub 릴리즈 페이지' : 'GitHub Releases Page';
       downloadSubText.textContent = lang === 'ko' ? '모든 OS 설치파일 목록' : 'All Operating Systems';
     }
@@ -328,7 +328,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
   if (copyBtn && copyIcon && checkIcon) {
     copyBtn.addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText('watchtower cli init --project');
+        await navigator.clipboard.writeText('horizon-gateway cli init --project');
         copyIcon.style.display = 'none';
         checkIcon.style.display = 'inline';
         setTimeout(() => {
@@ -348,14 +348,14 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   const commandsData: Record<string, { cmd: string; output: string }> = {
     init: {
-      cmd: 'watchtower cli init --project',
+      cmd: 'horizon-gateway cli init --project',
       output: `[Info] Initializing agent skill settings...
-[Success] Created skill folder: .agents/skills/watchtower/
-[Success] Created file: .agents/skills/watchtower/SKILL.md
+[Success] Created skill folder: .agents/skills/horizon-gateway/
+[Success] Created file: .agents/skills/horizon-gateway/SKILL.md
 [Info] Skill documentation registration completed.`
     },
     list: {
-      cmd: 'watchtower cli list',
+      cmd: 'horizon-gateway cli list',
       output: `[
   { "command": "get_domains", "description": "Fetch list of configured domains" },
   { "command": "create_domain", "description": "Add new domain target" },
@@ -364,7 +364,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
 ]`
     },
     run: {
-      cmd: 'watchtower cli run get_domains \'{}\' --query \'data[].domainName\'',
+      cmd: 'horizon-gateway cli run get_domains \'{}\' --query \'data[].domainName\'',
       output: `[
   "api.development.local",
   "auth.service.internal"
