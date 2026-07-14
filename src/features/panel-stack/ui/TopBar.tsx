@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
-import { useAtomValue } from "jotai";
-import { LogIn, Server, Settings, User } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Gift, LogIn, Server, Settings, User } from "lucide-react";
 import { useState } from "react";
 import {
   getInitials,
@@ -11,6 +11,7 @@ import {
   supabaseSessionAtom,
   WindowControls,
 } from "@/entities/app";
+import { updateChangelogModalOpenAtom } from "@/features/update";
 import { commands } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
 import { Button } from "@/shared/ui/button/Button";
@@ -37,6 +38,7 @@ export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, on
   const profile = useAtomValue(supabaseProfileAtom);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const setChangelogOpen = useSetAtom(updateChangelogModalOpenAtom);
 
   const handleLogin = async () => {
     try {
@@ -137,6 +139,17 @@ export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, on
                 >
                   <Settings className="w-3.5 h-3.5 text-primary" />
                   {t.settings}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChangelogOpen(true);
+                    setSettingsMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800/40"
+                >
+                  <Gift className="w-3.5 h-3.5 text-primary" />
+                  {lang === "ko" ? "업데이트 내역" : "Changelog"}
                 </button>
               </div>
             </>

@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { Content } from '../../../CHANGELOG.md';
+import { Content as EnContent } from '../../../CHANGELOG.md';
+import { Content as KoContent } from '../../../CHANGELOG.ko.md';
 import { ui } from '../i18n/ui';
 import type { Lang } from '../i18n/ui';
 
@@ -9,6 +10,13 @@ interface Props {
 }
 
 const { lang } = Astro.props;
+
+const CHANGELOGS: Record<string, any> = {
+  en: EnContent,
+  ko: KoContent,
+};
+
+const Content = CHANGELOGS[lang] ?? CHANGELOGS['en'];
 
 const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
   // @ts-ignore

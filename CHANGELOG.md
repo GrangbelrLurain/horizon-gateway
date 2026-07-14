@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.5.2] - 2026-07-14
+
+### Added
+
+- **Bilingual & Extensible Update Changelogs**: Added a premium, glassmorphic update notification modal that automatically triggers upon the first application run after an upgrade.
+- **Top Bar Settings Integration**: Added a "Changelog" option in the Settings dropdown menu to allow users to review historical update logs at any time.
+- **Dynamic Markdown Parsing**: The application dynamically parses the raw content of root `CHANGELOG.md` and `CHANGELOG.ko.md` files at compile-time, ensuring a single source of truth and lag-free virtualized scrolling for the entire version history.
+- **Complete Korean Release History**: Created `CHANGELOG.ko.md` at the root of the project, containing the full translated release notes down to `v1.0.0` for the website and app.
+
 ## [v2.5.1] - 2026-07-14
 
 ### Changed

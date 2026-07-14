@@ -8,7 +8,7 @@ import { proxyInspectorEnabledAtom, Titlebar, themeAtom, useAppBootstrap, userPr
 import { CreateMockModal } from "@/entities/mocking";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
-import { UpdateBanner, useUpdateCheck } from "@/features/update";
+import { UpdateBanner, UpdateChangelogModal, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
 import { commands, unwrap } from "@/shared/api";
 import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
@@ -155,6 +155,7 @@ const RootLayout = () => {
       <CreateMockModal />
       <PromiseModal />
       <UserProfileSetup />
+      <UpdateChangelogModal />
     </>
   );
 

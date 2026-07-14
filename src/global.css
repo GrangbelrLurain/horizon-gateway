@@ -70,7 +70,9 @@ body {
 /* Sponsor Gold Glow Effect */
 .sponsor-glow {
   position: relative;
-  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4), 0 0 20px rgba(234, 179, 8, 0.2);
+  box-shadow:
+    0 0 8px rgba(234, 179, 8, 0.4),
+    0 0 20px rgba(234, 179, 8, 0.2);
   animation: sponsor-pulse 2s infinite alternate;
 }
 
@@ -87,10 +89,14 @@ body {
 
 @keyframes sponsor-pulse {
   0% {
-    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4), 0 0 15px rgba(234, 179, 8, 0.2);
+    box-shadow:
+      0 0 6px rgba(234, 179, 8, 0.4),
+      0 0 15px rgba(234, 179, 8, 0.2);
   }
   100% {
-    box-shadow: 0 0 12px rgba(234, 179, 8, 0.7), 0 0 25px rgba(234, 179, 8, 0.4);
+    box-shadow:
+      0 0 12px rgba(234, 179, 8, 0.7),
+      0 0 25px rgba(234, 179, 8, 0.4);
   }
 }
 
