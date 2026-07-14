@@ -92,7 +92,7 @@ function FilterRow({ label, children }: { label: string; children: ReactNode }) 
       <span className="text-[9px] font-black uppercase tracking-widest text-base-content/35 px-0.5 shrink-0">
         {label}
       </span>
-      <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none">{children}</div>
+      <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-thin">{children}</div>
     </div>
   );
 }

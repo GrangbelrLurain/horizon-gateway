@@ -1,4 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::webview::ScrollBarStyle;
 
 pub const OPEN_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "open_window",
@@ -32,6 +33,8 @@ pub async fn open_window_svc(app: Option<tauri::AppHandle>, label: String, title
         .title(title)
         .inner_size(width, height)
         .decorations(false)
+        // Must match main window / same WebView data dir (Windows).
+        .scroll_bar_style(ScrollBarStyle::FluentOverlay)
         .build()
         .map_err(|e: tauri::Error| e.to_string())?;
 

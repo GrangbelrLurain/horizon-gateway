@@ -4,6 +4,17 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.5.3] - 2026-07-14
+
+### Changed (변경 사항)
+
+- **Fluent 오버레이 스크롤바**: 메인·보조 창이 WebView2 `fluentOverlay` 스크롤바를 사용해 목록·패널에 클래식 ↑↓ 버튼 없이 스크롤됩니다.
+- **테마 연동 스크롤바 폴리싱**: 앱 전역 thin pill thumb가 라이트/다크 `base-content`를 따릅니다. Chromium `scrollbar-width`는 Windows fluent 화살표를 강제해 사용하지 않습니다.
+
+### Fixed (버그 수정)
+
+- **Windows GUI 콘솔 창**: 릴리스 빌드에서 windows 서브시스템을 사용해 탐색기/시작 메뉴로 실행할 때 CMD 로그 창이 뜨지 않도록 했습니다. CLI 모드는 stdout/stderr가 파이프·파일로 리다이렉트되지 않은 경우에만 부모 콘솔에 연결해, 에이전트 pipe 캡처는 그대로 유지합니다.
+
 ## [v2.5.2] - 2026-07-14
 
 ### Added (추가 기능)

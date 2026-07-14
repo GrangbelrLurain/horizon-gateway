@@ -102,7 +102,7 @@ horizon-gateway cli run get_domains '{}' --payload @body.json
 
 ### Windows PowerShell
 
-Release builds use the **console subsystem** so pipes, `spawn`, and file redirection capture stdout reliably (v2.4.2+). The console window is hidden automatically when launching the GUI.
+Release builds use the **windows subsystem** (no console on GUI launch). CLI mode attaches to the parent console only when stdout/stderr are not already pipes/files, so `spawn` and redirection still capture JSON reliably.
 
 **JSON escaping** — wrap the payload in single quotes and escape inner double quotes:
 

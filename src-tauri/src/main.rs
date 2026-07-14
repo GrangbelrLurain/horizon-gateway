@@ -1,4 +1,5 @@
 #![allow(unsafe_code)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod console_window;
 
@@ -6,8 +7,8 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let is_cli = args.len() > 1 && args[1] == "cli";
 
-    if !is_cli {
-        console_window::hide_for_gui();
+    if is_cli {
+        console_window::attach_for_cli();
     }
 
     // If it's a standalone command (init, list, help), execute directly and exit to prevent Tauri/WebView2 hangs

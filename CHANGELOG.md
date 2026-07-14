@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.5.3] - 2026-07-14
+
+### Changed
+
+- **Fluent overlay scrollbars**: Main and secondary windows use WebView2 `fluentOverlay` scrollbars so lists and panels scroll without classic ↑↓ buttons.
+- **Theme-aware scrollbar polish**: App-wide thin pill thumbs follow light/dark `base-content`, without relying on Chromium `scrollbar-width` (which forced Windows fluent arrows).
+
+### Fixed
+
+- **Windows GUI console window**: Release builds use the windows subsystem so Explorer / Start Menu launches no longer open a CMD log window. CLI mode attaches to the parent console only when stdout/stderr are not already redirected, preserving pipe capture for agents.
+
 ## [v2.5.2] - 2026-07-14
 
 ### Added
