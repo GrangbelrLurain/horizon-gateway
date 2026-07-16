@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.5.4] - 2026-07-16
+
+### Changed
+
+- **Group card grid**: Replaced the fixed two-column layout with responsive `auto-fill` columns (320px minimum card width) so group cards use overlay and popup panel width more efficiently.
+
+### Fixed
+
+- **Group management list loading**: Shared hub data `loading` state across all `useDomainHubData()` callers so the groups overlay no longer shows an infinite spinner after the main hub has already loaded group data.
+
 ## [v2.5.3] - 2026-07-14
 
 ### Changed

@@ -1,5 +1,5 @@
-import { useAtom, useAtomValue } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { atom, useAtom, useAtomValue } from "jotai";
+import { useCallback, useMemo } from "react";
 import { proxyActiveAtom } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
 import { domainsAtom } from "@/entities/domain";
@@ -12,6 +12,9 @@ import { commands, unwrap } from "@/shared/api";
 import type { HubDataChangedReason } from "@/shared/lib/tauri/hubEvents";
 import { useHubDataSubscription } from "../lib/hubDataSubscription";
 
+/** Shared across all useDomainHubData() callers in the same window. */
+const hubDataLoadingAtom = atom(true);
+
 export function useDomainHubData() {
   const [domains, setDomains] = useAtom(domainsAtom);
   const [groups, setGroups] = useAtom(groupsAtom);
@@ -20,7 +23,7 @@ export function useDomainHubData() {
   const [apiLoggingLinks, setApiLoggingLinks] = useAtom(apiLoggingLinksAtom);
   const [localRoutes, setLocalRoutes] = useAtom(localRoutesAtom);
   const proxyActive = useAtomValue(proxyActiveAtom);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useAtom(hubDataLoadingAtom);
 
   const domainGroupIds = useMemo(() => {
     const map = new Map<number, number[]>();

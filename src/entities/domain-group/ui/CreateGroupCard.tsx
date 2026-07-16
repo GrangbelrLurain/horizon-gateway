@@ -19,7 +19,7 @@ export interface CreateGroupCardProps {
 
 export function CreateGroupCard({ value, onChange, onCreate, isCreating, translations }: CreateGroupCardProps) {
   return (
-    <Card className="p-6 border-dashed border-2 bg-base-200/50 border-base-300 flex flex-col justify-between h-[200px] hover:bg-base-200 transition-all shadow-sm">
+    <Card className="p-6 border-dashed border-2 bg-base-200/50 border-base-300 flex flex-col justify-between min-h-[220px] hover:bg-base-200 transition-all shadow-sm h-full">
       <div>
         <h3 className="text-[11px] font-black text-base-content/40 mb-3 uppercase tracking-widest flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" />

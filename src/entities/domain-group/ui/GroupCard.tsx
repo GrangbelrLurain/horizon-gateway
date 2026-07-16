@@ -32,7 +32,7 @@ export function GroupCard({
   const totalCount = domainPreview.length + restCount;
 
   return (
-    <Card className="p-6 flex flex-col min-h-[220px] border-base-300 hover:border-primary/40 transition-all group relative overflow-hidden bg-base-100 shadow-sm hover:shadow-xl">
+    <Card className="p-6 flex flex-col min-h-[220px] h-full border-base-300 hover:border-primary/40 transition-all group relative overflow-hidden bg-base-100 shadow-sm hover:shadow-xl">
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors" />
 
       <div className="flex justify-between items-start relative z-10">

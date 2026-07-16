@@ -96,7 +96,7 @@ export function UpdateChangelogModal() {
   const lang = useAtomValue(languageAtom);
   const domains = useAtomValue(domainsAtom);
 
-  const [currentVer, setCurrentVer] = useState("2.5.3");
+  const [currentVer, setCurrentVer] = useState("2.5.4");
   const [isAutoTriggered, setIsAutoTriggered] = useState(false);
   const [listReady, setListReady] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
@@ -109,7 +109,7 @@ export function UpdateChangelogModal() {
     }
 
     const checkVersion = async () => {
-      let version = "2.5.3";
+      let version = "2.5.4";
       if (isTauri()) {
         try {
           version = await getVersion();
