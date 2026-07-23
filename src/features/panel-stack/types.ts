@@ -17,6 +17,7 @@ export type HubSurfaceId =
   | "chrome/groups"
   | "chrome/add-domain"
   | "chrome/profile"
+  | "chrome/team"
   | "global/pipeline"
   | "global/crypto"
   | "global/preview"
@@ -26,7 +27,8 @@ export type HubSurfaceId =
   | "global/api-logs"
   | "global/mocking"
   | "global/schema-explorer"
-  | "global/proxy-graph";
+  | "global/proxy-graph"
+  | "global/monitor";
 
 const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "chrome/infrastructure",
@@ -34,6 +36,7 @@ const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "chrome/groups",
   "chrome/add-domain",
   "chrome/profile",
+  "chrome/team",
   "global/pipeline",
   "global/crypto",
   "global/preview",
@@ -44,6 +47,7 @@ const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "global/mocking",
   "global/schema-explorer",
   "global/proxy-graph",
+  "global/monitor",
 ];
 
 export function parseHubSurfaceId(value: string | undefined): HubSurfaceId | null {

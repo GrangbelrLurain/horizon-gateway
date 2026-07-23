@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
-import { Check, Heart, Lock, Send, ShieldAlert, UserCircle2 } from "lucide-react";
+import { Check, Heart, Lock, RefreshCw, Send, ShieldAlert, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type AppTheme,
@@ -9,20 +9,27 @@ import {
   experimentalAiAutocompleteAtom,
   experimentalCustomThemeAtom,
   getInitials,
+  installIdAtom,
   languageAtom,
+  regenerateInstallId,
   supabaseProfileAtom,
   supabaseSessionAtom,
+  telemetryEnabledAtom,
   themeAtom,
   userProfileAtom,
 } from "@/entities/app";
 import { commands } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
+import { APP_VERSION, getOsLabel } from "@/shared/lib/appMeta";
 import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { en } from "./en";
 import { ko } from "./ko";
+
+type FeedbackCategory = "bug" | "feature" | "question";
 
 export const Route = createFileRoute("/profile/")({
   component: ProfilePage,
@@ -42,8 +49,18 @@ function ProfilePage() {
   const [customTheme, setCustomTheme] = useAtom(experimentalCustomThemeAtom);
 
   const [feedback, setFeedback] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>("bug");
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const [telemetryEnabled, setTelemetryEnabled] = useAtom(telemetryEnabledAtom);
+  const installId = useAtomValue(installIdAtom);
+
+  const handleRegenerateInstallId = () => {
+    regenerateInstallId();
+    toastSuccess(t.telemetryRegenerated);
+  };
 
   const handleSendFeedback = async () => {
     if (!feedback.trim()) {
@@ -53,6 +70,10 @@ function ProfilePage() {
     const { error } = await supabase.from("feedbacks").insert({
       profile_id: session?.user?.id || null,
       content: feedback.trim(),
+      category: feedbackCategory,
+      app_version: APP_VERSION,
+      os: getOsLabel(),
+      context: pathname || "profile",
     });
     setFeedbackSending(false);
     if (!error) {
@@ -60,7 +81,7 @@ function ProfilePage() {
       setFeedbackSent(true);
       setTimeout(() => setFeedbackSent(false), 3000);
     } else {
-      alert(lang === "ko" ? `피드백 전송 실패: ${error.message}` : `Feedback failed to send: ${error.message}`);
+      toastError(lang === "ko" ? `피드백 전송 실패: ${error.message}` : `Feedback failed to send: ${error.message}`);
     }
   };
 
@@ -401,6 +422,34 @@ function ProfilePage() {
           </h3>
 
           <div className="flex-1 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+                {t.feedbackCategory}
+              </span>
+              <div className="flex gap-2 bg-base-200 p-1.5 rounded-2xl border border-base-300">
+                {(
+                  [
+                    ["bug", t.categoryBug],
+                    ["feature", t.categoryFeature],
+                    ["question", t.categoryQuestion],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFeedbackCategory(value)}
+                    className={clsx(
+                      "flex-1 py-2 rounded-xl text-xs font-bold transition-all",
+                      feedbackCategory === value
+                        ? "bg-base-100 text-primary shadow-sm"
+                        : "text-base-content/60 hover:text-base-content hover:bg-base-content/5",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <textarea
               className="textarea textarea-bordered bg-base-200 border-base-300 w-full flex-1 min-h-[120px] rounded-2xl p-4 text-xs font-medium focus:outline-none focus:border-primary text-base-content"
               placeholder={
@@ -435,6 +484,40 @@ function ProfilePage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Telemetry / Privacy */}
+      <div className="bg-base-100 rounded-3xl border border-base-200 p-8 shadow-sm flex flex-col gap-4 mt-6">
+        <h3 className="text-lg font-bold text-base-content flex items-center gap-2">
+          <span className="p-1.5 bg-info/10 text-info rounded-lg">🔒</span>
+          {t.telemetryTitle}
+        </h3>
+        <p className="text-xs text-base-content/60 leading-relaxed max-w-2xl">{t.telemetryDesc}</p>
+
+        <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-2xl border border-base-200 flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              className="toggle toggle-primary toggle-sm cursor-pointer"
+              checked={telemetryEnabled}
+              onChange={(e) => setTelemetryEnabled(e.target.checked)}
+            />
+            <span className="text-sm font-bold text-base-content">
+              {telemetryEnabled ? t.telemetryToggleOn : t.telemetryToggleOff}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase text-base-content/40">{t.telemetryInstallId}</span>
+            <code className="text-[11px] font-mono bg-base-300/50 px-2 py-1 rounded-lg text-base-content/70">
+              {installId.slice(0, 13)}…
+            </code>
+            <Button variant="secondary" size="xs" className="gap-1 h-7 text-[11px]" onClick={handleRegenerateInstallId}>
+              <RefreshCw className="w-3 h-3" />
+              {t.telemetryRegenerate}
+            </Button>
           </div>
         </div>
       </div>

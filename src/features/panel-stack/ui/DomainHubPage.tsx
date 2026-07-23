@@ -527,6 +527,7 @@ export function DomainHubPage() {
         onOpenInfrastructure={() => openSurface("chrome/infrastructure")}
         onOpenProfile={() => openSurface("chrome/profile")}
         onOpenSettings={() => openSurface("chrome/settings")}
+        onOpenTeam={() => openSurface("chrome/team")}
         onOpenGlobalTool={openSurface}
       />
 

@@ -12,6 +12,7 @@ if (typeof window !== "undefined") {
   (window as Window & { CryptoJS?: typeof CryptoJS }).CryptoJS = CryptoJS;
 }
 
+import { toastError } from "@/shared/ui/toast";
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 
 export interface CryptoNodeProps {
@@ -297,7 +298,7 @@ export function CryptoNode({
       setSelectedId(normalized.id);
     } catch (e) {
       console.error(e);
-      window.alert(isKo ? "프리셋 추가에 실패했습니다." : "Failed to add preset.");
+      toastError(isKo ? "프리셋 추가에 실패했습니다." : "Failed to add preset.");
     }
   };
 
@@ -326,7 +327,7 @@ export function CryptoNode({
       setTimeout(() => setJustSaved(false), 2000);
     } catch (e) {
       console.error(e);
-      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save preset.");
+      toastError(isKo ? "저장에 실패했습니다." : "Failed to save preset.");
     }
   };
 
@@ -348,7 +349,7 @@ export function CryptoNode({
       }
     } catch (err) {
       console.error(err);
-      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete preset.");
+      toastError(isKo ? "삭제에 실패했습니다." : "Failed to delete preset.");
     }
   };
 

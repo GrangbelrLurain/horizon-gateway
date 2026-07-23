@@ -946,8 +946,9 @@ fn dispatch_command(
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let proxy_settings_service = app_handle.state::<ProxySettingsService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
+            let mocking_service = app_handle.state::<Arc<MockingService>>();
             let result = command::settings_commands::export_all_settings(
-                domain_service, group_service, link_service, route_service, proxy_settings_service, monitor_service,
+                domain_service, group_service, link_service, route_service, proxy_settings_service, monitor_service, mocking_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
@@ -958,10 +959,11 @@ fn dispatch_command(
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
             let proxy_settings_service = app_handle.state::<ProxySettingsService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
+            let mocking_service = app_handle.state::<Arc<MockingService>>();
             let parsed: crate::model::settings_export::SettingsExport = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::settings_commands::import_all_settings(
-                parsed, domain_service, group_service, link_service, route_service, proxy_settings_service, monitor_service,
+                parsed, None, domain_service, group_service, link_service, route_service, proxy_settings_service, monitor_service, mocking_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }

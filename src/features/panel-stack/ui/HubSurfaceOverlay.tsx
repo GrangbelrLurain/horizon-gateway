@@ -28,6 +28,7 @@ function resolveTitle(titleKey: string, t: typeof ko): string {
     addDomain: t.addDomain,
     manageGroups: t.manageGroups,
     profile: t.profile,
+    team: t.team,
     toolsPipeline: t.toolsPipeline,
     toolsCrypto: t.toolsCrypto,
     toolsPreview: t.toolsPreview,

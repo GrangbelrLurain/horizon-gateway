@@ -7,6 +7,7 @@ export type SurfaceTitleKey =
   | "addDomain"
   | "manageGroups"
   | "profile"
+  | "team"
   | "toolsPipeline"
   | "toolsCrypto"
   | "toolsPreview"
@@ -16,7 +17,8 @@ export type SurfaceTitleKey =
   | "apiLogs"
   | "apiMocking"
   | "apiSchema"
-  | "toolsProxyGraph";
+  | "toolsProxyGraph"
+  | "toolsMonitor";
 
 export interface SurfaceRegistryEntry {
   id: HubSurfaceId;
@@ -43,6 +45,9 @@ const ChromeAddDomain = lazy(() =>
 const ChromeProfile = lazy(() =>
   import("../ui/surfaces/ChromeProfileSurface").then((m) => ({ default: m.ChromeProfileSurface })),
 );
+const ChromeTeam = lazy(() =>
+  import("../ui/surfaces/ChromeTeamSurface").then((m) => ({ default: m.ChromeTeamSurface })),
+);
 const GlobalPipeline = lazy(() =>
   import("../ui/surfaces/GlobalPipelineSurface").then((m) => ({ default: m.GlobalPipelineSurface })),
 );
@@ -60,6 +65,9 @@ const GlobalRoutePage = lazy(() =>
 );
 const GlobalProxyGraph = lazy(() =>
   import("../ui/surfaces/GlobalProxyGraphSurface").then((m) => ({ default: m.GlobalProxyGraphSurface })),
+);
+const GlobalMonitor = lazy(() =>
+  import("../ui/surfaces/GlobalMonitorSurface").then((m) => ({ default: m.GlobalMonitorSurface })),
 );
 
 export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
@@ -107,6 +115,15 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     detachHeight: 680,
     kind: "chrome",
     Component: ChromeProfile,
+  },
+  "chrome/team": {
+    id: "chrome/team",
+    titleKey: "team",
+    route: "/team",
+    detachWidth: 720,
+    detachHeight: 820,
+    kind: "chrome",
+    Component: ChromeTeam,
   },
   "global/pipeline": {
     id: "global/pipeline",
@@ -198,6 +215,15 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     kind: "global",
     Component: GlobalProxyGraph,
   },
+  "global/monitor": {
+    id: "global/monitor",
+    titleKey: "toolsMonitor",
+    route: "/monitor/manage",
+    detachWidth: 960,
+    detachHeight: 720,
+    kind: "global",
+    Component: GlobalMonitor,
+  },
 };
 
 export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
@@ -209,6 +235,7 @@ export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
   "global/schema-explorer",
   "global/server-logs",
   "global/proxy-graph",
+  "global/monitor",
 ];
 
 export function getSurfaceEntry(id: HubSurfaceId): SurfaceRegistryEntry {

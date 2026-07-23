@@ -6,9 +6,14 @@ export function canOpenPanel(panelId: PanelId, features: DomainFeatureState): bo
     return true;
   }
   if (panelId === "monitor") {
-    return features.monitorEnabled === true;
+    // Always openable so users can enable/configure like the proxy panel.
+    return true;
   }
   if (panelId === "proxy") {
+    return true;
+  }
+  // Mocking is independent of API logging.
+  if (panelId === "api/mocking") {
     return true;
   }
   if (panelId === "api" || panelId.startsWith("api/")) {

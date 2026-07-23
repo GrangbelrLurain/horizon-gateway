@@ -338,11 +338,19 @@ pub async fn send_api_request_svc(payload: SendApiRequestPayload) -> Result<ApiR
         }
     };
 
-    let client = match reqwest::Client::builder()
+    let proxy_port = crate::command::local_route_commands::get_proxy_port();
+    let mut client_builder = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(30))
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .build()
+        .redirect(reqwest::redirect::Policy::limited(10));
+
+    if proxy_port > 0 {
+        if let Ok(proxy) = reqwest::Proxy::all(format!("http://127.0.0.1:{proxy_port}")) {
+            client_builder = client_builder.proxy(proxy);
+        }
+    }
+
+    let client = match client_builder.build()
     {
         Ok(c) => c,
         Err(e) => {

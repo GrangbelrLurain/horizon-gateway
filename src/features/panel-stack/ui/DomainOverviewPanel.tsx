@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   Activity,
   ArrowRight,
@@ -8,28 +8,24 @@ import {
   ChevronRight,
   FileText,
   FlaskConical,
-  History,
   Loader2,
-  RefreshCw,
   Search,
   Server,
   Wifi,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
-import { openPopupWindow } from "@/features/popup-window";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
-import { Button } from "@/shared/ui/button/Button";
-import { Input } from "@/shared/ui/input/Input";
 import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
+import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
-import type { PanelId } from "../types";
+import { hubApiLogsHostSeedAtom } from "../store";
+import type { HubSurfaceId, PanelId } from "../types";
 import { Panel } from "./Panel";
 
 interface DomainOverviewPanelProps {
@@ -39,10 +35,17 @@ interface DomainOverviewPanelProps {
   activePanelIds?: PanelId[];
 }
 
-export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelIds = [] }: DomainOverviewPanelProps) {
+export function DomainOverviewPanel({
+  domain,
+  onClose,
+  onOpenPanel,
+  activePanelIds: _activePanelIds = [],
+}: DomainOverviewPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const { getFeatureState, getGroupName, getProxyRoute, proxyActive, fetchAll } = useDomainHubData();
+  const nav = usePanelNavigation();
+  const setApiLogsHostSeed = useSetAtom(hubApiLogsHostSeedAtom);
+  const { getFeatureState, getGroupName, proxyActive, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
@@ -52,12 +55,6 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
     onRefresh: fetchAll,
   });
   const [recentLogs, setRecentLogs] = useState<{ id: string; method: string; path: string; status: number }[]>([]);
-  const [status, setStatus] = useState<{ level: string; message: string; timestamp: string } | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState(false);
-
-  const [targetHost, setTargetHost] = useState("localhost");
-  const [targetPort, setTargetPort] = useState("3000");
-  const [savingProxy, setSavingProxy] = useState(false);
 
   let displayHost = domain.url;
   try {
@@ -66,107 +63,6 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
   } catch {
     // keep
   }
-
-  const route = getProxyRoute(domain);
-
-  useEffect(() => {
-    if (route) {
-      setTargetHost(route.targetHost);
-      setTargetPort(String(route.targetPort));
-    }
-  }, [route]);
-
-  const handleAddRoute = async () => {
-    const port = Number(targetPort);
-    if (!targetHost.trim() || Number.isNaN(port)) {
-      return;
-    }
-    setSavingProxy(true);
-    try {
-      await commands
-        .addLocalRoute({ domainId: domain.id, targetHost: targetHost.trim(), targetPort: port })
-        .then(unwrap);
-      await fetchAll();
-      await notifyHubDataChanged("routes");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSavingProxy(false);
-    }
-  };
-
-  const handleUpdateRoute = async () => {
-    if (!route) {
-      return;
-    }
-    const port = Number(targetPort);
-    if (!targetHost.trim() || Number.isNaN(port)) {
-      return;
-    }
-    setSavingProxy(true);
-    try {
-      await commands
-        .updateLocalRoute({
-          id: route.id,
-          targetHost: targetHost.trim(),
-          targetPort: port,
-          enabled: null,
-        })
-        .then(unwrap);
-      await fetchAll();
-      await notifyHubDataChanged("routes");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSavingProxy(false);
-    }
-  };
-
-  const handleDeleteRoute = async () => {
-    if (!route) {
-      return;
-    }
-    setSavingProxy(true);
-    try {
-      await commands.removeLocalRoute({ id: route.id }).then(unwrap);
-      setTargetHost("localhost");
-      setTargetPort("3000");
-      await fetchAll();
-      await notifyHubDataChanged("routes");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSavingProxy(false);
-    }
-  };
-
-  const fetchStatus = useCallback(async () => {
-    setLoadingStatus(true);
-    try {
-      const res = await commands.getLatestStatus().then(unwrap);
-      if (res.success && res.data) {
-        const match = res.data.find((s) => s.url.toLowerCase().includes(displayHost));
-        if (match) {
-          setStatus({
-            level: match.level,
-            message: match.errorMessage ?? match.status,
-            timestamp: match.timestamp,
-          });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingStatus(false);
-    }
-  }, [displayHost]);
-
-  useEffect(() => {
-    if (!toggles.monitor.checked) {
-      return;
-    }
-    void fetchStatus();
-  }, [toggles.monitor.checked, fetchStatus]);
 
   useEffect(() => {
     if (!toggles.api.checked) {
@@ -220,6 +116,23 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
     return list;
   }, [toggles.api.checked, toggles.monitor.checked, toggles.proxy.checked]);
 
+  const renderOpenGlobalLink = (surfaceId: HubSurfaceId, label: string, icon: React.ReactNode, onOpen?: () => void) => (
+    <button
+      type="button"
+      onClick={() => {
+        onOpen?.();
+        nav.openGlobalSurface(surfaceId);
+      }}
+      className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left hover:bg-base-200/60"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-base-content/50">{icon}</span>
+        <span className="font-bold">{label}</span>
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
+    </button>
+  );
+
   const renderFeatureCard = (key: string, isActive: boolean) => {
     switch (key) {
       case "api":
@@ -259,100 +172,26 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
               )}
             </div>
 
-            {isActive && (
-              <div className="pl-11 space-y-3 pt-2">
-                <div className="flex items-center justify-between text-xs py-1 px-2">
-                  <span className="text-base-content/70">{t.apiBodyLogging}</span>
-                  {toggles.api.bodyLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                  ) : (
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-success toggle-xs"
-                      checked={toggles.api.bodyChecked ?? false}
-                      onChange={(e) => toggles.api.toggleBody(e.target.checked)}
-                    />
-                  )}
+            <div className="pl-11 space-y-1.5">
+              {renderOpenGlobalLink("global/api-logs", t.openApiPanel, <Wifi className="w-3.5 h-3.5" />, () =>
+                setApiLogsHostSeed(displayHost),
+              )}
+            </div>
+
+            <div className="pl-11 pt-1">
+              <button
+                type="button"
+                onClick={() => nav.openGlobalSurface("global/mocking")}
+                className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left hover:bg-base-200/60"
+              >
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="w-3.5 h-3.5 text-base-content/50" />
+                  <span className="font-bold">{t.apiMocking}</span>
                 </div>
-
-                <div className="space-y-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onOpenPanel("api/logs")}
-                    className={clsx(
-                      "w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left",
-                      activePanelIds.includes("api/logs") ? "bg-primary/15 text-primary" : "hover:bg-base-200/60",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <History
-                        className={clsx(
-                          "w-3.5 h-3.5",
-                          activePanelIds.includes("api/logs") ? "text-primary" : "text-base-content/50",
-                        )}
-                      />
-                      <span className="font-bold">{t.apiLogs}</span>
-                    </div>
-                    <ChevronRight
-                      className={clsx(
-                        "w-3.5 h-3.5",
-                        activePanelIds.includes("api/logs") ? "text-primary/70" : "text-base-content/30",
-                      )}
-                    />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onOpenPanel("api/mocking")}
-                    className={clsx(
-                      "w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left",
-                      activePanelIds.includes("api/mocking") ? "bg-primary/15 text-primary" : "hover:bg-base-200/60",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FlaskConical
-                        className={clsx(
-                          "w-3.5 h-3.5",
-                          activePanelIds.includes("api/mocking") ? "text-primary" : "text-base-content/50",
-                        )}
-                      />
-                      <span className="font-bold">{t.apiMocking}</span>
-                    </div>
-                    <ChevronRight
-                      className={clsx(
-                        "w-3.5 h-3.5",
-                        activePanelIds.includes("api/mocking") ? "text-primary/70" : "text-base-content/30",
-                      )}
-                    />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onOpenPanel("api/schema")}
-                    className={clsx(
-                      "w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left",
-                      activePanelIds.includes("api/schema") ? "bg-primary/15 text-primary" : "hover:bg-base-200/60",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText
-                        className={clsx(
-                          "w-3.5 h-3.5",
-                          activePanelIds.includes("api/schema") ? "text-primary" : "text-base-content/50",
-                        )}
-                      />
-                      <span className="font-bold">{t.apiSchema}</span>
-                    </div>
-                    <ChevronRight
-                      className={clsx(
-                        "w-3.5 h-3.5",
-                        activePanelIds.includes("api/schema") ? "text-primary/70" : "text-base-content/30",
-                      )}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
+                <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
+              </button>
+              <p className="text-[10px] text-base-content/40 px-2 mt-1">{t.apiMockingIndependentHint}</p>
+            </div>
           </div>
         );
 
@@ -396,62 +235,9 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
               )}
             </div>
 
-            {isActive && (
-              <div className="pl-11 space-y-3 pt-2">
-                <div className="flex items-center justify-between text-xs py-1 px-2">
-                  <span className="text-[10px] font-black uppercase text-base-content/40">{t.monitorStatus}</span>
-                  <button
-                    type="button"
-                    onClick={fetchStatus}
-                    disabled={loadingStatus}
-                    className="flex items-center gap-1 hover:text-primary transition-colors text-[10px] font-bold"
-                  >
-                    <RefreshCw className={clsx("w-3 h-3", loadingStatus && "animate-spin")} />
-                    {t.monitorRefresh}
-                  </button>
-                </div>
-
-                {status ? (
-                  <div
-                    className={clsx(
-                      "p-3 rounded-lg border text-xs mx-2",
-                      status.level === "error"
-                        ? "bg-error/10 border-error/20 text-error"
-                        : status.level === "warning"
-                          ? "bg-warning/10 border-warning/20 text-warning"
-                          : "bg-success/10 border-success/20 text-success",
-                    )}
-                  >
-                    <p className="font-bold">
-                      {status.level === "error"
-                        ? t.monitorError
-                        : status.level === "warning"
-                          ? t.monitorWarning
-                          : t.monitorHealthy}
-                    </p>
-                    <p className="text-[10px] text-base-content/60 mt-0.5 truncate">{status.message}</p>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-base-content/50 px-2">{t.monitorNoData}</p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    void openDetachedWindow(
-                      `/monitor/logs?host=${encodeURIComponent(displayHost)}`,
-                      `${displayHost} — ${t.monitorOpenLogs}`,
-                      1100,
-                      760,
-                    )
-                  }
-                  className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-base-200/60 transition-colors text-xs text-left"
-                >
-                  <span className="font-bold text-base-content/75">{t.monitorOpenLogs}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
-                </button>
-              </div>
-            )}
+            <div className="pl-11">
+              {renderOpenGlobalLink("global/monitor", t.openMonitorPanel, <Activity className="w-3.5 h-3.5" />)}
+            </div>
           </div>
         );
 
@@ -495,88 +281,9 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
               )}
             </div>
 
-            {isActive && (
-              <div className="pl-11 space-y-3 pt-2 text-xs">
-                {!proxyActive ? (
-                  <div className="space-y-2 py-1 px-2">
-                    <p className="text-[10px] text-base-content/50">{t.proxyGlobalOff}</p>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="text-[10px] h-7 px-2 py-0"
-                      onClick={() => void openPopupWindow("infrastructure")}
-                    >
-                      {t.proxyOpenInfra}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2 py-1 px-2">
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="text-[9px] font-bold text-base-content/40 uppercase block mb-1">
-                          {t.proxyRouteTargetHost}
-                        </label>
-                        <Input
-                          value={targetHost}
-                          onChange={(e) => setTargetHost(e.target.value)}
-                          placeholder="localhost"
-                          className="h-8 text-[11px] px-2 bg-base-200/40 border-base-300"
-                        />
-                      </div>
-                      <div className="w-20">
-                        <label className="text-[9px] font-bold text-base-content/40 uppercase block mb-1">
-                          {t.proxyRouteTargetPort}
-                        </label>
-                        <Input
-                          value={targetPort}
-                          onChange={(e) => setTargetPort(e.target.value)}
-                          placeholder="3000"
-                          type="number"
-                          className="h-8 text-[11px] px-2 bg-base-200/40 border-base-300"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-1">
-                      {route ? (
-                        <>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            className="text-[10px] h-7 gap-1 px-2.5 font-bold"
-                            onClick={handleUpdateRoute}
-                            disabled={savingProxy}
-                          >
-                            <Server className="w-3 h-3" />
-                            {savingProxy ? t.proxyRouteSaving : t.proxyRouteSave}
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="text-[10px] h-7 gap-1 text-error px-2.5 font-bold"
-                            onClick={handleDeleteRoute}
-                            disabled={savingProxy}
-                          >
-                            {t.proxyRouteDelete}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="text-[10px] h-7 gap-1 px-2.5 font-bold"
-                          onClick={handleAddRoute}
-                          disabled={savingProxy}
-                        >
-                          <Server className="w-3 h-3" />
-                          {t.proxyRouteAdd}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="pl-11">
+              {renderOpenGlobalLink("global/proxy-graph", t.openProxyPanel, <Server className="w-3.5 h-3.5" />)}
+            </div>
           </div>
         );
 
@@ -594,7 +301,6 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
       width="md"
     >
       <div className="space-y-4">
-        {/* 활성 피처/메뉴 목록 */}
         <div className="space-y-3">
           {activeFeatures.map((key, index) => (
             <div key={key} className={clsx(index > 0 && "border-t border-base-200/40 pt-3")}>
@@ -602,7 +308,6 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
             </div>
           ))}
 
-          {/* 고정 메뉴: Debug (디버그) */}
           <div className="border-t border-base-200/40 pt-3 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 py-1">
@@ -690,7 +395,6 @@ export function DomainOverviewPanel({ domain, onClose, onOpenPanel, activePanelI
           </div>
         )}
 
-        {/* 비활성 피처 목록 */}
         {inactiveFeatures.length > 0 && (
           <div className="space-y-3">
             <div className="pt-3 border-t border-base-200/40 mt-3">

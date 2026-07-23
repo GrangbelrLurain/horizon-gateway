@@ -16,19 +16,42 @@ pub struct MockingService {
 }
 
 impl MockingService {
+    pub const DEFAULT_SCENARIO_NAME: &'static str = "Default";
+
     pub fn new(scenarios_path: PathBuf, mock_rules_path: PathBuf, settings_path: PathBuf) -> Self {
         let initial_scenarios = load_versioned(&scenarios_path);
         let initial_mock_rules = load_versioned(&mock_rules_path);
         let initial_settings = load_versioned(&settings_path);
 
-        Self {
+        let service = Self {
             scenarios: Mutex::new(initial_scenarios),
             mock_rules: Mutex::new(initial_mock_rules),
             settings: Mutex::new(initial_settings),
             scenarios_path,
             mock_rules_path,
             settings_path,
+        };
+        // Ensure a hidden default scenario exists so rules can be created without UI.
+        let _ = service.ensure_default_scenario();
+        service
+    }
+
+    /// Returns an existing Default scenario, or the first scenario, or creates Default.
+    pub fn ensure_default_scenario(&self) -> Scenario {
+        {
+            let list = self.scenarios.lock().unwrap();
+            if let Some(existing) = list
+                .iter()
+                .find(|s| s.name == Self::DEFAULT_SCENARIO_NAME)
+                .cloned()
+            {
+                return existing;
+            }
+            if let Some(first) = list.first().cloned() {
+                return first;
+            }
         }
+        self.create_scenario(Self::DEFAULT_SCENARIO_NAME.to_string(), None)
     }
 
     fn save_scenarios(&self, list: &[Scenario]) {
@@ -151,6 +174,54 @@ impl MockingService {
         self.mock_rules.lock().unwrap().clone()
     }
 
+    /// Full replace used by settings import (replace mode).
+    pub fn replace_all_scenarios_and_rules(
+        &self,
+        scenarios: Vec<Scenario>,
+        mock_rules: Vec<MockRule>,
+    ) {
+        {
+            let mut list = self.scenarios.lock().unwrap();
+            *list = scenarios;
+            self.save_scenarios(&list);
+        }
+        {
+            let mut list = self.mock_rules.lock().unwrap();
+            *list = mock_rules;
+            self.save_mock_rules(&list);
+        }
+    }
+
+    /// Merge by id: keep existing, add missing from import.
+    pub fn merge_scenarios_and_rules(
+        &self,
+        scenarios: Vec<Scenario>,
+        mock_rules: Vec<MockRule>,
+    ) {
+        {
+            let mut list = self.scenarios.lock().unwrap();
+            for incoming in scenarios {
+                if let Some(existing) = list.iter_mut().find(|s| s.id == incoming.id) {
+                    *existing = incoming;
+                } else {
+                    list.push(incoming);
+                }
+            }
+            self.save_scenarios(&list);
+        }
+        {
+            let mut list = self.mock_rules.lock().unwrap();
+            for incoming in mock_rules {
+                if let Some(existing) = list.iter_mut().find(|r| r.id == incoming.id) {
+                    *existing = incoming;
+                } else {
+                    list.push(incoming);
+                }
+            }
+            self.save_mock_rules(&list);
+        }
+    }
+
     pub fn get_mock_rules_by_scenario(&self, scenario_id: &str) -> Vec<MockRule> {
         self.mock_rules
             .lock()
@@ -165,7 +236,7 @@ impl MockingService {
     pub fn create_mock_rule(
         &self,
         name: String,
-        scenario_id: String,
+        scenario_id: Option<String>,
         host: Option<String>,
         method: String,
         url_pattern: String,
@@ -174,11 +245,14 @@ impl MockingService {
         response_body: Option<String>,
         enabled: bool,
     ) -> MockRule {
+        let resolved_scenario_id = scenario_id
+            .filter(|id| !id.is_empty())
+            .unwrap_or_else(|| self.ensure_default_scenario().id);
         let mut list = self.mock_rules.lock().unwrap();
         let rule = MockRule {
             id: Uuid::new_v4().to_string(),
             name,
-            scenario_id,
+            scenario_id: resolved_scenario_id,
             host,
             method: method.to_uppercase(),
             url_pattern,
@@ -271,13 +345,18 @@ mod tests {
 
         let service = MockingService::new(scenarios_path, rules_path, settings_path);
 
+        // Default scenario is ensured on init
+        let initial = service.get_scenarios();
+        assert_eq!(initial.len(), 1);
+        assert_eq!(initial[0].name, MockingService::DEFAULT_SCENARIO_NAME);
+
         // Create
         let s1 = service.create_scenario("Test Scenario 1".to_string(), Some("Desc 1".to_string()));
         assert_eq!(s1.name, "Test Scenario 1");
 
         let scenarios = service.get_scenarios();
-        assert_eq!(scenarios.len(), 1);
-        assert_eq!(scenarios[0].id, s1.id);
+        assert_eq!(scenarios.len(), 2);
+        assert!(scenarios.iter().any(|s| s.id == s1.id));
 
         // Update
         let updated = service.update_scenario(s1.id.clone(), Some("Updated Scenario".to_string()), None, None).unwrap();
@@ -287,7 +366,11 @@ mod tests {
         // Delete
         let deleted = service.delete_scenario(s1.id.clone());
         assert!(deleted);
-        assert!(service.get_scenarios().is_empty());
+        assert_eq!(service.get_scenarios().len(), 1);
+        assert_eq!(
+            service.get_scenarios()[0].name,
+            MockingService::DEFAULT_SCENARIO_NAME
+        );
     }
 
     #[test]
@@ -306,7 +389,7 @@ mod tests {
 
         let rule = service.create_mock_rule(
             "Test Rule".to_string(),
-            scenario.id.clone(),
+            Some(scenario.id.clone()),
             None,
             "GET".to_string(),
             "/api/test".to_string(),
@@ -343,6 +426,34 @@ mod tests {
         service.delete_scenario(scenario.id.clone());
         let rules_after = service.get_mock_rules();
         assert!(rules_after.is_empty());
+    }
+
+    #[test]
+    fn test_ensure_default_scenario_and_create_without_id() {
+        let dir = tempdir().unwrap();
+        let scenarios_path = dir.path().join("scenarios.json");
+        let rules_path = dir.path().join("rules.json");
+        let settings_path = dir.path().join("settings.json");
+
+        let service = MockingService::new(scenarios_path, rules_path, settings_path);
+        let default = service.ensure_default_scenario();
+        assert_eq!(default.name, MockingService::DEFAULT_SCENARIO_NAME);
+
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        let rule = service.create_mock_rule(
+            "Auto Scenario Rule".to_string(),
+            None,
+            None,
+            "GET".to_string(),
+            "/auto".to_string(),
+            200,
+            headers,
+            None,
+            true,
+        );
+        assert_eq!(rule.scenario_id, default.id);
     }
 
     #[test]

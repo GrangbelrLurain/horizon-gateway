@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TeamIndexRouteImport } from './routes/team/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ServerLogsIndexRouteImport } from './routes/server-logs/index'
 import { Route as SandboxIndexRouteImport } from './routes/sandbox/index'
@@ -37,6 +38,7 @@ import { Route as PopupInfrastructureIndexRouteImport } from './routes/popup/inf
 import { Route as PopupGroupsIndexRouteImport } from './routes/popup/groups/index'
 import { Route as PopupAddDomainIndexRouteImport } from './routes/popup/add-domain/index'
 import { Route as MonitorSettingsIndexRouteImport } from './routes/monitor/settings/index'
+import { Route as MonitorManageIndexRouteImport } from './routes/monitor/manage/index'
 import { Route as MonitorLogsIndexRouteImport } from './routes/monitor/logs/index'
 import { Route as DomainsRegistIndexRouteImport } from './routes/domains/regist/index'
 import { Route as DomainsGroupsIndexRouteImport } from './routes/domains/groups/index'
@@ -52,6 +54,11 @@ import { Route as ApisClientIndexRouteImport } from './routes/apis/client/index'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamIndexRoute = TeamIndexRouteImport.update({
+  id: '/team/',
+  path: '/team/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -191,6 +198,11 @@ const MonitorSettingsIndexRoute = MonitorSettingsIndexRouteImport.update({
   path: '/monitor/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitorManageIndexRoute = MonitorManageIndexRouteImport.update({
+  id: '/monitor/manage/',
+  path: '/monitor/manage/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MonitorLogsIndexRoute = MonitorLogsIndexRouteImport.update({
   id: '/monitor/logs/',
   path: '/monitor/logs/',
@@ -258,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/sandbox/': typeof SandboxIndexRoute
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/team/': typeof TeamIndexRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -269,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/domains/groups/': typeof DomainsGroupsIndexRoute
   '/domains/regist/': typeof DomainsRegistIndexRoute
   '/monitor/logs/': typeof MonitorLogsIndexRoute
+  '/monitor/manage/': typeof MonitorManageIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/popup/add-domain/': typeof PopupAddDomainIndexRoute
   '/popup/groups/': typeof PopupGroupsIndexRoute
@@ -299,6 +313,7 @@ export interface FileRoutesByTo {
   '/sandbox': typeof SandboxIndexRoute
   '/server-logs': typeof ServerLogsIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/team': typeof TeamIndexRoute
   '/apis/client': typeof ApisClientIndexRoute
   '/apis/dashboard': typeof ApisDashboardIndexRoute
   '/apis/json-schema': typeof ApisJsonSchemaIndexRoute
@@ -310,6 +325,7 @@ export interface FileRoutesByTo {
   '/domains/groups': typeof DomainsGroupsIndexRoute
   '/domains/regist': typeof DomainsRegistIndexRoute
   '/monitor/logs': typeof MonitorLogsIndexRoute
+  '/monitor/manage': typeof MonitorManageIndexRoute
   '/monitor/settings': typeof MonitorSettingsIndexRoute
   '/popup/add-domain': typeof PopupAddDomainIndexRoute
   '/popup/groups': typeof PopupGroupsIndexRoute
@@ -341,6 +357,7 @@ export interface FileRoutesById {
   '/sandbox/': typeof SandboxIndexRoute
   '/server-logs/': typeof ServerLogsIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/team/': typeof TeamIndexRoute
   '/apis/client/': typeof ApisClientIndexRoute
   '/apis/dashboard/': typeof ApisDashboardIndexRoute
   '/apis/json-schema/': typeof ApisJsonSchemaIndexRoute
@@ -352,6 +369,7 @@ export interface FileRoutesById {
   '/domains/groups/': typeof DomainsGroupsIndexRoute
   '/domains/regist/': typeof DomainsRegistIndexRoute
   '/monitor/logs/': typeof MonitorLogsIndexRoute
+  '/monitor/manage/': typeof MonitorManageIndexRoute
   '/monitor/settings/': typeof MonitorSettingsIndexRoute
   '/popup/add-domain/': typeof PopupAddDomainIndexRoute
   '/popup/groups/': typeof PopupGroupsIndexRoute
@@ -384,6 +402,7 @@ export interface FileRouteTypes {
     | '/sandbox/'
     | '/server-logs/'
     | '/settings/'
+    | '/team/'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -395,6 +414,7 @@ export interface FileRouteTypes {
     | '/domains/groups/'
     | '/domains/regist/'
     | '/monitor/logs/'
+    | '/monitor/manage/'
     | '/monitor/settings/'
     | '/popup/add-domain/'
     | '/popup/groups/'
@@ -425,6 +445,7 @@ export interface FileRouteTypes {
     | '/sandbox'
     | '/server-logs'
     | '/settings'
+    | '/team'
     | '/apis/client'
     | '/apis/dashboard'
     | '/apis/json-schema'
@@ -436,6 +457,7 @@ export interface FileRouteTypes {
     | '/domains/groups'
     | '/domains/regist'
     | '/monitor/logs'
+    | '/monitor/manage'
     | '/monitor/settings'
     | '/popup/add-domain'
     | '/popup/groups'
@@ -466,6 +488,7 @@ export interface FileRouteTypes {
     | '/sandbox/'
     | '/server-logs/'
     | '/settings/'
+    | '/team/'
     | '/apis/client/'
     | '/apis/dashboard/'
     | '/apis/json-schema/'
@@ -477,6 +500,7 @@ export interface FileRouteTypes {
     | '/domains/groups/'
     | '/domains/regist/'
     | '/monitor/logs/'
+    | '/monitor/manage/'
     | '/monitor/settings/'
     | '/popup/add-domain/'
     | '/popup/groups/'
@@ -508,6 +532,7 @@ export interface RootRouteChildren {
   SandboxIndexRoute: typeof SandboxIndexRoute
   ServerLogsIndexRoute: typeof ServerLogsIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  TeamIndexRoute: typeof TeamIndexRoute
   ApisClientIndexRoute: typeof ApisClientIndexRoute
   ApisDashboardIndexRoute: typeof ApisDashboardIndexRoute
   ApisJsonSchemaIndexRoute: typeof ApisJsonSchemaIndexRoute
@@ -519,6 +544,7 @@ export interface RootRouteChildren {
   DomainsGroupsIndexRoute: typeof DomainsGroupsIndexRoute
   DomainsRegistIndexRoute: typeof DomainsRegistIndexRoute
   MonitorLogsIndexRoute: typeof MonitorLogsIndexRoute
+  MonitorManageIndexRoute: typeof MonitorManageIndexRoute
   MonitorSettingsIndexRoute: typeof MonitorSettingsIndexRoute
   PopupAddDomainIndexRoute: typeof PopupAddDomainIndexRoute
   PopupGroupsIndexRoute: typeof PopupGroupsIndexRoute
@@ -546,6 +572,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team/': {
+      id: '/team/'
+      path: '/team'
+      fullPath: '/team/'
+      preLoaderRoute: typeof TeamIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -737,6 +770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorSettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitor/manage/': {
+      id: '/monitor/manage/'
+      path: '/monitor/manage'
+      fullPath: '/monitor/manage/'
+      preLoaderRoute: typeof MonitorManageIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/monitor/logs/': {
       id: '/monitor/logs/'
       path: '/monitor/logs'
@@ -828,6 +868,7 @@ const rootRouteChildren: RootRouteChildren = {
   SandboxIndexRoute: SandboxIndexRoute,
   ServerLogsIndexRoute: ServerLogsIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  TeamIndexRoute: TeamIndexRoute,
   ApisClientIndexRoute: ApisClientIndexRoute,
   ApisDashboardIndexRoute: ApisDashboardIndexRoute,
   ApisJsonSchemaIndexRoute: ApisJsonSchemaIndexRoute,
@@ -839,6 +880,7 @@ const rootRouteChildren: RootRouteChildren = {
   DomainsGroupsIndexRoute: DomainsGroupsIndexRoute,
   DomainsRegistIndexRoute: DomainsRegistIndexRoute,
   MonitorLogsIndexRoute: MonitorLogsIndexRoute,
+  MonitorManageIndexRoute: MonitorManageIndexRoute,
   MonitorSettingsIndexRoute: MonitorSettingsIndexRoute,
   PopupAddDomainIndexRoute: PopupAddDomainIndexRoute,
   PopupGroupsIndexRoute: PopupGroupsIndexRoute,

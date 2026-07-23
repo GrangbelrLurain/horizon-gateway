@@ -6,12 +6,12 @@ export const en = {
 
   // Setup steps
   setupTitle: "Getting Started",
-  setupSubtitle: "Complete the steps below to unlock all features.",
+  setupSubtitle: "Complete the steps below to get the core features running.",
   step1Label: "Register your first domain",
   step1Action: "Register",
-  step2Label: "start the proxy",
+  step2Label: "Start the proxy",
   step2Action: "Go to Proxy",
-  step3Label: "Enable API logging on a domain",
+  step3Label: "Enable domain features (API logging, proxy, monitor)",
   step3Action: "Configure",
 
   // Quick stats

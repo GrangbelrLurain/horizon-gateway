@@ -370,7 +370,7 @@ pub fn dispatch_headless(
         }
         "export_all_settings" => {
                         let result = command::settings_commands::export_all_settings_svc(
-                &ctx.domain_service, &ctx.group_service, &ctx.link_service, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.monitor_service,
+                &ctx.domain_service, &ctx.group_service, &ctx.link_service, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.monitor_service, &ctx.mocking_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
@@ -378,7 +378,7 @@ pub fn dispatch_headless(
                         let parsed: crate::model::settings_export::SettingsExport = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::settings_commands::import_all_settings_svc(
-                parsed, &ctx.domain_service, &ctx.group_service, &ctx.link_service, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.monitor_service,
+                parsed, None, &ctx.domain_service, &ctx.group_service, &ctx.link_service, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.monitor_service, &ctx.mocking_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }

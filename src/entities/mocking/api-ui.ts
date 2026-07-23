@@ -40,7 +40,6 @@ export const getMockRulesByScenario = async (scenarioId: string): Promise<MockRu
 
 export const createMockRule = async (
   name: string,
-  scenarioId: string,
   host: string | null,
   method: string,
   urlPattern: string,
@@ -48,6 +47,7 @@ export const createMockRule = async (
   responseHeaders: Record<string, string>,
   responseBody: string | null,
   enabled: boolean,
+  scenarioId: string | null = null,
 ): Promise<MockRule> => {
   const res = unwrap(
     await commands.createMockRule({
@@ -96,13 +96,18 @@ export const deleteMockRule = async (id: string): Promise<boolean> => {
   return unwrap(await commands.deleteMockRule(id));
 };
 
-export const createMockRuleFromLog = async (logDate: string, logId: string, scenarioId: string): Promise<MockRule> => {
+export const createMockRuleFromLog = async (
+  logDate: string,
+  logId: string,
+  scenarioId: string | null = null,
+  name = "",
+): Promise<MockRule> => {
   const res = unwrap(
     await commands.createMockRuleFromLog({
       logDate,
       logId,
       scenarioId,
-      name: "",
+      name,
     }),
   );
   return res.data;

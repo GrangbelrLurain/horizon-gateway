@@ -56,6 +56,12 @@ export interface DBProfile {
   is_sponsor: boolean;
   sponsor_tier: string | null;
   created_at: string;
+  /** GitHub numeric user id (as string), used server-side to match Sponsors webhook events. */
+  github_id?: string | null;
+  /** GitHub login/username at time of last sync. Sponsors matching falls back to this. */
+  github_login?: string | null;
+  /** Set by the GitHub Sponsors webhook (server-only write) when sponsorship first activates. */
+  sponsor_since?: string | null;
 }
 
 export const supabaseSessionAtom = atom<Session | null>(null);

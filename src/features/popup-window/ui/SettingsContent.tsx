@@ -12,6 +12,7 @@ import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { settingsEn } from "../i18n/settings-en";
 import { settingsKo } from "../i18n/settings-ko";
 
@@ -171,16 +172,19 @@ export function SettingsContent() {
       const { save } = await import("@tauri-apps/plugin-dialog");
       const { writeTextFile } = await import("@tauri-apps/plugin-fs");
       const path = await save({
-        filters: [{ name: "JSON", extensions: ["json"] }],
-        defaultPath: `horizon-gateway-settings-${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [
+          { name: "Horizon Gateway Bundle", extensions: ["hg.json"] },
+          { name: "JSON", extensions: ["json"] },
+        ],
+        defaultPath: `horizon-gateway-${new Date().toISOString().slice(0, 10)}.hg.json`,
       });
       if (path) {
         await writeTextFile(path, JSON.stringify(res.data, null, 2));
-        alert(t.alertExportSuccess);
+        toastSuccess(t.alertExportSuccess);
       }
     } catch (e) {
       console.error("export_all_settings:", e);
-      alert(t.alertExportFail);
+      toastError(t.alertExportFail);
     }
   };
 
@@ -189,28 +193,45 @@ export function SettingsContent() {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
       const path = await open({
-        filters: [{ name: "JSON", extensions: ["json"] }],
+        filters: [
+          { name: "Horizon Gateway Bundle", extensions: ["hg.json", "json"] },
+          { name: "JSON", extensions: ["json"] },
+        ],
         multiple: false,
       });
       if (path === null || Array.isArray(path)) {
         return;
       }
       const raw = await readTextFile(path);
-      const data = JSON.parse(raw) as SettingsExport_Serialize;
+      const parsed = JSON.parse(raw) as SettingsExport_Serialize & {
+        data?: SettingsExport_Serialize;
+        schemaVersion?: number;
+      };
+      // Support wrapped `{ schemaVersion, app, data }` or flat SettingsExport
+      const data = (parsed.data && typeof parsed.data === "object" ? parsed.data : parsed) as SettingsExport_Serialize;
       if (typeof data.version !== "number" || !data.domains || !data.groups) {
-        alert(t.alertImportInvalid);
+        toastError(t.alertImportInvalid);
         return;
       }
-      if (!confirm(t.alertImportConfirm)) {
+      if (data.app && data.app !== "horizon-gateway") {
+        toastError(t.alertImportInvalid);
         return;
       }
-      await commands.importAllSettings(data).then(unwrap);
-      alert(t.alertImportSuccess);
+      const modeChoice = window.prompt(
+        lang === "ko" ? "가져오기 모드를 입력하세요: replace 또는 merge" : "Enter import mode: replace or merge",
+        "replace",
+      );
+      if (!modeChoice) {
+        return;
+      }
+      const mode = modeChoice.trim().toLowerCase() === "merge" ? "merge" : "replace";
+      await commands.importAllSettings(data, mode).then(unwrap);
+      toastSuccess(t.alertImportSuccess);
       fetchSettings();
       await notifyHubDataChanged("domains");
     } catch (e) {
       console.error("import_all_settings:", e);
-      alert(t.alertImportFail);
+      toastError(t.alertImportFail);
     }
   };
 

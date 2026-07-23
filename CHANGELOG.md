@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.0] - 2026-07-23
+
+### Added
+
+- **Internal API request logging**: Internal API test calls (Schema Try-it-out `send_api_request`, Pipeline API nodes) now route through the local proxy server when active, recording network API logs when logging is enabled for the target domain.
+
+### Performance
+
+- **API log detail fetching**: Optimized `fetchApiLogById` to query log dates in parallel via `Promise.all`, resolving slow loading times when fetching detailed log entries across multiple log files.
+
 ## [v2.5.4] - 2026-07-16
 
 ### Changed

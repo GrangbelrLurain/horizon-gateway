@@ -1,34 +1,16 @@
 import { useAtom } from "jotai";
 import { Check, Database, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { Scenario } from "@/entities/mocking";
+import { useState } from "react";
 import { commands, unwrap } from "@/shared/api";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
-import { Input } from "@/shared/ui/input/Input";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
 
 export function CreateMockModal() {
   const [modalState, setModalState] = useAtom(createMockModalAtom);
   const { isOpen, logData, onSuccess } = modalState;
-
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [targetScenarioId, setTargetScenarioId] = useState<string | null>(null);
-  const [newScenarioName, setNewScenarioName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      commands
-        .getScenarios()
-        .then(unwrap)
-        .then((res) => {
-          if (res.success && res.data && Array.isArray(res.data)) {
-            setScenarios(res.data);
-          }
-        });
-    }
-  }, [isOpen]);
 
   if (!isOpen || !logData) {
     return null;
@@ -36,59 +18,29 @@ export function CreateMockModal() {
 
   const handleClose = () => {
     setModalState((prev) => ({ ...prev, isOpen: false }));
-    setNewScenarioName("");
-    setTargetScenarioId(null);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    let scenarioId = targetScenarioId;
-
     try {
-      // 1. Create Scenario if new name provided
-      if (!scenarioId && newScenarioName.trim()) {
-        const res = unwrap(
-          await commands.createScenario({
-            name: newScenarioName,
-            description: "Auto-created from Horizon Gateway Workspace",
-          }),
-        );
-        if (res.success && res.data) {
-          scenarioId = res.data.id;
-        } else {
-          alert(`시나리오 생성 실패: ${res.message || "알 수 없는 오류"}`);
-          setIsSaving(false);
-          return;
-        }
-      }
-
-      if (!scenarioId) {
-        alert("시나리오를 선택하거나 새 이름을 입력하세요.");
-        setIsSaving(false);
-        return;
-      }
-
-      // 2. Create Mock Rule from Log
       const res = unwrap(
         await commands.createMockRuleFromLog({
           logId: logData.id,
-          scenarioId: scenarioId,
+          scenarioId: null,
           name: `${logData.method} ${logData.path}`,
           logDate: logData.timestamp.slice(0, 10),
         }),
       );
 
       if (res.success) {
-        alert("성공적으로 스냅샷이 저장되었습니다.");
+        toastSuccess("성공적으로 스냅샷이 저장되었습니다.");
         handleClose();
-        if (onSuccess) {
-          onSuccess();
-        }
+        onSuccess?.();
       } else {
-        alert(`스냅샷 저장 실패: ${res.message || "알 수 없는 오류"}`);
+        toastError(`스냅샷 저장 실패: ${res.message || "알 수 없는 오류"}`);
       }
     } catch (err) {
-      alert(`저장 중 에러 발생: ${err}`);
+      toastError(`저장 중 에러 발생: ${err}`);
     } finally {
       setIsSaving(false);
     }
@@ -103,53 +55,31 @@ export function CreateMockModal() {
         <Card className="bg-base-100 p-6 shadow-2xl flex flex-col gap-6">
           <div className="flex justify-between items-center border-b border-base-200 pb-4">
             <h3 className="text-xl font-bold flex items-center gap-2 text-primary">
-              <Database className="w-5 h-5" /> 시나리오 선택
+              <Database className="w-5 h-5" /> 모킹 규칙 저장
             </h3>
             <button type="button" onClick={handleClose}>
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-                기존 시나리오
-              </label>
-              <select
-                className="select select-bordered w-full rounded-2xl bg-base-200/50"
-                value={targetScenarioId || ""}
-                onChange={(e) => setTargetScenarioId(e.target.value || null)}
-              >
-                <option value="">새 시나리오 만들기...</option>
-                {scenarios.map((sc) => (
-                  <option key={sc.id} value={sc.id}>
-                    {sc.name}
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-2 text-sm">
+            <p className="text-base-content/70">선택한 응답을 모킹 규칙으로 저장합니다.</p>
+            <div className="rounded-xl border border-base-300 bg-base-200/40 p-3 font-mono text-xs space-y-1">
+              <p>
+                <span className="font-black">{logData.method}</span> {logData.path}
+              </p>
+              <p className="text-base-content/50">{logData.host}</p>
+              <p className="text-base-content/50">→ {logData.status_code ?? "?"}</p>
             </div>
-
-            {!targetScenarioId && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-                  새 시나리오 명칭
-                </label>
-                <Input
-                  value={newScenarioName}
-                  onChange={(e) => setNewScenarioName(e.target.value)}
-                  placeholder="예: 로그인 실패 케이스"
-                />
-              </div>
-            )}
           </div>
 
           <Button
             variant="primary"
             className="w-full h-12 gap-2 text-lg font-black"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={isSaving}
           >
-            <Check className="w-5 h-5" /> {isSaving ? "저장 중..." : "스냅샷 저장"}
+            <Check className="w-5 h-5" /> {isSaving ? "저장 중..." : "규칙 저장"}
           </Button>
         </Card>
       </div>

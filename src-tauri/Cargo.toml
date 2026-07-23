@@ -20,7 +20,7 @@ unused_async = "allow"
 
 [package]
 name = "horizon-gateway"
-version = "2.5.4"
+version = "2.6.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"

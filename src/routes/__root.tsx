@@ -4,7 +4,14 @@ import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
-import { proxyInspectorEnabledAtom, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
+import {
+  proxyInspectorEnabledAtom,
+  TelemetryProvider,
+  Titlebar,
+  themeAtom,
+  useAppBootstrap,
+  userProfileAtom,
+} from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
@@ -14,8 +21,10 @@ import { commands, unwrap } from "@/shared/api";
 import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
+import { ErrorBoundary } from "@/shared/ui/error-boundary";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
 import { PromiseModal } from "@/shared/ui/modal/PromiseModal";
+import { ToastHost } from "@/shared/ui/toast";
 
 const RootLayout = () => {
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
@@ -156,46 +165,54 @@ const RootLayout = () => {
       <PromiseModal />
       <UserProfileSetup />
       <UpdateChangelogModal />
+      <ToastHost />
+      <TelemetryProvider />
     </>
   );
 
   if (isPopupWindow) {
     return (
-      <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
-        <PopupWindowLayout>
-          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
-          {content}
-        </PopupWindowLayout>
-        {globalOverlays}
-        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
-      </div>
+      <ErrorBoundary fallbackTitle="Popup window error">
+        <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
+          <PopupWindowLayout>
+            <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+            {content}
+          </PopupWindowLayout>
+          {globalOverlays}
+          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+        </div>
+      </ErrorBoundary>
     );
   }
 
   if (isDetachedWindow) {
     return (
-      <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
-        <DetachedWindowLayout>
-          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
-          {content}
-        </DetachedWindowLayout>
-        {globalOverlays}
-        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
-      </div>
+      <ErrorBoundary fallbackTitle="Detached window error">
+        <div className="h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
+          <DetachedWindowLayout>
+            <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+            {content}
+          </DetachedWindowLayout>
+          {globalOverlays}
+          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+        </div>
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
-      {!isHubPage && <Titlebar />}
-      <div className="flex flex-1 min-h-0 overflow-hidden relative">
-        <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
-        {content}
-      </div>
+    <ErrorBoundary fallbackTitle="Horizon Gateway error">
+      <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
+        {!isHubPage && <Titlebar />}
+        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+          {content}
+        </div>
 
-      {globalOverlays}
-      {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
-    </div>
+        {globalOverlays}
+        {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+      </div>
+    </ErrorBoundary>
   );
 };
 

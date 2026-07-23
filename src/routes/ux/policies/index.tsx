@@ -33,6 +33,7 @@ import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -232,10 +233,10 @@ function PolicyListPage() {
 
       const pdfArrayBuffer = pdf.output("arraybuffer");
       await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
-      alert("PDF 리포트가 성공적으로 생성되었습니다.");
+      toastSuccess("PDF 리포트가 성공적으로 생성되었습니다.");
     } catch (err) {
       console.error(err);
-      alert(`PDF 생성 중 오류 발생: ${err}`);
+      toastError(`PDF 생성 중 오류 발생: ${err}`);
     } finally {
       setIsExporting(false);
       // Restore view mode if we switched it
@@ -270,9 +271,9 @@ function PolicyListPage() {
         return;
       }
       await writeTextFile(filePath, JSON.stringify(annotations, null, 2));
-      alert(t.exportSuccess);
+      toastSuccess(t.exportSuccess);
     } catch (err) {
-      alert(`Export failed: ${err}`);
+      toastError(`Export failed: ${err}`);
     }
   };
 
@@ -287,10 +288,10 @@ function PolicyListPage() {
       const res = unwrap(await commands.importAnnotations({ annotations: imported }));
       if (res.success && res.data) {
         setAnnotations(res.data);
-        alert(`${imported.length}${t.importSuccess}`);
+        toastSuccess(`${imported.length}${t.importSuccess}`);
       }
     } catch (err) {
-      alert(`Import failed: ${err}`);
+      toastError(`Import failed: ${err}`);
     }
   };
 

@@ -22,6 +22,7 @@ import { useEmbedMode } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
+import { toastInfo } from "@/shared/ui/toast";
 import { H1, H2, P } from "@/shared/ui/typography/typography";
 
 export const Route = createFileRoute("/proxy/mobile/")({
@@ -387,7 +388,7 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                             type="button"
                             onClick={() => {
                               void navigator.clipboard.writeText("winget install Cloudflare.cloudflared");
-                              alert(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
+                              toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
                             }}
                             className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1.5 rounded-md font-medium text-base-content transition-all text-center"
                           >
@@ -406,7 +407,7 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                             type="button"
                             onClick={() => {
                               void navigator.clipboard.writeText("brew install cloudflared");
-                              alert(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
+                              toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied to clipboard.");
                             }}
                             className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1.5 rounded-md font-medium text-base-content transition-all text-center"
                           >
@@ -600,7 +601,7 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                         type="button"
                         onClick={() => {
                           void navigator.clipboard.writeText("choco install adb");
-                          alert(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
+                          toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
                         }}
                         className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1 rounded font-medium transition-all text-center"
                       >
@@ -619,7 +620,7 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                         type="button"
                         onClick={() => {
                           void navigator.clipboard.writeText("brew install --cask android-platform-tools");
-                          alert(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
+                          toastInfo(lang === "ko" ? "명령어가 복사되었습니다." : "Command copied.");
                         }}
                         className="mt-3 text-[11px] bg-base-100 hover:bg-base-200 border border-base-300 py-1 rounded font-medium transition-all text-center"
                       >

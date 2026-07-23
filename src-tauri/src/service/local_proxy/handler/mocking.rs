@@ -26,18 +26,12 @@ pub(crate) fn try_mock_response(
         return None;
     }
 
-    let scenarios = state.mocking_service.get_scenarios();
-    let enabled_scenario_ids: Vec<String> = scenarios
-        .iter()
-        .filter(|s| s.enabled)
-        .map(|s| s.id.clone())
-        .collect();
-
+    // Scenario layer is hidden for now: match on global + rule.enabled only.
+    // Scenario.enabled gating can be restored when scenarios return to the UI.
     let rules = state.mocking_service.get_mock_rules();
     let target_host = host_key_for_logging_map(host_h);
     let rule = rules.into_iter().find(|r| {
         r.enabled
-            && enabled_scenario_ids.contains(&r.scenario_id)
             && r.method.eq_ignore_ascii_case(method)
             && path.starts_with(&r.url_pattern)
             && (r.host.is_none()

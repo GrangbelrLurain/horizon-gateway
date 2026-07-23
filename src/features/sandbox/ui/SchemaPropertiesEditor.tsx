@@ -6,6 +6,7 @@ import { languageAtom } from "@/entities/app";
 import { apiClientLastResponseAtom } from "@/entities/sandbox";
 import { commands, unwrap } from "@/shared/api";
 import { parseOpenApiSpec } from "@/shared/lib/openapi-parser";
+import { toastError } from "@/shared/ui/toast";
 import { importPropertiesFromJson as importPropertiesFromJsonShared } from "../lib/importPropertiesFromJson";
 
 export interface SchemaProperty {
@@ -215,10 +216,10 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
           const spec = JSON.parse(res.data);
           populateOpenApiOptions(spec);
         } else {
-          alert(t.failedSchemaContent);
+          toastError(t.failedSchemaContent);
         }
       } catch (e) {
-        alert(`${t.parseOpenapiFailed}: ${e}`);
+        toastError(`${t.parseOpenapiFailed}: ${e}`);
       }
     })();
   }, [selectedDomainId, populateOpenApiOptions, t]);
@@ -297,7 +298,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
       setActiveImportTab(null);
       setApiLogSearchQuery("");
     } catch (_e) {
-      alert(t.invalidJson);
+      toastError(t.invalidJson);
     }
   };
 
@@ -359,7 +360,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     let rootSchema: any = null;
     if (target.type === "component") {
       if (!spec.components || !spec.components.schemas) {
-        alert("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
+        toastError("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
         return null;
       }
       rootSchema = spec.components.schemas[target.name];
@@ -368,7 +369,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     }
 
     if (!rootSchema) {
-      alert("선택한 대상 스키마가 존재하지 않거나 바디 정의가 비어 있습니다.");
+      toastError("선택한 대상 스키마가 존재하지 않거나 바디 정의가 비어 있습니다.");
       return null;
     }
 
@@ -481,20 +482,20 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
 
   const handleImportFromOpenApi = () => {
     if (!openApiSpecJson) {
-      alert(t.noOpenapiLoaded);
+      toastError(t.noOpenapiLoaded);
       return;
     }
 
     let target: any = null;
     if (openApiImportType === "component") {
       if (!selectedOpenApiSchema) {
-        alert(t.noComponentSelected);
+        toastError(t.noComponentSelected);
         return;
       }
       target = { type: "component", name: selectedOpenApiSchema };
     } else {
       if (!selectedEndpointKey) {
-        alert(t.noEndpointSelected);
+        toastError(t.noEndpointSelected);
         return;
       }
       const [method, path] = selectedEndpointKey.split(":");
@@ -516,7 +517,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
 
   const importFromJson = (json: unknown, parentId?: string) => {
     if (!json || typeof json !== "object") {
-      alert(t.invalidJson);
+      toastError(t.invalidJson);
       return;
     }
 
@@ -968,7 +969,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                       setRawJsonInput("");
                     } catch (err) {
                       const message = err instanceof Error ? err.message : String(err);
-                      alert(`${t.jsonSyntaxError}: ${message}`);
+                      toastError(`${t.jsonSyntaxError}: ${message}`);
                     }
                   }}
                 >

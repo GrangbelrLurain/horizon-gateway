@@ -10,4 +10,16 @@ export const ko = {
   darkMode: "다크 모드",
   save: "변경 사항 저장",
   saved: "프로필이 성공적으로 저장되었습니다!",
+  feedbackCategory: "카테고리",
+  categoryBug: "버그 신고",
+  categoryFeature: "기능 제안",
+  categoryQuestion: "질문",
+  telemetryTitle: "익명 사용 데이터",
+  telemetryDesc:
+    "명시적 동의 시에만 전송됩니다. 어떤 기능이 실제로 사용되는지 파악하는 데 도움이 됩니다. 도메인, URL, 요청/응답 바디, 헤더, mock 내용, 인증서, 파일 경로, IP는 절대 수집하지 않습니다.",
+  telemetryToggleOn: "공유 활성화됨",
+  telemetryToggleOff: "공유 비활성화됨",
+  telemetryInstallId: "설치 ID",
+  telemetryRegenerate: "ID 재생성",
+  telemetryRegenerated: "설치 ID가 재생성되었습니다.",
 };

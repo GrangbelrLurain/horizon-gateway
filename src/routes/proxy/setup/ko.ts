@@ -31,4 +31,12 @@ export const ko: TranslationSchema = {
   manualPort: "포트:",
   certSaved: "Root CA 인증서가 성공적으로 저장되었습니다!",
   certSaveFailed: "Root CA 인증서 저장에 실패했습니다.",
+  checklistTitle: "설정 체크리스트",
+  checklistDesc: "HTTPS 가로채기 설정 진행 상황을 확인하세요.",
+  checklistCertSaved: "Root CA 인증서 파일 저장 완료",
+  checklistCertInstalled: "이 기기에 인증서 설치 및 신뢰 완료",
+  checklistProxyConfigured: "브라우저/시스템 프록시 구성 완료 (PAC 또는 수동)",
+  checklistAllDone: "모든 단계가 완료되었습니다! HTTPS 캡처를 사용할 준비가 되었습니다.",
+  checklistReset: "체크리스트 초기화",
+  markDone: "완료로 표시",
 };

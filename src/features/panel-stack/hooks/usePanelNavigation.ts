@@ -18,6 +18,11 @@ function buildNextPanels(currentPanels: PanelEntry[], id: PanelId, params?: Reco
   if (id === "api") {
     return [{ id: "overview" }, { id: "api" }];
   }
+  // Mocking is independent of API logging — only include api parent if already open.
+  if (id === "api/mocking") {
+    const hasApi = currentPanels.some((p) => p.id === "api");
+    return hasApi ? [{ id: "overview" }, { id: "api" }, { id, params }] : [{ id: "overview" }, { id, params }];
+  }
   if (id.startsWith("api/")) {
     const hasApi = currentPanels.some((p) => p.id === "api");
     return hasApi

@@ -12,12 +12,12 @@ export const ko: TranslationSchema = {
 
   // Setup steps
   setupTitle: "시작하기",
-  setupSubtitle: "아래 단계를 완료하면 모든 기능을 사용할 수 있어요.",
+  setupSubtitle: "아래 단계를 완료하면 핵심 기능을 바로 쓸 수 있어요.",
   step1Label: "첫 번째 도메인 등록",
   step1Action: "등록",
   step2Label: "프록시 시작",
   step2Action: "프록시로 이동",
-  step3Label: "도메인에 API 로깅 활성화",
+  step3Label: "도메인 기능 켜기 (API 로깅, 프록시, 모니터)",
   step3Action: "설정",
 
   // Quick stats

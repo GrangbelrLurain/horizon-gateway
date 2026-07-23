@@ -4,6 +4,8 @@ import ReactDOM from "react-dom/client";
 import "./global.css";
 import "./routes/hub/registerRouteSurfaces";
 
+import { ErrorBoundary } from "@/shared/ui/error-boundary";
+import { toastInfo } from "@/shared/ui/toast";
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
@@ -23,7 +25,10 @@ const handleSafeMode = (e: KeyboardEvent) => {
     console.warn("Safe Mode detected via Shift key. Resetting experimental features.");
     localStorage.removeItem("horizon-experimental-ai-autocomplete");
     localStorage.removeItem("horizon-experimental-custom-theme");
-    alert("Safe Mode Activated: Experimental features have been reset to prevent crashes.");
+    // Defer until React root mounts ToastHost
+    window.setTimeout(() => {
+      toastInfo("Safe Mode Activated: Experimental features have been reset to prevent crashes.");
+    }, 500);
     window.removeEventListener("keydown", handleSafeMode);
   }
 };
@@ -38,7 +43,9 @@ if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <ErrorBoundary fallbackTitle="Horizon Gateway failed to start">
+        <RouterProvider router={router} />
+      </ErrorBoundary>
     </StrictMode>,
   );
 }

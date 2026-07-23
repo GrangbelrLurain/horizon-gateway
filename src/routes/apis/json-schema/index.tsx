@@ -14,6 +14,7 @@ import {
 import { hubJsonSchemaSeedAtom } from "@/features/panel-stack";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "@/features/sandbox";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
+import { toastError } from "@/shared/ui/toast";
 
 export const Route = createFileRoute("/apis/json-schema/")({
   component: JsonSchemaPage,
@@ -198,7 +199,7 @@ function JsonSchemaPage() {
       setSelectedId(normalized.id);
     } catch (e) {
       console.error(e);
-      window.alert(isKo ? "스키마 추가에 실패했습니다." : "Failed to add schema.");
+      toastError(isKo ? "스키마 추가에 실패했습니다." : "Failed to add schema.");
     }
   };
 
@@ -223,7 +224,7 @@ function JsonSchemaPage() {
       setTimeout(() => setJustSaved(false), 2000);
     } catch (e) {
       console.error(e);
-      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save schema.");
+      toastError(isKo ? "저장에 실패했습니다." : "Failed to save schema.");
     }
   };
 
@@ -245,7 +246,7 @@ function JsonSchemaPage() {
       }
     } catch (err) {
       console.error(err);
-      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete schema.");
+      toastError(isKo ? "삭제에 실패했습니다." : "Failed to delete schema.");
     }
   };
 

@@ -27,6 +27,7 @@ import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { toastSuccess } from "@/shared/ui/toast";
 import { H1, P } from "@/shared/ui/typography/typography";
 
 export const Route = createFileRoute("/ux/live-capture/")({
@@ -97,7 +98,7 @@ function LiveCapturePage() {
       subtitle: "웹 탐색, 정책 수립, 트래픽 분석을 한 곳에서 진행하세요.",
       tabPolicy: "UX 정책",
       tabTraffic: "실시간 트래픽",
-      tabScenario: "시나리오",
+      tabScenario: "모킹",
       noCaptured: "웹 화면에서 요소를 클릭하여 정책 작성을 시작하세요.",
       noLogs: "트래픽이 아직 발생하지 않았습니다.",
       saveBtn: "정책 저장",
@@ -111,7 +112,7 @@ function LiveCapturePage() {
       subtitle: "Browse, document, and analyze traffic all in one place.",
       tabPolicy: "UX Policy",
       tabTraffic: "Live Traffic",
-      tabScenario: "Scenario",
+      tabScenario: "Mocking",
       noCaptured: "Click an element on the web screen to start documenting.",
       noLogs: "No traffic captured yet.",
       saveBtn: "Save Policy",
@@ -125,7 +126,7 @@ function LiveCapturePage() {
     subtitle: "Browse, document, and analyze traffic all in one place.",
     tabPolicy: "UX Policy",
     tabTraffic: "Live Traffic",
-    tabScenario: "Scenario",
+    tabScenario: "Mocking",
     noCaptured: "Click an element on the web screen to start documenting.",
     noLogs: "No traffic captured yet.",
     saveBtn: "Save Policy",
@@ -281,7 +282,7 @@ function LiveCapturePage() {
       if (res.success && res.data) {
         setAnnotations(res.data);
         setCaptured(null);
-        alert(t.successMsg);
+        toastSuccess(t.successMsg);
       }
     } catch (err) {
       console.error("Save failed:", err);
@@ -341,7 +342,7 @@ function LiveCapturePage() {
         }),
       );
       if (res.success) {
-        alert("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");
+        toastSuccess("실시간 응답값이 수정되었습니다. 웹 화면을 새로고침하여 확인하세요.");
         setIsEditMockModalOpen(false);
         setEditingMockRule(null);
       }

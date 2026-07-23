@@ -43,7 +43,7 @@ export const commands = {
 	 */
 	getProxySetupUrl: () => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("get_proxy_setup_url")),
 	exportAllSettings: () => typedError<ApiResponse<SettingsExport_Serialize>, string>(__TAURI_INVOKE("export_all_settings")),
-	importAllSettings: (payload: SettingsExport_Deserialize) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("import_all_settings", { payload })),
+	importAllSettings: (payload: SettingsExport_Deserialize, mode: string | null) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("import_all_settings", { payload, mode })),
 	saveRootCa: () => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("save_root_ca")),
 	getDomainMonitorList: () => typedError<ApiResponse<DomainMonitorWithUrl[]>, string>(__TAURI_INVOKE("get_domain_monitor_list")),
 	setDomainMonitorCheckEnabled: (payload: SetDomainMonitorCheckEnabledPayload) => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("set_domain_monitor_check_enabled", { payload })),
@@ -216,14 +216,16 @@ export type CreateJsonSchemaPayload_Serialize = {
 
 export type CreateMockFromLogPayload = {
 	logId: string,
-	scenarioId: string,
+	/**  Optional; when omitted, rules attach to the internal Default scenario. */
+	scenarioId: string | null,
 	name: string,
 	logDate: string,
 };
 
 export type CreateMockRulePayload = {
 	name: string,
-	scenarioId: string,
+	/**  Optional; when omitted, rules attach to the internal Default scenario. */
+	scenarioId: string | null,
 	host: string | null,
 	method: string,
 	urlPattern: string,
@@ -768,13 +770,18 @@ export type SetProxyReversePortsPayload = {
 export type SettingsExport = SettingsExport_Serialize | SettingsExport_Deserialize;
 
 export type SettingsExport_Deserialize = {
+	/**  Bundle schema version (`.hg.json`). Same as `version` for v3+. */
+	schemaVersion?: number,
 	version: number,
+	app?: string,
 	exportedAt: string,
 	domains: Domain[],
 	groups: DomainGroup[],
 	domainGroupLinks: DomainGroupLink[],
 	localRoutes: LocalRoute[],
 	proxySettings: ProxySettings,
+	scenarios?: Scenario[],
+	mockRules?: MockRule[],
 } & {
 	/**  Monitor settings per domain (`check_enabled`, interval). Status logs are excluded. */
 	domainMonitor?: DomainMonitorExport[],
@@ -784,7 +791,10 @@ export type SettingsExport_Deserialize = {
 };
 
 export type SettingsExport_Serialize = {
+	/**  Bundle schema version (`.hg.json`). Same as `version` for v3+. */
+	schemaVersion: number,
 	version: number,
+	app: string,
 	exportedAt: string,
 	domains: Domain[],
 	groups: DomainGroup[],
@@ -793,6 +803,8 @@ export type SettingsExport_Serialize = {
 	proxySettings: ProxySettings,
 	/**  Monitor settings per domain (`check_enabled`, interval). Status logs are excluded. */
 	domainMonitor: DomainMonitorExport[],
+	scenarios: Scenario[],
+	mockRules: MockRule[],
 };
 
 export type StartLocalProxyPayload = {

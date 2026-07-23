@@ -9,5 +9,6 @@ export { hubApiLogsHostSeedAtom, hubJsonSchemaSeedAtom, hubSchemaExplorerSeedAto
 export type { HubSearchParams, HubSurfaceId, PanelEntry, PanelId } from "./types";
 export { DomainHubPage } from "./ui/DomainHubPage";
 export { HandoffBanner } from "./ui/HandoffBanner";
+export { MonitorManagementView } from "./ui/surfaces/MonitorManagementView";
 export { ProxyGraphView } from "./ui/surfaces/ProxyGraphView";
 export { TopBar } from "./ui/TopBar";

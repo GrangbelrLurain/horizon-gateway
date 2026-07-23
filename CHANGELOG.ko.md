@@ -4,6 +4,16 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.0] - 2026-07-23
+
+### Added (추가 기능)
+
+- **내부 API 요청 로깅**: API 스키마 Try-it-out (`send_api_request`) 및 파이프라인 API 노드 등의 내부 테스트 요청 시, 프록시가 활성화되어 있고 해당 도메인의 API 로깅 기능이 켜져 있으면 네트워크 로그가 자동으로 수집/기록되도록 개선했습니다.
+
+### Performance (성능 개선)
+
+- **API 로그 상세 조회 최적화**: `fetchApiLogById`의 날짜별 로그 파일 탐색 방식을 `Promise.all` 병렬 처리로 변경하여 상세 창 조회 시 로딩 속도를 최적화했습니다.
+
 ## [v2.5.4] - 2026-07-16
 
 ### Changed (변경 사항)

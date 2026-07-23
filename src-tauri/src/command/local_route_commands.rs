@@ -274,6 +274,12 @@ pub fn set_auto_start_error(err: Option<String>) {
 
 /// Current proxy port when running; 0 when stopped.
 static PROXY_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// Get currently running proxy port (0 if stopped).
+pub fn get_proxy_port() -> u16 {
+    PROXY_PORT.load(Ordering::Relaxed)
+}
+
 /// Reverse HTTP port when running; 0 when not used.
 static PROXY_REVERSE_HTTP: AtomicU16 = AtomicU16::new(0);
 /// Reverse HTTPS port when running; 0 when not used.

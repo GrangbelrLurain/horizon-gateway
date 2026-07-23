@@ -9,6 +9,7 @@ import {
   savedPipelinesAtom,
 } from "@/entities/pipeline";
 import { createSavedPipeline, deleteSavedPipeline, updateSavedPipeline } from "@/entities/sandbox";
+import { toastError, toastInfo } from "@/shared/ui/toast";
 
 const en = {
   title: "Saved Pipelines",
@@ -151,12 +152,12 @@ export function PipelineLibraryPanel() {
   const handleSave = async (asNew: boolean) => {
     const name = saveName.trim();
     if (!name) {
-      window.alert(isKo ? "파이프라인 이름을 입력해주세요." : "Please enter a pipeline name.");
+      toastInfo(isKo ? "파이프라인 이름을 입력해주세요." : "Please enter a pipeline name.");
       return;
     }
 
     if (activeFlow.flow.nodes.length === 0) {
-      window.alert(isKo ? "저장할 노드가 없습니다." : "No nodes to save.");
+      toastInfo(isKo ? "저장할 노드가 없습니다." : "No nodes to save.");
       return;
     }
 
@@ -193,7 +194,7 @@ export function PipelineLibraryPanel() {
       window.setTimeout(() => setJustSaved(false), 1500);
     } catch (e) {
       console.error(e);
-      window.alert(isKo ? "저장에 실패했습니다." : "Failed to save pipeline.");
+      toastError(isKo ? "저장에 실패했습니다." : "Failed to save pipeline.");
     }
   };
 
@@ -210,7 +211,7 @@ export function PipelineLibraryPanel() {
       }
     } catch (err) {
       console.error(err);
-      window.alert(isKo ? "삭제에 실패했습니다." : "Failed to delete pipeline.");
+      toastError(isKo ? "삭제에 실패했습니다." : "Failed to delete pipeline.");
     }
   };
 

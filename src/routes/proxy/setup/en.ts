@@ -27,4 +27,12 @@ export const en = {
   manualPort: "Port:",
   certSaved: "Root CA certificate saved successfully!",
   certSaveFailed: "Failed to save Root CA certificate.",
+  checklistTitle: "Setup Checklist",
+  checklistDesc: "Track your progress through the HTTPS interception setup.",
+  checklistCertSaved: "Root CA certificate saved to disk",
+  checklistCertInstalled: "Certificate installed & trusted on this machine",
+  checklistProxyConfigured: "Browser / system proxy configured (PAC or manual)",
+  checklistAllDone: "All steps complete! HTTPS capture is ready to go.",
+  checklistReset: "Reset checklist",
+  markDone: "Mark done",
 } as const;

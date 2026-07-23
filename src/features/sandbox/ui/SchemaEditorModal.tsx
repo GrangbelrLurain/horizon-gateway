@@ -2,6 +2,7 @@ import { useAtom } from "jotai";
 import { Check, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createJsonSchema, type SavedJsonSchema, savedJsonSchemasAtom, updateJsonSchema } from "@/entities/sandbox";
+import { toastError } from "@/shared/ui/toast";
 import { generateJsonSchema, SchemaPropertiesEditor, type SchemaProperty } from "./SchemaPropertiesEditor";
 
 interface SchemaEditorModalProps {
@@ -91,7 +92,7 @@ export function SchemaEditorModal({ isOpen, onClose, schemaId, onSave }: SchemaE
       }, 800);
     } catch (e) {
       console.error(e);
-      window.alert("Failed to save schema.");
+      toastError("Failed to save schema.");
     }
   };
 

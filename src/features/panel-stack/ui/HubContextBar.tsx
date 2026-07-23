@@ -10,7 +10,7 @@ import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import { domainListOverlayOpenAtom, hubApiLogsHostSeedAtom } from "../store";
-import type { PanelId } from "../types";
+import type { HubSurfaceId } from "../types";
 
 interface HubContextBarProps {
   domain: Domain;
@@ -65,11 +65,14 @@ export function HubContextBar({ domain }: HubContextBarProps) {
   const host = getDomainHost(domain);
   const label = getDomainLabel(domain);
 
-  const openFeaturePanel = useCallback(
-    (panelId: PanelId) => {
-      nav.openPanel(panelId);
+  const openFeatureSurface = useCallback(
+    (surfaceId: HubSurfaceId) => {
+      if (surfaceId === "global/api-logs") {
+        setApiLogsHostSeed(host);
+      }
+      nav.openGlobalSurface(surfaceId);
     },
-    [nav],
+    [host, nav, setApiLogsHostSeed],
   );
 
   const handleOpenGlobalLogs = useCallback(() => {
@@ -96,19 +99,19 @@ export function HubContextBar({ domain }: HubContextBarProps) {
           short="M"
           label={t.featureBadgeMonitor}
           active={featureState.monitorEnabled === true}
-          onClick={() => openFeaturePanel("monitor")}
+          onClick={() => openFeatureSurface("global/monitor")}
         />
         <FeatureChip
           short="P"
           label={t.featureBadgeProxy}
           active={featureState.proxyEnabled === true}
-          onClick={() => openFeaturePanel("proxy")}
+          onClick={() => openFeatureSurface("global/proxy-graph")}
         />
         <FeatureChip
           short="A"
           label={t.featureBadgeApi}
           active={featureState.apiLoggingEnabled === true}
-          onClick={() => openFeaturePanel("api")}
+          onClick={() => openFeatureSurface("global/api-logs")}
         />
       </div>
 

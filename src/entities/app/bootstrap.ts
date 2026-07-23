@@ -17,6 +17,34 @@ import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { appStatusLoadedAtom, appStatusLoadingAtom } from "./status/store";
 import { type DBProfile, supabaseProfileAtom, supabaseSessionAtom } from "./user/store";
 
+interface GithubIdentityInfo {
+  githubId: string | null;
+  githubLogin: string | null;
+}
+
+/**
+ * Extracts a stable GitHub id/login from a Supabase session user so `profiles` can be
+ * matched by the GitHub Sponsors webhook. Prefers `user_metadata`, falls back to scanning
+ * `identities` for the `github` provider.
+ */
+function extractGithubIdentity(user: {
+  user_metadata?: Record<string, unknown> | null;
+  identities?: Array<{ provider?: string; id?: string }> | null;
+}): GithubIdentityInfo {
+  const meta = user.user_metadata ?? {};
+  const githubLogin = (meta.user_name as string | undefined) || (meta.preferred_username as string | undefined) || null;
+
+  let githubId: string | null = meta.provider_id ? String(meta.provider_id) : null;
+  if (!githubId) {
+    const githubIdentity = user.identities?.find((identity) => identity.provider === "github");
+    if (githubIdentity?.id) {
+      githubId = String(githubIdentity.id);
+    }
+  }
+
+  return { githubId, githubLogin };
+}
+
 export function useAppBootstrap() {
   const setDomains = useSetAtom(domainsAtom);
   const setApiLoggingLinks = useSetAtom(apiLoggingLinksAtom);
@@ -156,7 +184,8 @@ export function useAppBootstrap() {
           session.user.user_metadata?.user_name ||
           null;
         const metaAvatar = session.user.user_metadata?.avatar_url || null;
-        console.log("GitHub Auth User Metadata:", { metaName, metaAvatar });
+        const { githubId, githubLogin } = extractGithubIdentity(session.user);
+        console.log("GitHub Auth User Metadata:", { metaName, metaAvatar, githubId, githubLogin });
 
         const { data, error } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
 
@@ -165,13 +194,24 @@ export function useAppBootstrap() {
         if (!error && data) {
           currentProfile = data as DBProfile;
           console.log("Existing Profile loaded from database:", currentProfile);
-          if (!currentProfile.display_name || !currentProfile.avatar_url) {
+          if (
+            !currentProfile.display_name ||
+            !currentProfile.avatar_url ||
+            (!currentProfile.github_id && githubId) ||
+            (!currentProfile.github_login && githubLogin)
+          ) {
             const updatedFields: Partial<DBProfile> = {};
             if (!currentProfile.display_name && metaName) {
               updatedFields.display_name = metaName;
             }
             if (!currentProfile.avatar_url && metaAvatar) {
               updatedFields.avatar_url = metaAvatar;
+            }
+            if (!currentProfile.github_id && githubId) {
+              updatedFields.github_id = githubId;
+            }
+            if (!currentProfile.github_login && githubLogin) {
+              updatedFields.github_login = githubLogin;
             }
 
             if (Object.keys(updatedFields).length > 0) {
@@ -203,6 +243,8 @@ export function useAppBootstrap() {
             display_name: metaName,
             avatar_url: metaAvatar,
             is_sponsor: false,
+            github_id: githubId,
+            github_login: githubLogin,
           };
           const { data: createdData, error: createError } = await supabase
             .from("profiles")

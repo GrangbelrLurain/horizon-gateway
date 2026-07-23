@@ -262,7 +262,8 @@ pub fn get_mock_rules_by_scenario_svc(payload: GetMockRulesByScenarioPayload, se
 #[serde(rename_all = "camelCase")]
 pub struct CreateMockRulePayload {
     pub name: String,
-    pub scenario_id: String,
+    /// Optional; when omitted, rules attach to the internal Default scenario.
+    pub scenario_id: Option<String>,
     pub host: Option<String>,
     pub method: String,
     pub url_pattern: String,
@@ -275,7 +276,7 @@ pub struct CreateMockRulePayload {
 pub const CREATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "create_mock_rule",
     description: "새로운 모킹 룰을 생성합니다.",
-    payload_example: r#"{"name": "test rule", "scenarioId": "scenario-uuid", "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true}"#,
+    payload_example: r#"{"name": "test rule", "scenarioId": null, "host": null, "method": "GET", "urlPattern": "/api/*", "responseStatus": 200, "responseHeaders": {}, "responseBody": "{}", "enabled": true}"#,
     category: "mocking",
     gui_only: false,
 };
@@ -386,7 +387,8 @@ pub fn delete_mock_rule_svc(id: String, service: &std::sync::Arc<MockingService>
 #[serde(rename_all = "camelCase")]
 pub struct CreateMockFromLogPayload {
     pub log_id: String,
-    pub scenario_id: String,
+    /// Optional; when omitted, rules attach to the internal Default scenario.
+    pub scenario_id: Option<String>,
     pub name: String,
     pub log_date: String,
 }
@@ -394,7 +396,7 @@ pub struct CreateMockFromLogPayload {
 pub const CREATE_MOCK_RULE_FROM_LOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "create_mock_rule_from_log",
     description: "API 로그 항목을 기반으로 모킹 룰을 생성합니다.",
-    payload_example: r#"{"logId": "log-uuid", "scenarioId": "scenario-uuid", "name": "Mock from log", "logDate": "2026-07-09"}"#,
+    payload_example: r#"{"logId": "log-uuid", "scenarioId": null, "name": "Mock from log", "logDate": "2026-07-09"}"#,
     category: "mocking",
     gui_only: false,
 };

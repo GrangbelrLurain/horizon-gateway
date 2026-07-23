@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Gift, LogIn, Server, Settings, User } from "lucide-react";
+import { Gift, Lock, LogIn, Server, Settings, User, Users } from "lucide-react";
 import { useState } from "react";
 import {
   getInitials,
@@ -15,6 +15,7 @@ import { updateChangelogModalOpenAtom } from "@/features/update";
 import { commands } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
 import { Button } from "@/shared/ui/button/Button";
+import { toastError, toastInfo } from "@/shared/ui/toast";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import type { HubSurfaceId } from "../types";
@@ -26,16 +27,24 @@ interface TopBarProps {
   onOpenInfrastructure: () => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
+  onOpenTeam: () => void;
   onOpenGlobalTool: (id: HubSurfaceId) => void;
 }
 
-export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, onOpenGlobalTool }: TopBarProps) {
+export function TopBar({
+  onOpenInfrastructure,
+  onOpenProfile,
+  onOpenSettings,
+  onOpenTeam,
+  onOpenGlobalTool,
+}: TopBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const proxyRunning = useAtomValue(proxyRunningAtom);
 
   const session = useAtomValue(supabaseSessionAtom);
   const profile = useAtomValue(supabaseProfileAtom);
+  const teamLocked = !session;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const setChangelogOpen = useSetAtom(updateChangelogModalOpenAtom);
@@ -50,16 +59,16 @@ export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, on
         },
       });
       if (error) {
-        alert("Supabase OAuth Init Error: " + error.message);
+        toastError("Supabase OAuth Init Error: " + error.message);
         return;
       }
       if (data?.url) {
         await commands.openExternalUrl(data.url);
       } else {
-        alert("OAuth URL generation failed: URL was empty.");
+        toastError("OAuth URL generation failed: URL was empty.");
       }
     } catch (err: any) {
-      alert("handleLogin Exception: " + err.message);
+      toastError("handleLogin Exception: " + err.message);
     }
   };
 
@@ -99,6 +108,30 @@ export function TopBar({ onOpenInfrastructure, onOpenProfile, onOpenSettings, on
 
       <div className="flex items-center gap-0.5 px-2 shrink-0">
         <ToolsMenu onOpenTool={onOpenGlobalTool} />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={clsx(
+            "gap-1.5 h-8 text-xs",
+            teamLocked
+              ? "text-slate-500 cursor-not-allowed opacity-60"
+              : "text-slate-300 hover:text-white hover:bg-slate-800",
+          )}
+          title={teamLocked ? t.teamLocked : t.team}
+          aria-disabled={teamLocked}
+          onClick={() => {
+            if (teamLocked) {
+              toastInfo(t.teamLocked);
+              return;
+            }
+            onOpenTeam();
+          }}
+        >
+          {teamLocked ? <Lock className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{t.team}</span>
+        </Button>
+
         <div className="relative">
           <Button
             variant="ghost"

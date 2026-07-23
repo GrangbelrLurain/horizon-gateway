@@ -10,6 +10,7 @@ import {
   selectedComponentIdAtom,
   validateJsonSchema,
 } from "@/entities/sandbox";
+import { toastInfo } from "@/shared/ui/toast";
 import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
@@ -452,7 +453,7 @@ export default function Preview({ message }: Props) {
   const handleDeleteComponent = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (savedComponents.length <= 1) {
-      alert("최소 하나의 컴포넌트는 저장소에 유지되어야 합니다.");
+      toastInfo("최소 하나의 컴포넌트는 저장소에 유지되어야 합니다.");
       return;
     }
     if (confirm("이 컴포넌트를 스토리지에서 삭제하시겠습니까?")) {

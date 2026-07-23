@@ -25,14 +25,10 @@ jobs:
   deploy:
     # Run only if pushed directly or if the Release workflow succeeded
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
+      deployments: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,11 +55,11 @@ jobs:
         working-directory: website
         run: pnpm build
 
-      - name: Upload Artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: website/dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: website
+          command: pages deploy dist --project-name=horizon-gateway --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

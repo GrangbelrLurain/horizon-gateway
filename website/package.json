@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "wrangler pages deploy dist --project-name=horizon-gateway --branch=main --commit-dirty=true",
     "astro": "astro"
   },
   "dependencies": {

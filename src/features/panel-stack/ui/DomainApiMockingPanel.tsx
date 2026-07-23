@@ -2,8 +2,9 @@ import { useAtomValue } from "jotai";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
-import type { MockRule, Scenario } from "@/entities/mocking";
+import type { MockRule } from "@/entities/mocking";
 import * as mockingApi from "@/entities/mocking";
+import { openPopupWindow } from "@/features/popup-window";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
@@ -57,8 +58,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
   const mockingEnabled = useAtomValue(proxyMockingEnabledAtom);
   const proxyRunning = useAtomValue(proxyRunningAtom);
   const [rules, setRules] = useState<MockRule[]>([]);
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<MockRule | null>(null);
@@ -68,14 +67,7 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
 
   const load = useCallback(async () => {
     try {
-      const sc = await mockingApi.getScenarios();
-      setScenarios(sc);
-      setSelectedScenarioId((prev) => prev ?? sc[0]?.id ?? null);
-      const allRules: MockRule[] = [];
-      for (const s of sc) {
-        const r = await mockingApi.getMockRulesByScenario(s.id);
-        allRules.push(...r);
-      }
+      const allRules = await mockingApi.getMockRules();
       setRules(allRules.filter((r) => matchesHost(r, host)));
     } catch (e) {
       console.error(e);
@@ -108,8 +100,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
       setIsRuleModalOpen(true);
     }, []),
   );
-
-  const scenarioRules = rules.filter((r) => !selectedScenarioId || r.scenario_id === selectedScenarioId);
 
   const toggleMocking = async (enabled: boolean) => {
     if (mockingEnabled === null) {
@@ -166,9 +156,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
   };
 
   const handleSaveRule = async () => {
-    if (!selectedScenarioId) {
-      return;
-    }
     let headers: Record<string, string> = {};
     try {
       headers = ruleForm.response_headers ? JSON.parse(ruleForm.response_headers) : {};
@@ -194,7 +181,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
       } else {
         await mockingApi.createMockRule(
           ruleForm.name,
-          selectedScenarioId,
           host,
           ruleForm.method,
           ruleForm.url_pattern,
@@ -233,81 +219,63 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
     <Panel id="api/mocking" title={t.apiMocking} subtitle={host} onClose={onClose} width="lg">
       <div className="space-y-4">
         <HandoffBanner />
-        <StatusToggle
-          label="Mocking"
-          checked={!!mockingEnabled}
-          onChange={toggleMocking}
-          loading={loading}
-          disabled={!proxyRunning}
-        />
+        <StatusToggle label={t.mockingGlobal} checked={!!mockingEnabled} onChange={toggleMocking} loading={loading} />
 
-        {scenarios.length > 0 ? (
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/40">
-              {t.mockingScenario}
-            </label>
-            <select
-              className="mt-1 w-full h-8 rounded-lg border border-base-300 bg-base-100 px-2 text-xs"
-              value={selectedScenarioId ?? ""}
-              onChange={(e) => setSelectedScenarioId(e.target.value || null)}
-            >
-              {scenarios.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+        {!proxyRunning ? (
+          <div className="space-y-3">
+            <p className="text-xs text-base-content/50">{t.mockingProxyOff}</p>
+            <Button variant="primary" size="sm" onClick={() => void openPopupWindow("infrastructure")}>
+              {t.mockingOpenInfra}
+            </Button>
           </div>
         ) : (
-          <p className="text-xs text-base-content/50">{t.mockingNoScenario}</p>
-        )}
-
-        <div className="space-y-2">
-          {scenarioRules.length === 0 ? (
-            <p className="text-xs text-base-content/50">{t.mockingNoRules}</p>
-          ) : (
-            scenarioRules.map((rule) => (
-              <div key={rule.id} className="p-3 rounded-xl border border-base-300 bg-base-200/30">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold truncate flex-1">{rule.name}</p>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-base-300">{rule.method}</span>
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-success toggle-xs"
-                      checked={rule.enabled}
-                      onChange={(e) => void toggleRuleEnabled(rule, e.target.checked)}
-                    />
-                    <button
-                      type="button"
-                      className="p-1 hover:text-primary"
-                      onClick={() => openRuleModal(rule)}
-                      aria-label={t.mockingEditRule}
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:text-error"
-                      onClick={() => setRuleToDelete(rule.id)}
-                      aria-label={t.mockingDeleteRule}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+          <>
+            <div className="space-y-2">
+              {rules.length === 0 ? (
+                <p className="text-xs text-base-content/50">{t.mockingNoRules}</p>
+              ) : (
+                rules.map((rule) => (
+                  <div key={rule.id} className="p-3 rounded-xl border border-base-300 bg-base-200/30">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold truncate flex-1">{rule.name}</p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-base-300">{rule.method}</span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-success toggle-xs"
+                          checked={rule.enabled}
+                          onChange={(e) => void toggleRuleEnabled(rule, e.target.checked)}
+                        />
+                        <button
+                          type="button"
+                          className="p-1 hover:text-primary"
+                          onClick={() => openRuleModal(rule)}
+                          aria-label={t.mockingEditRule}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1 hover:text-error"
+                          onClick={() => setRuleToDelete(rule.id)}
+                          aria-label={t.mockingDeleteRule}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-mono text-base-content/50 mt-1 truncate">{rule.url_pattern}</p>
+                    <p className="text-[10px] text-base-content/40 mt-1">→ {rule.response_status}</p>
                   </div>
-                </div>
-                <p className="text-[10px] font-mono text-base-content/50 mt-1 truncate">{rule.url_pattern}</p>
-                <p className="text-[10px] text-base-content/40 mt-1">→ {rule.response_status}</p>
-              </div>
-            ))
-          )}
-        </div>
+                ))
+              )}
+            </div>
 
-        {selectedScenarioId && (
-          <Button variant="secondary" size="sm" className="w-full text-xs gap-1.5" onClick={() => openRuleModal()}>
-            <Plus className="w-3.5 h-3.5" />
-            {t.mockingAddRule}
-          </Button>
+            <Button variant="secondary" size="sm" className="w-full text-xs gap-1.5" onClick={() => openRuleModal()}>
+              <Plus className="w-3.5 h-3.5" />
+              {t.mockingAddRule}
+            </Button>
+          </>
         )}
 
         <Button
@@ -318,9 +286,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
         >
           {t.mockingOpenFull}
         </Button>
-        {scenarios.length > 0 && (
-          <p className="text-[10px] text-base-content/40 text-center">{t.mockingScenariosCount(scenarios.length)}</p>
-        )}
       </div>
 
       <Modal isOpen={isRuleModalOpen} onClose={() => setIsRuleModalOpen(false)}>

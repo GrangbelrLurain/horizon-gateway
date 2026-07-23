@@ -256,9 +256,18 @@ impl PipelineRunner {
                 let method: reqwest::Method = method_str.to_uppercase().parse()
                     .map_err(|e| format!("Invalid HTTP method: {}", e))?;
 
-                let client = reqwest::Client::builder()
+                let proxy_port = crate::command::local_route_commands::get_proxy_port();
+                let mut client_builder = reqwest::Client::builder()
                     .danger_accept_invalid_certs(true)
-                    .timeout(std::time::Duration::from_secs(30))
+                    .timeout(std::time::Duration::from_secs(30));
+
+                if proxy_port > 0 {
+                    if let Ok(proxy) = reqwest::Proxy::all(format!("http://127.0.0.1:{proxy_port}")) {
+                        client_builder = client_builder.proxy(proxy);
+                    }
+                }
+
+                let client = client_builder
                     .build()
                     .map_err(|e| format!("HTTP Client init failed: {}", e))?;
 
