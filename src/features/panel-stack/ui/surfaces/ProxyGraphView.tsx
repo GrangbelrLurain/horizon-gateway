@@ -1,7 +1,8 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
+import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { Check, Edit2, Plus, RefreshCw, Search, Trash2, Workflow, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
 import { localRoutesAtom } from "@/entities/proxy";
@@ -14,6 +15,12 @@ import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
 import { en } from "../../i18n/en";
 import { ko } from "../../i18n/ko";
+import {
+  type ProxyGraphRouteFilter,
+  proxyGraphGroupFilterAtom,
+  proxyGraphRouteFilterAtom,
+  proxyGraphSearchAtom,
+} from "../../store";
 
 interface PathData {
   id: number;
@@ -26,14 +33,31 @@ interface PathData {
   toY: number;
 }
 
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        "px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors whitespace-nowrap shrink-0",
+        active ? "bg-primary/20 text-primary" : "bg-base-200 text-base-content/50 hover:bg-base-300",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ProxyGraphView() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
 
-  const { domains, fetchAll, getGroupName, getDomainHost } = useDomainHubData();
+  const { domains, groups, fetchAll, getGroupName, getGroupId, getDomainHost } = useDomainHubData();
   const [localRoutes] = useAtom(localRoutesAtom);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useAtom(proxyGraphSearchAtom);
+  const [groupFilter, setGroupFilter] = useAtom(proxyGraphGroupFilterAtom);
+  const [routeFilter, setRouteFilter] = useAtom(proxyGraphRouteFilterAtom);
   const [hoveredDomainId, setHoveredDomainId] = useState<number | null>(null);
   const [hoveredTargetKey, setHoveredTargetKey] = useState<string | null>(null);
 
@@ -54,6 +78,16 @@ export function ProxyGraphView() {
   const rightColRef = useRef<HTMLDivElement>(null);
   const [paths, setPaths] = useState<PathData[]>([]);
 
+  const routeByDomainId = useMemo(() => {
+    const map = new Map<number, (typeof localRoutes)[number]>();
+    for (const r of localRoutes) {
+      if (r.domain_id != null) {
+        map.set(r.domain_id, r);
+      }
+    }
+    return map;
+  }, [localRoutes]);
+
   // Unique Targets calculation
   const uniqueTargets = useMemo(() => {
     const targetsMap = new Map<string, { host: string; port: number; routes: typeof localRoutes }>();
@@ -69,24 +103,54 @@ export function ProxyGraphView() {
     return Array.from(targetsMap.values());
   }, [localRoutes]);
 
+  const getRouteBucket = useCallback(
+    (domainId: number): Exclude<ProxyGraphRouteFilter, "all"> => {
+      const route = routeByDomainId.get(domainId);
+      if (!route) {
+        return "unrouted";
+      }
+      return route.enabled ? "active" : "inactive";
+    },
+    [routeByDomainId],
+  );
+
   // Filtering domains
   const filteredDomains = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
     return domains
       .filter((d) => {
+        const gid = getGroupId(d.id);
+        if (groupFilter === "none") {
+          if (gid !== null) {
+            return false;
+          }
+        } else if (groupFilter !== "all" && gid !== groupFilter) {
+          return false;
+        }
+
+        if (routeFilter !== "all" && getRouteBucket(d.id) !== routeFilter) {
+          return false;
+        }
+
+        if (!q) {
+          return true;
+        }
+
         const host = getDomainHost(d);
         const groupName = getGroupName(d.id, t.ungrouped);
-        const route = localRoutes.find((r) => r.domain_id === d.id);
+        const route = routeByDomainId.get(d.id);
         const targetStr = route ? `${route.target_host}:${route.target_port}` : "";
 
-        const matchSearch =
-          host.includes(searchTerm.toLowerCase()) ||
-          groupName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          targetStr.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchSearch;
+        return (
+          host.includes(q) ||
+          d.url.toLowerCase().includes(q) ||
+          groupName.toLowerCase().includes(q) ||
+          targetStr.toLowerCase().includes(q)
+        );
       })
       .sort((a, b) => {
-        const routeA = localRoutes.find((r) => r.domain_id === a.id);
-        const routeB = localRoutes.find((r) => r.domain_id === b.id);
+        const routeA = routeByDomainId.get(a.id);
+        const routeB = routeByDomainId.get(b.id);
 
         const getWeight = (r: typeof routeA) => {
           if (!r) {
@@ -102,25 +166,39 @@ export function ProxyGraphView() {
           return weightB - weightA;
         }
 
-        // Secondary sort: alphabetically by host name
-        const hostA = getDomainHost(a);
-        const hostB = getDomainHost(b);
-        return hostA.localeCompare(hostB);
+        return getDomainHost(a).localeCompare(getDomainHost(b));
       });
-  }, [domains, getDomainHost, getGroupName, t.ungrouped, localRoutes, searchTerm]);
+  }, [
+    domains,
+    getDomainHost,
+    getGroupId,
+    getGroupName,
+    getRouteBucket,
+    groupFilter,
+    routeByDomainId,
+    routeFilter,
+    searchTerm,
+    t.ungrouped,
+  ]);
+
+  const filteredDomainIds = useMemo(() => new Set(filteredDomains.map((d) => d.id)), [filteredDomains]);
 
   // Filter unique targets based on filtered domains or search term
   const filteredTargets = useMemo(() => {
-    return uniqueTargets.filter((target) => {
-      const key = `${target.host}:${target.port}`;
-      // Check if target matches search directly
-      if (key.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return true;
-      }
-      // Or check if any of the domains connected to it are in the filtered domains
-      return target.routes.some((r) => filteredDomains.some((d) => d.id === r.domain_id));
-    });
-  }, [uniqueTargets, filteredDomains, searchTerm]);
+    const q = searchTerm.trim().toLowerCase();
+    return uniqueTargets
+      .map((target) => ({
+        ...target,
+        routes: target.routes.filter((r) => r.domain_id != null && filteredDomainIds.has(r.domain_id)),
+      }))
+      .filter((target) => {
+        if (target.routes.length > 0) {
+          return true;
+        }
+        const key = `${target.host}:${target.port}`;
+        return q.length > 0 && key.toLowerCase().includes(q);
+      });
+  }, [uniqueTargets, filteredDomainIds, searchTerm]);
 
   // Virtualizer for the left column (domains)
   const rowVirtualizer = useVirtualizer({
@@ -140,6 +218,9 @@ export function ProxyGraphView() {
     const newPaths: PathData[] = [];
 
     localRoutes.forEach((route) => {
+      if (route.domain_id == null || !filteredDomainIds.has(route.domain_id)) {
+        return;
+      }
       // Ensure the domain and target nodes exist in the current filtered lists
       const domainEl = document.getElementById(`domain-anchor-${route.domain_id}`);
       const targetEl = document.getElementById(`target-anchor-${route.target_host}-${route.target_port}`);
@@ -167,7 +248,7 @@ export function ProxyGraphView() {
     });
 
     setPaths(newPaths);
-  }, [localRoutes]);
+  }, [filteredDomainIds, localRoutes]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -256,39 +337,108 @@ export function ProxyGraphView() {
     setShowAddModal(true);
   };
 
+  const hasActiveFilters = searchTerm.trim().length > 0 || groupFilter !== "all" || routeFilter !== "all";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setGroupFilter("all");
+    setRouteFilter("all");
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-base-100 text-base-content select-none">
       {/* Header and Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-b border-base-300 bg-base-200/50 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <Workflow className="w-5 h-5 text-primary" />
-            <h1 className="text-sm font-black tracking-tight">{t.toolsProxyGraph}</h1>
+      <div className="flex flex-col gap-3 p-4 border-b border-base-300 bg-base-200/50 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Workflow className="w-5 h-5 text-primary" />
+              <h1 className="text-sm font-black tracking-tight">{t.toolsProxyGraph}</h1>
+            </div>
+            <p className="text-[10px] text-base-content/50 font-medium mt-0.5">{t.proxyGraphDesc}</p>
           </div>
-          <p className="text-[10px] text-base-content/50 font-medium mt-0.5">{t.proxyGraphDesc}</p>
+
+          <div className="flex items-center gap-2">
+            <div className="relative w-48 sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/40" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t.proxyGraphSearchPlaceholder}
+                className="pl-8 h-8 text-[11px] rounded-lg shadow-sm"
+              />
+              {searchTerm ? (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-base-content/65 hover:text-base-content"
+              onClick={() => void fetchAll()}
+              title={t.monitorRefresh}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Search Input */}
-          <div className="relative w-48 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/40" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t.proxyGraphSearchPlaceholder}
-              className="pl-8 h-8 text-[11px] rounded-lg shadow-sm"
-            />
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[9px] font-bold text-base-content/40 uppercase tracking-wider shrink-0 w-10">
+              {t.filterGroupLabel}
+            </span>
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-thin min-w-0">
+              <FilterChip active={groupFilter === "all"} onClick={() => setGroupFilter("all")}>
+                {t.filterAll}
+              </FilterChip>
+              <FilterChip active={groupFilter === "none"} onClick={() => setGroupFilter("none")}>
+                {t.ungrouped}
+              </FilterChip>
+              {groups.map((g) => (
+                <FilterChip key={g.id} active={groupFilter === g.id} onClick={() => setGroupFilter(g.id)}>
+                  {g.name}
+                </FilterChip>
+              ))}
+            </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-base-content/65 hover:text-base-content"
-            onClick={() => void fetchAll()}
-            title={t.monitorRefresh}
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </Button>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[9px] font-bold text-base-content/40 uppercase tracking-wider shrink-0 w-10">
+              {t.proxyGraphRouteFilterLabel}
+            </span>
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-thin min-w-0 flex-1">
+              <FilterChip active={routeFilter === "all"} onClick={() => setRouteFilter("all")}>
+                {t.filterAll}
+              </FilterChip>
+              <FilterChip active={routeFilter === "active"} onClick={() => setRouteFilter("active")}>
+                {t.proxyGraphActiveRoutes}
+              </FilterChip>
+              <FilterChip active={routeFilter === "inactive"} onClick={() => setRouteFilter("inactive")}>
+                {t.proxyGraphInactiveRoutes}
+              </FilterChip>
+              <FilterChip active={routeFilter === "unrouted"} onClick={() => setRouteFilter("unrouted")}>
+                {t.proxyGraphUnrouted}
+              </FilterChip>
+            </div>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-[10px] font-bold text-primary/80 hover:text-primary whitespace-nowrap shrink-0"
+              >
+                {t.proxyGraphClearFilters}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -366,8 +516,17 @@ export function ProxyGraphView() {
           </div>
 
           {filteredDomains.length === 0 ? (
-            <div className="p-6 rounded-xl border border-dashed border-base-300 text-center text-xs text-base-content/40">
-              {searchTerm ? t.proxyGraphEmptySearch : t.noDomains}
+            <div className="p-6 rounded-xl border border-dashed border-base-300 text-center text-xs text-base-content/40 space-y-2">
+              <p>{hasActiveFilters ? t.proxyGraphEmptySearch : t.noDomains}</p>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-[10px] font-bold text-primary hover:underline"
+                >
+                  {t.proxyGraphClearFilters}
+                </button>
+              ) : null}
             </div>
           ) : (
             <div
@@ -384,7 +543,7 @@ export function ProxyGraphView() {
                 }
                 const host = getDomainHost(d);
                 const groupName = getGroupName(d.id, t.ungrouped);
-                const route = localRoutes.find((r) => r.domain_id === d.id);
+                const route = routeByDomainId.get(d.id);
                 const isHovered = hoveredDomainId === d.id;
 
                 return (
@@ -482,8 +641,17 @@ export function ProxyGraphView() {
           </div>
 
           {filteredTargets.length === 0 ? (
-            <div className="p-6 rounded-xl border border-dashed border-base-300 text-center text-xs text-base-content/40">
-              {localRoutes.length === 0 ? t.proxyGraphNoRoutes : t.proxyGraphEmptySearch}
+            <div className="p-6 rounded-xl border border-dashed border-base-300 text-center text-xs text-base-content/40 space-y-2">
+              <p>{localRoutes.length === 0 ? t.proxyGraphNoRoutes : t.proxyGraphEmptySearch}</p>
+              {hasActiveFilters && localRoutes.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-[10px] font-bold text-primary hover:underline"
+                >
+                  {t.proxyGraphClearFilters}
+                </button>
+              ) : null}
             </div>
           ) : (
             filteredTargets.map((target) => {

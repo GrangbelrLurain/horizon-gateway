@@ -21,6 +21,7 @@ export type SchemaExplorerHandoffSeed = {
 export type DomainFeatureFilterMode = "all" | "active" | "inactive";
 export type DomainFeatureKey = "monitor" | "proxy" | "api";
 export type DomainListSortMode = "activity" | "name";
+export type ProxyGraphRouteFilter = "all" | "active" | "inactive" | "unrouted";
 
 export const selectedDomainIdAtom = atom<number | null>(null);
 export const panelStackAtom = atom<PanelEntry[]>([]);
@@ -40,6 +41,15 @@ export const domainListFeatureRequireAtom = atomWithWindowStorage<DomainFeatureK
 export const domainListSortAtom = atomWithWindowStorage<DomainListSortMode>("domain-list-sort", "activity");
 export const domainApiLogsSearchAtom = atomWithWindowStorage("domain-api-logs-search", "");
 export const domainApiLogsMethodAtom = atomWithWindowStorage<string>("domain-api-logs-method", "ALL");
+export const proxyGraphSearchAtom = atomWithWindowStorage("proxy-graph-search", "");
+export const proxyGraphGroupFilterAtom = atomWithWindowStorage<number | "all" | "none">(
+  "proxy-graph-group-filter",
+  "all",
+);
+export const proxyGraphRouteFilterAtom = atomWithWindowStorage<ProxyGraphRouteFilter>(
+  "proxy-graph-route-filter",
+  "all",
+);
 /** Transient UI state — not persisted (avoids localStorage sync on every toggle). */
 export const domainListBulkModeAtom = atom(false);
 export const domainListBulkSelectedIdsAtom = atom<ReadonlySet<number>>(new Set<number>());
