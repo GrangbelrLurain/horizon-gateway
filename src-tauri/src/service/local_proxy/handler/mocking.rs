@@ -87,6 +87,7 @@ pub(crate) fn try_mock_response(
         request_body: None,
         response_headers: Some(rule.response_headers.clone()),
         response_body: Some(body.clone()),
+        has_bodies: true,
     };
     state.api_log_service.save_log(&entry);
     let _ = state.app_handle.emit("api-log-captured", entry);

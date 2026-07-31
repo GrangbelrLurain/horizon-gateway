@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
+import { fetchApiLogDetail } from "@/entities/domain-api-logging";
 import { ProxyServerWarning } from "@/entities/proxy";
 import {
   ApiLogExchangeDetail,
@@ -64,7 +65,18 @@ const LogRow = React.memo(function LogRowItem({
   onToggleSelect,
 }: LogRowProps) {
   return (
-    <div className="w-full grid grid-cols-[32px_60px_50px_1fr] tablet:grid-cols-[32px_80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 hover:bg-base-200/50 transition-all group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onClick(entry)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick(entry);
+        }
+      }}
+      className="w-full grid grid-cols-[32px_60px_50px_1fr] tablet:grid-cols-[32px_80px_60px_1fr_120px] gap-2 tablet:gap-4 items-center px-4 tablet:px-6 py-2 hover:bg-base-200/50 transition-all group border-l-4 border-l-transparent hover:border-l-primary border-b border-base-300/50 cursor-pointer"
+    >
       <div className="flex items-center justify-center">
         <input
           type="checkbox"
@@ -75,57 +87,55 @@ const LogRow = React.memo(function LogRowItem({
           aria-label={`Select ${entry.method} ${entry.path}`}
         />
       </div>
-      <button type="button" className="contents" onClick={() => onClick(entry)}>
-        <div className="flex shrink-0">
-          <Badge
-            variant={{
-              color:
-                (entry.status_code ?? 0) >= 500
-                  ? "red"
-                  : (entry.status_code ?? 0) >= 400
-                    ? "amber"
-                    : (entry.status_code ?? 0) >= 300
-                      ? "blue"
-                      : "green",
-              size: "sm",
-            }}
-            className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
-          >
-            {entry.status_code ?? "-"}
-          </Badge>
-        </div>
-        <span
-          className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
-            entry.method === "GET"
-              ? "text-success"
-              : entry.method === "POST"
-                ? "text-info"
-                : entry.method === "PUT"
-                  ? "text-warning"
-                  : entry.method === "DELETE"
-                    ? "text-error"
-                    : "text-base-content/60"
-          }`}
+      <div className="flex shrink-0">
+        <Badge
+          variant={{
+            color:
+              (entry.status_code ?? 0) >= 500
+                ? "red"
+                : (entry.status_code ?? 0) >= 400
+                  ? "amber"
+                  : (entry.status_code ?? 0) >= 300
+                    ? "blue"
+                    : "green",
+            size: "sm",
+          }}
+          className="font-black w-[40px] tablet:w-[50px] text-[10px] tablet:text-xs justify-center tracking-tighter"
         >
-          {entry.method}
-        </span>
+          {entry.status_code ?? "-"}
+        </Badge>
+      </div>
+      <span
+        className={`font-black text-[9px] tablet:text-[10px] uppercase tracking-tighter shrink-0 ${
+          entry.method === "GET"
+            ? "text-success"
+            : entry.method === "POST"
+              ? "text-info"
+              : entry.method === "PUT"
+                ? "text-warning"
+                : entry.method === "DELETE"
+                  ? "text-error"
+                  : "text-base-content/60"
+        }`}
+      >
+        {entry.method}
+      </span>
 
-        <div className="min-w-0 flex flex-col gap-0.5">
-          <span
-            className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-            title={entry.url}
-          >
-            {entry.path}
-          </span>
-          <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
-            {entry.host}
-          </span>
-        </div>
-
-        <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
-          {formattedTime}
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <span
+          className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+          title={entry.url}
+        >
+          {entry.path}
         </span>
-      </button>
+        <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
+          {entry.host}
+        </span>
+      </div>
+
+      <span className="hidden tablet:block text-xs text-base-content/40 font-mono text-right tabular-nums group-hover:text-base-content/80 transition-colors shrink-0">
+        {formattedTime}
+      </span>
     </div>
   );
 });
@@ -152,6 +162,9 @@ function ApiLogs() {
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(() => new Set());
   const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [bodySearch, setBodySearch] = useState("");
+  const [bodySearchBusy, setBodySearchBusy] = useState(false);
+  const [bodySearchActive, setBodySearchActive] = useState(false);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
 
@@ -368,8 +381,60 @@ function ApiLogs() {
 
   const handleRefresh = useCallback(() => {
     setHasPendingUpdates(false);
+    setBodySearchActive(false);
     void fetchLogs(date, "refresh");
   }, [date, fetchLogs]);
+
+  const handleBodySearch = useCallback(async () => {
+    const raw = bodySearch.trim();
+    if (!raw) {
+      setBodySearchActive(false);
+      void fetchLogs(date, "refresh");
+      return;
+    }
+    setBodySearchBusy(true);
+    setBodySearchActive(true);
+    try {
+      const paramMatch = raw.match(/^([A-Za-z_][\w.]*)\s*=\s*(.*)$/);
+      const res = await commands
+        .searchApiLogs({
+          date,
+          query: paramMatch ? null : raw,
+          hostFilter: hostFilter.trim() || null,
+          methodFilter: methodFilter || null,
+          statusFilter: null,
+          paramKey: paramMatch ? paramMatch[1] : null,
+          paramValue: paramMatch ? paramMatch[2] : null,
+          limit: 100,
+        })
+        .then(unwrap);
+      if (res.success && res.data) {
+        setLogs(
+          res.data.map((hit) => ({
+            id: hit.summary.id,
+            timestamp: hit.summary.timestamp,
+            method: hit.summary.method,
+            url: hit.summary.url || `https://${hit.summary.host}${hit.summary.path}`,
+            host: hit.summary.host,
+            path: hit.summary.path,
+            status_code: hit.summary.status_code,
+            request_headers: null,
+            request_body: null,
+            response_headers: null,
+            response_body: null,
+            has_bodies: hit.summary.has_bodies,
+          })),
+        );
+      } else {
+        setLogs([]);
+      }
+    } catch (e) {
+      console.error("search_api_logs:", e);
+      setLogs([]);
+    } finally {
+      setBodySearchBusy(false);
+    }
+  }, [bodySearch, date, fetchLogs, hostFilter, methodFilter]);
 
   const changeDate = (days: number) => {
     const newDate = new Date(date);
@@ -440,9 +505,13 @@ function ApiLogs() {
     );
   }, [filteredLogs]);
 
-  // Stable row click handler — does not change between renders
-  const handleRowClick = useCallback((log: ApiLogEntry) => {
+  // Stable row click handler — hydrate detail (bodies) on demand
+  const handleRowClick = useCallback(async (log: ApiLogEntry) => {
     setSelectedLog(log);
+    const detail = await fetchApiLogDetail(log.id, dateRef.current);
+    if (detail) {
+      setSelectedLog(detail);
+    }
   }, []);
 
   const handleToggleSelect = useCallback((id: string, checked: boolean) => {
@@ -487,11 +556,14 @@ function ApiLogs() {
   );
 
   const handleDownloadSelectedHtml = useCallback(async () => {
-    const selected = filteredLogs.filter((log) => selectedLogIds.has(log.id));
-    if (selected.length === 0) {
+    const selectedIds = filteredLogs.filter((log) => selectedLogIds.has(log.id)).map((l) => l.id);
+    if (selectedIds.length === 0) {
       return;
     }
-    const inputs = selected.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
+    const details = (await Promise.all(selectedIds.map((id) => fetchApiLogDetail(id, date)))).filter(
+      (l): l is ApiLogEntry => l != null,
+    );
+    const inputs = details.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
     try {
       const result = await downloadApiExchangesHtml(
         inputs,
@@ -509,7 +581,7 @@ function ApiLogs() {
           generatedBy: t.exportGeneratedBy,
           jumpToEntry: t.exportJumpToEntry,
         },
-        `horizon-gateway-api-logs-${date}-${selected.length}.html`,
+        `horizon-gateway-api-logs-${date}-${details.length}.html`,
       );
       if (result.status !== "saved") {
         return;
@@ -654,6 +726,46 @@ function ApiLogs() {
                   </button>
                 )}
               </Card>
+            </div>
+
+            <div className="flex flex-1 gap-2 items-center">
+              <Card className="p-2 bg-base-100 border-base-300 flex-1 flex items-center gap-3 px-3 tablet:px-4 shadow-sm h-10 tablet:h-auto">
+                <FileText className="w-3.5 h-3.5 tablet:w-4 tablet:h-4 text-base-content/40 shrink-0" />
+                <input
+                  type="text"
+                  placeholder={lang === "ko" ? "본문 검색 (텍스트 또는 key=value)" : "Body search (text or key=value)"}
+                  className="bg-transparent border-none outline-none text-xs tablet:text-sm w-full font-bold min-w-0 placeholder:text-base-content/30 text-base-content"
+                  value={bodySearch}
+                  onChange={(e) => setBodySearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      void handleBodySearch();
+                    }
+                  }}
+                />
+                {bodySearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBodySearch("");
+                      setBodySearchActive(false);
+                      void fetchLogs(date, "refresh");
+                    }}
+                    className="text-base-content/40 hover:text-base-content/80 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </Card>
+              <Button
+                variant={bodySearchActive ? "primary" : "secondary"}
+                size="sm"
+                disabled={bodySearchBusy}
+                onClick={() => void handleBodySearch()}
+                className="shrink-0 h-10"
+              >
+                {bodySearchBusy ? "…" : lang === "ko" ? "본문 검색" : "Search body"}
+              </Button>
             </div>
 
             <div className="flex items-center gap-1 tablet:gap-2 bg-base-100 rounded-xl border border-base-300 p-0.5 tablet:p-1 shadow-sm overflow-x-auto [scrollbar-width:none]">

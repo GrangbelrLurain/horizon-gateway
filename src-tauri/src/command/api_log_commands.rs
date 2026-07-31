@@ -516,6 +516,158 @@ pub fn get_api_logs_svc(payload: GetApiLogsPayload, api_log_service: &ApiLogServ
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct GetApiLogDetailPayload {
+    pub id: String,
+    pub date: Option<String>,
+}
+
+pub const GET_API_LOG_DETAIL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_api_log_detail",
+    description: "API 로그 단건 상세(본문 포함)를 조회합니다.",
+    payload_example: r#"{"id": "log-uuid", "date": "2026-07-06"}"#,
+    category: "api",
+    gui_only: false,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_api_log_detail(
+    payload: GetApiLogDetailPayload,
+    api_log_service: tauri::State<'_, ApiLogService>,
+) -> Result<ApiResponse<Option<ApiLogEntry>>, String> {
+    get_api_log_detail_svc(payload, &api_log_service)
+}
+
+pub fn get_api_log_detail_svc(
+    payload: GetApiLogDetailPayload,
+    api_log_service: &ApiLogService,
+) -> Result<ApiResponse<Option<ApiLogEntry>>, String> {
+    let log = api_log_service.get_log_by_id(&payload.id, payload.date.as_deref());
+    Ok(ApiResponse {
+        message: if log.is_some() {
+            "로그 상세 조회".to_string()
+        } else {
+            "로그를 찾을 수 없습니다.".to_string()
+        },
+        success: true,
+        data: log,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchApiLogsPayload {
+    pub date: String,
+    pub query: Option<String>,
+    pub host_filter: Option<String>,
+    pub method_filter: Option<String>,
+    pub status_filter: Option<u16>,
+    /// Structured JSON leaf key (adaptive index). When set and unlearned, triggers body scan.
+    pub param_key: Option<String>,
+    pub param_value: Option<String>,
+    pub limit: Option<u32>,
+}
+
+pub const SEARCH_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "search_api_logs",
+    description: "API 로그 body를 FTS/파라미터 인덱스로 검색합니다. 미학습 파라미터는 스캔 후 학습합니다.",
+    payload_example: r#"{"date":"2026-07-06","query":"E001","hostFilter":null,"methodFilter":null,"statusFilter":null,"paramKey":null,"paramValue":null,"limit":50}"#,
+    category: "api",
+    gui_only: false,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn search_api_logs(
+    payload: SearchApiLogsPayload,
+    app: tauri::AppHandle,
+    api_log_service: tauri::State<'_, ApiLogService>,
+) -> Result<ApiResponse<Vec<crate::model::api_log::ApiLogSearchHit>>, String> {
+    search_api_logs_svc(payload, Some(&app), &api_log_service)
+}
+
+pub fn search_api_logs_svc(
+    payload: SearchApiLogsPayload,
+    app: Option<&tauri::AppHandle>,
+    api_log_service: &ApiLogService,
+) -> Result<ApiResponse<Vec<crate::model::api_log::ApiLogSearchHit>>, String> {
+    use tauri::Emitter;
+
+    let limit = payload.limit.unwrap_or(50) as usize;
+    let query = payload.query.unwrap_or_default();
+    let param_key = payload.param_key.filter(|s| !s.trim().is_empty());
+    let param_value = payload.param_value.unwrap_or_default();
+
+    let emit_hit = |hit: &crate::model::api_log::ApiLogSearchHit| {
+        if let Some(app) = app {
+            let _ = app.emit("api-log-search-hit", hit.clone());
+        }
+    };
+
+    let hits = if let Some(key) = param_key.as_deref() {
+        if api_log_service.is_param_indexed(key) {
+            let hits = api_log_service.search_logs(
+                &payload.date,
+                "",
+                payload.host_filter.as_deref(),
+                payload.method_filter.as_deref(),
+                payload.status_filter,
+                Some(key),
+                Some(&param_value),
+                limit,
+            )?;
+            for hit in &hits {
+                emit_hit(hit);
+            }
+            hits
+        } else {
+            api_log_service.scan_bodies_for_param(
+                &payload.date,
+                key,
+                &param_value,
+                payload.host_filter.as_deref(),
+                payload.method_filter.as_deref(),
+                payload.status_filter,
+                limit,
+                |hit| emit_hit(&hit),
+            )
+        }
+    } else {
+        let hits = api_log_service.search_logs(
+            &payload.date,
+            &query,
+            payload.host_filter.as_deref(),
+            payload.method_filter.as_deref(),
+            payload.status_filter,
+            None,
+            None,
+            limit,
+        )?;
+        for hit in &hits {
+            emit_hit(hit);
+        }
+        hits
+    };
+
+    if let Some(app) = app {
+        let _ = app.emit(
+            "api-log-search-done",
+            serde_json::json!({
+                "date": payload.date,
+                "count": hits.len(),
+            }),
+        );
+    }
+
+    Ok(ApiResponse {
+        message: format!("{}개 검색 결과", hits.len()),
+        success: true,
+        data: hits,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct ClearApiLogsPayload {
     pub date: Option<String>,
 }

@@ -519,17 +519,28 @@ function EndpointDetail({
     }
   };
 
-  const handleLoadLog = (log: ApiLogEntry) => {
+  const handleLoadLog = async (log: ApiLogEntry) => {
     setHistoryOpen(false);
 
-    const headerRows = log.request_headers
-      ? Object.entries(log.request_headers)
+    const today = new Date().toISOString().split("T")[0];
+    let full = log;
+    try {
+      const res = await commands.getApiLogDetail({ id: log.id, date: today }).then(unwrap);
+      if (res.success && res.data) {
+        full = res.data;
+      }
+    } catch {
+      // use list stub
+    }
+
+    const headerRows = full.request_headers
+      ? Object.entries(full.request_headers)
           .filter(([key]) => !["host", "content-length", "connection"].includes(key.toLowerCase()))
           .map(([key, value]) => ({ key, value }))
       : [{ key: "", value: "" }];
 
     updateDraft({
-      bodyText: log.request_body ?? draft.bodyText,
+      bodyText: full.request_body ?? draft.bodyText,
       headers: headerRows.length > 0 ? headerRows : [{ key: "", value: "" }],
     });
   };

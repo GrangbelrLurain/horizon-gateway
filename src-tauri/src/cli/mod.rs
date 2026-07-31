@@ -46,6 +46,8 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     // --- API Logs ---
     crate::command::api_log_commands::LIST_API_LOG_DATES_CLI_INFO,
     crate::command::api_log_commands::GET_API_LOGS_CLI_INFO,
+    crate::command::api_log_commands::GET_API_LOG_DETAIL_CLI_INFO,
+    crate::command::api_log_commands::SEARCH_API_LOGS_CLI_INFO,
     crate::command::api_log_commands::CLEAR_API_LOGS_CLI_INFO,
     // --- Domains ---
     crate::command::domain_commands::GET_DOMAINS_CLI_INFO,
@@ -390,6 +392,8 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "get_api_schema_content",
     "list_api_log_dates",
     "get_api_logs",
+    "get_api_log_detail",
+    "search_api_logs",
     "clear_api_logs",
     "get_domains",
     "get_domain_by_id",
@@ -534,6 +538,24 @@ fn dispatch_command(
             let parsed_payload: command::api_log_commands::GetApiLogsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::api_log_commands::get_api_logs(parsed_payload, api_log_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_api_log_detail" => {
+            let api_log_service = app_handle.state::<ApiLogService>();
+            let parsed_payload: command::api_log_commands::GetApiLogDetailPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::api_log_commands::get_api_log_detail(parsed_payload, api_log_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "search_api_logs" => {
+            let api_log_service = app_handle.state::<ApiLogService>();
+            let parsed_payload: command::api_log_commands::SearchApiLogsPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::api_log_commands::search_api_logs(
+                parsed_payload,
+                app_handle.clone(),
+                api_log_service,
+            )?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "clear_api_logs" => {
@@ -1306,6 +1328,8 @@ mod parity_tests {
         "get_proxy_auto_start_error",
         "list_api_log_dates",
         "get_api_logs",
+        "get_api_log_detail",
+        "search_api_logs",
         "clear_api_logs",
         "open_window",
         "open_inspector_window",

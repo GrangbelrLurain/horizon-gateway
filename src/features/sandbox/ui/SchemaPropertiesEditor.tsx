@@ -302,6 +302,22 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     }
   };
 
+  const handleImportFromLog = async (logId: string, which: "request" | "response") => {
+    const today = new Date().toISOString().split("T")[0];
+    try {
+      const res = await commands.getApiLogDetail({ id: logId, date: today }).then(unwrap);
+      const body = which === "request" ? res.data?.request_body : res.data?.response_body;
+      if (!body || !isValidJson(body)) {
+        toastError(t.invalidJson);
+        return;
+      }
+      handleImportJsonStr(body);
+    } catch (e) {
+      console.error(e);
+      toastError(t.invalidJson);
+    }
+  };
+
   // Helper to extract nested schema block from endpoints
   const getEndpointSchema = (spec: any, path: string, method: string, type: "request" | "response"): any => {
     const operation = spec.paths?.[path]?.[method];
@@ -734,8 +750,8 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                         <div className="flex gap-1.5">
                           <button
                             type="button"
-                            disabled={!log.request_body || !isValidJson(log.request_body)}
-                            onClick={() => log.request_body && handleImportJsonStr(log.request_body)}
+                            disabled={!log.has_bodies}
+                            onClick={() => void handleImportFromLog(log.id, "request")}
                             className="btn btn-outline btn-primary btn-[9px] px-2 h-6 min-h-0 text-[9px] font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
                             title="요청 바디에서 스키마 추출"
                           >
@@ -743,8 +759,8 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
                           </button>
                           <button
                             type="button"
-                            disabled={!log.response_body || !isValidJson(log.response_body)}
-                            onClick={() => log.response_body && handleImportJsonStr(log.response_body)}
+                            disabled={!log.has_bodies}
+                            onClick={() => void handleImportFromLog(log.id, "response")}
                             className="btn btn-primary btn-[9px] px-2 h-6 min-h-0 text-[9px] font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
                             title="응답 바디에서 스키마 추출"
                           >

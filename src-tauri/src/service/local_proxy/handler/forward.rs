@@ -143,8 +143,9 @@ pub(crate) async fn handle_pass_through(
                 request_body: None,
                 response_headers: None,
                 response_body: None,
+                has_bodies: false,
             };
-            state.api_log_service.save_log(&entry);
+            // Logging disabled for this host: skip disk I/O, still notify live-capture UI.
             let _ = state.app_handle.emit("api-log-captured", entry);
 
             let content_type = res_headers

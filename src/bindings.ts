@@ -69,6 +69,8 @@ export const commands = {
 	listApiLogDates: () => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("list_api_log_dates")),
 	/**  특정 날짜의 API 로그 조회. */
 	getApiLogs: (payload: GetApiLogsPayload) => typedError<ApiResponse<ApiLogEntry[]>, string>(__TAURI_INVOKE("get_api_logs", { payload })),
+	getApiLogDetail: (payload: GetApiLogDetailPayload) => typedError<ApiResponse<ApiLogEntry | null>, string>(__TAURI_INVOKE("get_api_log_detail", { payload })),
+	searchApiLogs: (payload: SearchApiLogsPayload) => typedError<ApiResponse<ApiLogSearchHit[]>, string>(__TAURI_INVOKE("search_api_logs", { payload })),
 	/**  API 로그 삭제 (특정 날짜 또는 전체). */
 	clearApiLogs: (payload: ClearApiLogsPayload) => typedError<ApiResponse<null>, string>(__TAURI_INVOKE("clear_api_logs", { payload })),
 	openWindow: (label: string, title: string, url: string, width: number | null, height: number | null) => typedError<null, string>(__TAURI_INVOKE("open_window", { label, title, url, width, height })),
@@ -165,6 +167,26 @@ export type ApiLogEntry = {
 	request_body: string | null,
 	response_headers: { [key in string]: string } | null,
 	response_body: string | null,
+	/**  Present on list responses; true when a body sidecar exists (or legacy entry had bodies). */
+	has_bodies?: boolean,
+};
+
+export type ApiLogSearchHit = {
+	summary: ApiLogSummary,
+	snippet: string | null,
+	/**  True when this hit came from a cold body scan (unlearned param). */
+	from_scan?: boolean,
+};
+
+export type ApiLogSummary = {
+	id: string,
+	timestamp: string,
+	method: string,
+	url: string,
+	host: string,
+	path: string,
+	status_code: number | null,
+	has_bodies: boolean,
 };
 
 export type ApiRequestResult = {
@@ -355,6 +377,11 @@ export type DownloadApiSchemaPayload = {
 	domainId: number,
 	/**  URL to fetch OpenAPI/Swagger schema from. */
 	url: string,
+};
+
+export type GetApiLogDetailPayload = {
+	id: string,
+	date: string | null,
 };
 
 export type GetApiLogsPayload = {
@@ -706,6 +733,18 @@ export type SchemaProperty_Serialize = {
 export type SchemaValidationResult = {
 	valid: boolean,
 	errors: string | null,
+};
+
+export type SearchApiLogsPayload = {
+	date: string,
+	query: string | null,
+	hostFilter: string | null,
+	methodFilter: string | null,
+	statusFilter: number | null,
+	/**  Structured JSON leaf key (adaptive index). When set and unlearned, triggers body scan. */
+	paramKey: string | null,
+	paramValue: string | null,
+	limit: number | null,
 };
 
 export type SendApiRequestPayload = {

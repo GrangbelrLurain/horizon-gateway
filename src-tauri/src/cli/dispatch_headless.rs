@@ -43,6 +43,20 @@ pub fn dispatch_headless(
             let result = command::api_log_commands::get_api_logs_svc(parsed_payload, &ctx.api_log_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "get_api_log_detail" => {
+            let parsed_payload: command::api_log_commands::GetApiLogDetailPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result =
+                command::api_log_commands::get_api_log_detail_svc(parsed_payload, &ctx.api_log_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "search_api_logs" => {
+            let parsed_payload: command::api_log_commands::SearchApiLogsPayload =
+                serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result =
+                command::api_log_commands::search_api_logs_svc(parsed_payload, None, &ctx.api_log_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "clear_api_logs" => {
                         let parsed_payload: command::api_log_commands::ClearApiLogsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;

@@ -120,15 +120,15 @@ export function buildApiExchangesHtmlHead(meta: WtExportMeta[], labels: ApiExcha
       background: rgba(255,255,255,0.95);
       backdrop-filter: blur(8px);
       border-bottom: 1px solid #edebe9;
-      padding: 16px 24px;
+      padding: 12px 24px;
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
       align-items: center;
       justify-content: space-between;
     }
-    .wt-header h1 { margin: 0; font-size: 18px; font-weight: 800; }
-    .wt-meta { font-size: 12px; color: #605e5c; }
+    .wt-header h1 { margin: 0; font-size: 16px; font-weight: 700; color: #201f1e; }
+    .wt-meta { font-size: 12px; color: #605e5c; margin-top: 2px; }
     .wt-layout {
       flex: 1;
       min-height: 0;
@@ -139,6 +139,9 @@ export function buildApiExchangesHtmlHead(meta: WtExportMeta[], labels: ApiExcha
       width: 100%;
       margin: 0 auto;
       padding: 24px;
+    }
+    .wt-layout.wt-single-entry {
+      grid-template-columns: 1fr;
     }
     @media (max-width: 900px) {
       .wt-layout { grid-template-columns: 1fr; }
@@ -232,8 +235,44 @@ export function buildApiExchangesHtmlHead(meta: WtExportMeta[], labels: ApiExcha
       color: #605e5c;
     }
     .wt-card-body { padding: 16px; }
+    .wt-details {
+      margin-bottom: 16px;
+      border: 1px solid #edebe9;
+      border-radius: 6px;
+      background: #faf9f8;
+      overflow: hidden;
+    }
+    .wt-details[open] {
+      background: #fff;
+    }
+    .wt-summary {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #605e5c;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f3f2f1;
+      transition: background 0.15s ease;
+    }
+    .wt-summary:hover {
+      background: #edebe9;
+      color: #323130;
+    }
+    .wt-summary:focus-visible {
+      outline: 2px solid #0078d4;
+      outline-offset: -2px;
+    }
+    .wt-badge {
+      font-size: 10px;
+      color: #605e5c;
+      font-weight: 600;
+    }
     .wt-sec-title {
-      margin: 0 0 6px;
+      margin: 0;
       font-size: 11px;
       text-transform: uppercase;
       color: #605e5c;
@@ -241,10 +280,9 @@ export function buildApiExchangesHtmlHead(meta: WtExportMeta[], labels: ApiExcha
     }
     .wt-headers {
       background: #faf9f8;
-      border: 1px solid #edebe9;
-      border-radius: 4px;
-      padding: 10px;
-      margin-bottom: 16px;
+      border-top: 1px solid #edebe9;
+      padding: 10px 12px;
+      margin-bottom: 0;
       font-family: monospace;
       font-size: 11px;
     }
@@ -293,11 +331,16 @@ export function buildApiExchangesHtmlHead(meta: WtExportMeta[], labels: ApiExcha
     <button type="button" class="wt-btn wt-btn-primary" id="wt-copy-all">${labels.copyAllResponses}</button>
   </header>
 
-  <div class="wt-layout">
+  <div class="wt-layout ${meta.length === 1 ? "wt-single-entry" : ""}">
+    ${
+      meta.length > 1
+        ? `
     <nav class="wt-toc" aria-label="${labels.tableOfContents}">
       <h2>${labels.tableOfContents}</h2>
       <ul id="wt-toc-list">${toc}</ul>
-    </nav>
+    </nav>`
+        : ""
+    }
     <div class="wt-list" id="wt-list" aria-label="entries">
       <div class="wt-list-inner" id="wt-list-inner"></div>
     </div>
@@ -450,9 +493,27 @@ export function buildApiExchangesHtmlTail(labels: ApiExchangeHtmlExportLabels): 
       container.appendChild(box);
     }
 
+    function renderCollapsibleHeaders(container, title, pairs) {
+      const details = el("details", "wt-details");
+      const count = (pairs && pairs.length) ? pairs.length : 0;
+      const summary = el("summary", "wt-summary");
+      const titleSpan = el("span", "wt-sec-title", title);
+      summary.appendChild(titleSpan);
+      const countBadge = el("span", "wt-badge", "(" + count + ")");
+      summary.appendChild(countBadge);
+      details.appendChild(summary);
+
+      renderHeaders(details, pairs);
+      container.appendChild(details);
+    }
+
     function renderBodySection(container, title, body) {
       if (!body) return;
       container.appendChild(el("h4", "wt-sec-title", title));
+      const titleEl = container.lastElementChild;
+      if (titleEl) {
+        titleEl.style.margin = "0 0 6px";
+      }
       container.appendChild(el("pre", null, body));
     }
 
@@ -510,11 +571,9 @@ export function buildApiExchangesHtmlTail(labels: ApiExchangeHtmlExportLabels): 
       card.appendChild(meta);
 
       const body = el("div", "wt-card-body");
-      body.appendChild(el("h4", "wt-sec-title", WT_LABELS.requestHeaders));
-      renderHeaders(body, entry.reqHeaders);
+      renderCollapsibleHeaders(body, WT_LABELS.requestHeaders, entry.reqHeaders);
       renderBodySection(body, WT_LABELS.requestBody, entry.reqBody);
-      body.appendChild(el("h4", "wt-sec-title", WT_LABELS.responseHeaders));
-      renderHeaders(body, entry.resHeaders);
+      renderCollapsibleHeaders(body, WT_LABELS.responseHeaders, entry.resHeaders);
       renderBodySection(body, WT_LABELS.responseBody, entry.resBody);
       card.appendChild(body);
       section.appendChild(card);

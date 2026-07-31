@@ -182,6 +182,7 @@ pub(crate) async fn handle_with_logging(
                 .collect(),
         ),
         response_body: res_body_str,
+        has_bodies: body_enabled,
     };
     state.api_log_service.save_log(&entry);
     let _ = state.app_handle.emit("api-log-captured", entry);

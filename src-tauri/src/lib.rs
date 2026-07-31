@@ -93,9 +93,9 @@ use command::mocking_commands::{
 };
 
 use command::api_log_commands::{
-    clear_api_logs, download_api_schema, get_api_logs, get_api_schema_content,
-    get_domain_api_logging_links, list_api_log_dates, remove_domain_api_logging, send_api_request,
-    set_domain_api_logging,
+    clear_api_logs, download_api_schema, get_api_log_detail, get_api_logs, get_api_schema_content,
+    get_domain_api_logging_links, list_api_log_dates, remove_domain_api_logging, search_api_logs,
+    send_api_request, set_domain_api_logging,
 };
 use command::domain_commands::{
     clear_all_domains, get_domain_by_id, get_domains, import_domains, regist_domains,
@@ -186,6 +186,8 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_proxy_auto_start_error,
             list_api_log_dates,
             get_api_logs,
+            get_api_log_detail,
+            search_api_logs,
             clear_api_logs,
             open_window,
             open_external_url,

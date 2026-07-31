@@ -412,11 +412,8 @@ pub fn create_mock_rule_from_log(
 }
 
 pub fn create_mock_rule_from_log_svc(payload: CreateMockFromLogPayload, log_service: &ApiLogService, mock_service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
-    let logs = log_service.get_logs(&payload.log_date, None, None, None, false);
-
-    let log = logs
-        .into_iter()
-        .find(|l| l.id == payload.log_id)
+    let log = log_service
+        .get_log_by_id(&payload.log_id, Some(&payload.log_date))
         .ok_or_else(|| {
             "오늘 발생한 로그 중 해당 ID를 찾을 수 없습니다. (로그 날짜 불일치 가능성)".to_string()
         })?;

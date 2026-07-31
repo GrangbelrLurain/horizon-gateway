@@ -1,8 +1,10 @@
+import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
 import { RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
+import { fetchApiLogDetail } from "@/entities/domain-api-logging";
 import {
   ApiLogsBulkExportBar,
   apiLogEntryToCopyInput,
@@ -62,9 +64,39 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
 
   useEffect(() => {
     void fetchLogs();
-    const interval = setInterval(fetchLogs, 10000);
-    return () => clearInterval(interval);
   }, [fetchLogs]);
+
+  useEffect(() => {
+    const unlisten = listen<ApiLogEntry>("api-log-captured", (event) => {
+      const entry = event.payload;
+      if (!entry.host.includes(host) && entry.host !== host) {
+        return;
+      }
+      setLogs((prev) => {
+        if (prev.some((l) => l.id === entry.id)) {
+          return prev;
+        }
+        const stub: ApiLogEntry = {
+          ...entry,
+          request_headers: null,
+          request_body: null,
+          response_headers: null,
+          response_body: null,
+          has_bodies: Boolean(
+            entry.has_bodies ||
+              entry.request_body ||
+              entry.response_body ||
+              entry.request_headers ||
+              entry.response_headers,
+          ),
+        };
+        return [stub, ...prev];
+      });
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [host]);
 
   const filteredLogs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -123,12 +155,15 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   }, [lastSavedPath]);
 
   const handleDownloadSelectedHtml = useCallback(async () => {
-    const selected = filteredLogs.filter((log) => selectedLogIds.has(log.id));
-    if (selected.length === 0) {
+    const selectedIds = filteredLogs.filter((log) => selectedLogIds.has(log.id)).map((l) => l.id);
+    if (selectedIds.length === 0) {
       return;
     }
     const today = new Date().toISOString().split("T")[0];
-    const inputs = selected.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
+    const details = (await Promise.all(selectedIds.map((id) => fetchApiLogDetail(id, today)))).filter(
+      (l): l is ApiLogEntry => l != null,
+    );
+    const inputs = details.map((log) => apiLogEntryToCopyInput(log, copyFieldLabels));
     try {
       const result = await downloadApiExchangesHtml(
         inputs,
@@ -146,7 +181,7 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
           generatedBy: t.apiLogsExportGeneratedBy,
           jumpToEntry: t.apiLogsExportJumpToEntry,
         },
-        `horizon-gateway-api-logs-${host}-${today}-${selected.length}.html`,
+        `horizon-gateway-api-logs-${host}-${today}-${details.length}.html`,
       );
       if (result.status !== "saved") {
         return;
@@ -265,8 +300,17 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
           {filteredLogs.map((log) => (
             <div
               key={log.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectLog(log.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectLog(log.id);
+                }
+              }}
               className={clsx(
-                "w-full flex items-center gap-2 px-2 py-2 rounded-lg border transition-colors",
+                "w-full flex items-center gap-2 px-2 py-2 rounded-lg border transition-colors cursor-pointer",
                 selectedLogId === log.id ? "bg-primary/10 border-primary/30" : "border-transparent hover:bg-base-200",
               )}
             >
@@ -274,28 +318,23 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
                 type="checkbox"
                 className="checkbox checkbox-xs checkbox-primary shrink-0"
                 checked={selectedLogIds.has(log.id)}
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => handleToggleSelect(log.id, e.target.checked)}
                 aria-label={`Select ${log.method} ${log.path}`}
               />
-              <button
-                type="button"
-                onClick={() => onSelectLog(log.id)}
-                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
+              <span className="text-[10px] font-mono truncate flex-1 min-w-0">{log.path}</span>
+              <span
+                className={clsx(
+                  "text-[9px] font-bold shrink-0",
+                  (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
+                )}
               >
-                <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
-                <span className="text-[10px] font-mono truncate flex-1">{log.path}</span>
-                <span
-                  className={clsx(
-                    "text-[9px] font-bold shrink-0",
-                    (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
-                  )}
-                >
-                  {log.status_code ?? "-"}
-                </span>
-                <span className="text-[9px] text-base-content/30 shrink-0">
-                  {new Date(log.timestamp).toLocaleTimeString()}
-                </span>
-              </button>
+                {log.status_code ?? "-"}
+              </span>
+              <span className="text-[9px] text-base-content/30 shrink-0">
+                {new Date(log.timestamp).toLocaleTimeString()}
+              </span>
             </div>
           ))}
         </div>

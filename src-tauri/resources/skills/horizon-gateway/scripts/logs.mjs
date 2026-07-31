@@ -47,20 +47,53 @@ function getHorizonGatewayLogsDir() {
   return path.join(xdgData, appId, 'api_logs');
 }
 
+function loadBodySidecar(logsDir, date, id) {
+  const bodyPath = path.join(logsDir, 'bodies', date, `${id}.json`);
+  if (!fs.existsSync(bodyPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(bodyPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function hydrateEntry(logsDir, date, entry, needBodies) {
+  if (!needBodies) return entry;
+  if (entry.request_body != null || entry.response_body != null) return entry;
+  const body = loadBodySidecar(logsDir, date, entry.id);
+  if (!body) return entry;
+  return {
+    ...entry,
+    request_headers: body.request_headers ?? entry.request_headers ?? null,
+    request_body: body.request_body ?? entry.request_body ?? null,
+    response_headers: body.response_headers ?? entry.response_headers ?? null,
+    response_body: body.response_body ?? entry.response_body ?? null,
+  };
+}
+
 const logsDir = getHorizonGatewayLogsDir();
 if (!logsDir) {
   console.error(JSON.stringify({ error: 'Could not resolve Horizon Gateway app data directory.' }, null, 2));
   process.exit(1);
 }
 
-const logFile = path.join(logsDir, `${options.date}.jsonl`);
+const metaFile = path.join(logsDir, `${options.date}.meta.jsonl`);
+const legacyFile = path.join(logsDir, `${options.date}.jsonl`);
+const logFile = fs.existsSync(metaFile) ? metaFile : legacyFile;
 
 if (!fs.existsSync(logFile)) {
-  console.error(JSON.stringify({ error: `Log file for date ${options.date} not found at ${logFile}` }, null, 2));
+  console.error(JSON.stringify({ error: `Log file for date ${options.date} not found at ${metaFile} or ${legacyFile}` }, null, 2));
   process.exit(1);
 }
 
 const requestedFields = options.fields.split(',').map((f) => f.trim());
+const needBodies =
+  Boolean(options.search) ||
+  Boolean(options.id) ||
+  requestedFields.some((f) =>
+    ['request_body', 'response_body', 'request_headers', 'response_headers'].includes(f),
+  );
+
 const fileStream = fs.createReadStream(logFile);
 const rl = readline.createInterface({
   input: fileStream,
@@ -81,7 +114,8 @@ rl.on('line', (line) => {
   totalScanned++;
 
   try {
-    const entry = JSON.parse(line);
+    let entry = JSON.parse(line);
+    entry = hydrateEntry(logsDir, options.date, entry, needBodies);
 
     if (options.id) {
       if (entry.id === options.id) {
@@ -155,6 +189,7 @@ rl.on('close', () => {
   const projectedLogs = slicedLogs.map((entry) => {
     const projected = {};
     for (const field of requestedFields) {
+      if (!(field in entry) && field !== 'has_bodies') continue;
       if (!(field in entry)) continue;
 
       let val = entry[field];
@@ -177,6 +212,7 @@ rl.on('close', () => {
         limit: options.limit,
         resultsCount: projectedLogs.length,
         totalMatchingCount: options.id ? projectedLogs.length : matchedLogs.length,
+        source: fs.existsSync(metaFile) ? 'meta.jsonl' : 'legacy.jsonl',
         logs: projectedLogs,
       },
       null,
