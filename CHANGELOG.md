@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.1] - 2026-08-01
+
+### Added
+
+- **API log body search**: Free-text search over request/response bodies via daily SQLite FTS5 sidecars, with progressive hit events for the logs UI.
+- **Adaptive param indexing**: `key=value` body scans learn unknown query/body keys into `indexed_params.json` and backfill the param index for faster later lookups.
+
+### Changed
+
+- **API log storage split**: Daily storage now separates lightweight meta (`.meta.jsonl`) from per-entry body files, with list/detail APIs and legacy `.jsonl` dual-read for compatibility.
+- **API log list UX**: Domain and overview log panels refresh from `api-log-captured` events instead of polling; row clicks hydrate full detail on demand.
+- **Proxy connection map filters**: Group chips, route status filters (active/inactive/unrouted), and persisted search on the proxy graph view.
+- **Domain API logs navigation**: Opening "API logs" from the domain overview/API panel stacks into the right-hand panel column instead of the full-screen global surface.
+
+### Performance
+
+- **Today meta cache & write path**: In-memory cache for today's summaries, per-date write locks, body size caps, and pass-through traffic that no longer writes disk logs when logging is off.
+
 ## [v2.6.0] - 2026-07-23
 
 ### Added

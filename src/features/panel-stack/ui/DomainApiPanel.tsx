@@ -1,6 +1,6 @@
 import clsx from "clsx";
-import { useAtomValue, useSetAtom } from "jotai";
-import { FileText, FlaskConical, History, Wifi } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { FileText, FlaskConical, Wifi } from "lucide-react";
 import { languageAtom } from "@/entities/app";
 import type { Domain } from "@/shared/api";
 import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
@@ -8,7 +8,6 @@ import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
-import { hubApiLogsHostSeedAtom } from "../store";
 import type { PanelId } from "../types";
 import { FeaturePanelToggle } from "./FeaturePanelToggle";
 import { Panel } from "./Panel";
@@ -24,7 +23,6 @@ export function DomainApiPanel({ domain, onClose, onOpenPanel, activeSection }: 
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
-  const setApiLogsHostSeed = useSetAtom(hubApiLogsHostSeedAtom);
   const { getFeatureState, getDomainHost, proxyActive, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
@@ -36,8 +34,7 @@ export function DomainApiPanel({ domain, onClose, onOpenPanel, activeSection }: 
   });
   const host = getDomainHost(domain);
 
-  const logSections: { id: PanelId; label: string; icon: React.ReactNode }[] = [
-    { id: "api/logs", label: t.apiLogs, icon: <History className="w-4 h-4" /> },
+  const sections: { id: PanelId; label: string; icon: React.ReactNode }[] = [
     { id: "api/schema", label: t.apiSchema, icon: <FileText className="w-4 h-4" /> },
   ];
 
@@ -62,11 +59,13 @@ export function DomainApiPanel({ domain, onClose, onOpenPanel, activeSection }: 
       <div className="space-y-1 mb-4">
         <button
           type="button"
-          onClick={() => {
-            setApiLogsHostSeed(host);
-            nav.openGlobalSurface("global/api-logs");
-          }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all hover:bg-base-200 border border-transparent"
+          onClick={() => onOpenPanel("api/logs")}
+          className={clsx(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all border",
+            activeSection === "api/logs"
+              ? "bg-primary/15 border-primary/30 text-primary"
+              : "hover:bg-base-200 border-transparent",
+          )}
         >
           <Wifi className="w-4 h-4 text-base-content/50" />
           <span className="text-xs font-bold">{t.openApiPanel}</span>
@@ -88,7 +87,7 @@ export function DomainApiPanel({ domain, onClose, onOpenPanel, activeSection }: 
           <p className="text-[10px] font-black uppercase tracking-widest text-base-content/40 mb-2">
             {t.apiSelectSection}
           </p>
-          {logSections.map((s) => (
+          {sections.map((s) => (
             <button
               key={s.id}
               type="button"

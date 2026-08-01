@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import {
   Activity,
   ArrowRight,
@@ -24,7 +24,6 @@ import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
-import { hubApiLogsHostSeedAtom } from "../store";
 import type { HubSurfaceId, PanelId } from "../types";
 import { Panel } from "./Panel";
 
@@ -44,7 +43,6 @@ export function DomainOverviewPanel({
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
-  const setApiLogsHostSeed = useSetAtom(hubApiLogsHostSeedAtom);
   const { getFeatureState, getGroupName, proxyActive, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
@@ -173,9 +171,17 @@ export function DomainOverviewPanel({
             </div>
 
             <div className="pl-11 space-y-1.5">
-              {renderOpenGlobalLink("global/api-logs", t.openApiPanel, <Wifi className="w-3.5 h-3.5" />, () =>
-                setApiLogsHostSeed(displayHost),
-              )}
+              <button
+                type="button"
+                onClick={() => onOpenPanel("api/logs")}
+                className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left hover:bg-base-200/60"
+              >
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-3.5 h-3.5 text-base-content/50" />
+                  <span className="font-bold">{t.openApiPanel}</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
+              </button>
             </div>
 
             <div className="pl-11 pt-1">
