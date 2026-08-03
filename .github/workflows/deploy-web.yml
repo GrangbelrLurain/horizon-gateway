@@ -26,6 +26,7 @@ jobs:
     # Run only if pushed directly or if the Release workflow succeeded
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    environment: github-pages
     permissions:
       contents: read
       deployments: write
