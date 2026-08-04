@@ -140,6 +140,10 @@ pub(crate) fn try_mock_response(
             HeaderValue::from_static("*"),
         );
         headers.insert(
+            header::ACCESS_CONTROL_EXPOSE_HEADERS,
+            HeaderValue::from_static("x-mocked-by, x-mock-rule-id, x-mock-rule-name"),
+        );
+        headers.insert(
             header::HeaderName::from_static("x-mocked-by"),
             HeaderValue::from_static("horizon-gateway"),
         );

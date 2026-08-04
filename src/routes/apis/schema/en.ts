@@ -66,4 +66,6 @@ export const en = {
   downloadSuccess: (size: string) => `Downloaded ${size} bytes successfully`,
   downloadFailed: (msg: string) => `Download failed: ${msg}`,
   schemaSaved: "Schema URL saved.",
+  apiBodyLogging: "Record HTTP Bodies (Request/Response)",
+  apiBodyLoggingDesc: "Save request and response bodies when logging API traffic. Requires API logging to be enabled.",
 };

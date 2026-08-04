@@ -73,4 +73,6 @@ export const ko: TranslationSchema = {
   downloadSuccess: (size: string) => `${size} 바이트 다운로드 완료`,
   downloadFailed: (msg: string) => `다운로드 실패: ${msg}`,
   schemaSaved: "스키마 URL이 저장되었습니다.",
+  apiBodyLogging: "요청/응답 본문(Body) 기록",
+  apiBodyLoggingDesc: "API 트래픽 로깅 시 요청 및 응답 본문을 저장합니다. API 로깅이 활성화된 상태여야 합니다.",
 };

@@ -82,6 +82,15 @@ function normalizeUrl(urlStr: string): { host: string; path: string } {
   }
 }
 
+function isInternalWatchtowerUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr, window.location.href);
+    return url.pathname.startsWith("/.horizon-gateway/");
+  } catch (_e) {
+    return false;
+  }
+}
+
 export function InjectionApp() {
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
@@ -109,6 +118,7 @@ export function InjectionApp() {
   }>({ proxy: false, proxyCount: 0, mocking: false, mockCount: 0, logging: true, inspector: false });
   const [isListOpen, setIsListOpen] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
+  const [mockedRequestCount, setMockedRequestCount] = useState(0);
 
   const fetchAnnotations = useCallback(() => {
     fetch("/.horizon-gateway/api/annotations")
@@ -150,6 +160,69 @@ export function InjectionApp() {
     fetchAnnotations();
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchAnnotations]);
+
+  useEffect(() => {
+    const originalFetch = window.fetch.bind(window);
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+
+    const markMockedResponse = (urlStr: string, headers: Headers | XMLHttpRequest) => {
+      if (isInternalWatchtowerUrl(urlStr)) {
+        return;
+      }
+
+      const mockedBy =
+        headers instanceof Headers ? headers.get("x-mocked-by") : headers.getResponseHeader("x-mocked-by");
+
+      if (!mockedBy) {
+        return;
+      }
+
+      setMockedRequestCount((prev) => prev + 1);
+    };
+
+    const patchedFetch = (async (...args: Parameters<typeof window.fetch>) => {
+      const response = await originalFetch(...args);
+      const request = args[0];
+      const urlStr = request instanceof Request ? request.url : String(request);
+      markMockedResponse(urlStr, response.headers);
+      return response;
+    }) as typeof window.fetch;
+    Object.assign(patchedFetch, originalFetch);
+    window.fetch = patchedFetch;
+
+    XMLHttpRequest.prototype.open = function (
+      method: string,
+      url: string | URL,
+      async?: boolean,
+      username?: string | null,
+      password?: string | null,
+    ) {
+      (this as XMLHttpRequest & { __wtRequestUrl?: string }).__wtRequestUrl = String(url);
+      return originalOpen.call(this, method, url, async ?? true, username ?? undefined, password ?? undefined);
+    };
+
+    XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
+      this.addEventListener(
+        "loadend",
+        () => {
+          const urlStr = (this as XMLHttpRequest & { __wtRequestUrl?: string }).__wtRequestUrl ?? this.responseURL;
+          if (!urlStr) {
+            return;
+          }
+          markMockedResponse(urlStr, this);
+        },
+        { once: true },
+      );
+      return originalSend.call(this, body);
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+      XMLHttpRequest.prototype.open = originalOpen;
+      XMLHttpRequest.prototype.send = originalSend;
+    };
+  }, []);
 
   // --- Strict Matching Logic (Host + Pathname) ---
   const currentPagePolicies = useMemo(() => {
@@ -421,9 +494,9 @@ export function InjectionApp() {
                   label={status.proxy && (status.proxyCount ?? 0) > 0 ? `PRX (${status.proxyCount})` : "PRX"}
                 />
                 <StatusDot
-                  active={status.mocking}
+                  active={mockedRequestCount > 0}
                   color="#f59e0b"
-                  label={status.mocking && (status.mockCount ?? 0) > 0 ? `MCK (${status.mockCount})` : "MCK"}
+                  label={mockedRequestCount > 0 ? `MCK (${mockedRequestCount})` : "MCK"}
                 />
                 <StatusDot active={status.logging} color="#3b82f6" label="LOG" />
                 <StatusDot active={showPolicyBadges} color="#ec4899" label="GUIDE" />

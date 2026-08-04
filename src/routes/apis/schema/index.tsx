@@ -909,6 +909,7 @@ export function ApiSchemaPage({
   const [savingSchema, setSavingSchema] = useState(false);
   const [downloadingSchema, setDownloadingSchema] = useState(false);
   const [schemaActionMessage, setSchemaActionMessage] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [savingBody, setSavingBody] = useState(false);
 
   useEffect(() => {
     setSchemaUrlInput(currentLink?.schemaUrl ?? "");
@@ -967,6 +968,31 @@ export function ApiSchemaPage({
       setSavingSchema(false);
     }
   }, [selectedDomainId, currentLink, schemaUrlInput, t]);
+
+  const handleToggleBody = useCallback(async () => {
+    if (selectedDomainId === null) {
+      return;
+    }
+    setSavingBody(true);
+    try {
+      await commands
+        .setDomainApiLogging({
+          domainId: selectedDomainId,
+          loggingEnabled: currentLink?.loggingEnabled ?? true,
+          bodyEnabled: !(currentLink?.bodyEnabled ?? false),
+          schemaUrl: currentLink?.schemaUrl ?? null,
+        })
+        .then(unwrap);
+      const res = await commands.getDomainApiLoggingLinks().then(unwrap);
+      if (res.success) {
+        setLinks(res.data ?? []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingBody(false);
+    }
+  }, [selectedDomainId, currentLink, setLinks]);
 
   const handleDownloadSchema = useCallback(async () => {
     if (selectedDomainId === null) {
@@ -1291,6 +1317,27 @@ export function ApiSchemaPage({
                 )}
               </Card>
             )}
+
+            {selectedDomainId && (
+              <Card className="p-6 bg-base-100 border-base-300 shadow-xl rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-base-content">{t.apiBodyLogging}</span>
+                  {savingBody ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                  ) : (
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary toggle-sm shrink-0"
+                      checked={currentLink?.bodyEnabled ?? false}
+                      onChange={handleToggleBody}
+                      disabled={!(currentLink?.loggingEnabled ?? false)}
+                    />
+                  )}
+                </div>
+                <p className="text-xs text-base-content/50 mt-1">{t.apiBodyLoggingDesc}</p>
+              </Card>
+            )}
+
             <SchemaOptionsPanel />
           </div>
         )}

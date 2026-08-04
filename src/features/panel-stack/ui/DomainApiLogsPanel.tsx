@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
-import { RefreshCw, Search } from "lucide-react";
+import { Loader2, RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import { fetchApiLogDetail } from "@/entities/domain-api-logging";
@@ -17,6 +17,7 @@ import { offerRevealSavedDownload } from "@/shared/lib/tauri/offerRevealSavedDow
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { LoadingScreen } from "@/shared/ui/loader/LoadingScreen";
+import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
@@ -36,8 +37,16 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const { show: showModal } = usePromiseModal();
-  const { getDomainHost } = useDomainHubData();
+  const { getDomainHost, getFeatureState, proxyActive, fetchAll: fetchHubData } = useDomainHubData();
   const host = getDomainHost(domain);
+  const featureState = getFeatureState(domain.id);
+  const toggles = useDomainFeatureToggles({
+    domainId: domain.id,
+    domainUrl: domain.url,
+    state: featureState,
+    proxyActive,
+    onRefresh: fetchHubData,
+  });
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useAtom(domainApiLogsSearchAtom);
@@ -227,6 +236,21 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
           >
             <RefreshCw className={clsx("w-3.5 h-3.5", loading && "animate-spin")} />
           </Button>
+          {toggles.api.checked && (
+            <label className="flex items-center gap-1.5 px-2.5 h-8 bg-base-200/50 hover:bg-base-200 rounded-lg text-xs font-bold text-base-content/70 cursor-pointer shrink-0 select-none transition-colors border border-base-300/40">
+              <span className="whitespace-nowrap">{t.apiBodyLogging}</span>
+              {toggles.api.bodyLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+              ) : (
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary toggle-xs shrink-0"
+                  checked={toggles.api.bodyChecked ?? false}
+                  onChange={(e) => toggles.api.toggleBody(e.target.checked)}
+                />
+              )}
+            </label>
+          )}
         </div>
         <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
           {METHODS.map((method) => (
