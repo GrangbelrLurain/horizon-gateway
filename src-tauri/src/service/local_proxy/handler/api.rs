@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
 use crate::model::inspector::Annotation;
+use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
 
 use super::super::reserved::{serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX};
 use super::super::state::ProxyState;
@@ -75,11 +76,27 @@ pub(crate) async fn try_handle_api(
     }
 
     if clean_path == "/.horizon-gateway/api/status" {
-        let mocking_enabled = state.mocking_service.get_settings().enabled;
+        let mocking_settings_enabled = state.mocking_service.get_settings().enabled;
+        let mocking_enabled = mocking_settings_enabled && is_mocking_enabled();
+        let mock_rules = state.mocking_service.get_mock_rules();
+        let active_mock_count = if mocking_enabled {
+            mock_rules.iter().filter(|r| r.enabled).count()
+        } else {
+            0
+        };
+
+        let active_routes = state.route_service.get_enabled();
+        let proxy_active = is_local_routing_enabled() && !active_routes.is_empty();
+        let logging_enabled = is_local_routing_enabled();
+        let inspector_enabled = is_inspector_enabled();
+
         let json = serde_json::json!({
-            "proxy": true,
+            "proxy": proxy_active,
+            "proxyCount": active_routes.len(),
             "mocking": mocking_enabled,
-            "logging": true
+            "mockCount": active_mock_count,
+            "logging": logging_enabled,
+            "inspector": inspector_enabled
         });
         return Ok((
             StatusCode::OK,

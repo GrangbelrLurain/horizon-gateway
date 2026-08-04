@@ -99,7 +99,14 @@ export function InjectionApp() {
   const [description, setDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [allAnnotations, setAnnotations] = useState<Annotation[]>([]);
-  const [status, setStatus] = useState({ proxy: true, mocking: false, logging: true });
+  const [status, setStatus] = useState<{
+    proxy: boolean;
+    proxyCount?: number;
+    mocking: boolean;
+    mockCount?: number;
+    logging: boolean;
+    inspector?: boolean;
+  }>({ proxy: false, proxyCount: 0, mocking: false, mockCount: 0, logging: true, inspector: false });
   const [isListOpen, setIsListOpen] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
 
@@ -111,6 +118,21 @@ export function InjectionApp() {
       })
       .catch(() => {});
   }, []);
+
+  const fetchStatus = useCallback(() => {
+    fetch("/.horizon-gateway/api/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setStatus((prev) => ({ ...prev, ...data }));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchStatus();
+    const statusInterval = setInterval(fetchStatus, 2500);
+    return () => clearInterval(statusInterval);
+  }, [fetchStatus]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -363,26 +385,47 @@ export function InjectionApp() {
                   setIsMenuOpen(!isMenuOpen);
                 }
               }}
+              title="Watchtower"
               style={{
                 cursor: "pointer",
                 width: "32px",
                 height: "32px",
-                backgroundColor: isInspectMode ? "#3b82f6" : "rgba(255,255,255,0.1)",
+                backgroundColor: isInspectMode ? "rgba(59, 130, 246, 0.25)" : "rgba(255,255,255,0.08)",
+                border: isInspectMode ? "1px solid #3b82f6" : "1px solid rgba(255,255,255,0.15)",
+                boxShadow: isInspectMode ? "0 0 10px rgba(59, 130, 246, 0.5)" : "none",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "14px",
-                fontWeight: "900",
                 userSelect: "none",
+                transition: "all 0.2s ease-in-out",
+                flexShrink: 0,
               }}
             >
-              {isMenuOpen ? "⋮" : "W"}
+              <img
+                src="/.horizon-gateway/logo.svg"
+                alt="Watchtower Logo"
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  pointerEvents: "none",
+                  display: "block",
+                }}
+              />
             </div>
             {!isMenuOpen && (
-              <div style={{ display: "flex", gap: "4px", padding: "0 8px", userSelect: "none" }}>
-                <StatusDot active={status.proxy} color="#10b981" label="PRX" />
-                <StatusDot active={status.mocking} color="#f59e0b" label="MCK" />
+              <div style={{ display: "flex", gap: "6px", padding: "0 8px", userSelect: "none", alignItems: "center" }}>
+                <StatusDot
+                  active={status.proxy}
+                  color="#10b981"
+                  label={status.proxy && (status.proxyCount ?? 0) > 0 ? `PRX (${status.proxyCount})` : "PRX"}
+                />
+                <StatusDot
+                  active={status.mocking}
+                  color="#f59e0b"
+                  label={status.mocking && (status.mockCount ?? 0) > 0 ? `MCK (${status.mockCount})` : "MCK"}
+                />
+                <StatusDot active={status.logging} color="#3b82f6" label="LOG" />
                 <StatusDot active={showPolicyBadges} color="#ec4899" label="GUIDE" />
               </div>
             )}
@@ -838,7 +881,17 @@ function PolicyBadge({
 
 function StatusDot({ active, color, label }: { active: boolean; color: string; label: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "4px", opacity: active ? 1 : 0.25 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        opacity: active ? 1 : 0.3,
+        transition: "opacity 0.2s ease-in-out",
+        whiteSpace: "nowrap",
+      }}
+      title={label}
+    >
       <div
         style={{
           width: "6px",
@@ -846,9 +899,10 @@ function StatusDot({ active, color, label }: { active: boolean; color: string; l
           borderRadius: "50%",
           backgroundColor: color,
           boxShadow: active ? `0 0 8px ${color}` : "none",
+          flexShrink: 0,
         }}
       />
-      <span style={{ fontSize: "9px", fontWeight: "800", color: "white" }}>{label}</span>
+      <span style={{ fontSize: "9px", fontWeight: "800", color: "white", letterSpacing: "0.2px" }}>{label}</span>
     </div>
   );
 }

@@ -232,6 +232,20 @@ impl MockingService {
             .collect()
     }
 
+fn sanitize_headers(mut headers: std::collections::HashMap<String, String>) -> std::collections::HashMap<String, String> {
+    headers.retain(|k, _| {
+        let k_lower = k.trim().to_lowercase();
+        k_lower != "content-encoding"
+            && k_lower != "content-length"
+            && k_lower != "transfer-encoding"
+            && k_lower != "connection"
+            && k_lower != "keep-alive"
+            && k_lower != "content-range"
+            && k_lower != "accept-ranges"
+    });
+    headers
+}
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_mock_rule(
         &self,
@@ -257,7 +271,7 @@ impl MockingService {
             method: method.to_uppercase(),
             url_pattern,
             response_status,
-            response_headers,
+            response_headers: Self::sanitize_headers(response_headers),
             response_body,
             enabled,
         };
@@ -299,7 +313,7 @@ impl MockingService {
                     r.response_status = status;
                 }
                 if let Some(headers) = response_headers.clone() {
-                    r.response_headers = headers;
+                    r.response_headers = Self::sanitize_headers(headers);
                 }
                 if response_body.is_some() {
                     r.response_body.clone_from(&response_body);

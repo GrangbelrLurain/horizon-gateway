@@ -82,6 +82,7 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
           request_body: null,
           response_headers: null,
           response_body: null,
+          is_mocked: entry.is_mocked,
           has_bodies: Boolean(
             entry.has_bodies ||
               entry.request_body ||
@@ -324,6 +325,17 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
               />
               <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
               <span className="text-[10px] font-mono truncate flex-1 min-w-0">{log.path}</span>
+              {Boolean(
+                log.is_mocked ||
+                  (log.response_headers &&
+                    Object.keys(log.response_headers).some(
+                      (k) => k.toLowerCase() === "x-mocked-by" || k.toLowerCase() === "x-mock-rule-id",
+                    )),
+              ) && (
+                <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+                  MOCK
+                </span>
+              )}
               <span
                 className={clsx(
                   "text-[9px] font-bold shrink-0",

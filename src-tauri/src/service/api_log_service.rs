@@ -109,6 +109,7 @@ impl ApiLogService {
             path: index_entry.path.clone(),
             status_code: index_entry.status_code,
             has_bodies: has_payload,
+            is_mocked: index_entry.is_mocked,
         };
 
         let meta_path = self.log_dir.join(format!("{date_str}.meta.jsonl"));
@@ -786,6 +787,7 @@ fn search_fts(
                     url: row.get::<_, String>(5).unwrap_or_default(),
                     status_code: row.get::<_, Option<i64>>(6)?.map(|v| v as u16),
                     has_bodies: row.get::<_, i64>(7)? != 0,
+                    is_mocked: false,
                 },
                 row.get::<_, Option<String>>(8)?,
             ))
@@ -868,6 +870,7 @@ fn search_param_index(
                     url: row.get::<_, String>(5).unwrap_or_default(),
                     status_code: row.get::<_, Option<i64>>(6)?.map(|v| v as u16),
                     has_bodies: row.get::<_, i64>(7)? != 0,
+                    is_mocked: false,
                 },
                 row.get::<_, String>(8)?,
             ))

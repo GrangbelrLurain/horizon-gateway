@@ -622,7 +622,17 @@ function LiveCapturePage() {
                           {log.method}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[11px] font-bold truncate text-base-content/80">{log.path}</div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[11px] font-bold truncate text-base-content/80">{log.path}</span>
+                            {log.response_headers &&
+                              Object.keys(log.response_headers).some(
+                                (k) => k.toLowerCase() === "x-mocked-by" || k.toLowerCase() === "x-mock-rule-id",
+                              ) && (
+                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+                                  MOCK
+                                </span>
+                              )}
+                          </div>
                           <div className="text-[9px] text-base-content/40 font-mono mt-0.5">
                             {new Date(log.timestamp).toLocaleTimeString()}
                           </div>

@@ -422,7 +422,17 @@ pub fn create_mock_rule_from_log_svc(payload: CreateMockFromLogPayload, log_serv
     let host = Some(log.host.clone());
     let url_pattern = log.path.clone();
     let response_status = log.status_code.unwrap_or(200);
-    let response_headers = log.response_headers.unwrap_or_default();
+    let mut response_headers = log.response_headers.unwrap_or_default();
+    response_headers.retain(|k, _| {
+        let k_lower = k.trim().to_lowercase();
+        k_lower != "content-encoding"
+            && k_lower != "content-length"
+            && k_lower != "transfer-encoding"
+            && k_lower != "connection"
+            && k_lower != "keep-alive"
+            && k_lower != "content-range"
+            && k_lower != "accept-ranges"
+    });
     let response_body = log.response_body.clone();
 
     let rule = mock_service.create_mock_rule(

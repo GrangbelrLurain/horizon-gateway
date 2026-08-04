@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::http::{header, HeaderMap, HeaderValue};
 
-use crate::service::local_proxy::flags::is_inspector_enabled;
+use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
 
 use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
@@ -60,7 +60,9 @@ pub(crate) fn inject_inspector_script(mut body: Vec<u8>) -> Vec<u8> {
 }
 
 pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> bool {
-    if !is_inspector_enabled() {
+    let mocking_enabled = state.mocking_service.get_settings().enabled || is_mocking_enabled();
+    let is_active = is_inspector_enabled() || mocking_enabled || is_local_routing_enabled();
+    if !is_active {
         return false;
     }
     let domains = state.inspector_service.get_injection_domains();

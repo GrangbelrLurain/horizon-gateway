@@ -169,6 +169,7 @@ export type ApiLogEntry = {
 	response_body: string | null,
 	/**  Present on list responses; true when a body sidecar exists (or legacy entry had bodies). */
 	has_bodies?: boolean,
+	is_mocked?: boolean,
 };
 
 export type ApiLogSearchHit = {
@@ -187,6 +188,7 @@ export type ApiLogSummary = {
 	path: string,
 	status_code: number | null,
 	has_bodies: boolean,
+	is_mocked?: boolean,
 };
 
 export type ApiRequestResult = {

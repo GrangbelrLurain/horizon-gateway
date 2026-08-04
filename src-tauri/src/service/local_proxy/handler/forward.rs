@@ -144,6 +144,7 @@ pub(crate) async fn handle_pass_through(
                 response_headers: None,
                 response_body: None,
                 has_bodies: false,
+                is_mocked: false,
             };
             // Logging disabled for this host: skip disk I/O, still notify live-capture UI.
             let _ = state.app_handle.emit("api-log-captured", entry);

@@ -17,6 +17,8 @@ pub struct ApiLogEntry {
     /// Present on list responses; true when a body sidecar exists (or legacy entry had bodies).
     #[serde(default)]
     pub has_bodies: bool,
+    #[serde(default)]
+    pub is_mocked: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
@@ -29,6 +31,8 @@ pub struct ApiLogSummary {
     pub path: String,
     pub status_code: Option<u16>,
     pub has_bodies: bool,
+    #[serde(default)]
+    pub is_mocked: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
@@ -55,6 +59,7 @@ impl ApiLogEntry {
                 || self.response_body.is_some()
                 || self.request_headers.is_some()
                 || self.response_headers.is_some(),
+            is_mocked: self.is_mocked,
         }
     }
 }
@@ -74,6 +79,7 @@ impl ApiLogSummary {
             response_headers: None,
             response_body: None,
             has_bodies: self.has_bodies,
+            is_mocked: self.is_mocked,
         }
     }
 }

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.2] - 2026-08-04
+
+### Added
+
+- **Automatic script injection on active Proxy / Mocking / Logging**: Script injection (`inspector.js`) and the target app status bar widget now automatically run whenever Proxy, Mocking, or Logging is active for a host, eliminating the need to manually toggle the inspector switch.
+
+### Changed
+
+- **HTTPS selective decryption for Mocking**: Expanded `should_decrypt` HTTPS CONNECT tunneling logic to decrypt traffic when Mocking or Logging is enabled for a domain, ensuring HTTPS sites properly inject status bars and apply mock rules.
+- **Accurate Proxy status detection**: Updated `/.horizon-gateway/api/status` to accurately compute `proxy` status based on `is_local_routing_enabled` and active local routes (`proxyCount`), preventing false-positive proxy status indicators.
+- **Injected status bar Branding & UX**: Replaced text toggle ("W" / "⋮") with official Watchtower SVG logo (`/.horizon-gateway/logo.svg`), adding a subtle glow effect during inspect mode for a polished branding experience.
+
 ## [v2.6.1] - 2026-08-01
 
 ### Added

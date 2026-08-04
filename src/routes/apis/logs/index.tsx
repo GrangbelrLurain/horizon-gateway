@@ -122,12 +122,22 @@ const LogRow = React.memo(function LogRowItem({
       </span>
 
       <div className="min-w-0 flex flex-col gap-0.5">
-        <span
-          className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
-          title={entry.url}
-        >
-          {entry.path}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="text-xs tablet:text-sm font-bold text-base-content/80 truncate font-mono tracking-tight"
+            title={entry.url}
+          >
+            {entry.path}
+          </span>
+          {entry.response_headers &&
+            Object.keys(entry.response_headers).some(
+              (k) => k.toLowerCase() === "x-mocked-by" || k.toLowerCase() === "x-mock-rule-id",
+            ) && (
+              <span className="px-1.5 py-0.2 rounded text-[8px] tablet:text-[9px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+                MOCK
+              </span>
+            )}
+        </div>
         <span className="text-[9px] tablet:text-[10px] text-base-content/40 font-bold uppercase truncate tracking-wider">
           {entry.host}
         </span>

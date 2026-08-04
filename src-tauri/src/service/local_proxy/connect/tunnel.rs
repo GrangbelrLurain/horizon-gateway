@@ -13,8 +13,7 @@ pub(crate) fn is_system_connectivity_domain(host: &str) -> bool {
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
-use crate::service::local_proxy::flags::is_inspector_enabled;
-use crate::service::local_proxy::flags::is_local_routing_enabled;
+use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
 
 use super::decrypt::handle_connect_tunnel_decrypted;
 use super::local::handle_connect_tunnel_local;
@@ -47,18 +46,26 @@ pub(crate) async fn handle_connect_tunnel(
         config.is_some_and(|(logging_enabled, _)| logging_enabled)
     };
 
-    // 2. Selective Decryption for Inspector/Injection
+    // 2. Selective Decryption for Inspector/Injection/Mocking/Logging
+    let mocking_enabled = state.mocking_service.get_settings().enabled || is_mocking_enabled();
+    let is_active = is_inspector_enabled() || mocking_enabled || is_local_routing_enabled();
+
     let is_connectivity = is_system_connectivity_domain(&host);
     let should_decrypt = !is_connectivity && (use_api_logging || {
-        if is_inspector_enabled() {
+        if is_active {
             let domains = state.inspector_service.get_injection_domains();
             if domains.is_empty() {
                 true // No domains registered -> Apply globally
             } else {
-                // Match host or subdomains
-                domains
-                    .iter()
-                    .any(|d| host == *d || host.ends_with(&format!(".{d}")))
+                let host_lower = host.to_lowercase();
+                let key_lower = key.to_lowercase();
+                domains.iter().any(|d| {
+                    let d_lower = d.to_lowercase();
+                    host_lower == d_lower
+                        || host_lower.ends_with(&format!(".{d_lower}"))
+                        || key_lower == d_lower
+                        || key_lower.ends_with(&format!(".{d_lower}"))
+                })
             }
         } else {
             false
