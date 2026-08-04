@@ -65,4 +65,12 @@ export const ko: TranslationSchema = {
   tabOptions: "스키마 옵션",
   optionsTitle: "API 스키마 옵션",
   optionsSubtitle: "OpenAPI 스키마에서 엔드포인트를 테스트할 때 편집 가능한 요청 필드를 설정합니다.",
+  schemaUrlLabel: "OpenAPI 스키마 URL",
+  schemaPlaceholder: "https://api.example.com/openapi.json",
+  save: "저장",
+  download: "다운로드",
+  noSchemaDownloadAction: "아래에서 OpenAPI 스키마 URL을 입력하고 다운로드하세요.",
+  downloadSuccess: (size: string) => `${size} 바이트 다운로드 완료`,
+  downloadFailed: (msg: string) => `다운로드 실패: ${msg}`,
+  schemaSaved: "스키마 URL이 저장되었습니다.",
 };

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.3] - 2026-08-04
+
+### Added
+
+- **OpenAPI Schema Management & Inline Download**: Restored the OpenAPI schema URL registration and sync download interface across the Domain Overview panel (`api/schema`) and the Global Schema Explorer (`/apis/schema`). Users can now register, save, and download OpenAPI spec URLs directly from domain cards or empty explorer state cards.
+
+### Changed
+
+- **Domain Overview API Menu Layout**: Unified spacing, icon alignment, and hover effects for `API Logs`, `API Schema`, and `API Mocking` under a cohesive single-column layout in `DomainOverviewPanel`.
+- **Global Schema Explorer Domain Selection & Spacing**: Expanded the target domain dropdown to list all registered API domains (including those without pre-loaded schemas) and added consistent border padding (`p-3 sm:p-4` / `px-4 pb-4`) for embedded surface overlays.
+
 ## [v2.6.2] - 2026-08-04
 
 ### Added

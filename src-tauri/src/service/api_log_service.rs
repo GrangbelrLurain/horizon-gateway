@@ -986,6 +986,7 @@ mod tests {
             response_headers: None,
             response_body: None,
             has_bodies: false,
+            is_mocked: false,
         }
     }
 

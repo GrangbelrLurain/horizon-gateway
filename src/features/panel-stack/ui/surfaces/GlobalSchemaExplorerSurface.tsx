@@ -38,7 +38,7 @@ function GlobalSchemaExplorerSurfaceInner() {
       <div className="px-4 pt-3 shrink-0">
         <HandoffBanner />
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden px-4 pb-4">
         <Suspense fallback={<LoadingScreen />}>
           <ApiSchemaPage />
         </Suspense>

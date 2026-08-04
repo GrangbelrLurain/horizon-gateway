@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Download,
   ExternalLink,
   Globe,
   Loader2,
@@ -902,8 +903,114 @@ export function ApiSchemaPage({
     return m;
   }, [domains]);
 
-  // Domains with schema URLs
-  const schemaLinks = useMemo(() => links.filter((l) => l.schemaUrl), [links]);
+  // Selected domain link info & schema URL state
+  const currentLink = useMemo(() => links.find((l) => l.domainId === selectedDomainId), [links, selectedDomainId]);
+  const [schemaUrlInput, setSchemaUrlInput] = useState(currentLink?.schemaUrl ?? "");
+  const [savingSchema, setSavingSchema] = useState(false);
+  const [downloadingSchema, setDownloadingSchema] = useState(false);
+  const [schemaActionMessage, setSchemaActionMessage] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  useEffect(() => {
+    setSchemaUrlInput(currentLink?.schemaUrl ?? "");
+    setSchemaActionMessage(null);
+  }, [currentLink?.schemaUrl]);
+
+  const loadSchemaForDomain = useCallback(
+    async (domainId: number) => {
+      setSchemaLoading(true);
+      setParseError(null);
+      try {
+        const res = await commands.getApiSchemaContent({ domainId }).then(unwrap);
+        if (res.success && res.data) {
+          const { spec, endpoints, tagGroups: tg } = parseOpenApiSpec(res.data);
+          setParsedSpec(spec);
+          setTagGroups(tg);
+          setAllEndpoints(endpoints);
+        } else {
+          setParsedSpec(null);
+          setTagGroups([]);
+          setAllEndpoints([]);
+          setParseError(t.noSchemaError);
+        }
+      } catch (e) {
+        setParseError(t.parseFailedError(String(e)));
+      } finally {
+        setSchemaLoading(false);
+      }
+    },
+    [t],
+  );
+
+  const handleSaveSchemaUrl = useCallback(async () => {
+    if (selectedDomainId === null) {
+      return;
+    }
+    setSavingSchema(true);
+    setSchemaActionMessage(null);
+    try {
+      await commands
+        .setDomainApiLogging({
+          domainId: selectedDomainId,
+          loggingEnabled: currentLink?.loggingEnabled ?? true,
+          bodyEnabled: currentLink?.bodyEnabled ?? false,
+          schemaUrl: schemaUrlInput.trim() || null,
+        })
+        .then(unwrap);
+      const res = await commands.getDomainApiLoggingLinks().then(unwrap);
+      if (res.success) {
+        setLinks(res.data ?? []);
+      }
+      setSchemaActionMessage({ ok: true, msg: t.schemaSaved });
+    } catch (e) {
+      setSchemaActionMessage({ ok: false, msg: String(e) });
+    } finally {
+      setSavingSchema(false);
+    }
+  }, [selectedDomainId, currentLink, schemaUrlInput, t]);
+
+  const handleDownloadSchema = useCallback(async () => {
+    if (selectedDomainId === null) {
+      return;
+    }
+    const url = schemaUrlInput.trim() || (currentLink?.schemaUrl ?? "").trim();
+    if (!url) {
+      setSchemaActionMessage({ ok: false, msg: t.noSchemaDownloadAction });
+      return;
+    }
+    setDownloadingSchema(true);
+    setSchemaActionMessage(null);
+    try {
+      if (schemaUrlInput.trim() !== (currentLink?.schemaUrl ?? "")) {
+        await commands
+          .setDomainApiLogging({
+            domainId: selectedDomainId,
+            loggingEnabled: currentLink?.loggingEnabled ?? true,
+            bodyEnabled: currentLink?.bodyEnabled ?? false,
+            schemaUrl: url,
+          })
+          .then(unwrap);
+        const lRes = await commands.getDomainApiLoggingLinks().then(unwrap);
+        if (lRes.success) {
+          setLinks(lRes.data ?? []);
+        }
+      }
+
+      const res = await commands.downloadApiSchema({ domainId: selectedDomainId, url }).then(unwrap);
+      if (res.success) {
+        setSchemaActionMessage({
+          ok: true,
+          msg: t.downloadSuccess((res.data.sizeBytes ?? 0).toLocaleString()),
+        });
+        await loadSchemaForDomain(selectedDomainId);
+      } else {
+        setSchemaActionMessage({ ok: false, msg: t.downloadFailed(res.message) });
+      }
+    } catch (e) {
+      setSchemaActionMessage({ ok: false, msg: t.downloadFailed(String(e)) });
+    } finally {
+      setDownloadingSchema(false);
+    }
+  }, [selectedDomainId, schemaUrlInput, currentLink, loadSchemaForDomain, t]);
 
   // Track domain change to prevent reset on remount
   const lastSelectedDomainRef = useRef<number | null>(selectedDomainId);
@@ -930,29 +1037,8 @@ export function ApiSchemaPage({
       setSearch("");
     }
 
-    (async () => {
-      setSchemaLoading(true);
-      setParseError(null);
-      try {
-        const res = await commands.getApiSchemaContent({ domainId: selectedDomainId }).then(unwrap);
-        if (res.success && res.data) {
-          const { spec, endpoints, tagGroups: tg } = parseOpenApiSpec(res.data);
-          setParsedSpec(spec);
-          setTagGroups(tg);
-          setAllEndpoints(endpoints);
-        } else {
-          setParsedSpec(null);
-          setTagGroups([]);
-          setAllEndpoints([]);
-          setParseError(t.noSchemaError);
-        }
-      } catch (e) {
-        setParseError(t.parseFailedError(String(e)));
-      } finally {
-        setSchemaLoading(false);
-      }
-    })();
-  }, [selectedDomainId, setSearch, setSelectedEndpoint, t]);
+    loadSchemaForDomain(selectedDomainId);
+  }, [selectedDomainId, setSearch, setSelectedEndpoint, loadSchemaForDomain]);
 
   useEffect(() => {
     const pending = pendingEndpointMatchRef.current;
@@ -1027,7 +1113,10 @@ export function ApiSchemaPage({
 
   return (
     <div
-      className={clsx("flex flex-col gap-4 overflow-hidden", isEmbedded ? "h-full min-h-0" : "h-[calc(100vh-10rem)]")}
+      className={clsx(
+        "flex flex-col gap-4 overflow-hidden",
+        isEmbedded ? "h-full min-h-0 p-3 sm:p-4" : "h-[calc(100vh-10rem)]",
+      )}
     >
       {!isEmbedded && (
         <header className="shrink-0 flex flex-col md:flex-row md:items-center md:justify-between border-b border-base-200 pb-3">
@@ -1080,11 +1169,12 @@ export function ApiSchemaPage({
                 <option value="" className="bg-base-100">
                   {t.selectDomain}
                 </option>
-                {schemaLinks.map((link) => {
-                  const domain = domainMap.get(link.domainId);
+                {domains.map((domain) => {
+                  const link = links.find((l) => l.domainId === domain.id);
+                  const hasUrl = Boolean(link?.schemaUrl);
                   return (
-                    <option key={link.domainId} value={link.domainId} className="bg-base-100">
-                      {domain?.url ?? `Domain #${link.domainId}`}
+                    <option key={domain.id} value={domain.id} className="bg-base-100">
+                      {domain.url} {hasUrl ? " (OpenAPI)" : ""}
                     </option>
                   );
                 })}
@@ -1152,14 +1242,107 @@ export function ApiSchemaPage({
           </button>
         </div>
 
-        {activeTab === "options" && <SchemaOptionsPanel />}
+        {activeTab === "options" && (
+          <div className="space-y-4 max-w-2xl">
+            {selectedDomainId && (
+              <Card className="p-6 bg-base-100 border-base-300 shadow-xl rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 font-bold text-sm text-base-content">
+                  <Download className="w-4 h-4 text-primary" />
+                  <span>{t.schemaUrlLabel}</span>
+                </div>
+                <p className="text-xs text-base-content/60 leading-relaxed">{t.noSchemaDownloadAction}</p>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={schemaUrlInput}
+                    onChange={(e) => setSchemaUrlInput(e.target.value)}
+                    placeholder={t.schemaPlaceholder}
+                    className="flex-1 h-9 text-xs font-mono bg-base-100 border-base-300"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSaveSchemaUrl}
+                      disabled={savingSchema || !selectedDomainId}
+                    >
+                      {savingSchema ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.save}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleDownloadSchema}
+                      disabled={downloadingSchema || !schemaUrlInput.trim() || !selectedDomainId}
+                    >
+                      {downloadingSchema ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      {t.download}
+                    </Button>
+                  </div>
+                </div>
+                {schemaActionMessage && (
+                  <p className={clsx("text-xs font-bold", schemaActionMessage.ok ? "text-success" : "text-error")}>
+                    {schemaActionMessage.msg}
+                  </p>
+                )}
+              </Card>
+            )}
+            <SchemaOptionsPanel />
+          </div>
+        )}
 
         {activeTab === "endpoints" && (
           <>
-            {/* Parse error */}
+            {/* Parse error & Schema URL Form */}
             {parseError && (
-              <Card className="p-4 bg-red-50 border-red-200">
-                <p className="text-sm text-red-700">{parseError}</p>
+              <Card className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3 shrink-0">
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                  <X className="w-4 h-4 shrink-0" />
+                  <span>{parseError}</span>
+                </div>
+                <p className="text-xs text-base-content/70">{t.noSchemaDownloadAction}</p>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={schemaUrlInput}
+                    onChange={(e) => setSchemaUrlInput(e.target.value)}
+                    placeholder={t.schemaPlaceholder}
+                    className="flex-1 h-9 text-xs font-mono bg-base-100 border-base-300"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleSaveSchemaUrl}
+                      disabled={savingSchema || !selectedDomainId}
+                    >
+                      {savingSchema ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.save}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleDownloadSchema}
+                      disabled={downloadingSchema || !schemaUrlInput.trim() || !selectedDomainId}
+                    >
+                      {downloadingSchema ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      {t.download}
+                    </Button>
+                  </div>
+                </div>
+                {schemaActionMessage && (
+                  <p className={clsx("text-xs font-bold", schemaActionMessage.ok ? "text-success" : "text-error")}>
+                    {schemaActionMessage.msg}
+                  </p>
+                )}
               </Card>
             )}
 
@@ -1227,15 +1410,9 @@ export function ApiSchemaPage({
                 <p className="text-base-content/60 text-xl font-black tracking-tighter uppercase mb-2">
                   {t.chooseDomainToStart}
                 </p>
-                {schemaLinks.length === 0 ? (
-                  <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em] max-w-sm leading-relaxed">
-                    No domains with Schema URL found. Register them in the Dashboard first.
-                  </p>
-                ) : (
-                  <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em]">
-                    {t.registeredDomains(schemaLinks.length)} available
-                  </p>
-                )}
+                <p className="text-base-content/20 text-xs font-black uppercase tracking-[0.2em]">
+                  {t.registeredDomains(domains.length)}
+                </p>
               </Card>
             )}
           </>

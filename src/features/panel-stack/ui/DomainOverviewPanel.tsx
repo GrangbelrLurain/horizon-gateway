@@ -170,7 +170,7 @@ export function DomainOverviewPanel({
               )}
             </div>
 
-            <div className="pl-11 space-y-1.5">
+            <div className="pl-11 space-y-1">
               <button
                 type="button"
                 onClick={() => onOpenPanel("api/logs")}
@@ -182,21 +182,31 @@ export function DomainOverviewPanel({
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
               </button>
-            </div>
-
-            <div className="pl-11 pt-1">
               <button
                 type="button"
-                onClick={() => nav.openGlobalSurface("global/mocking")}
+                onClick={() => onOpenPanel("api/schema")}
                 className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left hover:bg-base-200/60"
               >
                 <div className="flex items-center gap-2">
-                  <FlaskConical className="w-3.5 h-3.5 text-base-content/50" />
-                  <span className="font-bold">{t.apiMocking}</span>
+                  <FileText className="w-3.5 h-3.5 text-base-content/50" />
+                  <span className="font-bold">{t.apiSchema}</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
               </button>
-              <p className="text-[10px] text-base-content/40 px-2 mt-1">{t.apiMockingIndependentHint}</p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => nav.openGlobalSurface("global/mocking")}
+                  className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors text-xs text-left hover:bg-base-200/60"
+                >
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="w-3.5 h-3.5 text-base-content/50" />
+                    <span className="font-bold">{t.apiMocking}</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-base-content/30" />
+                </button>
+                <p className="text-[10px] text-base-content/40 px-2 mt-0.5">{t.apiMockingIndependentHint}</p>
+              </div>
             </div>
           </div>
         );

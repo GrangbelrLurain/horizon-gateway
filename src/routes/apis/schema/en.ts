@@ -58,4 +58,12 @@ export const en = {
   tabOptions: "Schema Options",
   optionsTitle: "API Schema Options",
   optionsSubtitle: "Choose which request fields can be edited when testing endpoints from the OpenAPI schema.",
+  schemaUrlLabel: "OpenAPI Schema URL",
+  schemaPlaceholder: "https://api.example.com/openapi.json",
+  save: "Save",
+  download: "Download",
+  noSchemaDownloadAction: "Enter the OpenAPI schema URL below and click Download.",
+  downloadSuccess: (size: string) => `Downloaded ${size} bytes successfully`,
+  downloadFailed: (msg: string) => `Download failed: ${msg}`,
+  schemaSaved: "Schema URL saved.",
 };

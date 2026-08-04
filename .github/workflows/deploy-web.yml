@@ -18,7 +18,7 @@ on:
 
 # Allow only one concurrent deployment, skipping runs in-progress but not active
 concurrency:
-  group: "pages"
+  group: "deploy-website"
   cancel-in-progress: true
 
 jobs:
@@ -26,10 +26,8 @@ jobs:
     # Run only if pushed directly or if the Release workflow succeeded
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    environment: github-pages
     permissions:
       contents: read
-      deployments: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
