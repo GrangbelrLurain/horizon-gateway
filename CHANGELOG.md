@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.4] - 2026-08-04
+
+### Added
+
+- **API Body Logging Toggle Options**: Restored options to toggle HTTP Body (Request/Response) logging ON/OFF in both the API logs toolbar (`DomainApiLogsPanel`) and the full-screen schema options page (`/apis/schema`).
+
 ## [v2.6.3] - 2026-08-04
 
 ### Added
