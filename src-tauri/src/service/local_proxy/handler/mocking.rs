@@ -72,9 +72,9 @@ fn matches_host(rule_host: Option<&str>, target_host: &str) -> bool {
 
     norm_rule_host.is_empty()
         || norm_rule_host == norm_target_host
-        || norm_target_host.contains(&norm_rule_host)
-        || norm_rule_host.contains(&norm_target_host)
+        || norm_target_host.ends_with(&format!(".{norm_rule_host}"))
 }
+
 
 pub(crate) fn try_mock_response(
     state: &Arc<ProxyState>,

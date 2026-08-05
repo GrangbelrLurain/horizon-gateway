@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { CheckCircle2, Circle, Download, RotateCcw, ShieldCheck } from "lucide-react";
@@ -45,6 +46,7 @@ function ProxySetupPage() {
     local_routing_enabled: true,
   });
   const [saving, setSaving] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -59,7 +61,25 @@ function ProxySetupPage() {
 
   useEffect(() => {
     void fetchStatus();
+    const unlisten = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
+      setProxyStatus(ev.payload);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [fetchStatus]);
+
+  const startProxy = async () => {
+    setStarting(true);
+    try {
+      await commands.startLocalProxy(null).then(unwrap);
+      await fetchStatus();
+    } catch (e) {
+      console.error("start_local_proxy:", e);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const toggleItem = (key: keyof SetupChecklist) => {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -100,7 +120,7 @@ function ProxySetupPage() {
         </div>
       </header>
 
-      <ProxyServerWarning />
+      <ProxyServerWarning onStartProxy={startProxy} loading={starting} />
 
       {!proxyStatus.running && (
         <Card className="p-6 flex flex-col items-start gap-3 border-warning/30 bg-warning/5">

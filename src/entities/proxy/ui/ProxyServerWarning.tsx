@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { AlertCircle, ArrowRight, Settings } from "lucide-react";
+import { AlertCircle, ArrowRight, Play, Settings } from "lucide-react";
 import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { openPopupWindow } from "@/shared/lib/tauri/openPopupWindow";
 import { Button } from "@/shared/ui/button/Button";
@@ -9,15 +9,22 @@ const ko = {
   title: "프록시 서버 필요",
   desc: "이 기능을 사용하려면 프록시 서버가 실행 중이어야 합니다. 프록시 서버는 데이터 수집과 라우팅의 핵심 엔진입니다.",
   action: "인프라 설정에서 켜기",
+  startAction: "프록시 서버 시작하기",
 };
 
 const en = {
   title: "Proxy Server Required",
   desc: "The proxy server must be running to use this feature. The proxy is the core engine for data collection and routing.",
   action: "Turn on in Infrastructure",
+  startAction: "Start Proxy Server",
 };
 
-export function ProxyServerWarning() {
+interface ProxyServerWarningProps {
+  onStartProxy?: () => void | Promise<void>;
+  loading?: boolean;
+}
+
+export function ProxyServerWarning({ onStartProxy, loading }: ProxyServerWarningProps) {
   const isRunning = useAtomValue(proxyRunningAtom);
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
@@ -35,16 +42,29 @@ export function ProxyServerWarning() {
         <h2 className="text-2xl font-black mb-3 text-base-content tracking-tight">{t.title}</h2>
         <p className="text-base text-base-content/60 font-medium leading-relaxed">{t.desc}</p>
       </div>
-      <Button
-        variant="primary"
-        size="lg"
-        className="gap-3 px-10 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-        onClick={() => void openPopupWindow("infrastructure")}
-      >
-        <Settings className="w-5 h-5" />
-        {t.action}
-        <ArrowRight className="w-5 h-5" />
-      </Button>
+      {onStartProxy ? (
+        <Button
+          variant="primary"
+          size="lg"
+          className="gap-3 px-10 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+          onClick={() => void onStartProxy()}
+          disabled={loading}
+        >
+          <Play className="w-5 h-5 fill-current" />
+          {t.startAction}
+        </Button>
+      ) : (
+        <Button
+          variant="primary"
+          size="lg"
+          className="gap-3 px-10 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+          onClick={() => void openPopupWindow("infrastructure")}
+        >
+          <Settings className="w-5 h-5" />
+          {t.action}
+          <ArrowRight className="w-5 h-5" />
+        </Button>
+      )}
     </Card>
   );
 }

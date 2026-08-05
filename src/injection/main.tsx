@@ -8,6 +8,47 @@ declare global {
   }
 }
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error?.message || String(error) };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("❌ [Watchtower Injection Error]:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "20px",
+            right: "20px",
+            backgroundColor: "#ef4444",
+            color: "white",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            fontSize: "12px",
+            fontFamily: "sans-serif",
+            zIndex: 2147483647,
+            pointerEvents: "auto",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          Watchtower Error: {this.state.error}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /**
  * Horizon Gateway Injection Entry Point
  */
@@ -60,13 +101,19 @@ function initInjection() {
     });
     shadow.appendChild(rootContainer);
 
-    const root = ReactDOM.createRoot(rootContainer);
-    root.render(
-      <React.StrictMode>
-        <InjectionApp />
-      </React.StrictMode>,
-    );
-    console.log("✅ [Horizon Gateway] App Mounted.");
+    try {
+      const root = ReactDOM.createRoot(rootContainer);
+      root.render(
+        <React.StrictMode>
+          <ErrorBoundary>
+            <InjectionApp />
+          </ErrorBoundary>
+        </React.StrictMode>,
+      );
+      console.log("✅ [Horizon Gateway] App Mounted into #wt-root.");
+    } catch (err) {
+      console.error("❌ [Horizon Gateway] React Mount Error:", err);
+    }
   };
 
   mount();

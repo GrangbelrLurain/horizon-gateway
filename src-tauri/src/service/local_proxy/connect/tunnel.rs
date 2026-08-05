@@ -9,6 +9,20 @@ pub(crate) fn is_system_connectivity_domain(host: &str) -> bool {
         || h == "msftncsi.com"
 }
 
+pub(crate) fn is_auth_sso_domain(host: &str) -> bool {
+    let h = host.to_lowercase();
+    h.contains("login.microsoftonline.com")
+        || h.contains("login.live.com")
+        || h.contains("aadcdn.msauth.net")
+        || h.contains("auth.dev.azure.com")
+        || h.contains("identity.azure.com")
+        || h.contains("accounts.google.com")
+        || h.contains("appleid.apple.com")
+        || h.contains("auth0.com")
+        || h.contains("okta.com")
+        || h.contains("keycloak")
+}
+
 
 use std::sync::Arc;
 use tokio::net::TcpStream;
@@ -51,7 +65,8 @@ pub(crate) async fn handle_connect_tunnel(
     let is_active = is_inspector_enabled() || mocking_enabled || is_local_routing_enabled();
 
     let is_connectivity = is_system_connectivity_domain(&host);
-    let should_decrypt = !is_connectivity && (use_api_logging || {
+    let is_auth_sso = is_auth_sso_domain(&host);
+    let should_decrypt = !is_connectivity && !is_auth_sso && (use_api_logging || {
         if is_active {
             let domains = state.inspector_service.get_injection_domains();
             if domains.is_empty() {

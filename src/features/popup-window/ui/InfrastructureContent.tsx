@@ -95,7 +95,7 @@ export function InfrastructureContent() {
 
   return (
     <div className="space-y-5">
-      <ProxyServerWarning />
+      <ProxyServerWarning onStartProxy={toggleProxy} loading={loading} />
 
       <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-3">

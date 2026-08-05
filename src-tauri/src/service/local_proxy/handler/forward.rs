@@ -103,30 +103,32 @@ pub(crate) async fn handle_pass_through(
             res_headers.remove("content-security-policy-report-only");
             res_headers.remove("x-content-security-policy");
 
-            let mut cookie_updates = Vec::new();
-            for (name, value) in &res_headers {
-                if name == header::SET_COOKIE {
-                    if let Ok(cookie_str) = value.to_str() {
-                        let mut new_cookie = cookie_str.to_string();
-                        if new_cookie.contains("SameSite=") {
-                            new_cookie = new_cookie
-                                .replace("SameSite=Lax", "SameSite=None")
-                                .replace("SameSite=Strict", "SameSite=None");
-                        } else {
-                            new_cookie.push_str("; SameSite=None");
+            if local_origin.is_some() {
+                let mut cookie_updates = Vec::new();
+                for (name, value) in &res_headers {
+                    if name == header::SET_COOKIE {
+                        if let Ok(cookie_str) = value.to_str() {
+                            let mut new_cookie = cookie_str.to_string();
+                            if new_cookie.contains("SameSite=") {
+                                new_cookie = new_cookie
+                                    .replace("SameSite=Lax", "SameSite=None")
+                                    .replace("SameSite=Strict", "SameSite=None");
+                            } else {
+                                new_cookie.push_str("; SameSite=None");
+                            }
+                            if !new_cookie.contains("Secure") {
+                                new_cookie.push_str("; Secure");
+                            }
+                            cookie_updates.push(new_cookie);
                         }
-                        if !new_cookie.contains("Secure") {
-                            new_cookie.push_str("; Secure");
-                        }
-                        cookie_updates.push(new_cookie);
                     }
                 }
-            }
-            if !cookie_updates.is_empty() {
-                res_headers.remove(header::SET_COOKIE);
-                for cookie in cookie_updates {
-                    if let Ok(hv) = HeaderValue::from_str(&cookie) {
-                        res_headers.append(header::SET_COOKIE, hv);
+                if !cookie_updates.is_empty() {
+                    res_headers.remove(header::SET_COOKIE);
+                    for cookie in cookie_updates {
+                        if let Ok(hv) = HeaderValue::from_str(&cookie) {
+                            res_headers.append(header::SET_COOKIE, hv);
+                        }
                     }
                 }
             }
