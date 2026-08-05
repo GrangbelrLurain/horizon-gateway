@@ -132,9 +132,22 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
         const INSPECTOR_JS_FALLBACK: &str =
             "console.warn('[horizon-gateway] inspector.js not built; run pnpm build:injection');";
         // Try to read from filesystem first (for live updates during dev)
-        let js = std::fs::read_to_string("resources/inspector.js")
-            .or_else(|_| std::fs::read_to_string("src-tauri/resources/inspector.js"))
-            .unwrap_or_else(|_| INSPECTOR_JS_FALLBACK.to_string());
+        let js = {
+            use tauri::Manager;
+            // 1. Try Tauri bundled resource (production)
+            let from_resource = state
+                .app_handle
+                .path()
+                .resource_dir()
+                .ok()
+                .map(|d| d.join("inspector.js"))
+                .and_then(|p| std::fs::read_to_string(&p).ok());
+            // 2. Fallback: dev paths relative to cwd
+            from_resource
+                .or_else(|| std::fs::read_to_string("resources/inspector.js").ok())
+                .or_else(|| std::fs::read_to_string("src-tauri/resources/inspector.js").ok())
+                .unwrap_or_else(|| INSPECTOR_JS_FALLBACK.to_string())
+        };
 
         return (
             StatusCode::OK,

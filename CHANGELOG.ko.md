@@ -4,6 +4,22 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.6] - 2026-08-05
+
+### Added (추가 기능)
+
+- **소셜 공유 OG 메타 태그**: 공식 웹사이트 랜딩·Changelog 페이지에 Open Graph·Twitter Card 메타 태그를 추가했습니다. 카카오, Microsoft Teams, Slack, LinkedIn 등에서 `https://gateway.delete-horizon.com/ko/changelog/` 링크 공유 시 제목·설명·이미지가 포함된 카드 미리보기가 표시됩니다.
+- **OG 공유 이미지**: Horizon Gateway 로고 기반 1200×630 PNG OG 이미지(`og-image.png`)를 추가하고, 빌드 시 SVG 소스에서 자동 생성하는 스크립트를 웹사이트 빌드 파이프라인에 포함했습니다.
+
+### Changed (변경 사항)
+
+- **웹사이트 canonical·OG URL 정비**: Astro `site`를 `https://gateway.delete-horizon.com`으로 설정하고 `canonical`, `og:url`, `og:site_name`, `og:locale`, 이미지 크기·alt 메타 태그를 추가했습니다.
+- **Changelog 페이지 공유 설명**: Changelog URL 공유 시 랜딩 페이지 문구 대신 changelog 전용 description(`Horizon Gateway의 최신 기능 추가 및 업데이트 이력입니다.`)이 카드에 표시됩니다.
+
+### Fixed (버그 수정)
+
+- **프로덕션 빌드 inspector.js 제공 수정**: 릴리스 빌드에서 `/.horizon-gateway/inspector.js`가 번들 리소스를 찾지 못해 경고 스텁만 제공되던 문제를 수정했습니다. Tauri `resource_dir()`로 `inspector.js` 경로를 해석하여 개발·프로덕션 환경 모두에서 인젝션 스크립트가 올바르게 제공됩니다.
+
 ## [v2.6.5] - 2026-08-05
 
 ### Added (추가 기능)

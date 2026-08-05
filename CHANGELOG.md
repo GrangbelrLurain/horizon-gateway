@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.6] - 2026-08-05
+
+### Added
+
+- **Social sharing Open Graph meta tags**: Added Open Graph and Twitter Card meta tags to the official website landing and Changelog pages. Sharing `https://gateway.delete-horizon.com/ko/changelog/` on Kakao, Microsoft Teams, Slack, LinkedIn, and similar platforms now renders a rich card preview with title, description, and image.
+- **OG share image**: Added a Horizon Gateway logo-based 1200×630 PNG OG image (`og-image.png`) and a build script that auto-generates it from the SVG source during the website build pipeline.
+
+### Changed
+
+- **Website canonical and OG URL setup**: Set Astro `site` to `https://gateway.delete-horizon.com` and added `canonical`, `og:url`, `og:site_name`, `og:locale`, and image dimension/alt meta tags.
+- **Changelog page share description**: Changelog URL shares now use a changelog-specific description instead of the landing page copy.
+
+### Fixed
+
+- **Production inspector.js serving**: Fixed `/.horizon-gateway/inspector.js` failing to locate the bundled resource in release builds, which caused only a warning stub to be served. The path is now resolved via Tauri `resource_dir()` so the injection script is served correctly in both dev and production environments.
+
 ## [v2.6.5] - 2026-08-05
 
 ### Added

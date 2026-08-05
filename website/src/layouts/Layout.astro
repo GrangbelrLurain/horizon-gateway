@@ -6,6 +6,7 @@ import type { Lang } from '../i18n/ui';
 interface Props {
   title?: string;
   description?: string;
+  image?: string;
   lang?: Lang;
 }
 
@@ -13,6 +14,7 @@ const {
   lang = 'ko',
   title = lang === 'ko' ? "Horizon Gateway - 로컬 개발 인프라 통합 플랫폼" : "Horizon Gateway - Local Dev-Infra Control Center", 
   description = lang === 'ko' ? "도메인 헬스체크, MITM 프록시, API 모킹, 모바일 디버깅 및 터널링을 하나로 통합한 데스크톱 앱" : "Domain Health Check, Local MITM Proxy, API Mocking, and Mobile Tunneling in one place.",
+  image = '/og-image.png',
 } = Astro.props;
 
 const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
@@ -26,6 +28,9 @@ const pathname = Astro.url.pathname;
 const isChangelog = pathname.includes('changelog');
 const koLink = isChangelog ? `${baseUrl}/ko/changelog` : `${baseUrl}/ko`;
 const enLink = isChangelog ? `${baseUrl}/en/changelog` : `${baseUrl}/en`;
+
+const canonicalURL = Astro.site ? new URL(pathname, Astro.site) : Astro.url;
+const ogImageURL = Astro.site ? new URL(image, Astro.site) : new URL(image, Astro.url);
 ---
 
 <!DOCTYPE html>
@@ -40,18 +45,25 @@ const enLink = isChangelog ? `${baseUrl}/en/changelog` : `${baseUrl}/en`;
   <title>{title}</title>
   <meta name="title" content={title} />
   <meta name="description" content={description} />
+  <link rel="canonical" href={canonicalURL} />
 
-  <!-- Open Graph / Facebook -->
+  <!-- Open Graph -->
   <meta property="og:type" content="website" />
+  <meta property="og:url" content={canonicalURL} />
+  <meta property="og:site_name" content="Horizon Gateway" />
+  <meta property="og:locale" content={lang === 'ko' ? 'ko_KR' : 'en_US'} />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
-  <meta property="og:image" content={`${baseUrl}/favicon.svg`} />
+  <meta property="og:image" content={ogImageURL} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content={title} />
 
   <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:title" content={title} />
-  <meta property="twitter:description" content={description} />
-  <meta property="twitter:image" content={`${baseUrl}/favicon.svg`} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={ogImageURL} />
 </head>
 <body>
   <!-- Header -->
