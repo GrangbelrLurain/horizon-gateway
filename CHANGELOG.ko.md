@@ -4,7 +4,29 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.5] - 2026-08-05
+
+### Added (추가 기능)
+
+- **선언된 API만 트래픽 로깅**: 인젝션 인스펙터가 Horizon Gateway의 API 로깅 설정에서 명시적으로 선언된 도메인의 트래픽만 LOG 탭에 기록하도록 변경했습니다. CDN, 분석, 미디어 등 무관한 3rd-party 트래픽은 자동으로 무시됩니다.
+- **오프라인 프록시 폴백 에러 페이지**: 로컬 프록시 대상(예: `localhost:3000`)에 연결할 수 없을 때, 브라우저에 스타일된 에러 페이지를 표시하면서 Horizon Gateway 인젝션 UI도 함께 노출합니다. 빈 화면에 갇히지 않고 에러 페이지에서 프록시 라우트를 직접 끄고 켤 수 있습니다.
+
+### Changed (변경 사항)
+
+- **모킹 API 상세 및 편집 화면 통합**: 읽기 전용 상세 뷰와 편집 폼을 하나의 모달로 합쳤습니다. 신규 작성 시 `"신규 모킹 규칙 작성"`, 기존 편집 시 `"모킹 API 상세 및 편집"`으로 타이틀이 동적으로 변경됩니다.
+- **모킹 목록 SVG 아이콘 정리**: MCK 팝오버 및 모달의 모든 이모지 텍스트 아이콘(`⚡`, `➕`, `✏️`, `🗑️`, `👁️`)을 깔끔한 SVG 아이콘으로 교체했습니다.
+- **PRX 팝오버 정확한 호스트 매칭**: 인젝션 PRX 팝오버의 도메인 라우트 매칭을 `includes` / `endsWith` 방식에서 정확한 일치(`hostname === domain`)로 변경했습니다. 현재 호스트와 무관한 서브도메인의 라우트가 목록에 표시되던 문제를 수정했습니다.
+- **에러 경계 브랜딩**: 인젝션 스크립트 에러 메시지를 `Watchtower Error`에서 `Horizon Gateway Error`로 변경했습니다.
+
+### Fixed (버그 수정)
+
+- **모킹 ON/OFF 토글 동작 수정**: `handleToggleMockRule`이 저장된 백엔드 `MockRule`(`/api/mock-rule/toggle` 사용)과 미저장 `MockedApiEntry` 캡처 항목(`/api/mock-rule/save`로 자동 저장 후 활성화) 모두 올바르게 처리하도록 수정했습니다.
+- **트래픽 로그 stale 클로저 버그 수정**: `fetch`/`XHR` 패치 `useEffect` 안의 `logTraffic`이 마운트 시점에 빈 `loggingDomains` 배열을 캡처하여 이후 도메인이 추가돼도 필터가 무효화되던 React 클로저 버그를 수정했습니다. `loggingDomainsRef`를 도입해 항상 최신 도메인 목록을 참조하도록 변경했습니다.
+- **early interceptor 로그 재동기화**: `loggingDomains` API 응답이 도착하면 early interceptor의 `__wt_api_traffic_logs` 버퍼를 다시 sync하는 `useEffect`를 추가했습니다. React 마운트 이전에 캡처된 로그도 올바르게 복원됩니다.
+
 ## [v2.6.4] - 2026-08-04
+
+
 
 ### Added (추가 기능)
 

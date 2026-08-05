@@ -38,7 +38,7 @@ export const popupEn = {
   detachedJsonSchema: "JSON Schema",
   detachedInspector: "UI Inspector",
   detachedLiveCapture: "Live Capture",
-  detachedPolicies: "UX Policies",
+  detachedPolicies: "Guide",
   detachedMonitorLogs: "Monitor Logs",
   settingsTitle: "Settings",
   groupsTitle: "Manage Groups",

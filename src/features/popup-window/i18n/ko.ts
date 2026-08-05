@@ -37,7 +37,7 @@ export const popupKo = {
   detachedJsonSchema: "JSON 스키마",
   detachedInspector: "UI Inspector",
   detachedLiveCapture: "Live Capture",
-  detachedPolicies: "UX 정책",
+  detachedPolicies: "가이드",
   detachedMonitorLogs: "모니터 로그",
   settingsTitle: "설정",
   groupsTitle: "그룹 관리",

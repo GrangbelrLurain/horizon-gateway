@@ -123,55 +123,218 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.horizon-gateway/api/annotation" && req.method() == hyper::Method::POST {
-        let host_h = req
-            .headers()
-            .get(hyper::header::HOST)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default()
-            .to_string();
-
-        let full_url = if req.uri().scheme().is_some() {
-            req.uri().to_string()
-        } else {
-            format!("https://{}{}", host_h, req.uri())
-        };
-
-        let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await else {
-            return Ok((StatusCode::BAD_REQUEST, "Failed to read body").into_response());
-        };
-
-        if let Ok(mut annotation_val) = serde_json::from_slice::<serde_json::Value>(&body) {
-            if let Some(obj) = annotation_val.as_object_mut() {
-                if !obj.contains_key("domain") {
-                    obj.insert("domain".to_string(), serde_json::Value::String(host_h));
-                }
-                if !obj.contains_key("url") {
-                    obj.insert("url".to_string(), serde_json::Value::String(full_url));
+    if clean_path == "/.horizon-gateway/api/annotation" {
+        if req.method() == hyper::Method::DELETE {
+            if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+                if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
+                    if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
+                        state.inspector_service.delete_annotation(id.to_string());
+                        let _ = state.app_handle.emit("annotations-updated", ());
+                        return Ok((StatusCode::OK, "Annotation deleted").into_response());
+                    }
                 }
             }
+            return Ok((StatusCode::BAD_REQUEST, "Invalid delete payload").into_response());
+        }
 
-            match serde_json::from_value::<Annotation>(annotation_val.clone()) {
-                Ok(ann) => {
-                    state.inspector_service.add_annotation(ann);
-                    let count = state.inspector_service.get_all().len();
-                    crate::proxy_log!(
-                        "✅ [Horizon Gateway] Annotation saved to file. Total count: {}",
-                        count
+        if req.method() == hyper::Method::POST {
+            let host_h = req
+                .headers()
+                .get(hyper::header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or_default()
+                .to_string();
+
+            let full_url = if req.uri().scheme().is_some() {
+                req.uri().to_string()
+            } else {
+                format!("https://{}{}", host_h, req.uri())
+            };
+
+            let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await else {
+                return Ok((StatusCode::BAD_REQUEST, "Failed to read body").into_response());
+            };
+
+            if let Ok(mut annotation_val) = serde_json::from_slice::<serde_json::Value>(&body) {
+                if let Some(obj) = annotation_val.as_object_mut() {
+                    if !obj.contains_key("domain") {
+                        obj.insert("domain".to_string(), serde_json::Value::String(host_h));
+                    }
+                    if !obj.contains_key("url") {
+                        obj.insert("url".to_string(), serde_json::Value::String(full_url));
+                    }
+                }
+
+                match serde_json::from_value::<Annotation>(annotation_val.clone()) {
+                    Ok(ann) => {
+                        state.inspector_service.add_annotation(ann);
+                        let count = state.inspector_service.get_all().len();
+                        crate::proxy_log!(
+                            "✅ [Horizon Gateway] Annotation saved to file. Total count: {}",
+                            count
+                        );
+                        let _ = state.app_handle.emit("annotations-updated", ());
+                    }
+                    Err(e) => {
+                        crate::proxy_log!("❌ [Horizon Gateway] Failed to parse annotation JSON: {}", e);
+                    }
+                }
+
+                let _ = state
+                    .app_handle
+                    .emit("annotation-dialog-requested", annotation_val);
+                return Ok((StatusCode::OK, "Annotation saved").into_response());
+            }
+            return Ok((StatusCode::BAD_REQUEST, "Invalid JSON").into_response());
+        }
+    }
+
+    if clean_path == "/.horizon-gateway/api/mock-rules" && req.method() == hyper::Method::GET {
+        let rules = state.mocking_service.get_mock_rules();
+        let json = serde_json::to_string(&rules).unwrap_or_else(|_| "[]".to_string());
+        return Ok((
+            StatusCode::OK,
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            )],
+            json,
+        )
+            .into_response());
+    }
+
+    if clean_path == "/.horizon-gateway/api/mock-rule/toggle" && req.method() == hyper::Method::POST {
+        if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
+                let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                if payload.get("all").and_then(|v| v.as_bool()).unwrap_or(false) {
+                    let rules = state.mocking_service.get_mock_rules();
+                    for r in rules {
+                        state.mocking_service.update_mock_rule(
+                            r.id, None, None, None, None, None, None, None, Some(enabled),
+                        );
+                    }
+                } else if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
+                    state.mocking_service.update_mock_rule(
+                        id.to_string(), None, None, None, None, None, None, None, Some(enabled),
                     );
-                    let _ = state.app_handle.emit("annotations-updated", ());
                 }
-                Err(e) => {
-                    crate::proxy_log!("❌ [Horizon Gateway] Failed to parse annotation JSON: {}", e);
-                }
+                let _ = state.app_handle.emit("mock-rules-updated", ());
+                return Ok((StatusCode::OK, "Toggled").into_response());
             }
+        }
+        return Ok((StatusCode::BAD_REQUEST, "Invalid request").into_response());
+    }
 
-            let _ = state
-                .app_handle
-                .emit("annotation-dialog-requested", annotation_val);
-            return Ok((StatusCode::OK, "Annotation saved").into_response());
+    if clean_path == "/.horizon-gateway/api/mock-rule/save" && req.method() == hyper::Method::POST {
+        if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
+                let id = payload.get("id").and_then(|v| v.as_str()).map(ToString::to_string);
+                let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("Custom Rule").to_string();
+                let host = payload.get("host").and_then(|v| v.as_str()).map(ToString::to_string);
+                let method = payload.get("method").and_then(|v| v.as_str()).unwrap_or("GET").to_string();
+                let url_pattern = payload.get("url_pattern").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let response_status = payload.get("response_status").and_then(|v| v.as_u64()).unwrap_or(200) as u16;
+                let response_body = payload.get("response_body").and_then(|v| v.as_str()).map(ToString::to_string);
+                let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let response_headers = payload
+                    .get("response_headers")
+                    .and_then(|v| serde_json::from_value::<std::collections::HashMap<String, String>>(v.clone()).ok())
+                    .unwrap_or_default();
+
+                if let Some(rule_id) = id {
+                    state.mocking_service.update_mock_rule(
+                        rule_id,
+                        Some(name),
+                        host,
+                        Some(method),
+                        Some(url_pattern),
+                        Some(response_status),
+                        Some(response_headers),
+                        response_body,
+                        Some(enabled),
+                    );
+                } else {
+                    state.mocking_service.create_mock_rule(
+                        name,
+                        None,
+                        host,
+                        method,
+                        url_pattern,
+                        response_status,
+                        response_headers,
+                        response_body,
+                        enabled,
+                    );
+                }
+                let _ = state.app_handle.emit("mock-rules-updated", ());
+                return Ok((StatusCode::OK, "Saved").into_response());
+            }
         }
         return Ok((StatusCode::BAD_REQUEST, "Invalid JSON").into_response());
+    }
+
+    if clean_path == "/.horizon-gateway/api/mock-rule/delete" && req.method() == hyper::Method::POST {
+        if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
+                if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
+                    state.mocking_service.delete_mock_rule(id.to_string());
+                    let _ = state.app_handle.emit("mock-rules-updated", ());
+                    return Ok((StatusCode::OK, "Deleted").into_response());
+                }
+            }
+        }
+        return Ok((StatusCode::BAD_REQUEST, "Invalid request").into_response());
+    }
+
+    if clean_path == "/.horizon-gateway/api/proxy-routes" && req.method() == hyper::Method::GET {
+        let routes = state.route_service.get_all();
+        let json = serde_json::to_string(&routes).unwrap_or_else(|_| "[]".to_string());
+        return Ok((
+            StatusCode::OK,
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            )],
+            json,
+        )
+            .into_response());
+    }
+
+    if clean_path == "/.horizon-gateway/api/proxy-route/toggle" && req.method() == hyper::Method::POST {
+        if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
+                if let Some(id) = payload.get("id").and_then(|v| v.as_u64()) {
+                    let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                    state.route_service.toggle_enabled(id as u32, enabled);
+                    let _ = state.app_handle.emit("local-routes-updated", ());
+                    return Ok((StatusCode::OK, "Toggled").into_response());
+                }
+            }
+        }
+        return Ok((StatusCode::BAD_REQUEST, "Invalid request").into_response());
+    }
+
+    if clean_path == "/.horizon-gateway/api/logging-domains" && req.method() == hyper::Method::GET {
+        let map_guard = state.api_logging_map.read().ok();
+        let domains: Vec<String> = if let Some(map) = map_guard {
+            map.iter()
+                .filter(|(_, (logging_enabled, _))| *logging_enabled)
+                .map(|(host, _)| host.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let json = serde_json::to_string(&domains).unwrap_or_else(|_| "[]".to_string());
+        return Ok((
+            StatusCode::OK,
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            )],
+            json,
+        )
+            .into_response());
     }
 
     Ok(serve_horizon_gateway_reserved_path(state.clone(), clean_path, &host_h).await)

@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { Camera, FileText, Search } from "lucide-react";
+import { FileText } from "lucide-react";
 import { languageAtom } from "@/entities/app";
 import type { Domain } from "@/shared/api";
 import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
@@ -21,24 +21,6 @@ export function DomainDebugPanel({ domain, onClose }: DomainDebugPanelProps) {
   const host = getDomainHost(domain);
 
   const items = [
-    {
-      icon: <Search className="w-4 h-4" />,
-      label: t.debugInspector,
-      desc: t.debugInspectorDesc,
-      action: () => void openDetachedWindow("/proxy/inspector", t.debugInspector, 1100, 760),
-    },
-    {
-      icon: <Camera className="w-4 h-4" />,
-      label: t.debugLiveCapture,
-      desc: t.debugLiveCaptureDesc,
-      action: () =>
-        void openDetachedWindow(
-          `/ux/live-capture?url=${encodeURIComponent(domain.url)}`,
-          `${host} — Live Capture`,
-          1280,
-          860,
-        ),
-    },
     {
       icon: <FileText className="w-4 h-4" />,
       label: t.debugPolicies,

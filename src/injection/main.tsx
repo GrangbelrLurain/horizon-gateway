@@ -41,7 +41,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
             boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           }}
         >
-          Watchtower Error: {this.state.error}
+          Horizon Gateway Error: {this.state.error}
         </div>
       );
     }

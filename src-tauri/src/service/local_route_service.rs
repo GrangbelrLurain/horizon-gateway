@@ -184,6 +184,17 @@ impl LocalRouteService {
         self.update(id, domains, None, None, Some(enabled))
     }
 
+    pub fn toggle_enabled(&self, id: u32, enabled: bool) -> bool {
+        let mut list = self.routes.lock().unwrap();
+        if let Some(r) = list.iter_mut().find(|r| r.id == id) {
+            r.enabled = enabled;
+            self.save(&list);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Replace all routes (for import). Invalid/orphan routes are dropped.
     pub fn replace_all(&self, routes: Vec<LocalRoute>, domains: &[Domain]) -> Vec<LocalRoute> {
         {

@@ -9,7 +9,8 @@ use std::sync::Arc;
 use tauri::Emitter;
 
 use super::inject::{
-    apply_html_injection_cache_headers, inject_inspector_script, should_inject_for_host,
+    apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
+    should_inject_for_host,
 };
 use super::super::state::ProxyState;
 
@@ -208,6 +209,6 @@ pub(crate) async fn handle_pass_through(
                 (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response()
             })
         }
-        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
+        Err(e) => build_proxy_error_response(host_h, &e.to_string()),
     }
 }

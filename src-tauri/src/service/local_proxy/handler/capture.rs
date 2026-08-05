@@ -11,7 +11,8 @@ use tauri::Emitter;
 use crate::model::api_log::ApiLogEntry;
 
 use super::inject::{
-    apply_html_injection_cache_headers, inject_inspector_script, should_inject_for_host,
+    apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
+    should_inject_for_host,
 };
 use super::super::state::ProxyState;
 
@@ -111,7 +112,7 @@ pub(crate) async fn handle_with_logging(
         Ok(res) => res,
         Err(e) => {
             crate::proxy_log!("   reqwest error: {}", e);
-            return (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response();
+            return build_proxy_error_response(host_h, &e.to_string());
         }
     };
 

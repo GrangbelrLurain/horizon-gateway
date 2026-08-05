@@ -1,19 +1,8 @@
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
-import {
-  Activity,
-  ArrowRight,
-  Camera,
-  ChevronRight,
-  FileText,
-  FlaskConical,
-  Loader2,
-  Search,
-  Server,
-  Wifi,
-} from "lucide-react";
+import { Activity, ArrowRight, ChevronRight, FileText, FlaskConical, Loader2, Server, Wifi } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { languageAtom, proxyInspectorEnabledAtom } from "@/entities/app";
+import { languageAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain } from "@/shared/api";
@@ -67,7 +56,6 @@ export function DomainOverviewPanel({
   });
 
   const apiLoggingLinks = useAtomValue(apiLoggingLinksAtom);
-  const proxyInspectorEnabled = useAtomValue(proxyInspectorEnabledAtom);
 
   const [recentLogs, setRecentLogs] = useState<{ id: string; method: string; path: string; status: number }[]>([]);
   const [hasMockRules, setHasMockRules] = useState(false);
@@ -135,7 +123,7 @@ export function DomainOverviewPanel({
       .catch(() => {});
   }, [displayHost]);
 
-  // Canonical ordering of 8 menu items
+  // Canonical ordering of 6 menu items
   const menuItems: MenuItemDef[] = useMemo(
     () => [
       {
@@ -163,26 +151,6 @@ export function DomainOverviewPanel({
         icon: <FlaskConical className="w-4 h-4" />,
         onClick: () => nav.openGlobalSurface("global/mocking"),
         isActive: hasMockRules,
-      },
-      {
-        id: "debug/inspector",
-        label: t.debugInspector,
-        icon: <Search className="w-4 h-4" />,
-        onClick: () => void openDetachedWindow("/proxy/inspector", t.debugInspector, 1100, 760),
-        isActive: Boolean(proxyInspectorEnabled) && (recentLogs.length > 0 || toggles.proxy.checked),
-      },
-      {
-        id: "debug/live-capture",
-        label: t.debugLiveCapture,
-        icon: <Camera className="w-4 h-4" />,
-        onClick: () =>
-          void openDetachedWindow(
-            `/ux/live-capture?url=${encodeURIComponent(domain.url)}`,
-            `${displayHost} — Live Capture`,
-            1280,
-            860,
-          ),
-        isActive: hasAnnotations,
       },
       {
         id: "debug/policies",
@@ -220,8 +188,6 @@ export function DomainOverviewPanel({
       t.openApiPanel,
       t.apiSchema,
       t.apiMocking,
-      t.debugInspector,
-      t.debugLiveCapture,
       t.debugPolicies,
       t.openMonitorPanel,
       t.openProxyPanel,
@@ -231,7 +197,6 @@ export function DomainOverviewPanel({
       recentLogs.length,
       hasSchema,
       hasMockRules,
-      proxyInspectorEnabled,
       domain.url,
       displayHost,
       hasAnnotations,

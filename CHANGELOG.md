@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.5] - 2026-08-05
+
+### Added
+
+- **Declared API-only traffic logging**: Injected inspector now only logs traffic for domains explicitly declared in Horizon Gateway's API logging settings. Traffic from unrelated 3rd-party origins (CDN, analytics, media) is silently ignored.
+- **Offline proxy fallback error page**: When the local proxy target (e.g. `localhost:3000`) is unreachable, the browser now renders a styled error page with the injected Horizon Gateway UI still active, allowing users to toggle proxy routes without being stuck on a blank page.
+
+### Changed
+
+- **Mock API unified detail & editor modal**: Merged the read-only detail view and the edit form into a single modal. The title dynamically changes between `"모킹 API 상세 및 편집"` and `"신규 모킹 규칙 작성"` based on context.
+- **Mock list SVG icons**: Replaced all emoji text icons (`⚡`, `➕`, `✏️`, `🗑️`, `👁️`) in the MCK popover and modal with clean SVG icons.
+- **PRX popover exact host matching**: Fixed domain route matching in the injected PRX popover to use strict equality (`hostname === domain`) instead of `includes` / `endsWith`, preventing unrelated subdomains from appearing under the current host's route list.
+- **Error boundary branding**: Renamed injected script error message from `Watchtower Error` to `Horizon Gateway Error`.
+
+### Fixed
+
+- **Mock ON/OFF toggle**: Fixed `handleToggleMockRule` to correctly handle both saved backend `MockRule` (toggle via `/api/mock-rule/toggle`) and unsaved `MockedApiEntry` traffic captures (auto-save then enable via `/api/mock-rule/save`).
+- **Traffic log stale closure bug**: Fixed a React closure bug where `logTraffic` inside the `fetch`/`XHR` patch `useEffect` always read an empty `loggingDomains` array (captured at mount time). Replaced with a `loggingDomainsRef` that stays in sync with state, ensuring newly declared domains are respected without re-patching the network layer.
+- **Early interceptor log re-sync**: Added a `useEffect` that re-syncs the early interceptor's `__wt_api_traffic_logs` buffer against `loggingDomains` once the API fetch completes, recovering logs captured before React finished mounting.
+
 ## [v2.6.4] - 2026-08-04
+
 
 ### Added
 
