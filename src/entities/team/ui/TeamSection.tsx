@@ -7,7 +7,6 @@ import {
   CloudUpload,
   Copy,
   CreditCard,
-  Fingerprint,
   Globe,
   Link,
   Loader2,
@@ -42,8 +41,9 @@ import {
 import { hasProAccess, isUnlimitedTeam } from "../lib/entitlement";
 import { useWorkspaceGuard } from "../model/useWorkspaceGuard";
 import { activeWorkspaceIdAtom } from "../store";
-import { pullWorkspaceSync, pushWorkspaceSync, type SyncMode } from "../sync";
+import { pullWorkspaceSync, pushWorkspaceSync, type WorkspaceSyncOptions } from "../sync";
 import type { Workspace, WorkspaceInvite, WorkspaceMember } from "../types";
+import { WorkspaceSyncModal } from "./WorkspaceSyncModal";
 
 const LEMON_CHECKOUT_URL =
   (import.meta.env.VITE_LEMON_SQUEEZY_CHECKOUT_URL as string | undefined) ||
@@ -68,7 +68,6 @@ export function TeamSection() {
   const [inviting, setInviting] = useState(false);
   const [syncing, setSyncing] = useState<"push" | "pull" | null>(null);
   const [syncModalAction, setSyncModalAction] = useState<"push" | "pull" | null>(null);
-  const [selectedSyncMode, setSelectedSyncMode] = useState<SyncMode>("merge_url");
   const [inviteToken, setInviteToken] = useState("");
   const [accepting, setAccepting] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
@@ -100,33 +99,31 @@ export function TeamSection() {
       );
       return;
     }
-    setSelectedSyncMode("merge_url");
     setSyncModalAction(action);
   };
 
-  const handleExecuteSync = async () => {
+  const handleExecuteSync = async (options: WorkspaceSyncOptions) => {
     if (!userId || !activeWorkspaceId || !syncModalAction) {
       return;
     }
     const action = syncModalAction;
-    const mode = selectedSyncMode;
     setSyncModalAction(null);
     setSyncing(action);
 
     try {
       if (action === "push") {
-        await pushWorkspaceSync(activeWorkspaceId, userId, mode);
+        await pushWorkspaceSync(activeWorkspaceId, userId, options);
         toastSuccess(
           lang === "ko"
-            ? "팀 워크스페이스에 도메인 및 그룹 설정을 동기화(업로드)했습니다."
-            : "Pushed domain & group settings to workspace.",
+            ? "팀 워크스페이스에 선택한 설정을 동기화(업로드)했습니다."
+            : "Pushed selected settings to workspace.",
         );
       } else {
-        await pullWorkspaceSync(activeWorkspaceId, mode);
+        await pullWorkspaceSync(activeWorkspaceId, options);
         toastSuccess(
           lang === "ko"
-            ? "팀 워크스페이스에서 도메인 및 그룹 설정을 동기화(가져오기)했습니다."
-            : "Pulled domain & group settings from workspace.",
+            ? "팀 워크스페이스에서 선택한 설정을 동기화(가져오기)했습니다."
+            : "Pulled selected settings from workspace.",
         );
       }
     } catch (e: unknown) {
@@ -862,168 +859,15 @@ export function TeamSection() {
         </p>
       )}
 
-      {/* 🌟 Sync Options Modal */}
-      {syncModalAction && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-base-100 border border-base-200 rounded-xl max-w-md w-full p-5 shadow-2xl flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-base font-bold text-base-content flex items-center gap-2">
-                <span className="p-1.5 bg-primary/10 text-primary rounded-md">
-                  {syncModalAction === "push" ? (
-                    <CloudUpload className="w-4 h-4" />
-                  ) : (
-                    <CloudDownload className="w-4 h-4" />
-                  )}
-                </span>
-                {syncModalAction === "push"
-                  ? lang === "ko"
-                    ? "팀 워크스페이스 업로드 방식 선택"
-                    : "Select Push Sync Mode"
-                  : lang === "ko"
-                    ? "팀 워크스페이스 가져오기 방식 선택"
-                    : "Select Pull Sync Mode"}
-              </h4>
-              <button
-                type="button"
-                onClick={() => setSyncModalAction(null)}
-                className="text-base-content/40 hover:text-base-content p-1 rounded-md"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-base-content/60 leading-relaxed">
-              {syncModalAction === "push"
-                ? lang === "ko"
-                  ? "현재 로컬에 설정된 도메인 및 그룹을 팀 워크스페이스로 공유할 방식을 선택하세요."
-                  : "Choose how to upload your local domain & group settings to the workspace."
-                : lang === "ko"
-                  ? "팀 워크스페이스의 도메인 및 그룹을 로컬로 가져올 방식을 선택하세요."
-                  : "Choose how to merge team workspace settings into your local device."}
-            </p>
-
-            <div className="flex flex-col gap-2">
-              {/* Option 1: URL-based merge */}
-              <button
-                type="button"
-                onClick={() => setSelectedSyncMode("merge_url")}
-                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                  selectedSyncMode === "merge_url"
-                    ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
-                    : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-primary" />
-                    {lang === "ko" ? "URL 기준 대조 병합 (추천)" : "Merge by URL (Recommended)"}
-                  </span>
-                  {selectedSyncMode === "merge_url" && <Check className="w-4 h-4 text-primary" />}
-                </div>
-                <p className="text-[10px] text-base-content/50 leading-normal">
-                  {lang === "ko"
-                    ? "컴퓨터나 계정이 달라도 도메인 URL이 같으면 하나로 합쳐서 그룹 및 Mock 규칙을 갱신합니다."
-                    : "Matches domains by URL. Safely merges settings across different devices or accounts."}
-                </p>
-              </button>
-
-              {/* Option 2: Append Only */}
-              <button
-                type="button"
-                onClick={() => setSelectedSyncMode("append_only")}
-                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                  selectedSyncMode === "append_only"
-                    ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
-                    : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold flex items-center gap-1.5">
-                    <Plus className="w-3.5 h-3.5 text-primary" />
-                    {lang === "ko" ? "신규 도메인만 추가 (Append)" : "Add New Only (Append)"}
-                  </span>
-                  {selectedSyncMode === "append_only" && <Check className="w-4 h-4 text-primary" />}
-                </div>
-                <p className="text-[10px] text-base-content/50 leading-normal">
-                  {lang === "ko"
-                    ? "기존 설정은 그대로 유지하고, 대상 쪽에 존재하지 않는 새로운 도메인만 안전하게 추가합니다."
-                    : "Keeps existing domains intact and only adds newly created domains."}
-                </p>
-              </button>
-
-              {/* Option 3: Overwrite */}
-              <button
-                type="button"
-                onClick={() => setSelectedSyncMode("overwrite")}
-                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                  selectedSyncMode === "overwrite"
-                    ? "border-amber-500 bg-amber-500/10 text-base-content ring-1 ring-amber-500"
-                    : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    {lang === "ko" ? "완전 덮어씌우기 (Replace All)" : "Overwrite All"}
-                  </span>
-                  {selectedSyncMode === "overwrite" && <Check className="w-4 h-4 text-amber-500" />}
-                </div>
-                <p className="text-[10px] text-base-content/50 leading-normal">
-                  {syncModalAction === "push"
-                    ? lang === "ko"
-                      ? "팀 워크스페이스의 기존 데이터를 내 현재 로컬 도메인 목록으로 완전히 대체합니다."
-                      : "Replaces all workspace settings with your local device data."
-                    : lang === "ko"
-                      ? "내 로컬 도메인 목록을 팀 워크스페이스 데이터로 완전히 대체합니다."
-                      : "Replaces all your local settings with team workspace data."}
-                </p>
-              </button>
-
-              {/* Option 4: Merge by ID */}
-              <button
-                type="button"
-                onClick={() => setSelectedSyncMode("merge_id")}
-                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                  selectedSyncMode === "merge_id"
-                    ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
-                    : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold flex items-center gap-1.5">
-                    <Fingerprint className="w-3.5 h-3.5 text-primary" />
-                    {lang === "ko" ? "내부 ID 대조 병합 (Strict ID)" : "Merge by Internal ID"}
-                  </span>
-                  {selectedSyncMode === "merge_id" && <Check className="w-4 h-4 text-primary" />}
-                </div>
-                <p className="text-[10px] text-base-content/50 leading-normal">
-                  {lang === "ko"
-                    ? "동일 계정의 동일 기기 간 고유 ID(UUID) 기반 대조 스마트 병합 모드입니다."
-                    : "Strict ID-based merge mode for identical account/device sync."}
-                </p>
-              </button>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setSyncModalAction(null)}>
-                {lang === "ko" ? "취소" : "Cancel"}
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleExecuteSync} className="gap-1.5">
-                {syncModalAction === "push" ? (
-                  <>
-                    <CloudUpload className="w-3.5 h-3.5" />
-                    {lang === "ko" ? "업로드 실행" : "Execute Push"}
-                  </>
-                ) : (
-                  <>
-                    <CloudDownload className="w-3.5 h-3.5" />
-                    {lang === "ko" ? "가져오기 실행" : "Execute Pull"}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Sync Options Modal */}
+      {syncModalAction && activeWorkspaceId && (
+        <WorkspaceSyncModal
+          action={syncModalAction}
+          workspaceId={activeWorkspaceId}
+          lang={lang === "en" ? "en" : "ko"}
+          onClose={() => setSyncModalAction(null)}
+          onConfirm={handleExecuteSync}
+        />
       )}
     </div>
   );
