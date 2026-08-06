@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { ChevronLeft, Folder, Globe, ListChecks, Plus, Search, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Folder, Globe, ListChecks, Plus, Search, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
-import type { DomainFeatureState } from "@/entities/domain";
+import { type DomainFeatureState, DuplicateDomainsMergeModal, findDuplicateDomains } from "@/entities/domain";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
@@ -153,6 +153,8 @@ export function DomainListPanel({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<number | "none">>(new Set());
   const [editDomain, setEditDomain] = useState<Domain | null>(null);
   const [deleteDomain, setDeleteDomain] = useState<Domain | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const duplicateGroups = useMemo(() => findDuplicateDomains(domains), [domains]);
   const domainsRef = useRef(domains);
   domainsRef.current = domains;
 
@@ -505,6 +507,26 @@ export function DomainListPanel({
 
   const filterSection = (
     <>
+      {duplicateGroups.length > 0 && (
+        <div className="mx-1 my-1 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-2 shadow-sm text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+            <span className="font-medium text-[11px] truncate">
+              {lang === "ko"
+                ? `중복 도메인 ${duplicateGroups.length}개 그룹 감지됨`
+                : `${duplicateGroups.length} duplicate group(s)`}
+            </span>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="text-[11px] py-0.5 px-2 h-6 bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-700 dark:text-amber-300 font-bold shrink-0"
+            onClick={() => setShowDuplicateModal(true)}
+          >
+            {lang === "ko" ? "병합 및 정리" : "Merge"}
+          </Button>
+        </div>
+      )}
       <FilterRow label={t.filterGroupLabel}>
         <FilterChip active={groupFilter === "all"} onClick={() => setGroupFilter("all")}>
           {t.filterAll}
@@ -587,6 +609,16 @@ export function DomainListPanel({
         cancelText={t.domainEditCancel}
         type="danger"
       />
+      {showDuplicateModal && (
+        <DuplicateDomainsMergeModal
+          groups={duplicateGroups}
+          lang={lang}
+          onClose={() => setShowDuplicateModal(false)}
+          onMerged={async () => {
+            await fetchAll();
+          }}
+        />
+      )}
     </>
   );
 

@@ -1,7 +1,9 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAtomValue } from "jotai";
-import { useCallback, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
+import { normalizeDomainUrl } from "@/entities/domain";
 import { useDomainHubData } from "@/entities/domain-hub";
 import { commands, unwrap } from "@/shared/api";
 import { useHubSurfaceDismiss, useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
@@ -14,13 +16,23 @@ import { popupKo } from "../i18n/ko";
 export function AddDomainContent() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? popupKo : popupEn;
-  const { fetchAll, groups } = useDomainHubData();
+  const { fetchAll, groups, domains } = useDomainHubData();
   const { alert: showAlert } = usePromiseModal();
   const [urls, setUrls] = useState("");
   const [groupId, setGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const isHubEmbed = useIsHubSurfaceEmbed();
   const dismissHubSurface = useHubSurfaceDismiss();
+
+  const existingUrlsSet = useMemo(() => new Set(domains.map((d) => normalizeDomainUrl(d.url))), [domains]);
+
+  const duplicateInputs = useMemo(() => {
+    const list = urls
+      .split("\n")
+      .map((u) => u.trim())
+      .filter(Boolean);
+    return list.filter((u) => existingUrlsSet.has(normalizeDomainUrl(u)));
+  }, [urls, existingUrlsSet]);
 
   const dismiss = useCallback(async () => {
     if (isHubEmbed && dismissHubSurface) {
@@ -66,6 +78,16 @@ export function AddDomainContent() {
         rows={6}
         className="font-mono text-xs"
       />
+      {duplicateInputs.length > 0 && (
+        <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+          <span>
+            {lang === "ko"
+              ? `입력하신 도메인 중 ${duplicateInputs.length}개가 이미 등록되어 있습니다. 등록 시 자동 업데이트됩니다.`
+              : `${duplicateInputs.length} domain(s) already exist. They will be updated automatically.`}
+          </span>
+        </div>
+      )}
       <div className="space-y-1.5">
         <label className="text-[10px] font-bold uppercase text-base-content/60">{t.addDomainGroup}</label>
         <select
