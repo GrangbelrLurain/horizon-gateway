@@ -46,6 +46,12 @@ function FeatureBadges({
   return (
     <div className="flex items-center gap-0.5 shrink-0">
       <FeatureBadge
+        shortLabel="I"
+        label="Script Injection"
+        active={state.scriptInjectionEnabled === true}
+        title={`Script Injection: ${state.scriptInjectionEnabled === true ? "ON" : "OFF"}`}
+      />
+      <FeatureBadge
         shortLabel="M"
         label={labels.monitor}
         active={state.monitorEnabled === true}
@@ -159,6 +165,7 @@ export const MemoDomainListItem = memo(DomainListItem, (prev, next) => {
     prev.displayUrl === next.displayUrl &&
     prev.featureState.monitorEnabled === next.featureState.monitorEnabled &&
     prev.featureState.proxyEnabled === next.featureState.proxyEnabled &&
-    prev.featureState.apiLoggingEnabled === next.featureState.apiLoggingEnabled
+    prev.featureState.apiLoggingEnabled === next.featureState.apiLoggingEnabled &&
+    prev.featureState.scriptInjectionEnabled === next.featureState.scriptInjectionEnabled
   );
 });

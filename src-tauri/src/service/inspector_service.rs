@@ -92,4 +92,33 @@ impl InspectorService {
         *list = domains;
         self.persist_domains(&list);
     }
+
+    /// Extracted host string from URL or host representation.
+    pub fn extract_host_key(url: &str) -> String {
+        let s = url.trim();
+        let without_scheme = if let Some(idx) = s.find("://") {
+            &s[idx + 3..]
+        } else {
+            s
+        };
+        let host_part = without_scheme.split('/').next().unwrap_or(without_scheme);
+        host_part.split(':').next().unwrap_or(host_part).to_lowercase()
+    }
+
+    /// Automatically sync registered domains to ensure newly added or migrated existing domains
+    /// have injection ON by default if they are not explicitly stored.
+    pub fn sync_registered_domains(&self, registered_domains: &[crate::model::domain::Domain]) {
+        let mut list = self.injection_domains.lock().unwrap();
+        let mut changed = false;
+        for d in registered_domains {
+            let host_key = Self::extract_host_key(&d.url);
+            if !host_key.is_empty() && !list.iter().any(|existing| existing.to_lowercase() == host_key) {
+                list.push(host_key);
+                changed = true;
+            }
+        }
+        if changed {
+            self.persist_domains(&list);
+        }
+    }
 }

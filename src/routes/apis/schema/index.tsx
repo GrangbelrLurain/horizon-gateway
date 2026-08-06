@@ -992,7 +992,7 @@ export function ApiSchemaPage({
     } finally {
       setSavingBody(false);
     }
-  }, [selectedDomainId, currentLink, setLinks]);
+  }, [selectedDomainId, currentLink]);
 
   const handleDownloadSchema = useCallback(async () => {
     if (selectedDomainId === null) {

@@ -21,9 +21,9 @@ const INSPECTOR_COPY = {
     injectionDisabled: "인젝션 기능 비활성화",
     injectionDomainsLabel: "대상 도메인 목록",
     injectionDomainsDesc:
-      "도메인을 등록하면 해당 도메인에만 인젝션 스크립트가 삽입됩니다. 목록이 비어 있으면 모든 도메인에 적용됩니다.",
+      "도메인 리스트에 등록된 도메인에만 인젝션 스크립트가 삽입됩니다. 각 등록 도메인의 인젝션 On/Off를 설정할 수 있습니다.",
     addDomainPlaceholder: "example.com (엔터로 추가)",
-    globalApply: "전체 도메인 적용 중",
+    globalApply: "전체 등록 도메인에 적용 중",
     waitingCapture: "브라우저에서 캡처 대기 중...",
     waitingCaptureDesc: "인젝션이 활성화된 브라우저에서 Alt + 클릭으로 요소를 선택하세요.",
     saveSuccess: "가이드가 성공적으로 저장되었습니다!",
@@ -43,7 +43,8 @@ const INSPECTOR_COPY = {
     injectionEnabled: "Injection Enabled",
     injectionDisabled: "Injection Disabled",
     injectionDomainsLabel: "Target Domains",
-    injectionDomainsDesc: "Register domains to limit injection. If the list is empty, it applies to all domains.",
+    injectionDomainsDesc:
+      "Script injection applies only to registered domains in the domain list. You can toggle injection ON/OFF for each domain.",
     addDomainPlaceholder: "example.com (Press Enter)",
     globalApply: "Applied to all domains",
     waitingCapture: "Waiting for capture from browser...",

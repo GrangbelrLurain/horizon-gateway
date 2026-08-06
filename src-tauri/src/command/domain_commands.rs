@@ -29,11 +29,18 @@ pub fn regist_domains(
     domain_service: tauri::State<'_, DomainService>,
     link_service: tauri::State<'_, DomainGroupLinkService>,
     _monitor_service: tauri::State<'_, DomainMonitorService>,
+    inspector_service: tauri::State<'_, crate::service::inspector_service::InspectorService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
-    regist_domains_svc(payload, &domain_service, &link_service, &_monitor_service)
+    regist_domains_svc(payload, &domain_service, &link_service, &_monitor_service, &inspector_service)
 }
 
-pub fn regist_domains_svc(payload: RegistDomainsPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService, _monitor_service: &DomainMonitorService) -> Result<ApiResponse<Vec<Domain>>, String> {
+pub fn regist_domains_svc(
+    payload: RegistDomainsPayload,
+    domain_service: &DomainService,
+    link_service: &DomainGroupLinkService,
+    _monitor_service: &DomainMonitorService,
+    inspector_service: &crate::service::inspector_service::InspectorService,
+) -> Result<ApiResponse<Vec<Domain>>, String> {
     let requested = payload.urls.len();
     let list = domain_service.add_domains(payload.urls);
     if let Some(gid) = payload.group_id {
@@ -41,6 +48,7 @@ pub fn regist_domains_svc(payload: RegistDomainsPayload, domain_service: &Domain
             link_service.add_domain_to_group(d.id, gid);
         }
     }
+    inspector_service.sync_registered_domains(&list);
     let skipped = requested.saturating_sub(list.len());
     let message = if skipped > 0 {
         format!("{}개 등록 완료, {}개 중복 제외!", list.len(), skipped)
@@ -233,15 +241,23 @@ pub fn import_domains(
     domain_service: tauri::State<'_, DomainService>,
     monitor_service: tauri::State<'_, DomainMonitorService>,
     route_service: tauri::State<'_, Arc<LocalRouteService>>,
+    inspector_service: tauri::State<'_, crate::service::inspector_service::InspectorService>,
 ) -> Result<ApiResponse<Vec<Domain>>, String> {
-    import_domains_svc(payload, &domain_service, &monitor_service, &route_service)
+    import_domains_svc(payload, &domain_service, &monitor_service, &route_service, &inspector_service)
 }
 
-pub fn import_domains_svc(payload: ImportDomainsPayload, domain_service: &DomainService, monitor_service: &DomainMonitorService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<Domain>>, String> {
+pub fn import_domains_svc(
+    payload: ImportDomainsPayload,
+    domain_service: &DomainService,
+    monitor_service: &DomainMonitorService,
+    route_service: &std::sync::Arc<LocalRouteService>,
+    inspector_service: &crate::service::inspector_service::InspectorService,
+) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(payload.domains);
     let all_domains = domain_service.get_all();
     monitor_service.sync_with_domains(&all_domains);
     route_service.sync_with_domains(&all_domains);
+    inspector_service.sync_registered_domains(&all_domains);
     Ok(ApiResponse {
         message: format!("{}개 도메인 임포트 완료!", list.len()),
         success: true,

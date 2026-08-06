@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.7] - 2026-08-06
+
+### Added
+
+- **Realtime Workspace Invitation Notifications & Inbox UI**: Added Supabase Realtime event listeners for workspace invitations. Users receive instant toast notifications upon receiving an invite and can view a "Received Workspace Invitations" inbox card to accept or decline invites with 1-Click.
+- **Shareable Public Invite Tokens**: Added support for generating open invite tokens (`Shareable Token`) that allow team members to join via shared links (e.g. Slack/KakaoTalk) without specifying recipient emails in advance.
+- **Manual Invite Token Revocation UI**: Added a 1-Click `Revoke` button to the pending invites list, allowing workspace admins to manually expire/cancel pending or shareable invite tokens at any time.
+
+### Fixed
+
+- **Supabase Invitation RLS Permission Policy**: Fixed RLS 403 Forbidden errors when joining a workspace via manual token paste or shareable token by adding `status = 'pending'` condition to `workspace_invites` SELECT and UPDATE policies.
+- **Workspace Admin Check Policy**: Updated `is_workspace_admin()` helper function to include `workspaces.owner_id = auth.uid()` so workspace owners have administrative invite permissions before member row creation.
+
 ## [v2.6.6] - 2026-08-06
 
 ### Added

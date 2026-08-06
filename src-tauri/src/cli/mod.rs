@@ -582,10 +582,11 @@ fn dispatch_command(
             let domain_service = app_handle.state::<DomainService>();
             let link_service = app_handle.state::<DomainGroupLinkService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
+            let inspector_service = app_handle.state::<InspectorService>();
             let parsed_payload: command::domain_commands::RegistDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::domain_commands::regist_domains(
-                parsed_payload, domain_service, link_service, monitor_service,
+                parsed_payload, domain_service, link_service, monitor_service, inspector_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
@@ -614,9 +615,10 @@ fn dispatch_command(
             let domain_service = app_handle.state::<DomainService>();
             let monitor_service = app_handle.state::<DomainMonitorService>();
             let route_service = app_handle.state::<Arc<LocalRouteService>>();
+            let inspector_service = app_handle.state::<InspectorService>();
             let parsed: command::domain_commands::ImportDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::domain_commands::import_domains(parsed, domain_service, monitor_service, route_service)?;
+            let result = command::domain_commands::import_domains(parsed, domain_service, monitor_service, route_service, inspector_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "clear_all_domains" => {
@@ -1034,8 +1036,9 @@ fn dispatch_command(
             let ca_service = app_handle.state::<Arc<CaService>>();
             let mocking_service = app_handle.state::<Arc<MockingService>>();
             let inspector_service = app_handle.state::<InspectorService>();
+            let domain_service = app_handle.state::<DomainService>();
             let result = tauri::async_runtime::block_on(command::local_route_commands::start_local_proxy(
-                app_handle.clone(), parsed, route_service, proxy_settings_service, api_logging_service, api_log_service, ca_service, mocking_service, inspector_service
+                app_handle.clone(), parsed, route_service, proxy_settings_service, api_logging_service, api_log_service, ca_service, mocking_service, inspector_service, domain_service
             ))?;
             Ok(serde_json::to_value(result).unwrap())
         }

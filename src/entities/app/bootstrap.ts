@@ -146,7 +146,7 @@ export function useAppBootstrap() {
 
     const unlistenDeepLink = listen<string>("deep-link-received", async (event) => {
       const urlStr = event.payload;
-      if (urlStr && urlStr.startsWith("horizon-gateway://")) {
+      if (urlStr?.startsWith("horizon-gateway://")) {
         let paramsString = "";
         if (urlStr.includes("#")) {
           paramsString = urlStr.split("#")[1];

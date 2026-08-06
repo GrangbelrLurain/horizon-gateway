@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useAtomValue } from "jotai";
-import { Activity, ArrowRight, ChevronRight, FileText, FlaskConical, Loader2, Server, Wifi } from "lucide-react";
+import { Activity, ArrowRight, ChevronRight, Code, FileText, FlaskConical, Loader2, Server, Wifi } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
@@ -123,9 +123,21 @@ export function DomainOverviewPanel({
       .catch(() => {});
   }, [displayHost]);
 
-  // Canonical ordering of 6 menu items
+  // Canonical ordering of menu items
   const menuItems: MenuItemDef[] = useMemo(
     () => [
+      {
+        id: "global/inspector",
+        label: lang === "ko" ? "스크립트 인젝션 (Inspector)" : "Script Injection (Inspector)",
+        icon: <Code className="w-4 h-4" />,
+        toggle: {
+          checked: toggles.scriptInjection.checked,
+          loading: toggles.scriptInjection.loading,
+          onToggle: (checked) => toggles.scriptInjection.toggle(checked),
+        },
+        onClick: () => void openDetachedWindow("/ux/live-capture", "Script Injection", 1100, 760),
+        isActive: toggles.scriptInjection.checked,
+      },
       {
         id: "api/logs",
         label: t.openApiPanel,
@@ -185,20 +197,20 @@ export function DomainOverviewPanel({
       },
     ],
     [
+      lang,
       t.openApiPanel,
       t.apiSchema,
       t.apiMocking,
       t.debugPolicies,
       t.openMonitorPanel,
       t.openProxyPanel,
+      toggles.scriptInjection,
       toggles.api,
       toggles.monitor,
       toggles.proxy,
       recentLogs.length,
       hasSchema,
       hasMockRules,
-      domain.url,
-      displayHost,
       hasAnnotations,
       onOpenPanel,
       nav,

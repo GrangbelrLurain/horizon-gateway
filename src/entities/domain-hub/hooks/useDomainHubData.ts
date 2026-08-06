@@ -14,6 +14,7 @@ import { useHubDataSubscription } from "../lib/hubDataSubscription";
 
 /** Shared across all useDomainHubData() callers in the same window. */
 const hubDataLoadingAtom = atom(true);
+export const injectionDomainsAtom = atom<string[]>([]);
 
 export function useDomainHubData() {
   const [domains, setDomains] = useAtom(domainsAtom);
@@ -21,6 +22,7 @@ export function useDomainHubData() {
   const [links, setLinks] = useAtom(linksAtom);
   const [monitorLinks, setMonitorLinks] = useAtom(monitorLinksAtom);
   const [apiLoggingLinks, setApiLoggingLinks] = useAtom(apiLoggingLinksAtom);
+  const [injectionDomains, setInjectionDomains] = useAtom(injectionDomainsAtom);
   const [localRoutes, setLocalRoutes] = useAtom(localRoutesAtom);
   const proxyActive = useAtomValue(proxyActiveAtom);
   const [loading, setLoading] = useAtom(hubDataLoadingAtom);
@@ -91,15 +93,19 @@ export function useDomainHubData() {
         }
 
         if (needsAll || reason === "features") {
-          const [monitorRes, apiRes] = await Promise.all([
+          const [monitorRes, apiRes, injectionRes] = await Promise.all([
             commands.getDomainMonitorList().then(unwrap),
             commands.getDomainApiLoggingLinks().then(unwrap),
+            commands.getInjectionDomains().then(unwrap),
           ]);
           if (monitorRes.success) {
             setMonitorLinks(monitorRes.data ?? []);
           }
           if (apiRes.success) {
             setApiLoggingLinks(apiRes.data ?? []);
+          }
+          if (injectionRes.success) {
+            setInjectionDomains(injectionRes.data ?? []);
           }
         }
 
@@ -113,7 +119,7 @@ export function useDomainHubData() {
         console.error("useDomainHubData:", err);
       }
     },
-    [setApiLoggingLinks, setDomains, setGroups, setLinks, setLocalRoutes, setMonitorLinks],
+    [setApiLoggingLinks, setDomains, setGroups, setInjectionDomains, setLinks, setLocalRoutes, setMonitorLinks],
   );
 
   const fetchAll = useCallback(async () => {
@@ -123,7 +129,7 @@ export function useDomainHubData() {
     } finally {
       setLoading(false);
     }
-  }, [refreshByReason]);
+  }, [refreshByReason, setLoading]);
 
   const handleHubDataChanged = useCallback(
     async (reason?: HubDataChangedReason) => {
@@ -150,15 +156,21 @@ export function useDomainHubData() {
   const getFeatureState = useCallback(
     (domainId: number): DomainFeatureState => {
       const proxyRoute = proxyRouteMap.get(domainId);
+      const domain = domains.find((d) => d.id === domainId);
+      const host = domain ? getDomainHost(domain) : "";
+      const scriptInjectionEnabled = Boolean(
+        host && injectionDomains.some((item) => item.toLowerCase() === host || host.endsWith(`.${item.toLowerCase()}`)),
+      );
 
       return {
         monitorEnabled: monitorMap.has(domainId) ? monitorMap.get(domainId) : undefined,
         proxyEnabled: proxyRoute?.enabled,
         proxyRouteId: proxyRoute?.id,
         apiLoggingEnabled: apiLoggingMap.has(domainId) ? apiLoggingMap.get(domainId) : undefined,
+        scriptInjectionEnabled,
       };
     },
-    [apiLoggingMap, monitorMap, proxyRouteMap],
+    [apiLoggingMap, domains, getDomainHost, injectionDomains, monitorMap, proxyRouteMap],
   );
 
   const getGroupName = useCallback(

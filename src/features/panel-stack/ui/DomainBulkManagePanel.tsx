@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Activity, ListChecks, Loader2, Server, Trash2, Wifi } from "lucide-react";
+import { Activity, Code, ListChecks, Loader2, Server, Trash2, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
@@ -21,7 +21,7 @@ interface DomainBulkManagePanelProps {
 function summarizeFeatureStates(
   selectedIds: ReadonlySet<number>,
   getFeatureState: ReturnType<typeof useDomainHubData>["getFeatureState"],
-  key: "monitor" | "proxy" | "api",
+  key: "scriptInjection" | "monitor" | "proxy" | "api",
 ) {
   if (selectedIds.size === 0) {
     return { allEnabled: false, noneEnabled: true, isMixed: false };
@@ -30,7 +30,13 @@ function summarizeFeatureStates(
   for (const id of selectedIds) {
     const state = getFeatureState(id);
     const enabled =
-      key === "monitor" ? !!state.monitorEnabled : key === "proxy" ? !!state.proxyEnabled : !!state.apiLoggingEnabled;
+      key === "scriptInjection"
+        ? !!state.scriptInjectionEnabled
+        : key === "monitor"
+          ? !!state.monitorEnabled
+          : key === "proxy"
+            ? !!state.proxyEnabled
+            : !!state.apiLoggingEnabled;
     if (enabled) {
       enabledCount++;
     }
@@ -75,6 +81,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
 
   const featureSummary = useMemo(
     () => ({
+      scriptInjection: summarizeFeatureStates(selectedIds, getFeatureState, "scriptInjection"),
       monitor: summarizeFeatureStates(selectedIds, getFeatureState, "monitor"),
       proxy: summarizeFeatureStates(selectedIds, getFeatureState, "proxy"),
       api: summarizeFeatureStates(selectedIds, getFeatureState, "api"),
@@ -126,7 +133,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                 {t.filterFeatureLabel}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {(["monitor", "proxy", "api"] as const).map((key) => {
+                {(["scriptInjection", "monitor", "proxy", "api"] as const).map((key) => {
                   const { allEnabled, noneEnabled, isMixed } = featureSummary[key];
                   const anyEnabled = !noneEnabled;
                   const isLoading = localLoading[key];
@@ -150,7 +157,9 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                               anyEnabled ? "bg-base-200 text-base-content/50" : "bg-base-300/50 text-base-content/30",
                             )}
                           >
-                            {key === "monitor" ? (
+                            {key === "scriptInjection" ? (
+                              <Code className="w-4 h-4" />
+                            ) : key === "monitor" ? (
                               <Activity className="w-4 h-4" />
                             ) : key === "proxy" ? (
                               <Server className="w-4 h-4" />
@@ -161,7 +170,15 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs font-bold text-base-content">
-                                {key === "monitor" ? t.monitor : key === "proxy" ? t.proxy : t.api}
+                                {key === "scriptInjection"
+                                  ? lang === "ko"
+                                    ? "스크립트 인젝션"
+                                    : "Script Injection"
+                                  : key === "monitor"
+                                    ? t.monitor
+                                    : key === "proxy"
+                                      ? t.proxy
+                                      : t.api}
                               </span>
                               {allEnabled ? (
                                 <span className="text-[8px] font-bold text-success bg-success/15 px-1 py-0.5 rounded">
@@ -178,11 +195,15 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                               )}
                             </div>
                             <p className="text-[10px] text-base-content/40 mt-0.5 truncate">
-                              {key === "monitor"
-                                ? t.monitorEnableHint
-                                : key === "proxy"
-                                  ? t.proxyRouteToggleHint
-                                  : t.apiEnableHint}
+                              {key === "scriptInjection"
+                                ? lang === "ko"
+                                  ? "선택한 도메인의 스크립트 주입을 켜고 끕니다."
+                                  : "Toggle script injection for selected domains"
+                                : key === "monitor"
+                                  ? t.monitorEnableHint
+                                  : key === "proxy"
+                                    ? t.proxyRouteToggleHint
+                                    : t.apiEnableHint}
                             </p>
                           </div>
                         </div>

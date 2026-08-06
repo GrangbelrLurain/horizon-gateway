@@ -643,7 +643,7 @@ export function InjectionApp() {
       XMLHttpRequest.prototype.send = originalSend;
     };
     // biome-ignore lint/correctness/useExhaustiveDependencies: isStaticAssetUrl is a stable inline function; adding it would cause infinite fetch/XHR re-patching
-  }, []);
+  }, [isStaticAssetUrl]);
 
   // --- Strict Matching Logic (Host + Pathname) ---
   const currentPagePolicies = useMemo(() => {

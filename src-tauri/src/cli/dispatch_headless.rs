@@ -77,7 +77,7 @@ pub fn dispatch_headless(
                         let parsed_payload: command::domain_commands::RegistDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::domain_commands::regist_domains_svc(
-                parsed_payload, &ctx.domain_service, &ctx.link_service, &ctx.monitor_service,
+                parsed_payload, &ctx.domain_service, &ctx.link_service, &ctx.monitor_service, &ctx.inspector_service,
             )?;
             Ok(serde_json::to_value(result).unwrap())
         }
@@ -98,7 +98,7 @@ pub fn dispatch_headless(
         "import_domains" => {
                         let parsed: command::domain_commands::ImportDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::domain_commands::import_domains_svc(parsed, &ctx.domain_service, &ctx.monitor_service, &ctx.local_route_service)?;
+            let result = command::domain_commands::import_domains_svc(parsed, &ctx.domain_service, &ctx.monitor_service, &ctx.local_route_service, &ctx.inspector_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "clear_all_domains" => {
@@ -421,7 +421,7 @@ pub fn dispatch_headless(
             } else {
                 Some(serde_json::from_value(payload).map_err(|e| format!("인자 역직렬화 실패: {}", e))?)
             };            let result = runtime.block_on(command::local_route_commands::start_local_proxy_svc(
-                None, parsed, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.api_logging_service, &ctx.api_log_service, &ctx.ca_service, &ctx.mocking_service, &ctx.inspector_service
+                None, parsed, &ctx.local_route_service, &ctx.proxy_settings_service, &ctx.api_logging_service, &ctx.api_log_service, &ctx.ca_service, &ctx.mocking_service, &ctx.inspector_service, &ctx.domain_service
             ))?;
             Ok(serde_json::to_value(result).unwrap())
         }

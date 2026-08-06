@@ -250,8 +250,6 @@ export function ProxyGraphView() {
     setPaths(newPaths);
   }, [filteredDomainIds, localRoutes]);
 
-  const virtualItems = rowVirtualizer.getVirtualItems();
-
   // Recalculate paths on resize, scroll, or data change
   useEffect(() => {
     const rightCol = rightColRef.current;
@@ -271,7 +269,7 @@ export function ProxyGraphView() {
       leftCol?.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
     };
-  }, [updatePaths, virtualItems.length]);
+  }, [updatePaths]);
 
   // Toggle Route Active state
   const handleToggleRoute = async (routeId: number, currentEnabled: boolean) => {

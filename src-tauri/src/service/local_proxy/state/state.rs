@@ -23,6 +23,7 @@ pub struct ProxyState {
     pub reqwest_client_direct: reqwest::Client,
     pub mocking_service: Arc<crate::service::mocking_service::MockingService>,
     pub inspector_service: Arc<crate::service::inspector_service::InspectorService>,
+    pub domain_service: Arc<crate::service::domain_service::DomainService>,
 }
 
 impl ProxyState {
@@ -37,6 +38,7 @@ impl ProxyState {
         ca_service: Arc<CaService>,
         mocking_service: Arc<crate::service::mocking_service::MockingService>,
         inspector_service: Arc<crate::service::inspector_service::InspectorService>,
+        domain_service: Arc<crate::service::domain_service::DomainService>,
     ) -> Self {
         let resolver = dns_server.as_deref().and_then(build_resolver);
         Self {
@@ -64,6 +66,7 @@ impl ProxyState {
                 .unwrap(),
             mocking_service,
             inspector_service,
+            domain_service,
         }
     }
 }

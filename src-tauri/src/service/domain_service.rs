@@ -2,10 +2,10 @@ use crate::model::domain::Domain;
 use crate::storage::versioned::{load_versioned, save_versioned};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::Mutex;
-
+use std::sync::{Arc, Mutex};
+#[derive(Clone)]
 pub struct DomainService {
-    pub domains: Mutex<Vec<Domain>>,
+    pub domains: Arc<Mutex<Vec<Domain>>>,
     pub storage_path: PathBuf,
 }
 
@@ -13,7 +13,7 @@ impl DomainService {
     pub fn new(storage_path: PathBuf) -> Self {
         let initial_domains = load_versioned(&storage_path);
         Self {
-            domains: Mutex::new(initial_domains),
+            domains: Arc::new(Mutex::new(initial_domains)),
             storage_path,
         }
     }

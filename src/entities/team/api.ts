@@ -60,9 +60,12 @@ export async function listMembers(workspaceId: string): Promise<WorkspaceMember[
 export async function inviteMember(
   workspaceId: string,
   email: string,
-  invitedBy: string,
+  invitedBy?: string,
   role: WorkspaceRole = "member",
 ): Promise<WorkspaceInvite> {
+  const { data: userData } = await supabase.auth.getUser();
+  const effectiveInvitedBy = userData?.user?.id ?? invitedBy ?? null;
+
   const token = crypto.randomUUID();
   const { data, error } = await supabase
     .from("workspace_invites")
@@ -70,7 +73,7 @@ export async function inviteMember(
       workspace_id: workspaceId,
       email: email.trim().toLowerCase(),
       role,
-      invited_by: invitedBy,
+      invited_by: effectiveInvitedBy,
       token,
       status: "pending",
     })
@@ -80,6 +83,40 @@ export async function inviteMember(
     throw error;
   }
   return data as WorkspaceInvite;
+}
+
+export async function createShareableInvite(
+  workspaceId: string,
+  invitedBy?: string,
+  role: WorkspaceRole = "member",
+): Promise<WorkspaceInvite> {
+  const { data: userData } = await supabase.auth.getUser();
+  const effectiveInvitedBy = userData?.user?.id ?? invitedBy ?? null;
+
+  const token = crypto.randomUUID();
+  const { data, error } = await supabase
+    .from("workspace_invites")
+    .insert({
+      workspace_id: workspaceId,
+      email: "link@shareable",
+      role,
+      invited_by: effectiveInvitedBy,
+      token,
+      status: "pending",
+    })
+    .select()
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data as WorkspaceInvite;
+}
+
+export async function revokeInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase.from("workspace_invites").update({ status: "revoked" }).eq("id", inviteId);
+  if (error) {
+    throw error;
+  }
 }
 
 export async function listInvites(workspaceId: string): Promise<WorkspaceInvite[]> {
@@ -94,11 +131,17 @@ export async function listInvites(workspaceId: string): Promise<WorkspaceInvite[
   return (data ?? []) as WorkspaceInvite[];
 }
 
-export async function acceptInvite(token: string, profileId: string): Promise<WorkspaceMember> {
+export async function acceptInvite(token: string, profileId?: string): Promise<WorkspaceMember> {
+  const { data: userData } = await supabase.auth.getUser();
+  const effectiveProfileId = userData?.user?.id ?? profileId;
+  if (!effectiveProfileId) {
+    throw new Error("User must be authenticated to accept an invite");
+  }
+
   const { data: invite, error: inviteError } = await supabase
     .from("workspace_invites")
     .select("*")
-    .eq("token", token)
+    .eq("token", token.trim())
     .eq("status", "pending")
     .single();
   if (inviteError || !invite) {
@@ -108,7 +151,7 @@ export async function acceptInvite(token: string, profileId: string): Promise<Wo
   const { data: member, error: memberError } = await supabase
     .from("workspace_members")
     .upsert(
-      { workspace_id: invite.workspace_id, profile_id: profileId, role: invite.role },
+      { workspace_id: invite.workspace_id, profile_id: effectiveProfileId, role: invite.role },
       { onConflict: "workspace_id,profile_id" },
     )
     .select()
@@ -126,6 +169,33 @@ export async function acceptInvite(token: string, profileId: string): Promise<Wo
   }
 
   return member as WorkspaceMember;
+}
+
+export interface MyPendingInvite extends WorkspaceInvite {
+  workspaces?: { name: string } | null;
+}
+
+export async function listMyPendingInvites(userEmail: string): Promise<MyPendingInvite[]> {
+  if (!userEmail) {
+    return [];
+  }
+  const { data, error } = await supabase
+    .from("workspace_invites")
+    .select("*, workspaces(name)")
+    .eq("email", userEmail.trim().toLowerCase())
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as MyPendingInvite[];
+}
+
+export async function declineInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase.from("workspace_invites").update({ status: "revoked" }).eq("id", inviteId);
+  if (error) {
+    throw error;
+  }
 }
 
 export async function pushResources(

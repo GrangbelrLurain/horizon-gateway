@@ -481,8 +481,9 @@ pub async fn start_local_proxy(
         std::sync::Arc<crate::service::mocking_service::MockingService>,
     >,
     inspector_service: tauri::State<'_, crate::service::inspector_service::InspectorService>,
+    domain_service: tauri::State<'_, crate::service::domain_service::DomainService>,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
-    start_local_proxy_svc(Some(app.clone()), payload, &route_service, &proxy_settings_service, &api_logging_service, &api_log_service, &ca_service, &mocking_service, &inspector_service).await
+    start_local_proxy_svc(Some(app.clone()), payload, &route_service, &proxy_settings_service, &api_logging_service, &api_log_service, &ca_service, &mocking_service, &inspector_service, &domain_service).await
 }
 
 pub async fn start_local_proxy_svc(
@@ -495,6 +496,7 @@ pub async fn start_local_proxy_svc(
     ca_service: &std::sync::Arc<CaService>,
     mocking_service: &std::sync::Arc<crate::service::mocking_service::MockingService>,
     inspector_service: &crate::service::inspector_service::InspectorService,
+    domain_service: &crate::service::domain_service::DomainService,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let app = app.ok_or_else(|| {
         "start_local_proxy requires the Horizon Gateway GUI AppHandle (proxy runtime). Close other instances or start proxy from the desktop app.".to_string()
@@ -539,6 +541,7 @@ pub async fn start_local_proxy_svc(
     let ca_service_arc = (*ca_service).clone();
     let mocking_service_arc = (*mocking_service).clone();
     let inspector_service_arc = (*inspector_service).clone();
+    let domain_service_arc = std::sync::Arc::new((*domain_service).clone());
 
     match local_proxy::run_proxy(
         app.clone(),
@@ -550,6 +553,7 @@ pub async fn start_local_proxy_svc(
         ca_service_arc.clone(),
         mocking_service_arc.clone(),
         std::sync::Arc::new(inspector_service_arc.clone()),
+        domain_service_arc.clone(),
     )
     .await
     {
@@ -569,6 +573,7 @@ pub async fn start_local_proxy_svc(
             ca_service_arc.clone(),
             mocking_service_arc.clone(),
             std::sync::Arc::new(inspector_service_arc.clone()),
+            domain_service_arc.clone(),
         )
         .await
         {
@@ -594,6 +599,7 @@ pub async fn start_local_proxy_svc(
             ca_service_arc,
             mocking_service_arc.clone(),
             std::sync::Arc::new(inspector_service_arc.clone()),
+            domain_service_arc.clone(),
         )
         .await
         {
@@ -819,6 +825,7 @@ pub async fn auto_start_proxy(
     ca_service: std::sync::Arc<CaService>,
     mocking_service: std::sync::Arc<crate::service::mocking_service::MockingService>,
     inspector_service: crate::service::inspector_service::InspectorService,
+    domain_service: std::sync::Arc<crate::service::domain_service::DomainService>,
 ) -> Result<(), String> {
     // Restore persisted local_routing_enabled flag
     local_proxy::set_local_routing_enabled(settings.local_routing_enabled);
@@ -857,6 +864,7 @@ pub async fn auto_start_proxy(
         ca_service.clone(),
         mocking_service.clone(),
         std::sync::Arc::new(inspector_service.clone()),
+        domain_service.clone(),
     )
     .await
     {
@@ -876,6 +884,7 @@ pub async fn auto_start_proxy(
             ca_service.clone(),
             mocking_service.clone(),
             std::sync::Arc::new(inspector_service.clone()),
+            domain_service.clone(),
         )
         .await
         {
@@ -901,6 +910,7 @@ pub async fn auto_start_proxy(
             ca_service,
             mocking_service.clone(),
             std::sync::Arc::new(inspector_service.clone()),
+            domain_service,
         )
         .await
         {

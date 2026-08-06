@@ -145,9 +145,9 @@ body {
 *::-webkit-scrollbar-button:vertical:end:increment,
 *::-webkit-scrollbar-button:horizontal:start:decrement,
 *::-webkit-scrollbar-button:horizontal:end:increment {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+  display: none;
+  width: 0;
+  height: 0;
   appearance: none;
   -webkit-appearance: none;
 }

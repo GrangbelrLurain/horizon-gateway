@@ -59,7 +59,7 @@ export function TopBar({
         },
       });
       if (error) {
-        toastError("Supabase OAuth Init Error: " + error.message);
+        toastError(`Supabase OAuth Init Error: ${error.message}`);
         return;
       }
       if (data?.url) {
@@ -68,7 +68,7 @@ export function TopBar({
         toastError("OAuth URL generation failed: URL was empty.");
       }
     } catch (err: any) {
-      toastError("handleLogin Exception: " + err.message);
+      toastError(`handleLogin Exception: ${err.message}`);
     }
   };
 

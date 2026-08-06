@@ -245,14 +245,25 @@ pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> boo
     if !is_active {
         return false;
     }
-    let domains = state.inspector_service.get_injection_domains();
-    if domains.is_empty() {
-        return true;
-    }
+
     let host_key = host_key_for_logging_map(host);
-    domains.iter().any(|d| {
-        let d_lower = d.to_lowercase();
-        host_key == d_lower || host_key.ends_with(&format!(".{d_lower}"))
+
+    // 1. Must match at least one registered domain in DomainService
+    let registered_domains = state.domain_service.get_all();
+    let is_registered = registered_domains.iter().any(|d| {
+        let reg_host = crate::service::inspector_service::InspectorService::extract_host_key(&d.url);
+        !reg_host.is_empty() && (host_key == reg_host || host_key.ends_with(&format!(".{reg_host}")))
+    });
+
+    if !is_registered {
+        return false; // Strictly block script injection for unregistered domains
+    }
+
+    // 2. Must be enabled in injection_domains (per-domain On/Off toggle)
+    let injection_domains = state.inspector_service.get_injection_domains();
+    injection_domains.iter().any(|d| {
+        let d_lower = crate::service::inspector_service::InspectorService::extract_host_key(d);
+        !d_lower.is_empty() && (host_key == d_lower || host_key.ends_with(&format!(".{d_lower}")))
     })
 }
 

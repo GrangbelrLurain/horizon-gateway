@@ -128,6 +128,42 @@ export function useDomainFeatureToggles({
     }
   };
 
+  const [scriptInjectionLoading, setScriptInjectionLoading] = useState(false);
+
+  const toggleScriptInjection = async (enabled: boolean) => {
+    setScriptInjectionLoading(true);
+    try {
+      const currentRes = await commands.getInjectionDomains().then(unwrap);
+      const currentList = currentRes.success && currentRes.data ? currentRes.data : [];
+      const extractHost = (url: string) => {
+        try {
+          const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+          return u.hostname.toLowerCase();
+        } catch {
+          return url.toLowerCase();
+        }
+      };
+      const host = extractHost(domainUrl);
+      let updated: string[];
+      if (enabled) {
+        if (!currentList.some((item) => item.toLowerCase() === host)) {
+          updated = [...currentList, host];
+        } else {
+          updated = currentList;
+        }
+      } else {
+        updated = currentList.filter((item) => item.toLowerCase() !== host && !host.endsWith(`.${item.toLowerCase()}`));
+      }
+      await commands.setInjectionDomains({ domains: updated }).then(unwrap);
+      onRefresh();
+      await notifyHubDataChanged("features");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setScriptInjectionLoading(false);
+    }
+  };
+
   const proxyChecked = proxyActive && state.proxyEnabled === true;
 
   return {
@@ -152,6 +188,11 @@ export function useDomainFeatureToggles({
       bodyChecked: apiLinks.find((l) => l.domainId === domainId)?.bodyEnabled === true,
       bodyLoading,
       toggleBody: toggleBodyLogging,
+    },
+    scriptInjection: {
+      checked: state.scriptInjectionEnabled === true,
+      loading: scriptInjectionLoading,
+      toggle: toggleScriptInjection,
     },
   };
 }

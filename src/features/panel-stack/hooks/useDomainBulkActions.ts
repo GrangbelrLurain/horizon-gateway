@@ -13,6 +13,7 @@ import {
   setBulkApiLogging,
   setBulkMonitor,
   setBulkProxy,
+  setBulkScriptInjection,
 } from "../lib/bulkDomainFeatures";
 import { useDomainHubData } from "./useDomainHubData";
 
@@ -21,12 +22,19 @@ export function useDomainBulkActions() {
   const t = lang === "ko" ? ko : en;
   const { alert: showAlert } = usePromiseModal();
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
-  const { proxyActive, getFeatureState, fetchAll } = useDomainHubData();
+  const { proxyActive, getFeatureState, fetchAll, domains } = useDomainHubData();
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const applyFeatureToDomains = useCallback(
     async (domainIds: number[], key: BulkFeatureKey, enabled: boolean) => {
       if (domainIds.length === 0) {
+        return;
+      }
+      if (key === "scriptInjection") {
+        const urls = domainIds
+          .map((id) => domains.find((d) => d.id === id)?.url)
+          .filter((u): u is string => Boolean(u));
+        await setBulkScriptInjection(urls, enabled);
         return;
       }
       if (key === "monitor") {
@@ -47,7 +55,7 @@ export function useDomainBulkActions() {
         await showAlert(t.bulkModeEnter, t.bulkProxySkipped(skipped), "warning");
       }
     },
-    [apiLinks, getFeatureState, proxyActive, showAlert, t],
+    [apiLinks, domains, getFeatureState, proxyActive, showAlert, t],
   );
 
   const bulkFeatureToggle = useCallback(

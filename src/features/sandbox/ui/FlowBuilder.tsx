@@ -402,8 +402,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const theme = useAtomValue(themeAtom);
 
   // Map persisted data into React Flow state
-  const initialNodes = useMemo(() => flowToReactFlow(persistedFlow).nodes, [activeFlow.revision]);
-  const initialEdges = useMemo(() => flowToReactFlow(persistedFlow).edges, [activeFlow.revision]);
+  const initialNodes = useMemo(() => flowToReactFlow(persistedFlow).nodes, [persistedFlow]);
+  const initialEdges = useMemo(() => flowToReactFlow(persistedFlow).edges, [persistedFlow]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -421,7 +421,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     setEdges(nextEdges);
     setSelectedNodeId(null);
     setReport(null);
-  }, [activeFlow.revision, setNodes, setEdges]);
+  }, [setNodes, setEdges, activeFlow.flow]);
 
   // JSON Schema Editor Modal State
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);

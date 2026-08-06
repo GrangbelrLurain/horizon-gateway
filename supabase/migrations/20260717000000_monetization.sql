@@ -182,6 +182,9 @@ as $$
   select exists (
     select 1 from public.workspace_members m
     where m.workspace_id = ws_id and m.profile_id = auth.uid() and m.role in ('owner', 'admin')
+  ) or exists (
+    select 1 from public.workspaces w
+    where w.id = ws_id and w.owner_id = auth.uid()
   );
 $$;
 
@@ -262,34 +265,28 @@ exception when duplicate_object then null;
 end $$;
 
 -- workspace_invites
-do $$
-begin
-  create policy "workspace_invites_select_member_or_invitee" on public.workspace_invites
-    for select to authenticated
-    using (
-      public.is_workspace_member(workspace_id)
-      or email = (auth.jwt() ->> 'email')
-    );
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_invites_select_member_or_invitee" on public.workspace_invites;
+create policy "workspace_invites_select_member_or_invitee" on public.workspace_invites
+  for select to authenticated
+  using (
+    public.is_workspace_member(workspace_id)
+    or email = (auth.jwt() ->> 'email')
+    or status = 'pending'
+  );
 
-do $$
-begin
-  create policy "workspace_invites_insert_admin" on public.workspace_invites
-    for insert to authenticated
-    with check (public.is_workspace_admin(workspace_id));
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_invites_insert_admin" on public.workspace_invites;
+create policy "workspace_invites_insert_admin" on public.workspace_invites
+  for insert to authenticated
+  with check (public.is_workspace_admin(workspace_id));
 
-do $$
-begin
-  -- Admins can revoke; the invitee (matching JWT email) can accept their own invite.
-  create policy "workspace_invites_update_admin_or_invitee" on public.workspace_invites
-    for update to authenticated
-    using (public.is_workspace_admin(workspace_id) or email = (auth.jwt() ->> 'email'))
-    with check (public.is_workspace_admin(workspace_id) or email = (auth.jwt() ->> 'email'));
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_invites_update_admin_or_invitee" on public.workspace_invites;
+create policy "workspace_invites_update_admin_or_invitee" on public.workspace_invites
+  for update to authenticated
+  using (
+    public.is_workspace_admin(workspace_id)
+    or email = (auth.jwt() ->> 'email')
+    or status = 'pending'
+  );
 
 -- workspace_resources (MVP: any member can push/pull)
 do $$

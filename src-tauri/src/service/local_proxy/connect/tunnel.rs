@@ -27,9 +27,10 @@ pub(crate) fn is_auth_sso_domain(host: &str) -> bool {
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
-use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
+use crate::service::local_proxy::flags::is_local_routing_enabled;
 
 use super::decrypt::handle_connect_tunnel_decrypted;
+use super::super::handler::inject::should_inject_for_host;
 use super::local::handle_connect_tunnel_local;
 use super::passthrough::handle_connect_passthrough;
 use super::super::routing::{get_logging_config_for_host, host_key_for_logging_map, resolve_connect_target};
@@ -61,31 +62,9 @@ pub(crate) async fn handle_connect_tunnel(
     };
 
     // 2. Selective Decryption for Inspector/Injection/Mocking/Logging
-    let mocking_enabled = state.mocking_service.get_settings().enabled || is_mocking_enabled();
-    let is_active = is_inspector_enabled() || mocking_enabled || is_local_routing_enabled();
-
     let is_connectivity = is_system_connectivity_domain(&host);
     let is_auth_sso = is_auth_sso_domain(&host);
-    let should_decrypt = !is_connectivity && !is_auth_sso && (use_api_logging || {
-        if is_active {
-            let domains = state.inspector_service.get_injection_domains();
-            if domains.is_empty() {
-                true // No domains registered -> Apply globally
-            } else {
-                let host_lower = host.to_lowercase();
-                let key_lower = key.to_lowercase();
-                domains.iter().any(|d| {
-                    let d_lower = d.to_lowercase();
-                    host_lower == d_lower
-                        || host_lower.ends_with(&format!(".{d_lower}"))
-                        || key_lower == d_lower
-                        || key_lower.ends_with(&format!(".{d_lower}"))
-                })
-            }
-        } else {
-            false
-        }
-    });
+    let should_decrypt = !is_connectivity && !is_auth_sso && (use_api_logging || should_inject_for_host(&state, &host));
 
     if should_decrypt {
         // Decrypt for API Logging or Inspector

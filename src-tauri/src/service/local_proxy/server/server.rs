@@ -40,6 +40,7 @@ pub async fn run_proxy(
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
+    domain_service: Arc<crate::service::domain_service::DomainService>,
 ) -> std::io::Result<JoinHandle<()>> {
     // Bind to 0.0.0.0 so the proxy is reachable via Tailscale IP (100.x.x.x)
     // from mobile devices on the same VPN network for cert downloads and PAC access.
@@ -55,6 +56,7 @@ pub async fn run_proxy(
         ca_service,
         mocking_service,
         inspector_service,
+        domain_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -106,6 +108,7 @@ pub async fn run_reverse_proxy_http(
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
+    domain_service: Arc<crate::service::domain_service::DomainService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -119,6 +122,7 @@ pub async fn run_reverse_proxy_http(
         ca_service,
         mocking_service,
         inspector_service,
+        domain_service,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -153,6 +157,7 @@ pub async fn run_reverse_proxy_https(
     ca_service: Arc<CaService>,
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
+    domain_service: Arc<crate::service::domain_service::DomainService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -166,6 +171,7 @@ pub async fn run_reverse_proxy_https(
         ca_service,
         mocking_service,
         inspector_service,
+        domain_service,
     ));
     let app = proxy_app(Arc::clone(&state), "https");
     let config = rustls::ServerConfig::builder()

@@ -2,7 +2,7 @@ mod api;
 mod capture;
 mod cors;
 mod forward;
-mod inject;
+pub(crate) mod inject;
 mod mocking;
 mod pipeline;
 mod websocket;

@@ -1,25 +1,43 @@
 import { useAtom, useAtomValue } from "jotai";
 import {
   AlertTriangle,
+  Bell,
   Check,
   CloudDownload,
   CloudUpload,
   Copy,
   CreditCard,
   Globe,
+  Link,
   Loader2,
   Lock,
+  Mail,
   Plus,
+  Trash2,
   UserPlus,
   Users,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom, supabaseProfileAtom, supabaseSessionAtom } from "@/entities/app";
 import { commands } from "@/shared/api";
+import { supabase } from "@/shared/api/supabase";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
-import { acceptInvite, createWorkspace, inviteMember, listInvites, listMembers, listWorkspaces } from "../api";
+import {
+  acceptInvite,
+  createShareableInvite,
+  createWorkspace,
+  declineInvite,
+  inviteMember,
+  listInvites,
+  listMembers,
+  listMyPendingInvites,
+  listWorkspaces,
+  type MyPendingInvite,
+  revokeInvite,
+} from "../api";
 import { useWorkspaceGuard } from "../model/useWorkspaceGuard";
 import { activeWorkspaceIdAtom } from "../store";
 import { pullWorkspaceSync, pushWorkspaceSync } from "../sync";
@@ -40,6 +58,7 @@ export function TeamSection() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
+  const [myInvites, setMyInvites] = useState<MyPendingInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -48,6 +67,7 @@ export function TeamSection() {
   const [syncing, setSyncing] = useState<"push" | "pull" | null>(null);
   const [inviteToken, setInviteToken] = useState("");
   const [accepting, setAccepting] = useState(false);
+  const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
@@ -78,6 +98,38 @@ export function TeamSection() {
   useEffect(() => {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
+
+  // Realtime subscription for invites sent to current user's email
+  useEffect(() => {
+    if (!supaProfile?.email) {
+      setMyInvites([]);
+      return;
+    }
+    const email = supaProfile.email.trim().toLowerCase();
+
+    void listMyPendingInvites(email).then(setMyInvites).catch(console.error);
+
+    const channel = supabase
+      .channel(`my-invites-${email}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "workspace_invites",
+          filter: `email=eq.${email}`,
+        },
+        () => {
+          toastInfo(lang === "ko" ? "새로운 워크스페이스 초대가 도착했습니다!" : "New workspace invitation received!");
+          void listMyPendingInvites(email).then(setMyInvites).catch(console.error);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supaProfile?.email, lang]);
 
   const refreshMembersAndInvites = useCallback(async (wsId: string) => {
     try {
@@ -187,6 +239,63 @@ export function TeamSection() {
     }
   };
 
+  const handleCreateShareableInvite = async () => {
+    if (!userId || !activeWorkspaceId) {
+      return;
+    }
+    if (!guard.canInvite) {
+      if (guard.isSeatFull) {
+        toastInfo(
+          lang === "ko"
+            ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. 팀 인원을 추가하려면 Team Pro 플랜으로 업그레이드하세요.`
+            : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Upgrade to Team Pro plan to add more members.`,
+        );
+        void handleCheckout();
+      }
+      return;
+    }
+
+    setInviting(true);
+    try {
+      const inv = await createShareableInvite(activeWorkspaceId, userId);
+      await refreshMembersAndInvites(activeWorkspaceId);
+
+      try {
+        await navigator.clipboard.writeText(inv.token);
+        toastSuccess(
+          lang === "ko"
+            ? `공유용 초대 토큰이 생성되고 복사되었습니다: ${inv.token}`
+            : `Shareable invite token created and copied: ${inv.token}`,
+        );
+      } catch {
+        toastSuccess(
+          lang === "ko"
+            ? `공유용 초대 토큰이 생성되었습니다: ${inv.token}`
+            : `Shareable invite token created: ${inv.token}`,
+        );
+      }
+    } catch (e) {
+      console.error("createShareableInvite:", e);
+      toastError(lang === "ko" ? "공유 토큰 생성에 실패했습니다." : "Failed to create shareable token.");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    try {
+      await revokeInvite(inviteId);
+      await refreshMembersAndInvites(activeWorkspaceId);
+      toastInfo(lang === "ko" ? "초대 토큰이 만료/철회 처리되었습니다." : "Invite token revoked.");
+    } catch (e) {
+      console.error("revokeInvite:", e);
+      toastError(lang === "ko" ? "토큰 만료 처리에 실패했습니다." : "Failed to revoke invite.");
+    }
+  };
+
   const handleCopyToken = async (token: string) => {
     try {
       await navigator.clipboard.writeText(token);
@@ -195,6 +304,45 @@ export function TeamSection() {
       setTimeout(() => setCopiedToken(null), 2000);
     } catch {
       toastError(lang === "ko" ? "복사에 실패했습니다." : "Failed to copy.");
+    }
+  };
+
+  const handleAcceptMyInvite = async (inv: MyPendingInvite) => {
+    if (!userId) {
+      return;
+    }
+    setProcessingInviteId(inv.id);
+    try {
+      await acceptInvite(inv.token, userId);
+      if (supaProfile?.email) {
+        setMyInvites((prev) => prev.filter((item) => item.id !== inv.id));
+      }
+      await refreshWorkspaces();
+      setActiveWorkspaceId(inv.workspace_id);
+      toastSuccess(
+        lang === "ko"
+          ? `${inv.workspaces?.name ?? "워크스페이스"} 초대를 수락했습니다!`
+          : `Joined ${inv.workspaces?.name ?? "workspace"}!`,
+      );
+    } catch (e) {
+      console.error("handleAcceptMyInvite:", e);
+      toastError(lang === "ko" ? "초대 수락에 실패했습니다." : "Failed to accept invite.");
+    } finally {
+      setProcessingInviteId(null);
+    }
+  };
+
+  const handleDeclineMyInvite = async (inviteId: string) => {
+    setProcessingInviteId(inviteId);
+    try {
+      await declineInvite(inviteId);
+      setMyInvites((prev) => prev.filter((item) => item.id !== inviteId));
+      toastInfo(lang === "ko" ? "초대를 거절했습니다." : "Invite declined.");
+    } catch (e) {
+      console.error("handleDeclineMyInvite:", e);
+      toastError(lang === "ko" ? "초대 거절에 실패했습니다." : "Failed to decline invite.");
+    } finally {
+      setProcessingInviteId(null);
     }
   };
 
@@ -308,6 +456,71 @@ export function TeamSection() {
         </div>
       )}
 
+      {/* 🔔 My Pending Received Invites Section (1-Click Accept/Decline) */}
+      {myInvites.length > 0 && (
+        <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+              <Bell className="w-4 h-4 animate-bounce" />
+              {lang === "ko" ? "나에게 도착한 워크스페이스 초대" : "Received Workspace Invitations"}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-content">
+              {myInvites.length}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {myInvites.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-base-100 border border-base-200 shadow-sm flex-wrap gap-2"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg shrink-0">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-base-content">
+                      {inv.workspaces?.name ?? (lang === "ko" ? "새 워크스페이스" : "New Workspace")}
+                    </p>
+                    <p className="text-[10px] text-base-content/50">
+                      {lang === "ko" ? "역할:" : "Role:"} <span className="font-semibold">{inv.role}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="gap-1 text-xs py-1 h-8"
+                    onClick={() => handleAcceptMyInvite(inv)}
+                    disabled={processingInviteId === inv.id}
+                  >
+                    {processingInviteId === inv.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    {lang === "ko" ? "수락" : "Accept"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1 text-xs py-1 h-8 text-error hover:bg-error/10"
+                    onClick={() => handleDeclineMyInvite(inv.id)}
+                    disabled={processingInviteId === inv.id}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    {lang === "ko" ? "거절" : "Decline"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Workspace list + create */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
@@ -401,7 +614,7 @@ export function TeamSection() {
               ))}
           </div>
 
-          <div className="flex gap-2 mt-1">
+          <div className="flex gap-2 mt-1 flex-wrap">
             <Input
               type="email"
               placeholder={
@@ -416,7 +629,7 @@ export function TeamSection() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               disabled={!activeWorkspace || !guard.canInvite}
-              className="h-9 text-sm"
+              className="h-9 text-sm min-w-40 flex-1"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleInvite();
@@ -437,38 +650,71 @@ export function TeamSection() {
               )}
               {lang === "ko" ? "초대" : "Invite"}
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 shrink-0 text-xs border border-base-200 hover:bg-base-200"
+              onClick={handleCreateShareableInvite}
+              disabled={!activeWorkspace || !guard.canInvite || inviting}
+              title={lang === "ko" ? "누구나 참가할 수 있는 공개 링크/토큰 생성" : "Create a shareable invite token"}
+            >
+              <Link className="w-3.5 h-3.5 text-primary" />
+              {lang === "ko" ? "공유 토큰 생성" : "Shareable Token"}
+            </Button>
           </div>
 
           {/* Pending Invites Token List */}
           {activeWorkspace && invites.length > 0 && (
             <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-base-200">
               <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
-                {lang === "ko" ? "대기 중인 초대 (토큰 복사)" : "Pending Invites (Copy Token)"}
+                {lang === "ko" ? "대기 중인 초대 (토큰 관리)" : "Pending Invites (Manage Token)"}
               </span>
-              <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
+              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
                 {invites.map((inv) => (
                   <div
                     key={inv.id}
-                    className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs"
+                    className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs flex-wrap gap-1"
                   >
-                    <span className="truncate text-base-content/80 font-medium">{inv.email}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyToken(inv.token)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-base-100 border border-base-300 text-[10px] font-medium text-base-content/70 hover:text-primary transition-all shrink-0 shadow-sm"
-                    >
-                      {copiedToken === inv.token ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-500" />
-                          {lang === "ko" ? "복사됨" : "Copied"}
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          {lang === "ko" ? "토큰 복사" : "Copy Token"}
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                      <span className="truncate text-base-content/80 font-medium">
+                        {inv.email === "link@shareable"
+                          ? lang === "ko"
+                            ? "🔗 공유용 공개 초대 토큰"
+                            : "🔗 Shareable Public Token"
+                          : inv.email}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyToken(inv.token)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-base-100 border border-base-300 text-[10px] font-medium text-base-content/70 hover:text-primary transition-all shadow-sm"
+                      >
+                        {copiedToken === inv.token ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            {lang === "ko" ? "복사됨" : "Copied"}
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            {lang === "ko" ? "토큰 복사" : "Copy Token"}
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeInvite(inv.id)}
+                        title={lang === "ko" ? "이 초대 토큰 만료/철회" : "Revoke this invite token"}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-error/10 border border-error/20 text-[10px] font-medium text-error hover:bg-error/20 transition-all shadow-sm"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        {lang === "ko" ? "만료/철회" : "Revoke"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -535,10 +781,10 @@ export function TeamSection() {
         )}
       </div>
 
-      {/* Join with Invite Token */}
+      {/* Join with Invite Token (Secondary Fallback Option) */}
       <div className="flex flex-col gap-2 pt-2 border-t border-base-200">
         <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
-          {lang === "ko" ? "초대 토큰으로 참가" : "Join with invite token"}
+          {lang === "ko" ? "초대 토큰 직접 입력 수락 (보조 수단)" : "Join with invite token (Fallback)"}
         </span>
         <div className="flex gap-2">
           <Input

@@ -360,6 +360,9 @@ pub fn run() {
                 crypto_preset_service,
             } = ctx;
 
+            // Sync registered domains to ensure all existing domains are Injection ON by default on startup
+            inspector_service.sync_registered_domains(&domain_service.get_all());
+
             // Clone/read values needed for auto-start before `app.manage()` moves them.
             let route_svc_for_proxy = Arc::clone(&local_route_service);
             let proxy_settings_snapshot = proxy_settings_service.get();
@@ -367,6 +370,7 @@ pub fn run() {
             let ca_service_for_proxy = Arc::clone(&ca_service);
             let mocking_service_for_proxy = Arc::clone(&mocking_service);
             let inspector_svc_for_proxy = inspector_service.clone();
+            let domain_service_for_proxy = Arc::new(domain_service.clone());
 
             app.manage(ca_service);
             app.manage(domain_service);
@@ -435,6 +439,7 @@ pub fn run() {
                         ca_service_for_proxy,
                         mocking_service_for_proxy,
                         inspector_svc_for_proxy,
+                        domain_service_for_proxy,
                     )
                     .await
                     {
