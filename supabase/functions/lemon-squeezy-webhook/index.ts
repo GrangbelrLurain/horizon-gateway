@@ -40,8 +40,8 @@ const STATUS_MAP: Record<string, "active" | "past_due" | "canceled"> = {
 // Optional: map Lemon Squeezy `variant_id` -> seat_limit for that plan.
 // Fill in your real variant IDs once the products are created in Lemon Squeezy.
 const SEAT_LIMIT_BY_VARIANT: Record<string, number> = {
-  // "123456": 5,
-  // "123457": 20,
+  // Horizon Gateway Team Pro — Monthly · 5 seats ($15)
+  "1987632": 5,
 };
 
 function toHex(buffer: ArrayBuffer): string {
@@ -82,6 +82,7 @@ interface LemonSqueezyPayload {
     custom_data?: { workspace_id?: string };
   };
   data?: {
+    id?: string;
     attributes?: {
       status?: string;
       variant_id?: number | string;
@@ -123,10 +124,21 @@ Deno.serve(async (req) => {
   const status = STATUS_MAP[attributes.status ?? ""] ?? "active";
   const variantId = attributes.variant_id != null ? String(attributes.variant_id) : null;
   const seatLimit = variantId ? SEAT_LIMIT_BY_VARIANT[variantId] : undefined;
+  const subscriptionId = payload.data?.id != null ? String(payload.data.id) : null;
 
-  const updates: Record<string, unknown> = { status };
-  if (seatLimit != null) {
+  const isCanceled = status === "canceled";
+  const updates: Record<string, unknown> = {
+    status,
+    plan: isCanceled ? "free" : "pro",
+  };
+  if (seatLimit != null && !isCanceled) {
     updates.seat_limit = seatLimit;
+  }
+  if (isCanceled) {
+    updates.seat_limit = 3;
+  }
+  if (subscriptionId) {
+    updates.ls_subscription_id = isCanceled ? null : subscriptionId;
   }
 
   const { error } = await supabase.from("workspaces").update(updates).eq("id", workspaceId);

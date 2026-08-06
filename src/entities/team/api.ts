@@ -25,7 +25,7 @@ export async function createWorkspace(name: string, ownerId?: string): Promise<W
 
   const { data, error } = await supabase
     .from("workspaces")
-    .insert({ name, owner_id: effectiveOwnerId })
+    .insert({ name, owner_id: effectiveOwnerId, plan: "free", seat_limit: 3 })
     .select()
     .single();
 

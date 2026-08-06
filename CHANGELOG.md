@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.8] - 2026-08-06
+
+### Added
+
+- **Duplicate Domain Detection & Merge Policy Modal**: Added automatic detection for duplicate domain URLs across the local list and team workspace. Displays a warning banner and provides a dedicated Proxy-styled Merge Policy Modal with 3 consolidation strategies (`Smart Merge`, `Keep Latest`, `Keep Oldest`).
+- **Domain Settings Comparison View**: Added a 2-column comparative card view per domain ID inside the Duplicate Merge modal. Displays group assignments, proxy targets, monitor statuses, and API logging badges side-by-side to make informed decisions when picking primary domain IDs.
+- **Multi-Mode Workspace Domain Sync**: Added 4 selectable sync strategy modes (`URL-based Merge`, `Append Only`, `Complete Overwrite`, and `Strict Internal ID`) in the Team Workspace sync modal, enabling seamless domain list synchronization across different accounts and devices without ID collisions.
+
+### Changed
+
+- **UI Refinement & Modern Border Radii**: Refined border-radius properties (`rounded-3xl` / `rounded-2xl` lowered to sleek `rounded-xl` / `rounded-lg` / `rounded-md`) across modals and cards for a sharper, premium desktop aesthetic.
+- **100% SVG Vector Icons**: Replaced all plain text emoji icons (`🌐`, `➕`, `⚠️`, `🆔`, `⚡`) with high-quality Lucide SVG icons (`Globe`, `Plus`, `AlertTriangle`, `Fingerprint`, `Zap`, `Server`, `Shield`).
+
 ## [v2.6.7] - 2026-08-06
 
 ### Added

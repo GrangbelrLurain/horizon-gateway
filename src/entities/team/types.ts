@@ -1,3 +1,4 @@
+export type WorkspacePlan = "free" | "pro";
 export type WorkspaceRole = "owner" | "admin" | "member";
 export type WorkspaceStatus = "active" | "past_due" | "canceled";
 export type InviteStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -11,6 +12,8 @@ export interface Workspace {
   owner_id: string;
   seat_limit: number;
   status: WorkspaceStatus;
+  plan: WorkspacePlan;
+  ls_subscription_id: string | null;
   created_at: string;
 }
 

@@ -229,40 +229,26 @@ exception when duplicate_object then null;
 end $$;
 
 -- workspace_members
-do $$
-begin
-  create policy "workspace_members_select_member" on public.workspace_members
-    for select to authenticated
-    using (public.is_workspace_member(workspace_id));
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_members_select_member" on public.workspace_members;
+create policy "workspace_members_select_member" on public.workspace_members
+  for select to authenticated
+  using (public.is_workspace_member(workspace_id) or profile_id = auth.uid());
 
-do $$
-begin
-  -- Self-service inserts only: creating your own owner row (createWorkspace) or
-  -- accepting an invite (acceptInvite). Admin-adding-others goes through invites instead.
-  create policy "workspace_members_insert_self" on public.workspace_members
-    for insert to authenticated
-    with check (profile_id = auth.uid());
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_members_insert_self" on public.workspace_members;
+create policy "workspace_members_insert_self" on public.workspace_members
+  for insert to authenticated
+  with check (profile_id = auth.uid());
 
-do $$
-begin
-  create policy "workspace_members_update_admin" on public.workspace_members
-    for update to authenticated
-    using (public.is_workspace_admin(workspace_id))
-    with check (public.is_workspace_admin(workspace_id));
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_members_update_admin" on public.workspace_members;
+create policy "workspace_members_update_admin" on public.workspace_members
+  for update to authenticated
+  using (public.is_workspace_admin(workspace_id) or profile_id = auth.uid())
+  with check (public.is_workspace_admin(workspace_id) or profile_id = auth.uid());
 
-do $$
-begin
-  create policy "workspace_members_delete_admin_or_self" on public.workspace_members
-    for delete to authenticated
-    using (public.is_workspace_admin(workspace_id) or profile_id = auth.uid());
-exception when duplicate_object then null;
-end $$;
+drop policy if exists "workspace_members_delete_admin_or_self" on public.workspace_members;
+create policy "workspace_members_delete_admin_or_self" on public.workspace_members
+  for delete to authenticated
+  using (public.is_workspace_admin(workspace_id) or profile_id = auth.uid());
 
 -- workspace_invites
 drop policy if exists "workspace_invites_select_member_or_invitee" on public.workspace_invites;

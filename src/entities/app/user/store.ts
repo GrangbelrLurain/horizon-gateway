@@ -62,6 +62,12 @@ export interface DBProfile {
   github_login?: string | null;
   /** Set by the GitHub Sponsors webhook (server-only write) when sponsorship first activates. */
   sponsor_since?: string | null;
+  /**
+   * Internal / owner bypass for Team features without Lemon billing.
+   * `pro` = treated as Team Pro, `unlimited` = no seat/workspace caps.
+   * Null = normal billing rules.
+   */
+  team_entitlement?: "pro" | "unlimited" | null;
 }
 
 export const supabaseSessionAtom = atom<Session | null>(null);
