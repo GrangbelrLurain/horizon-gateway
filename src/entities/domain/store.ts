@@ -14,18 +14,31 @@ export interface DuplicateGroup {
 
 export type DuplicateMergePolicy = "merge_smart" | "keep_latest" | "keep_oldest";
 
-/** Standardize domain URL for duplication comparison */
+/**
+ * Standardize domain URL for duplication comparison.
+ * Domains are host-scoped in the UI/proxy/injection layers, so compare by hostname
+ * (scheme, path, query, port, and trailing slash do not create distinct domains).
+ */
 export function normalizeDomainUrl(url: string): string {
-  let cleaned = url.trim().toLowerCase();
-  if (cleaned.startsWith("http://")) {
-    cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith("https://")) {
-    cleaned = cleaned.slice(8);
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
   }
-  if (cleaned.endsWith("/")) {
-    cleaned = cleaned.slice(0, -1);
+  try {
+    const withScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const hostname = new URL(withScheme).hostname.toLowerCase().replace(/\.$/, "");
+    return hostname;
+  } catch {
+    let cleaned = trimmed.toLowerCase();
+    if (cleaned.startsWith("http://")) {
+      cleaned = cleaned.slice(7);
+    } else if (cleaned.startsWith("https://")) {
+      cleaned = cleaned.slice(8);
+    }
+    cleaned = cleaned.split("/")[0]?.split("?")[0]?.split("#")[0] ?? cleaned;
+    cleaned = cleaned.split(":")[0] ?? cleaned;
+    return cleaned.replace(/\.$/, "");
   }
-  return cleaned;
 }
 
 /** Group domains by normalized URL and return duplicate clusters */

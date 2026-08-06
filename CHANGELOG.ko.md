@@ -4,6 +4,19 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.8] - 2026-08-06
+
+### Added (추가 기능)
+
+- **중복 도메인 감지 및 병합 정책 모달**: 로컬 목록과 팀 워크스페이스 간 중복 도메인 URL을 자동 감지합니다. 경고 배너를 표시하고, Proxy 스타일의 병합 정책 모달에서 3가지 통합 전략(`Smart Merge`, `Keep Latest`, `Keep Oldest`)을 제공합니다.
+- **도메인 설정 비교 뷰**: 중복 병합 모달 내 도메인 ID별 2열 비교 카드 뷰를 추가했습니다. 그룹 배정, 프록시 대상, 모니터 상태, API 로깅 배지를 나란히 표시해 주 도메인 ID를 선택할 때 참고할 수 있습니다.
+- **멀티모드 워크스페이스 도메인 동기화**: 팀 워크스페이스 동기화 모달에 4가지 동기화 전략 모드(`URL 기반 병합`, `추가만`, `전체 덮어쓰기`, `엄격한 내부 ID`)를 추가하여, 계정·기기 간 ID 충돌 없이 도메인 목록을 동기화할 수 있습니다.
+
+### Changed (변경 사항)
+
+- **UI 다듬기 및 모던한 Border Radius**: 모달·카드 전반의 border-radius를 `rounded-3xl`/`rounded-2xl`에서 더 날렵한 `rounded-xl`/`rounded-lg`/`rounded-md`로 조정해 프리미엄 데스크톱 UI에 맞게 다듬었습니다.
+- **100% SVG 벡터 아이콘**: 일반 텍스트 이모지 아이콘(`🌐`, `➕`, `⚠️`, `🆔`, `⚡`)을 Lucide SVG 아이콘(`Globe`, `Plus`, `AlertTriangle`, `Fingerprint`, `Zap`, `Server`, `Shield`)으로 교체했습니다.
+
 ## [v2.6.7] - 2026-08-06
 
 ### Added (추가 기능)

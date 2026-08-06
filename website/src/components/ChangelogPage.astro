@@ -2,8 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 import { Content as EnContent } from '../../../CHANGELOG.md';
 import { Content as KoContent } from '../../../CHANGELOG.ko.md';
+import enChangelogRaw from '../../../CHANGELOG.md?raw';
+import koChangelogRaw from '../../../CHANGELOG.ko.md?raw';
 import { ui } from '../i18n/ui';
 import type { Lang } from '../i18n/ui';
+import { buildChangelogShareDescription } from '../lib/changelogShareDescription';
 
 interface Props {
   lang: Lang;
@@ -22,12 +25,18 @@ const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
   // @ts-ignore
   return ui[lang][key] ?? ui['ko'][key];
 };
+
+const changelogRaw = lang === 'ko' ? koChangelogRaw : enChangelogRaw;
+const shareDescription = buildChangelogShareDescription(
+  changelogRaw,
+  t('changelog.subtitle'),
+);
 ---
 
 <Layout
   lang={lang}
   title={lang === 'ko' ? "Horizon Gateway - 변경 이력 (Changelog)" : "Horizon Gateway - Changelog"}
-  description={t('changelog.subtitle')}
+  description={shareDescription}
 >
   <main>
     <!-- Background Glow -->

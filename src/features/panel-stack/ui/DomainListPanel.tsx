@@ -715,7 +715,18 @@ export function DomainListPanel({
             setOverlayOpen(true);
           }}
           badge={
-            selectedHostInitial ? (
+            duplicateGroups.length > 0 ? (
+              <span
+                className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center"
+                title={
+                  lang === "ko"
+                    ? `중복 도메인 ${duplicateGroups.length}개 그룹 감지됨`
+                    : `${duplicateGroups.length} duplicate group(s)`
+                }
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+              </span>
+            ) : selectedHostInitial ? (
               <span className="w-6 h-6 rounded-md bg-primary/15 text-primary text-[10px] font-black flex items-center justify-center">
                 {selectedHostInitial}
               </span>

@@ -1,3 +1,4 @@
+import { normalizeDomainUrl } from "@/entities/domain";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { pullResources, pushResources } from "./api";
@@ -62,9 +63,9 @@ export async function pushWorkspaceSync(
 
         if (mode === "append_only") {
           // Push only local domains whose URL doesn't exist on remote
-          const remoteUrlSet = new Set(remoteDomains.map((d) => d.url.trim().toLowerCase()));
+          const remoteUrlSet = new Set(remoteDomains.map((d) => normalizeDomainUrl(d.url)));
           const localNewDomains = (localData.domains as unknown as DomainItem[]).filter(
-            (d) => !remoteUrlSet.has(d.url.trim().toLowerCase()),
+            (d) => !remoteUrlSet.has(normalizeDomainUrl(d.url)),
           );
           finalDomains = [...remoteDomains, ...localNewDomains];
 
@@ -79,12 +80,12 @@ export async function pushWorkspaceSync(
           finalScenarios = [...remoteScenarios, ...(localData.scenarios ?? [])];
           finalMockRules = [...remoteMockRules, ...(localData.mockRules ?? [])];
         } else if (mode === "merge_url") {
-          // URL-based merge: Match by URL, local overrides remote settings
-          const remoteByUrl = new Map(remoteDomains.map((d) => [d.url.trim().toLowerCase(), d]));
+          // URL-based merge: Match by hostname, local overrides remote settings
+          const remoteByUrl = new Map(remoteDomains.map((d) => [normalizeDomainUrl(d.url), d]));
           const mergedDomains: DomainItem[] = [...remoteDomains];
 
           for (const localDom of localData.domains as unknown as DomainItem[]) {
-            const normUrl = localDom.url.trim().toLowerCase();
+            const normUrl = normalizeDomainUrl(localDom.url);
             const existingRemote = remoteByUrl.get(normUrl);
             if (existingRemote) {
               const idx = mergedDomains.findIndex((d) => d.id === existingRemote.id);
@@ -154,8 +155,8 @@ export async function pullWorkspaceSync(workspaceId: string, mode: SyncMode = "m
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await commands.importAllSettings(payload as any, "overwrite").then(unwrap);
   } else if (mode === "append_only") {
-    const localUrlSet = new Set((localData.domains as unknown as DomainItem[]).map((d) => d.url.trim().toLowerCase()));
-    const newRemoteDomains = remoteDomains.filter((d) => !localUrlSet.has(d.url.trim().toLowerCase()));
+    const localUrlSet = new Set((localData.domains as unknown as DomainItem[]).map((d) => normalizeDomainUrl(d.url)));
+    const newRemoteDomains = remoteDomains.filter((d) => !localUrlSet.has(normalizeDomainUrl(d.url)));
 
     const payload = {
       ...localData,
@@ -174,11 +175,11 @@ export async function pullWorkspaceSync(workspaceId: string, mode: SyncMode = "m
     await commands.importAllSettings(payload as any, "merge").then(unwrap);
   } else if (mode === "merge_url") {
     const localDomains = localData.domains as unknown as DomainItem[];
-    const localByUrl = new Map(localDomains.map((d) => [d.url.trim().toLowerCase(), d]));
+    const localByUrl = new Map(localDomains.map((d) => [normalizeDomainUrl(d.url), d]));
     const mergedDomains: DomainItem[] = [...localDomains];
 
     for (const remDom of remoteDomains) {
-      const normUrl = remDom.url.trim().toLowerCase();
+      const normUrl = normalizeDomainUrl(remDom.url);
       const existingLocal = localByUrl.get(normUrl);
       if (existingLocal) {
         const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);

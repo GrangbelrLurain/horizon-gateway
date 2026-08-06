@@ -3,6 +3,7 @@ use crate::model::settings_export::{SettingsExport, HG_APP_NAME, SETTINGS_EXPORT
 use crate::service::ca_service::CaService;
 use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_group_service::DomainGroupService;
+use crate::service::domain_hostname::domain_url_to_hostname;
 use crate::service::domain_service::DomainService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::local_route_service::LocalRouteService;
@@ -182,10 +183,15 @@ pub fn import_all_settings_svc(
         .unwrap_or(false);
 
     if merge {
-        // Domains: merge by URL (keep existing ids when URL matches)
+        // Domains: merge by hostname (keep existing ids when host matches)
         let mut domains = domain_service.get_all();
         for incoming in payload.domains {
-            if !domains.iter().any(|d| d.url == incoming.url) {
+            let incoming_host = domain_url_to_hostname(&incoming.url);
+            if incoming_host.is_empty()
+                || !domains
+                    .iter()
+                    .any(|d| domain_url_to_hostname(&d.url) == incoming_host)
+            {
                 domains.push(incoming);
             }
         }
