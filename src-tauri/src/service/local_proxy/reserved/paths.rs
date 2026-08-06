@@ -3,10 +3,17 @@ use axum::http::{
     StatusCode,
 };
 use axum::response::{Html, IntoResponse, Response};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tauri::{AppHandle, Manager};
 
 use super::super::state::ProxyState;
 use super::super::tls::serve_cert_pem;
+
+include!(concat!(env!("OUT_DIR"), "/inspector_js_embed.rs"));
+
+const INSPECTOR_JS_FALLBACK: &str =
+    "console.warn('[horizon-gateway] inspector.js not built; run pnpm build:injection');";
 
 /// Reserved path prefix: proxy serves setup page and assets (no forward to local route).
 pub(crate) const HORIZON_GATEWAY_PATH_PREFIX: &str = "/.horizon-gateway/";
@@ -129,25 +136,7 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
             .into_response();
     }
     if path == "/.horizon-gateway/inspector.js" {
-        const INSPECTOR_JS_FALLBACK: &str =
-            "console.warn('[horizon-gateway] inspector.js not built; run pnpm build:injection');";
-        // Try to read from filesystem first (for live updates during dev)
-        let js = {
-            use tauri::Manager;
-            // 1. Try Tauri bundled resource (production)
-            let from_resource = state
-                .app_handle
-                .path()
-                .resource_dir()
-                .ok()
-                .map(|d| d.join("inspector.js"))
-                .and_then(|p| std::fs::read_to_string(&p).ok());
-            // 2. Fallback: dev paths relative to cwd
-            from_resource
-                .or_else(|| std::fs::read_to_string("resources/inspector.js").ok())
-                .or_else(|| std::fs::read_to_string("src-tauri/resources/inspector.js").ok())
-                .unwrap_or_else(|| INSPECTOR_JS_FALLBACK.to_string())
-        };
+        let js = load_inspector_js(&state.app_handle);
 
         return (
             StatusCode::OK,
@@ -181,4 +170,67 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
         return (StatusCode::METHOD_NOT_ALLOWED, "Use POST for this endpoint").into_response();
     }
     (StatusCode::NOT_FOUND, "Not found").into_response()
+}
+
+fn load_inspector_js(app: &AppHandle) -> String {
+    for candidate in inspector_js_candidates(app) {
+        if let Ok(content) = std::fs::read_to_string(&candidate) {
+            if !content.trim().is_empty() {
+                return content;
+            }
+        }
+    }
+
+    if let Some(embedded) = EMBEDDED_INSPECTOR_JS {
+        if !embedded.trim().is_empty() {
+            return embedded.to_string();
+        }
+    }
+
+    crate::proxy_log!(
+        "⚠️ [Horizon Gateway] inspector.js not found on disk or embedded; serving stub. Tried: {:?}",
+        inspector_js_candidates(app)
+    );
+    INSPECTOR_JS_FALLBACK.to_string()
+}
+
+fn inspector_js_candidates(app: &AppHandle) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(dir) = app.path().resource_dir() {
+        push_inspector_variants(&mut paths, &dir);
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            push_inspector_variants(&mut paths, exe_dir);
+            let mut cur = exe_dir.to_path_buf();
+            for _ in 0..8 {
+                push_inspector_variants(&mut paths, &cur);
+                paths.push(cur.join("src-tauri").join("resources").join("inspector.js"));
+                if !cur.pop() {
+                    break;
+                }
+            }
+        }
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        push_inspector_variants(&mut paths, &cwd);
+        paths.push(cwd.join("src-tauri").join("resources").join("inspector.js"));
+    }
+
+    // Compile-time src-tauri path — reliable for local `tauri dev` regardless of process CWD.
+    paths.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("resources")
+            .join("inspector.js"),
+    );
+
+    paths
+}
+
+fn push_inspector_variants(paths: &mut Vec<PathBuf>, base: &Path) {
+    paths.push(base.join("inspector.js"));
+    paths.push(base.join("resources").join("inspector.js"));
 }

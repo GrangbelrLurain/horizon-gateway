@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.9] - 2026-08-06
+
+### Added
+
+- **Selective Workspace Sync Modal**: Match key, overlap policy, domain-kind filters, and per-domain selection when pushing/pulling team workspace domains.
+- **Toolbar Update Badge**: Shows when an update is available; click installs it from the title bar.
+- **Clearer Team Member Identity**: Prefer display name with email secondary; editable display name when logged in; peer profiles visible to workspace members.
+
+### Fixed
+
+- **inspector.js stub in production/dev**: Bundle `inspector.js` as a Tauri resource, resolve it via resource/exe/manifest paths, and embed it at build time so `/.horizon-gateway/inspector.js` no longer serves the “run pnpm build:injection” warning stub.
+- **Missing HTML injection**: Inject the inspector script before `</html>` (or at document end) when `</body>` is absent, and complete partial injections that only had the early interceptor.
+- **Domain duplicate / sync matching by hostname**: Normalize and match domains by hostname so scheme/path/port variants are treated as the same host.
+
 ## [v2.6.8] - 2026-08-06
 
 ### Added

@@ -4,6 +4,20 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.9] - 2026-08-06
+
+### Added (추가 기능)
+
+- **선택적 워크스페이스 동기화 모달**: 팀 도메인 push/pull 시 매칭 키, 겹침 정책, 종류 필터, 도메인별 선택을 지원합니다.
+- **툴바 업데이트 배지**: 업데이트가 있으면 타이틀바에 표시되고, 클릭 시 설치합니다.
+- **팀 멤버 신원 표시 개선**: display name 우선·이메일은 보조로 표시, 로그인 시 표시 이름 편집, 워크스페이스 동료 프로필 조회.
+
+### Fixed (버그 수정)
+
+- **inspector.js stub 서빙**: Tauri 리소스 번들·다경로 해석·빌드 타임 임베드로 `/.horizon-gateway/inspector.js`가 “pnpm build:injection” 경고 stub만 내려주던 문제를 수정했습니다.
+- **HTML 인젝션 누락**: `</body>`가 없으면 `</html>`/문서 끝에 inspector 스크립트를 넣고, early interceptor만 있던 부분 주입도 보완합니다.
+- **도메인 중복/동기화 hostname 매칭**: scheme·path·port 변형을 같은 호스트로 인식하도록 hostname 기준으로 정규화·매칭합니다.
+
 ## [v2.6.8] - 2026-08-06
 
 ### Added (추가 기능)

@@ -179,16 +179,21 @@ pub(crate) fn apply_html_injection_cache_headers(headers: &mut HeaderMap) {
 }
 
 /// Injects early interceptor script in `<head>` and inspector script before `</body>`.
-pub(crate) fn inject_inspector_script(mut body: Vec<u8>) -> Vec<u8> {
+pub(crate) fn inject_inspector_script(body: Vec<u8>) -> Vec<u8> {
     let injection_script = INSPECTOR_INJECTION_SCRIPT;
     let early_script = EARLY_INTERCEPTOR_SCRIPT;
 
-    let mut injected = false;
     if let Ok(body_str) = String::from_utf8(body.clone()) {
-        let body_lower = body_str.to_lowercase();
-        if !body_str.contains("wt-early-interceptor") {
-            let mut new_body = body_str.clone();
-            // Inject early script into <head> or at beginning of <body> or top
+        let has_early = body_str.contains("wt-early-interceptor");
+        let has_marker = body_str.contains("wt-injection-marker");
+        if has_early && has_marker {
+            return body;
+        }
+
+        let mut new_body = body_str;
+        let body_lower = new_body.to_lowercase();
+
+        if !has_early {
             if let Some(head_pos) = body_lower.find("<head>") {
                 let pos = head_pos + 6;
                 new_body.insert_str(pos, early_script);
@@ -196,47 +201,104 @@ pub(crate) fn inject_inspector_script(mut body: Vec<u8>) -> Vec<u8> {
                 if let Some(gt_pos) = body_lower[body_pos..].find('>') {
                     let pos = body_pos + gt_pos + 1;
                     new_body.insert_str(pos, early_script);
+                } else {
+                    new_body.insert_str(0, early_script);
                 }
             } else {
                 new_body.insert_str(0, early_script);
             }
+        }
 
+        if !has_marker && !new_body.contains("wt-injection-marker") {
             let new_lower = new_body.to_lowercase();
-            if new_lower.contains("</body>") && !new_body.contains("wt-injection-marker") {
-                if let Some(pos) = new_lower.rfind("</body>") {
-                    let mut final_body = new_body[..pos].to_string();
-                    final_body.push_str(injection_script);
-                    final_body.push_str(&new_body[pos..]);
-                    body = final_body.into_bytes();
-                    injected = true;
-                    crate::proxy_log!("✅ [Horizon Gateway] Inspector & Early Interceptor injected (UTF-8).");
-                }
-            } else {
-                body = new_body.into_bytes();
-            }
-        }
-    }
-
-    if !injected {
-        let pattern = b"</body>";
-        let marker = b"wt-injection-marker";
-        if !body.windows(marker.len()).any(|w| w == marker) {
-            if let Some(pos) = body
-                .windows(pattern.len())
-                .rposition(|w: &[u8]| w.eq_ignore_ascii_case(pattern))
+            if let Some(pos) = new_lower
+                .rfind("</body>")
+                .or_else(|| new_lower.rfind("</html>"))
             {
-                let mut new_bytes = Vec::with_capacity(body.len() + injection_script.len() + early_script.len());
-                new_bytes.extend_from_slice(early_script.as_bytes());
-                new_bytes.extend_from_slice(&body[..pos]);
-                new_bytes.extend_from_slice(injection_script.as_bytes());
-                new_bytes.extend_from_slice(&body[pos..]);
-                body = new_bytes;
-                crate::proxy_log!("✅ [Horizon Gateway] Inspector & Early Interceptor injected (Byte-level).");
+                let mut final_body = new_body[..pos].to_string();
+                final_body.push_str(injection_script);
+                final_body.push_str(&new_body[pos..]);
+                new_body = final_body;
+            } else {
+                new_body.push_str(injection_script);
             }
         }
+
+        crate::proxy_log!("✅ [Horizon Gateway] Inspector & Early Interceptor injected (UTF-8).");
+        return new_body.into_bytes();
     }
 
-    body
+    let marker = b"wt-injection-marker";
+    let has_marker = body.windows(marker.len()).any(|w| w == marker);
+    let has_early = body
+        .windows(b"wt-early-interceptor".len())
+        .any(|w| w == b"wt-early-interceptor");
+
+    if has_early && has_marker {
+        return body;
+    }
+
+    let insert_at = body
+        .windows(b"</body>".len())
+        .rposition(|w| w.eq_ignore_ascii_case(b"</body>"))
+        .or_else(|| {
+            body.windows(b"</html>".len())
+                .rposition(|w| w.eq_ignore_ascii_case(b"</html>"))
+        });
+
+    let mut new_bytes =
+        Vec::with_capacity(body.len() + injection_script.len() + early_script.len());
+    if !has_early {
+        new_bytes.extend_from_slice(early_script.as_bytes());
+    }
+    if let Some(pos) = insert_at {
+        new_bytes.extend_from_slice(&body[..pos]);
+        if !has_marker {
+            new_bytes.extend_from_slice(injection_script.as_bytes());
+        }
+        new_bytes.extend_from_slice(&body[pos..]);
+    } else {
+        new_bytes.extend_from_slice(&body);
+        if !has_marker {
+            new_bytes.extend_from_slice(injection_script.as_bytes());
+        }
+    }
+    crate::proxy_log!("✅ [Horizon Gateway] Inspector & Early Interceptor injected (Byte-level).");
+    new_bytes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn injects_before_body_close() {
+        let html = b"<html><head></head><body><p>hi</p></body></html>".to_vec();
+        let out = String::from_utf8(inject_inspector_script(html)).unwrap();
+        assert!(out.contains("wt-early-interceptor"));
+        assert!(out.contains("wt-injection-marker"));
+        assert!(out.find("wt-injection-marker").unwrap() < out.find("</body>").unwrap());
+    }
+
+    #[test]
+    fn injects_before_html_close_when_no_body() {
+        let html = b"<html><head></head><div>fragment</div></html>".to_vec();
+        let out = String::from_utf8(inject_inspector_script(html)).unwrap();
+        assert!(out.contains("wt-early-interceptor"));
+        assert!(out.contains("wt-injection-marker"));
+        assert!(out.find("wt-injection-marker").unwrap() < out.find("</html>").unwrap());
+    }
+
+    #[test]
+    fn completes_partial_injection_when_early_exists() {
+        let html = format!(
+            "<html><head>{}</head><body>x</body></html>",
+            EARLY_INTERCEPTOR_SCRIPT
+        );
+        let out = String::from_utf8(inject_inspector_script(html.into_bytes())).unwrap();
+        assert!(out.contains("wt-injection-marker"));
+        assert_eq!(out.matches("wt-early-interceptor").count(), 1);
+    }
 }
 
 pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> bool {

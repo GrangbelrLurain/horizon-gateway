@@ -2002,7 +2002,7 @@ dependencies = [
 
 [[package]]
 name = "horizon-gateway"
-version = "2.6.8"
+version = "2.6.9"
 dependencies = [
  "aes-gcm",
  "axum",
