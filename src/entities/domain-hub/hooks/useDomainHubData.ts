@@ -204,6 +204,7 @@ export function useDomainHubData() {
     domains,
     groups,
     links,
+    localRoutes,
     loading,
     proxyActive,
     domainGroupIds,

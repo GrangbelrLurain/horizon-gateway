@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
@@ -95,16 +95,19 @@ export function ProxyRouteModal({ domainId, domainUrl, t, onClose, onAdded }: Pr
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*                        DuplicateDomainsMergeModal                          */
-/* -------------------------------------------------------------------------- */
-
-import { Check, Layers, Loader2, Sparkles, Trash2, Zap } from "lucide-react";
+import { Check, Globe, Layers, Loader2, Server, Shield, Sparkles, Trash2, Zap } from "lucide-react";
+import type { DomainGroup } from "@/entities/domain-group";
+import type { LocalRoute } from "@/shared/api";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { type DuplicateGroup, type DuplicateMergePolicy, executeDuplicateMerge } from "../store";
+import type { DomainFeatureState } from "./types";
 
 interface DuplicateDomainsMergeModalProps {
   groups: DuplicateGroup[];
+  allGroups: DomainGroup[];
+  getGroupId: (domainId: number) => number | null;
+  getFeatureState: (domainId: number) => DomainFeatureState;
+  localRoutes: LocalRoute[];
   lang?: "ko" | "en";
   onClose: () => void;
   onMerged?: () => void;
@@ -112,6 +115,10 @@ interface DuplicateDomainsMergeModalProps {
 
 export function DuplicateDomainsMergeModal({
   groups,
+  allGroups,
+  getGroupId,
+  getFeatureState,
+  localRoutes,
   lang = "ko",
   onClose,
   onMerged,
@@ -127,6 +134,20 @@ export function DuplicateDomainsMergeModal({
   const [merging, setMerging] = useState(false);
 
   const totalDuplicates = groups.reduce((acc, g) => acc + (g.domains.length - 1), 0);
+
+  const groupNameMap = useMemo(() => {
+    return new Map(allGroups.map((g) => [g.id, g.name]));
+  }, [allGroups]);
+
+  const proxyRouteMap = useMemo(() => {
+    const map = new Map<number, { host: string; port: number }>();
+    for (const r of localRoutes) {
+      if (r.domain_id != null) {
+        map.set(r.domain_id as number, { host: r.target_host, port: r.target_port });
+      }
+    }
+    return map;
+  }, [localRoutes]);
 
   const handleExecute = async () => {
     setMerging(true);
@@ -151,17 +172,17 @@ export function DuplicateDomainsMergeModal({
   return (
     <Modal isOpen={true} onClose={onClose}>
       <Modal.Header
-        title={lang === "ko" ? "⚡ 중복 도메인 감지 및 병합 정책 설정" : "⚡ Duplicate Domains Detected & Merge Policy"}
+        title={lang === "ko" ? "중복 도메인 감지 및 병합 정책 설정" : "Duplicate Domains Detected & Merge Policy"}
         description={
           lang === "ko"
             ? `총 ${groups.length}개 URL에서 ${totalDuplicates}개의 중복 항목이 감지되었습니다. 연관 설정(그룹/프록시 라우트)을 자동 이전하며 병합합니다.`
             : `Detected ${totalDuplicates} duplicate item(s) across ${groups.length} URL group(s). Consolidate settings seamlessly.`
         }
       />
-      <Modal.Body className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+      <Modal.Body className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
         {/* Policy Selector Cards */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold text-base-content/60 ml-1 uppercase tracking-wider">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-bold text-base-content/60 ml-0.5 uppercase tracking-wider">
             {lang === "ko" ? "1. 병합 정책 선택" : "1. Select Merge Policy"}
           </span>
 
@@ -170,14 +191,14 @@ export function DuplicateDomainsMergeModal({
             <button
               type="button"
               onClick={() => setPolicy("merge_smart")}
-              className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+              className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
                 policy === "merge_smart"
                   ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                   : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold flex items-center gap-1">
+                <span className="text-xs font-bold flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
                   {lang === "ko" ? "스마트 통합" : "Smart Merge"}
                 </span>
@@ -194,14 +215,14 @@ export function DuplicateDomainsMergeModal({
             <button
               type="button"
               onClick={() => setPolicy("keep_latest")}
-              className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+              className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
                 policy === "keep_latest"
                   ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                   : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold flex items-center gap-1">
+                <span className="text-xs font-bold flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-500" />
                   {lang === "ko" ? "최신 항목 유지" : "Keep Latest"}
                 </span>
@@ -218,14 +239,14 @@ export function DuplicateDomainsMergeModal({
             <button
               type="button"
               onClick={() => setPolicy("keep_oldest")}
-              className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+              className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
                 policy === "keep_oldest"
                   ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                   : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold flex items-center gap-1">
+                <span className="text-xs font-bold flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-emerald-500" />
                   {lang === "ko" ? "최초 항목 유지" : "Keep Oldest"}
                 </span>
@@ -240,33 +261,40 @@ export function DuplicateDomainsMergeModal({
           </div>
         </div>
 
-        {/* Duplicate Domain Groups List */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold text-base-content/60 ml-1 uppercase tracking-wider">
-            {lang === "ko" ? "2. URL별 대표 도메인 설정" : "2. Set Primary Domain per URL"}
+        {/* Duplicate Domain Groups Comparison List */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-bold text-base-content/60 ml-0.5 uppercase tracking-wider">
+            {lang === "ko"
+              ? "2. URL별 설정 상세 비교 및 대표 선택"
+              : "2. Domain Settings Comparison & Primary Selection"}
           </span>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             {groups.map((g) => {
               const currentPrimaryId = primaryMap[g.normalizedUrl] ?? g.suggestedPrimaryId;
               return (
                 <div
                   key={g.normalizedUrl}
-                  className="p-3 bg-base-200/40 border border-base-200 rounded-2xl flex flex-col gap-2"
+                  className="p-3 bg-base-200/30 border border-base-200 rounded-xl flex flex-col gap-2.5 shadow-sm"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-base-content truncate">{g.displayUrl}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <div className="flex items-center justify-between gap-2 border-b border-base-200 pb-2">
+                    <span className="font-mono text-xs font-bold text-base-content flex items-center gap-1.5 truncate">
+                      <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
+                      {g.displayUrl}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
                       {g.domains.length} {lang === "ko" ? "개 중복" : "duplicates"}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 items-center">
-                    <span className="text-[10px] text-base-content/40 mr-1">
-                      {lang === "ko" ? "대표 선택:" : "Primary:"}
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {g.domains.map((d) => {
                       const isSelected = currentPrimaryId === d.id;
+                      const gid = getGroupId(d.id);
+                      const gName = gid ? groupNameMap.get(gid) : null;
+                      const featState = getFeatureState(d.id);
+                      const routeInfo = proxyRouteMap.get(d.id);
+
                       return (
                         <button
                           key={d.id}
@@ -277,14 +305,60 @@ export function DuplicateDomainsMergeModal({
                               [g.normalizedUrl]: d.id,
                             }))
                           }
-                          className={`px-2.5 py-1 rounded-xl text-xs font-mono font-medium border transition-all flex items-center gap-1 ${
+                          className={`p-2.5 rounded-lg border text-left flex flex-col gap-2 transition-all ${
                             isSelected
-                              ? "bg-primary text-primary-content border-primary shadow-sm"
-                              : "bg-base-100 text-base-content/70 border-base-300 hover:border-base-400"
+                              ? "bg-primary/10 border-primary ring-1 ring-primary shadow-sm"
+                              : "bg-base-100 border-base-200 hover:border-base-300"
                           }`}
                         >
-                          ID #{d.id}
-                          {isSelected && <Check className="w-3 h-3" />}
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-bold text-xs text-base-content flex items-center gap-1">
+                              ID #{d.id}
+                            </span>
+                            {isSelected ? (
+                              <span className="px-1.5 py-0.5 rounded bg-primary text-primary-content text-[9px] font-bold flex items-center gap-0.5">
+                                <Check className="w-2.5 h-2.5" />
+                                {lang === "ko" ? "대표 선택됨" : "Primary"}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-base-content/40 hover:text-primary">
+                                {lang === "ko" ? "대표로 지정" : "Select"}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Domain Details & Feature Badges */}
+                          <div className="flex flex-wrap gap-1">
+                            {gName ? (
+                              <span className="px-1.5 py-0.5 rounded bg-base-200 text-base-content/80 text-[10px] font-medium flex items-center gap-1">
+                                📁 {gName}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-base-200/50 text-base-content/40 text-[10px]">
+                                {lang === "ko" ? "그룹 없음" : "No Group"}
+                              </span>
+                            )}
+
+                            {featState.proxyEnabled && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium flex items-center gap-0.5 border border-emerald-500/20">
+                                <Server className="w-2.5 h-2.5" />
+                                {routeInfo ? `${routeInfo.host}:${routeInfo.port}` : "Proxy"}
+                              </span>
+                            )}
+
+                            {featState.monitorEnabled && (
+                              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium flex items-center gap-0.5 border border-primary/20">
+                                <Shield className="w-2.5 h-2.5" />
+                                Monitor
+                              </span>
+                            )}
+
+                            {featState.apiLoggingEnabled && (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-medium flex items-center gap-0.5 border border-purple-500/20">
+                                API Logs
+                              </span>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -296,13 +370,13 @@ export function DuplicateDomainsMergeModal({
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose} disabled={merging} className="px-6 rounded-xl">
+        <Button variant="secondary" onClick={onClose} disabled={merging} className="px-5 rounded-lg">
           {lang === "ko" ? "취소" : "Cancel"}
         </Button>
         <Button
           onClick={handleExecute}
           disabled={merging}
-          className="px-8 rounded-xl shadow-lg shadow-primary/20 gap-1.5"
+          className="px-6 rounded-lg shadow-md shadow-primary/20 gap-1.5"
         >
           {merging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           {lang === "ko" ? "중복 정리 & 병합 실행" : "Execute Merge & Clean"}

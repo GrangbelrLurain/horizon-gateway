@@ -149,7 +149,7 @@ export function DomainListPanel({
   const [overlayOpen, setOverlayOpen] = useAtom(domainListOverlayOpenAtom);
   const [listPinned, setListPinned] = useAtom(domainListPinnedOpenAtom);
   const setPanelOverlayOpen = useSetAtom(panelOverlayOpenAtom);
-  const { domains, groups, loading, getFeatureState, getGroupId, fetchAll } = useDomainHubData();
+  const { domains, groups, loading, getFeatureState, getGroupId, localRoutes, fetchAll } = useDomainHubData();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<number | "none">>(new Set());
   const [editDomain, setEditDomain] = useState<Domain | null>(null);
   const [deleteDomain, setDeleteDomain] = useState<Domain | null>(null);
@@ -508,7 +508,7 @@ export function DomainListPanel({
   const filterSection = (
     <>
       {duplicateGroups.length > 0 && (
-        <div className="mx-1 my-1 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-2 shadow-sm text-xs text-amber-600 dark:text-amber-400">
+        <div className="mx-1 my-1 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-2 shadow-sm text-xs text-amber-600 dark:text-amber-400">
           <div className="flex items-center gap-1.5 min-w-0">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
             <span className="font-medium text-[11px] truncate">
@@ -612,6 +612,10 @@ export function DomainListPanel({
       {showDuplicateModal && (
         <DuplicateDomainsMergeModal
           groups={duplicateGroups}
+          allGroups={groups}
+          getGroupId={getGroupId}
+          getFeatureState={getFeatureState}
+          localRoutes={localRoutes}
           lang={lang}
           onClose={() => setShowDuplicateModal(false)}
           onMerged={async () => {

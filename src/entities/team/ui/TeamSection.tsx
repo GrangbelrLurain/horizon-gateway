@@ -7,6 +7,7 @@ import {
   CloudUpload,
   Copy,
   CreditCard,
+  Fingerprint,
   Globe,
   Link,
   Loader2,
@@ -864,10 +865,10 @@ export function TeamSection() {
       {/* 🌟 Sync Options Modal */}
       {syncModalAction && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-base-100 border border-base-200 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-5">
+          <div className="bg-base-100 border border-base-200 rounded-xl max-w-md w-full p-5 shadow-2xl flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h4 className="text-base font-bold text-base-content flex items-center gap-2">
-                <span className="p-1.5 bg-primary/10 text-primary rounded-lg">
+                <span className="p-1.5 bg-primary/10 text-primary rounded-md">
                   {syncModalAction === "push" ? (
                     <CloudUpload className="w-4 h-4" />
                   ) : (
@@ -885,7 +886,7 @@ export function TeamSection() {
               <button
                 type="button"
                 onClick={() => setSyncModalAction(null)}
-                className="text-base-content/40 hover:text-base-content p-1 rounded-lg"
+                className="text-base-content/40 hover:text-base-content p-1 rounded-md"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -901,12 +902,12 @@ export function TeamSection() {
                   : "Choose how to merge team workspace settings into your local device."}
             </p>
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               {/* Option 1: URL-based merge */}
               <button
                 type="button"
                 onClick={() => setSelectedSyncMode("merge_url")}
-                className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                   selectedSyncMode === "merge_url"
                     ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                     : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
@@ -914,7 +915,8 @@ export function TeamSection() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
-                    🌐 {lang === "ko" ? "URL 기준 대조 병합 (추천)" : "Merge by URL (Recommended)"}
+                    <Globe className="w-3.5 h-3.5 text-primary" />
+                    {lang === "ko" ? "URL 기준 대조 병합 (추천)" : "Merge by URL (Recommended)"}
                   </span>
                   {selectedSyncMode === "merge_url" && <Check className="w-4 h-4 text-primary" />}
                 </div>
@@ -929,7 +931,7 @@ export function TeamSection() {
               <button
                 type="button"
                 onClick={() => setSelectedSyncMode("append_only")}
-                className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                   selectedSyncMode === "append_only"
                     ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                     : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
@@ -937,7 +939,8 @@ export function TeamSection() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
-                    ➕ {lang === "ko" ? "신규 도메인만 추가 (Append)" : "Add New Only (Append)"}
+                    <Plus className="w-3.5 h-3.5 text-primary" />
+                    {lang === "ko" ? "신규 도메인만 추가 (Append)" : "Add New Only (Append)"}
                   </span>
                   {selectedSyncMode === "append_only" && <Check className="w-4 h-4 text-primary" />}
                 </div>
@@ -952,7 +955,7 @@ export function TeamSection() {
               <button
                 type="button"
                 onClick={() => setSelectedSyncMode("overwrite")}
-                className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                   selectedSyncMode === "overwrite"
                     ? "border-amber-500 bg-amber-500/10 text-base-content ring-1 ring-amber-500"
                     : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
@@ -960,7 +963,8 @@ export function TeamSection() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    ⚠️ {lang === "ko" ? "완전 덮어씌우기 (Replace All)" : "Overwrite All"}
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                    {lang === "ko" ? "완전 덮어씌우기 (Replace All)" : "Overwrite All"}
                   </span>
                   {selectedSyncMode === "overwrite" && <Check className="w-4 h-4 text-amber-500" />}
                 </div>
@@ -979,7 +983,7 @@ export function TeamSection() {
               <button
                 type="button"
                 onClick={() => setSelectedSyncMode("merge_id")}
-                className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                   selectedSyncMode === "merge_id"
                     ? "border-primary bg-primary/10 text-base-content ring-1 ring-primary"
                     : "border-base-200 bg-base-200/40 text-base-content/70 hover:bg-base-200/70"
@@ -987,7 +991,8 @@ export function TeamSection() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold flex items-center gap-1.5">
-                    🆔 {lang === "ko" ? "내부 ID 대조 병합 (Strict ID)" : "Merge by Internal ID"}
+                    <Fingerprint className="w-3.5 h-3.5 text-primary" />
+                    {lang === "ko" ? "내부 ID 대조 병합 (Strict ID)" : "Merge by Internal ID"}
                   </span>
                   {selectedSyncMode === "merge_id" && <Check className="w-4 h-4 text-primary" />}
                 </div>
