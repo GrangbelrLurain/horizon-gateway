@@ -4,22 +4,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [v2.6.9] - 2026-08-06
-
-### Added
-
-- **Workspace Sync Options Modal**: Expanded the team Push/Pull modal with selectable domain match keys (`hostname`, `host+port`, `exact URL`), overlap policies (`update source` / `keep target`), and per-resource kind toggles (domains, groups, links, scenarios, mock rules).
-- **Selective Push Domain Upload**: Push previews which local domains would be added or updated against the workspace, and lets you check exactly which ones to upload before executing sync.
-
-### Changed
-
-- **Hostname-aware domain identity**: Domain registration, duplicate detection, and workspace sync now treat scheme/path/default-port variants as the same host by default (overrideable in the sync modal).
-- **Pull merge field updates**: Pull merge now applies the computed merged settings via overwrite import so matched-host field updates actually land locally.
-
-### Fixed
-
-- **Domain list strip duplicate badge**: When the domain list is collapsed to strip mode, an amber warning badge now appears if duplicate host groups are detected.
-
 ## [v2.6.8] - 2026-08-06
 
 ### Added
