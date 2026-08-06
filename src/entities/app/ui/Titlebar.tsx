@@ -2,14 +2,19 @@ import { useLocation } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { ExternalLink, Monitor } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { commands, unwrap } from "@/shared/api";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { WindowControls } from "./WindowControls";
 
 const appWindow = getCurrentWindow();
 
-export function Titlebar() {
+interface TitlebarProps {
+  /** Extra actions rendered before window controls (e.g. update badge). */
+  trailing?: ReactNode;
+}
+
+export function Titlebar({ trailing }: TitlebarProps) {
   const location = useLocation();
   const isDetached = useIsDetached();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -69,6 +74,7 @@ export function Titlebar() {
       </div>
 
       <div className="flex items-center h-full">
+        {trailing ? <div className="flex items-center px-1 pointer-events-auto">{trailing}</div> : null}
         {!isDetached && (
           <button
             type="button"

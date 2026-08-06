@@ -23,6 +23,12 @@ export interface WorkspaceMember {
   profile_id: string;
   role: WorkspaceRole;
   created_at: string;
+  /** Joined from `profiles` when listMembers includes the relation. */
+  profile?: {
+    email: string | null;
+    display_name: string | null;
+    avatar_url?: string | null;
+  } | null;
 }
 
 export interface WorkspaceInvite {

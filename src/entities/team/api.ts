@@ -48,11 +48,30 @@ export async function createWorkspace(name: string, ownerId?: string): Promise<W
 export async function listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
   const { data, error } = await supabase
     .from("workspace_members")
-    .select("*")
+    .select(
+      `
+      *,
+      profile:profiles (
+        email,
+        display_name,
+        avatar_url
+      )
+    `,
+    )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true });
   if (error) {
-    throw error;
+    // Fallback without join if FK hint / RLS blocks relation (older DBs).
+    console.warn("listMembers profile join failed, falling back:", error.message);
+    const fallback = await supabase
+      .from("workspace_members")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: true });
+    if (fallback.error) {
+      throw fallback.error;
+    }
+    return (fallback.data ?? []) as WorkspaceMember[];
   }
   return (data ?? []) as WorkspaceMember[];
 }

@@ -1,6 +1,8 @@
 import type { Update } from "@tauri-apps/plugin-updater";
 import { check } from "@tauri-apps/plugin-updater";
+import { useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
+import { pendingUpdateAtom } from "./store";
 
 export interface UpdateState {
   update: Update | null;
@@ -10,6 +12,7 @@ export interface UpdateState {
 
 export function useUpdateCheck(options?: { onMount?: boolean; delayMs?: number }) {
   const { onMount = true, delayMs = 3000 } = options ?? {};
+  const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [state, setState] = useState<UpdateState>({
     update: null,
     isChecking: false,
@@ -20,14 +23,17 @@ export function useUpdateCheck(options?: { onMount?: boolean; delayMs?: number }
     setState((s) => ({ ...s, isChecking: true, error: null }));
     try {
       const update = await check();
+      const next = update ?? null;
+      setPendingUpdate(next);
       setState({
-        update: update ?? null,
+        update: next,
         isChecking: false,
         error: null,
       });
       return update;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      setPendingUpdate(null);
       setState({
         update: null,
         isChecking: false,
@@ -35,7 +41,7 @@ export function useUpdateCheck(options?: { onMount?: boolean; delayMs?: number }
       });
       return null;
     }
-  }, []);
+  }, [setPendingUpdate]);
 
   useEffect(() => {
     if (onMount) {

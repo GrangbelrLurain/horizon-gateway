@@ -44,7 +44,7 @@ function ProfilePage() {
   const hideChrome = isEmbedded || isHubEmbed;
 
   const session = useAtomValue(supabaseSessionAtom);
-  const supaProfile = useAtomValue(supabaseProfileAtom);
+  const [supaProfile, setSupaProfile] = useAtom(supabaseProfileAtom);
   const [aiAutocomplete, setAiAutocomplete] = useAtom(experimentalAiAutocompleteAtom);
   const [customTheme, setCustomTheme] = useAtom(experimentalCustomThemeAtom);
 
@@ -115,18 +115,45 @@ function ProfilePage() {
 
   const initials = getInitials(tempName || "KY");
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!tempName.trim()) {
       return;
     }
+    const name = tempName.trim();
     setProfile({
-      name: tempName.trim(),
+      name,
       role: tempRole.trim() || "User",
       avatarColor: tempColor,
       isSetupComplete: true,
     });
     setLang(tempLang);
     setGlobalTheme(tempTheme);
+
+    if (session?.user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .update({ display_name: name })
+          .eq("id", session.user.id)
+          .select()
+          .single();
+        if (error) {
+          throw error;
+        }
+        if (data) {
+          setSupaProfile(data);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        toastError(
+          lang === "ko"
+            ? `로컬 설정은 저장됐지만 팀 프로필 이름 동기화에 실패했습니다: ${message}`
+            : `Local settings saved, but team profile name sync failed: ${message}`,
+        );
+        return;
+      }
+    }
+
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
@@ -198,10 +225,11 @@ function ProfilePage() {
                 className="h-12 text-base font-medium"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveProfile();
+                    void saveProfile();
                   }
                 }}
               />
+              {session && <p className="text-[11px] text-base-content/45">{t.nameHint}</p>}
             </div>
             <div className="flex flex-col gap-2">
               <label
@@ -218,7 +246,7 @@ function ProfilePage() {
                 className="h-12 text-base font-medium"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveProfile();
+                    void saveProfile();
                   }
                 }}
               />
@@ -319,7 +347,7 @@ function ProfilePage() {
             <Button
               type="button"
               variant="primary"
-              onClick={saveProfile}
+              onClick={() => void saveProfile()}
               disabled={!tempName.trim()}
               className="w-full md:w-auto h-12 px-8 text-base shadow-lg shadow-primary/20"
             >

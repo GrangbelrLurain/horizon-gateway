@@ -1,8 +1,10 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Update } from "@tauri-apps/plugin-updater";
+import { useSetAtom } from "jotai";
 import { Download, Loader2Icon, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Button } from "@/shared/ui/button/Button";
+import { pendingUpdateAtom } from "./store";
 
 export interface UpdateBannerProps {
   update: Update;
@@ -10,6 +12,7 @@ export interface UpdateBannerProps {
 }
 
 export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
+  const setPendingUpdate = useSetAtom(pendingUpdateAtom);
   const [isInstalling, setIsInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
 
@@ -22,13 +25,14 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
           setIsInstalling(false);
         }
       });
+      setPendingUpdate(null);
       await relaunch();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setInstallError(message);
       setIsInstalling(false);
     }
-  }, [update]);
+  }, [setPendingUpdate, update]);
 
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-lg">

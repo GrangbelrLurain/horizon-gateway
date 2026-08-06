@@ -2,6 +2,7 @@ export const ko = {
   title: "사용자 프로필",
   subtitle: "닉네임, 직책 및 앱 환경설정 관리",
   name: "이름 / 닉네임",
+  nameHint: "로그인 시 팀 멤버 목록에 이 이름이 표시됩니다.",
   role: "직책 / 직무",
   avatarTheme: "아바타 테마",
   language: "언어 설정",

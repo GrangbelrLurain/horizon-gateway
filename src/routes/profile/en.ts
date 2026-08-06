@@ -2,6 +2,7 @@ export const en = {
   title: "User Profile",
   subtitle: "Manage your identity and app preferences",
   name: "Name / Nickname",
+  nameHint: "When signed in, this name is shown to workspace members.",
   role: "Role / Position",
   avatarTheme: "Avatar Theme",
   language: "Language",

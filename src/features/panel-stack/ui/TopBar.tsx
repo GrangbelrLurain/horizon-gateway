@@ -11,7 +11,7 @@ import {
   supabaseSessionAtom,
   WindowControls,
 } from "@/entities/app";
-import { updateChangelogModalOpenAtom } from "@/features/update";
+import { UpdateToolbarBadge, updateChangelogModalOpenAtom } from "@/features/update";
 import { commands } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
 import { Button } from "@/shared/ui/button/Button";
@@ -107,6 +107,7 @@ export function TopBar({
       />
 
       <div className="flex items-center gap-0.5 px-2 shrink-0">
+        <UpdateToolbarBadge />
         <ToolsMenu onOpenTool={onOpenGlobalTool} />
 
         <Button

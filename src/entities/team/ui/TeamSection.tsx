@@ -275,20 +275,14 @@ export function TeamSection() {
 
     setInviting(true);
     try {
-      const inv = await inviteMember(activeWorkspaceId, inviteEmail.trim(), userId);
+      await inviteMember(activeWorkspaceId, inviteEmail.trim(), userId);
       setInviteEmail("");
       await refreshMembersAndInvites(activeWorkspaceId);
-
-      try {
-        await navigator.clipboard.writeText(inv.token);
-        toastSuccess(
-          lang === "ko"
-            ? `초대를 생성하고 토큰을 클립보드에 복사했습니다: ${inv.token}`
-            : `Invite created and token copied to clipboard: ${inv.token}`,
-        );
-      } catch {
-        toastSuccess(lang === "ko" ? `초대를 보냈습니다. 초대 토큰: ${inv.token}` : `Invite sent. Token: ${inv.token}`);
-      }
+      toastSuccess(
+        lang === "ko"
+          ? "초대를 보냈습니다. 상대방 앱의 초대 목록에서 수락할 수 있습니다."
+          : "Invite sent. The recipient can accept it from their invite inbox.",
+      );
     } catch (e) {
       console.error("inviteMember:", e);
       toastError(lang === "ko" ? "초대 전송에 실패했습니다." : "Failed to send invite.");
@@ -635,15 +629,27 @@ export function TeamSection() {
               </p>
             )}
             {activeWorkspace &&
-              members.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl border border-base-200 bg-base-200/40 text-sm"
-                >
-                  <span className="font-mono text-xs text-base-content/70 truncate">{m.profile_id}</span>
-                  <span className="text-[10px] font-bold uppercase text-base-content/40">{m.role}</span>
-                </div>
-              ))}
+              members.map((m) => {
+                const email = m.profile?.email?.trim() || null;
+                const displayName = m.profile?.display_name?.trim() || null;
+                const primary = displayName || email || m.profile_id;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl border border-base-200 bg-base-200/40 text-sm gap-2"
+                  >
+                    <div className="min-w-0 flex flex-col">
+                      <span className="text-xs font-medium text-base-content truncate" title={primary}>
+                        {primary}
+                      </span>
+                      {displayName && email && (
+                        <span className="text-[10px] text-base-content/40 truncate">{email}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-bold uppercase text-base-content/40 shrink-0">{m.role}</span>
+                  </div>
+                );
+              })}
           </div>
 
           <div className="flex gap-2 mt-1 flex-wrap">
@@ -719,23 +725,25 @@ export function TeamSection() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0 ml-auto">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyToken(inv.token)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-base-100 border border-base-300 text-[10px] font-medium text-base-content/70 hover:text-primary transition-all shadow-sm"
-                      >
-                        {copiedToken === inv.token ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-500" />
-                            {lang === "ko" ? "복사됨" : "Copied"}
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            {lang === "ko" ? "토큰 복사" : "Copy Token"}
-                          </>
-                        )}
-                      </button>
+                      {inv.email === "link@shareable" && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyToken(inv.token)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-base-100 border border-base-300 text-[10px] font-medium text-base-content/70 hover:text-primary transition-all shadow-sm"
+                        >
+                          {copiedToken === inv.token ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-500" />
+                              {lang === "ko" ? "복사됨" : "Copied"}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              {lang === "ko" ? "토큰 복사" : "Copy Token"}
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       <button
                         type="button"

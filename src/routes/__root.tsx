@@ -15,7 +15,7 @@ import {
 import { CreateMockModal } from "@/entities/mocking";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
-import { UpdateBanner, UpdateChangelogModal, useUpdateCheck } from "@/features/update";
+import { UpdateBanner, UpdateChangelogModal, UpdateToolbarBadge, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
 import { commands, unwrap } from "@/shared/api";
 import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
@@ -203,7 +203,7 @@ const RootLayout = () => {
   return (
     <ErrorBoundary fallbackTitle="Horizon Gateway error">
       <div className="flex flex-col bg-base-200 h-screen w-full font-sans text-base-content selection:bg-primary/20 selection:text-primary overflow-hidden transition-colors duration-300">
-        {!isHubPage && <Titlebar />}
+        {!isHubPage && <Titlebar trailing={<UpdateToolbarBadge />} />}
         <div className="flex flex-1 min-h-0 overflow-hidden relative">
           <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
           {content}
