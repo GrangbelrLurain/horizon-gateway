@@ -29,6 +29,7 @@ interface TopBarProps {
   onOpenSettings: () => void;
   onOpenTeam: () => void;
   onOpenGlobalTool: (id: HubSurfaceId) => void;
+  teamOpen?: boolean;
 }
 
 export function TopBar({
@@ -37,6 +38,7 @@ export function TopBar({
   onOpenSettings,
   onOpenTeam,
   onOpenGlobalTool,
+  teamOpen = false,
 }: TopBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
@@ -117,10 +119,13 @@ export function TopBar({
             "gap-1.5 h-8 text-xs",
             teamLocked
               ? "text-slate-500 cursor-not-allowed opacity-60"
-              : "text-slate-300 hover:text-white hover:bg-slate-800",
+              : teamOpen
+                ? "text-white bg-slate-800"
+                : "text-slate-300 hover:text-white hover:bg-slate-800",
           )}
           title={teamLocked ? t.teamLocked : t.team}
           aria-disabled={teamLocked}
+          aria-pressed={teamOpen}
           onClick={() => {
             if (teamLocked) {
               toastInfo(t.teamLocked);

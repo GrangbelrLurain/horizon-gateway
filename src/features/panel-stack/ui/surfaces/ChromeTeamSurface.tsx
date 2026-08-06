@@ -1,10 +1,10 @@
-import { HubSurfaceEmbedProvider } from "@/shared/lib/hub/HubSurfaceEmbedContext";
-import { GlobalRouteEmbed } from "./GlobalRouteEmbed";
+import { TeamWorkspaceShell } from "@/entities/team";
 
+/** Detached / registry surface — same L→R shell as Hub full-view. */
 export function ChromeTeamSurface() {
   return (
-    <HubSurfaceEmbedProvider>
-      <GlobalRouteEmbed route="/team" />
-    </HubSurfaceEmbedProvider>
+    <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
+      <TeamWorkspaceShell />
+    </div>
   );
 }

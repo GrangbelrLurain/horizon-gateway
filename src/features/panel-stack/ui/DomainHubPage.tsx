@@ -5,6 +5,7 @@ import { Globe, Keyboard } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
+import { TeamWorkspaceShell } from "@/entities/team";
 import type { Domain } from "@/shared/api";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
@@ -138,6 +139,8 @@ function HubPanelWrapper({ panel, domain, features, panelIndex, panels, nav, hos
 export function DomainHubPage() {
   const nav = usePanelNavigation();
   const [remoteHandoffTarget, setRemoteHandoffTarget] = useAtom(hubHandoffRemoteTargetAtom);
+  const [teamWorkspaceOpen, setTeamWorkspaceOpen] = useState(false);
+  const teamEscapeRef = useRef<(() => boolean) | null>(null);
 
   useEffect(() => {
     if (!remoteHandoffTarget) {
@@ -151,6 +154,12 @@ export function DomainHubPage() {
       nav.openPanelForDomain(target.domainId, target.panelId);
       return;
     }
+    if (target.surfaceId === "chrome/team") {
+      setTeamWorkspaceOpen(true);
+      nav.closeGlobalSurface();
+      return;
+    }
+    setTeamWorkspaceOpen(false);
     nav.openGlobalSurface(target.surfaceId);
   }, [remoteHandoffTarget, nav, setRemoteHandoffTarget]);
 
@@ -178,12 +187,19 @@ export function DomainHubPage() {
   const tipTimerRef = useRef<NodeJS.Timeout | null>(null);
   const navRef = useRef(nav);
   navRef.current = nav;
-  const overlayStateRef = useRef({ domain: false, panel: null as string | null, global: false, bulk: false });
+  const overlayStateRef = useRef({
+    domain: false,
+    panel: null as string | null,
+    global: false,
+    bulk: false,
+    team: false,
+  });
   overlayStateRef.current = {
     domain: domainListOverlayOpen,
     panel: panelOverlayOpen,
     global: nav.globalSurface != null,
     bulk: bulkMode,
+    team: teamWorkspaceOpen,
   };
   const prevDomainIdRef = useRef<number | null>(null);
 
@@ -199,14 +215,40 @@ export function DomainHubPage() {
 
   const openSurface = useCallback(
     (id: HubSurfaceId) => {
+      if (id === "chrome/team") {
+        setTeamWorkspaceOpen(true);
+        nav.closeGlobalSurface();
+        return;
+      }
       if (bulkMode) {
         void showAlert(t.errorGeneric, t.bulkBlocksGlobal, "warning");
         return;
       }
+      setTeamWorkspaceOpen(false);
       nav.openGlobalSurface(id);
     },
     [bulkMode, nav, showAlert, t],
   );
+
+  const openTeamWorkspace = useCallback(() => {
+    if (bulkMode) {
+      void showAlert(t.errorGeneric, t.bulkBlocksGlobal, "warning");
+      return;
+    }
+    nav.closeGlobalSurface();
+    setTeamWorkspaceOpen((open) => !open);
+  }, [bulkMode, nav, showAlert, t]);
+
+  const closeTeamWorkspace = useCallback(() => {
+    setTeamWorkspaceOpen(false);
+  }, []);
+
+  // Opening bulk mode exits team full-view if it somehow stayed open
+  useEffect(() => {
+    if (bulkMode && teamWorkspaceOpen) {
+      setTeamWorkspaceOpen(false);
+    }
+  }, [bulkMode, teamWorkspaceOpen]);
 
   const domain = nav.domainId ? domains.find((d) => d.id === nav.domainId) : null;
   const domainFeatures = domain ? getFeatureState(domain.id) : null;
@@ -476,6 +518,15 @@ export function DomainHubPage() {
         return;
       }
 
+      if (overlayStateRef.current.team) {
+        e.preventDefault();
+        if (teamEscapeRef.current?.()) {
+          return;
+        }
+        setTeamWorkspaceOpen(false);
+        return;
+      }
+
       if (overlayStateRef.current.bulk) {
         e.preventDefault();
         exitBulkModeRef.current();
@@ -518,8 +569,8 @@ export function DomainHubPage() {
     };
   }, [triggerShortcutTip, setDomainListOverlayOpen, setPanelOverlayOpen, store]);
 
-  const showDomainPanels = domain && !bulkMode;
-  const showEmptyState = !domain && !bulkMode && !nav.globalSurface;
+  const showDomainPanels = domain && !bulkMode && !teamWorkspaceOpen;
+  const showEmptyState = !domain && !bulkMode && !nav.globalSurface && !teamWorkspaceOpen;
 
   return (
     <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
@@ -527,120 +578,127 @@ export function DomainHubPage() {
         onOpenInfrastructure={() => openSurface("chrome/infrastructure")}
         onOpenProfile={() => openSurface("chrome/profile")}
         onOpenSettings={() => openSurface("chrome/settings")}
-        onOpenTeam={() => openSurface("chrome/team")}
+        onOpenTeam={openTeamWorkspace}
         onOpenGlobalTool={openSurface}
+        teamOpen={teamWorkspaceOpen}
       />
 
-      {domain && !bulkMode && (
-        <PanelBreadcrumb
-          domainLabel={getDomainLabel(domain)}
-          panels={nav.panels}
-          lang={lang}
-          onNavigate={(id, index) => nav.navigateToPanel(id, index)}
-          onClose={() => (nav.panels.length > 1 ? nav.resetPanels() : nav.clearDomain())}
-          onGoHome={nav.clearDomain}
-        />
-      )}
+      {teamWorkspaceOpen ? (
+        <TeamWorkspaceShell onCloseToHub={closeTeamWorkspace} escapeRef={teamEscapeRef} />
+      ) : (
+        <>
+          {domain && !bulkMode && (
+            <PanelBreadcrumb
+              domainLabel={getDomainLabel(domain)}
+              panels={nav.panels}
+              lang={lang}
+              onNavigate={(id, index) => nav.navigateToPanel(id, index)}
+              onClose={() => (nav.panels.length > 1 ? nav.resetPanels() : nav.clearDomain())}
+              onGoHome={nav.clearDomain}
+            />
+          )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden bg-base-200 relative">
-        <div ref={hubOverlayRef} className="absolute inset-0 z-[35] pointer-events-none" />
-        <HubOverlayProvider containerRef={hubOverlayRef}>
-          <DomainListPanel
-            selectedDomainId={nav.domainId}
-            onSelectDomain={nav.selectDomain}
-            onClearDomain={nav.clearDomain}
-            onAddDomain={() => openSurface("chrome/add-domain")}
-            onManageGroups={() => openSurface("chrome/groups")}
-            onEnterBulkMode={enterBulkMode}
-            onExitBulkMode={exitBulkMode}
-            activePanelsCount={domain ? nav.panels.length : 0}
-          />
+          <div className="flex flex-1 min-h-0 overflow-hidden bg-base-200 relative">
+            <div ref={hubOverlayRef} className="absolute inset-0 z-[35] pointer-events-none" />
+            <HubOverlayProvider containerRef={hubOverlayRef}>
+              <DomainListPanel
+                selectedDomainId={nav.domainId}
+                onSelectDomain={nav.selectDomain}
+                onClearDomain={nav.clearDomain}
+                onAddDomain={() => openSurface("chrome/add-domain")}
+                onManageGroups={() => openSurface("chrome/groups")}
+                onEnterBulkMode={enterBulkMode}
+                onExitBulkMode={exitBulkMode}
+                activePanelsCount={domain ? nav.panels.length : 0}
+              />
 
-          <div className="relative flex flex-1 min-w-0 overflow-hidden border-l border-base-300">
-            {bulkMode ? (
-              <div className="flex flex-1 min-w-0 overflow-hidden">
-                <DomainBulkManagePanel onClose={exitBulkMode} />
+              <div className="relative flex flex-1 min-w-0 overflow-hidden border-l border-base-300">
+                {bulkMode ? (
+                  <div className="flex flex-1 min-w-0 overflow-hidden">
+                    <DomainBulkManagePanel onClose={exitBulkMode} />
+                  </div>
+                ) : showDomainPanels ? (
+                  <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                    <HubContextBar domain={domain} />
+                    <div ref={scrollContainerRef} className="flex flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
+                      {nav.panels.map((panel, i) => (
+                        <HubPanelWrapper
+                          key={`${panel.id}-${i}`}
+                          panel={panel}
+                          domain={domain}
+                          features={domainFeatures}
+                          panelIndex={i}
+                          panels={nav.panels}
+                          nav={nav}
+                          hostFilter={getDomainHost(domain)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : showEmptyState ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100">
+                    <div className="w-16 h-16 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
+                      <Globe className="w-8 h-8 text-base-content/20" />
+                    </div>
+                    <p className="text-sm font-bold text-base-content/50">
+                      {lang === "ko" ? "도메인을 선택하세요" : "Select a domain to get started"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 bg-base-100" />
+                )}
+
+                {nav.globalSurface && !bulkMode && (
+                  <HubSurfaceOverlay surfaceId={nav.globalSurface} onClose={() => nav.closeGlobalSurface()} />
+                )}
               </div>
-            ) : showDomainPanels ? (
-              <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-                <HubContextBar domain={domain} />
-                <div ref={scrollContainerRef} className="flex flex-1 min-w-0 overflow-x-auto overflow-y-hidden">
-                  {nav.panels.map((panel, i) => (
-                    <HubPanelWrapper
-                      key={`${panel.id}-${i}`}
-                      panel={panel}
-                      domain={domain}
-                      features={domainFeatures}
-                      panelIndex={i}
-                      panels={nav.panels}
-                      nav={nav}
-                      hostFilter={getDomainHost(domain)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : showEmptyState ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100">
-                <div className="w-16 h-16 rounded-2xl bg-base-200 flex items-center justify-center mb-4">
-                  <Globe className="w-8 h-8 text-base-content/20" />
-                </div>
-                <p className="text-sm font-bold text-base-content/50">
-                  {lang === "ko" ? "도메인을 선택하세요" : "Select a domain to get started"}
-                </p>
-              </div>
-            ) : (
-              <div className="flex-1 bg-base-100" />
-            )}
 
-            {nav.globalSurface && !bulkMode && (
-              <HubSurfaceOverlay surfaceId={nav.globalSurface} onClose={() => nav.closeGlobalSurface()} />
-            )}
-          </div>
-
-          <AnimatePresence>
-            {showShortcutTip && (
-              <motion.div
-                initial={{ opacity: 0, y: 20, x: "-50%" }}
-                animate={{ opacity: 1, y: 0, x: "-50%" }}
-                exit={{ opacity: 0, y: 10, x: "-50%" }}
-                transition={{ duration: 0.3 }}
-                className="absolute bottom-6 left-1/2 z-50 flex items-center gap-2 bg-base-100/90 border border-base-300 px-4 py-2 rounded-full shadow-2xl text-[10px] font-bold text-base-content/85 select-none pointer-events-none backdrop-blur-md"
-              >
-                <Keyboard className="w-3.5 h-3.5 text-primary animate-pulse" />
-                {bulkMode && (
-                  <>
-                    <span className={clsx(copied && "text-success transition-colors duration-200")}>
-                      {copied
+              <AnimatePresence>
+                {showShortcutTip && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, x: "-50%" }}
+                    animate={{ opacity: 1, y: 0, x: "-50%" }}
+                    exit={{ opacity: 0, y: 10, x: "-50%" }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute bottom-6 left-1/2 z-50 flex items-center gap-2 bg-base-100/90 border border-base-300 px-4 py-2 rounded-full shadow-2xl text-[10px] font-bold text-base-content/85 select-none pointer-events-none backdrop-blur-md"
+                  >
+                    <Keyboard className="w-3.5 h-3.5 text-primary animate-pulse" />
+                    {bulkMode && (
+                      <>
+                        <span className={clsx(copied && "text-success transition-colors duration-200")}>
+                          {copied
+                            ? lang === "ko"
+                              ? "복사 완료!"
+                              : "Copied!"
+                            : lang === "ko"
+                              ? "Ctrl + C : 도메인 복사"
+                              : "Ctrl + C : Copy Domains"}
+                        </span>
+                        <span className="text-base-content/30">|</span>
+                      </>
+                    )}
+                    <span>
+                      {bulkMode
                         ? lang === "ko"
-                          ? "복사 완료!"
-                          : "Copied!"
+                          ? "Shift: 범위 · Ctrl: 토글 · Ctrl+C: 복사"
+                          : "Shift: range · Ctrl: toggle · Ctrl+C: copy"
                         : lang === "ko"
-                          ? "Ctrl + C : 도메인 복사"
-                          : "Ctrl + C : Copy Domains"}
+                          ? "Shift+클릭: 일괄 선택"
+                          : "Shift+click: bulk select"}
                     </span>
                     <span className="text-base-content/30">|</span>
-                  </>
+                    <span>Alt + ← / → : {lang === "ko" ? "가로 스크롤" : "Horizontal Scroll"}</span>
+                    <span className="text-base-content/30">|</span>
+                    <span>Alt + ↑ / ↓ : {lang === "ko" ? "본문 스크롤" : "Vertical Scroll"}</span>
+                    <span className="text-base-content/30">|</span>
+                    <span>ESC : {lang === "ko" ? "닫기" : "Close"}</span>
+                  </motion.div>
                 )}
-                <span>
-                  {bulkMode
-                    ? lang === "ko"
-                      ? "Shift: 범위 · Ctrl: 토글 · Ctrl+C: 복사"
-                      : "Shift: range · Ctrl: toggle · Ctrl+C: copy"
-                    : lang === "ko"
-                      ? "Shift+클릭: 일괄 선택"
-                      : "Shift+click: bulk select"}
-                </span>
-                <span className="text-base-content/30">|</span>
-                <span>Alt + ← / → : {lang === "ko" ? "가로 스크롤" : "Horizontal Scroll"}</span>
-                <span className="text-base-content/30">|</span>
-                <span>Alt + ↑ / ↓ : {lang === "ko" ? "본문 스크롤" : "Vertical Scroll"}</span>
-                <span className="text-base-content/30">|</span>
-                <span>ESC : {lang === "ko" ? "닫기" : "Close"}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </HubOverlayProvider>
-      </div>
+              </AnimatePresence>
+            </HubOverlayProvider>
+          </div>
+        </>
+      )}
     </div>
   );
 }

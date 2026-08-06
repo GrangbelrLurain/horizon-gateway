@@ -4,20 +4,12 @@ import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
-import {
-  proxyInspectorEnabledAtom,
-  TelemetryProvider,
-  Titlebar,
-  themeAtom,
-  useAppBootstrap,
-  userProfileAtom,
-} from "@/entities/app";
+import { TelemetryProvider, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, UpdateChangelogModal, UpdateToolbarBadge, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
-import { commands, unwrap } from "@/shared/api";
 import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -47,7 +39,6 @@ const RootLayout = () => {
   useAppBootstrap();
   useHubHandoffSync();
 
-  const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
   const theme = useAtomValue(themeAtom);
   const userProfile = useAtomValue(userProfileAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -93,18 +84,6 @@ const RootLayout = () => {
       }
     }
   }, [userProfile.avatarColor]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "i") {
-        const newState = !inspectorEnabled;
-        setInspectorEnabled(newState);
-        commands.setGlobalInspectorEnabled(newState).then(unwrap);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [inspectorEnabled, setInspectorEnabled]);
 
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
   const [isLoading, setIsLoading] = useState(false);

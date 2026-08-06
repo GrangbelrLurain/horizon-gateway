@@ -12,7 +12,7 @@ use crate::model::api_log::ApiLogEntry;
 
 use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
-    should_inject_for_host,
+    is_html_response, should_inject_for_host,
 };
 use super::super::state::ProxyState;
 
@@ -138,11 +138,8 @@ pub(crate) async fn handle_with_logging(
     let content_type = res_headers
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("unknown")
+        .unwrap_or("")
         .to_lowercase();
-
-    let is_html =
-        content_type.contains("text/html") || content_type.contains("application/xhtml+xml");
 
     res_headers.remove(header::X_FRAME_OPTIONS);
     res_headers.remove(header::CONTENT_SECURITY_POLICY);
@@ -153,7 +150,7 @@ pub(crate) async fn handle_with_logging(
     res_headers.remove("alt-svc");
 
     let mut final_res_bytes = res_bytes.to_vec();
-    if is_html && should_inject_for_host(state, host_h) {
+    if should_inject_for_host(state, host_h) && is_html_response(&content_type, &final_res_bytes) {
         apply_html_injection_cache_headers(&mut res_headers);
         final_res_bytes = inject_inspector_script(final_res_bytes);
     }

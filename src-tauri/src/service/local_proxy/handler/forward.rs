@@ -10,7 +10,7 @@ use tauri::Emitter;
 
 use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
-    should_inject_for_host,
+    is_html_response, should_inject_for_host,
 };
 use super::super::state::ProxyState;
 
@@ -155,19 +155,20 @@ pub(crate) async fn handle_pass_through(
             let content_type = res_headers
                 .get(header::CONTENT_TYPE)
                 .and_then(|v| v.to_str().ok())
-                .unwrap_or("unknown")
+                .unwrap_or("")
                 .to_lowercase();
-
-            let is_html = content_type.contains("text/html")
-                || content_type.contains("application/xhtml+xml");
 
             res_headers.remove(header::ETAG);
             res_headers.remove(header::LAST_MODIFIED);
             res_headers.remove("alt-svc");
 
-            if is_html && should_inject_for_host(state, host_h) {
-                apply_html_injection_cache_headers(&mut res_headers);
+            let maybe_html = content_type.contains("text/html")
+                || content_type.contains("application/xhtml+xml")
+                || content_type.is_empty()
+                || content_type.contains("octet-stream")
+                || content_type.starts_with("text/plain");
 
+            if maybe_html && should_inject_for_host(state, host_h) {
                 let full_body = match res.bytes().await {
                     Ok(b) => b,
                     Err(e) => {
@@ -176,7 +177,13 @@ pub(crate) async fn handle_pass_through(
                             .into_response();
                     }
                 };
-                let final_res_bytes = inject_inspector_script(full_body.to_vec());
+
+                let final_res_bytes = if is_html_response(&content_type, &full_body) {
+                    apply_html_injection_cache_headers(&mut res_headers);
+                    inject_inspector_script(full_body.to_vec())
+                } else {
+                    full_body.to_vec()
+                };
 
                 let mut builder = Response::builder().status(status);
                 if let Some(headers) = builder.headers_mut() {

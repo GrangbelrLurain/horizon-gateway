@@ -5,21 +5,18 @@ import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
-import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { H1, P } from "@/shared/ui/typography/typography";
 import type { InspectorPanelCopy } from "../useInspectorPanel";
 
 export interface InspectorPanelProps {
   t: InspectorPanelCopy;
   isProxyRunning: boolean;
-  inspectorEnabled: boolean;
   injectionDomains: string[];
   newDomain: string;
   captured: CapturedElement | null;
   role: string;
   description: string;
   lastSavedId: string | null;
-  onToggleInspector: (enabled: boolean) => void;
   onNewDomainChange: (value: string) => void;
   onAddDomain: (e: React.KeyboardEvent) => void;
   onRemoveDomain: (domain: string) => void;
@@ -32,14 +29,12 @@ export interface InspectorPanelProps {
 export function InspectorPanel({
   t,
   isProxyRunning,
-  inspectorEnabled,
   injectionDomains,
   newDomain,
   captured,
   role,
   description,
   lastSavedId,
-  onToggleInspector,
   onNewDomainChange,
   onAddDomain,
   onRemoveDomain,
@@ -67,33 +62,20 @@ export function InspectorPanel({
       )}
 
       <Card className="p-6 border-none bg-base-100 shadow-sm ring-1 ring-base-300">
-        <div className="flex flex-col tablet:flex-row justify-between items-start gap-6">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-1">
-              <ExternalLink className="w-5 h-5 text-primary" />
-              {t.injectionSettings}
-            </h2>
-            <P className="text-sm text-base-content/60 leading-relaxed">{t.injectionDomainsDesc}</P>
-          </div>
-          <StatusToggle
-            label={inspectorEnabled ? t.injectionEnabled : t.injectionDisabled}
-            checked={inspectorEnabled}
-            onChange={onToggleInspector}
-            icon={<Camera className="w-3.5 h-3.5" />}
-          />
+        <div className="flex flex-col gap-1 mb-6">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <ExternalLink className="w-5 h-5 text-primary" />
+            {t.injectionSettings}
+          </h2>
+          <P className="text-sm text-base-content/60 leading-relaxed">{t.injectionDomainsDesc}</P>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-base-200">
+        <div className="pt-0">
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
                 {t.injectionDomainsLabel}
               </label>
-              {injectionDomains.length === 0 && (
-                <span className="text-[10px] font-bold text-success uppercase tracking-widest px-2 py-0.5 bg-success/10 rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" /> {t.globalApply}
-                </span>
-              )}
             </div>
 
             <div className="flex flex-wrap gap-2 mb-2">

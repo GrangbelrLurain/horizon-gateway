@@ -6,9 +6,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
+use crate::service::local_proxy::routing::host_key_for_logging_map;
 
-use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
 
 pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str =
@@ -104,24 +103,27 @@ pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interc
       var t0=performance.now();
       var req=a[0];
       var u=typeof req==='string'?req:(req&&req.url?req.url:String(req||''));
-      var m=req&&req.method?req.method:(a[1]&&a[1].method?a[1].method:'GET');
-      var reqBodyStr=a[1]&&a[1].body?String(a[1].body):undefined;
+      var m=(req&&req.method)?req.method:((a[1]&&a[1].method)?a[1].method:'GET');
+      var reqBodyStr=(a[1]&&a[1].body!=null)?String(a[1].body):undefined;
       var reqHdrs=parseHeaders(a[1]&&a[1].headers?a[1].headers:(req&&req.headers?req.headers:undefined));
 
+      // Observe only — never alter the call or the returned Response.
       return of.apply(this,a).then(function(res){
         var t1=performance.now();
         try{
-          mark(u,m,function(k){return res.headers.get(k);});
-          if(!isStatic(u)&&u.indexOf('/.horizon-gateway/')===-1){
-            var mb=res.headers.get('x-mocked-by');
-            var respHdrs=parseHeaders(res.headers);
-            var c=res.clone();
-            c.text().then(function(txt){
-              var trunc=txt&&txt.length>10000000?txt.substring(0,10000000)+'\n...(truncated)':txt;
-              logLog(u,m,res.status,t1-t0,!!mb,reqHdrs,reqBodyStr,respHdrs,trunc);
-            }).catch(function(){
-              logLog(u,m,res.status,t1-t0,!!mb,reqHdrs,reqBodyStr,respHdrs,undefined);
-            });
+          if(res&&res.type!=='opaque'){
+            mark(u,m,function(k){return res.headers.get(k);});
+            if(!isStatic(u)&&u.indexOf('/.horizon-gateway/')===-1){
+              var mb=res.headers.get('x-mocked-by');
+              var respHdrs=parseHeaders(res.headers);
+              var c=res.clone();
+              c.text().then(function(txt){
+                var trunc=txt&&txt.length>10000000?txt.substring(0,10000000)+'\n...(truncated)':txt;
+                logLog(u,m,res.status,t1-t0,!!mb,reqHdrs,reqBodyStr,respHdrs,trunc);
+              }).catch(function(){
+                logLog(u,m,res.status,t1-t0,!!mb,reqHdrs,reqBodyStr,respHdrs,undefined);
+              });
+            }
           }
         }catch(e){}
         return res;
@@ -146,6 +148,9 @@ pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interc
       return xsh.apply(this,arguments);
     };
   }
+  // BUGFIX: must use apply(this, arguments) / call(this, body).
+  // apply(this, body) treats a string body as an array-like and spreads characters
+  // into send() args — which can silently break XHR (e.g. POST/JSON APIs).
   XMLHttpRequest.prototype.send=function(b){
     var reqBodyStr=typeof b==='string'?b:undefined;
     this.addEventListener('loadend',function(){
@@ -153,7 +158,6 @@ pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interc
       var t1=performance.now();
       var u=self.__wtU||self.responseURL;
       var m=self.__wtM||'GET';
-      var mb=self.getResponseHeader('x-mocked-by');
       mark(u,m,function(k){return self.getResponseHeader(k);});
       var respHdrs=parseXhrHeaders(self.getAllResponseHeaders());
       var respBody;
@@ -162,9 +166,11 @@ pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interc
           respBody=self.responseText.length>10000000?self.responseText.substring(0,10000000)+'\n...(truncated)':self.responseText;
         }
       }catch(e){}
+      var mb=null;
+      try{mb=self.getResponseHeader('x-mocked-by');}catch(e){}
       logLog(u,m,self.status||200,t1-(self.__wtT0||t1),!!mb,self.__wtReqHdrs,reqBodyStr,respHdrs,respBody);
     });
-    return xs.apply(this,b);
+    return xs.apply(this,arguments);
   };
 })();
 </script>"#;
@@ -176,6 +182,34 @@ pub(crate) fn apply_html_injection_cache_headers(headers: &mut HeaderMap) {
     );
     headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
     headers.remove(header::EXPIRES);
+    // reqwest may decompress gzip/br while leaving Content-Encoding on the cloned header map.
+    headers.remove(header::CONTENT_ENCODING);
+    headers.remove(header::CONTENT_LENGTH);
+}
+
+/// True when Content-Type looks like HTML, or when CT is missing/generic and body sniffs as HTML.
+pub(crate) fn is_html_response(content_type: &str, body: &[u8]) -> bool {
+    let ct = content_type.to_lowercase();
+    if ct.contains("text/html") || ct.contains("application/xhtml+xml") {
+        return true;
+    }
+    let sniffable = ct.is_empty()
+        || ct == "unknown"
+        || ct.contains("octet-stream")
+        || ct.starts_with("text/plain");
+    if !sniffable {
+        return false;
+    }
+    let prefix_len = body.len().min(512);
+    let prefix = String::from_utf8_lossy(&body[..prefix_len]).to_lowercase();
+    let trimmed = prefix.trim_start();
+    trimmed.starts_with("<!doctype html") || trimmed.starts_with("<html")
+}
+
+fn insert_after_open_tag(body_lower: &str, tag: &str) -> Option<usize> {
+    let start = body_lower.find(tag)?;
+    let gt = body_lower[start..].find('>')?;
+    Some(start + gt + 1)
 }
 
 /// Injects early interceptor script in `<head>` and inspector script before `</body>`.
@@ -194,16 +228,10 @@ pub(crate) fn inject_inspector_script(body: Vec<u8>) -> Vec<u8> {
         let body_lower = new_body.to_lowercase();
 
         if !has_early {
-            if let Some(head_pos) = body_lower.find("<head>") {
-                let pos = head_pos + 6;
+            if let Some(pos) = insert_after_open_tag(&body_lower, "<head") {
                 new_body.insert_str(pos, early_script);
-            } else if let Some(body_pos) = body_lower.find("<body") {
-                if let Some(gt_pos) = body_lower[body_pos..].find('>') {
-                    let pos = body_pos + gt_pos + 1;
-                    new_body.insert_str(pos, early_script);
-                } else {
-                    new_body.insert_str(0, early_script);
-                }
+            } else if let Some(pos) = insert_after_open_tag(&body_lower, "<body") {
+                new_body.insert_str(pos, early_script);
             } else {
                 new_body.insert_str(0, early_script);
             }
@@ -290,24 +318,23 @@ mod tests {
     }
 
     #[test]
-    fn completes_partial_injection_when_early_exists() {
-        let html = format!(
-            "<html><head>{}</head><body>x</body></html>",
-            EARLY_INTERCEPTOR_SCRIPT
-        );
-        let out = String::from_utf8(inject_inspector_script(html.into_bytes())).unwrap();
+    fn injects_into_head_with_attributes() {
+        let html = b"<html><head lang=\"ko\" class=\"x\"><title>t</title></head><body></body></html>".to_vec();
+        let out = String::from_utf8(inject_inspector_script(html)).unwrap();
+        assert!(out.contains("wt-early-interceptor"));
+        assert!(out.find("wt-early-interceptor").unwrap() < out.find("</head>").unwrap());
         assert!(out.contains("wt-injection-marker"));
-        assert_eq!(out.matches("wt-early-interceptor").count(), 1);
+    }
+
+    #[test]
+    fn sniffs_html_without_content_type() {
+        assert!(is_html_response("", b"<!DOCTYPE html><html></html>"));
+        assert!(!is_html_response("application/json", b"{\"a\":1}"));
+        assert!(is_html_response("text/html; charset=utf-8", b"not even html bytes"));
     }
 }
 
 pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> bool {
-    let mocking_enabled = state.mocking_service.get_settings().enabled || is_mocking_enabled();
-    let is_active = is_inspector_enabled() || mocking_enabled || is_local_routing_enabled();
-    if !is_active {
-        return false;
-    }
-
     let host_key = host_key_for_logging_map(host);
 
     // 1. Must match at least one registered domain in DomainService
@@ -318,10 +345,10 @@ pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> boo
     });
 
     if !is_registered {
-        return false; // Strictly block script injection for unregistered domains
+        return false;
     }
 
-    // 2. Must be enabled in injection_domains (per-domain On/Off toggle)
+    // 2. Per-domain injection list is the only gate (never check global inspector on/off).
     let injection_domains = state.inspector_service.get_injection_domains();
     injection_domains.iter().any(|d| {
         let d_lower = crate::service::inspector_service::InspectorService::extract_host_key(d);

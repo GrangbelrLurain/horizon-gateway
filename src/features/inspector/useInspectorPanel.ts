@@ -1,7 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { languageAtom, proxyInspectorEnabledAtom, proxyRunningAtom } from "@/entities/app";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import type { Annotation, CapturedElement } from "@/entities/inspector";
 import { commands, unwrap } from "@/shared/api";
 
@@ -17,13 +17,10 @@ const INSPECTOR_COPY = {
     saveBtn: "가이드 저장",
     selector: "CSS 선택자",
     injectionSettings: "인젝션 가이드 설정",
-    injectionEnabled: "인젝션 기능 활성화",
-    injectionDisabled: "인젝션 기능 비활성화",
     injectionDomainsLabel: "대상 도메인 목록",
     injectionDomainsDesc:
       "도메인 리스트에 등록된 도메인에만 인젝션 스크립트가 삽입됩니다. 각 등록 도메인의 인젝션 On/Off를 설정할 수 있습니다.",
     addDomainPlaceholder: "example.com (엔터로 추가)",
-    globalApply: "전체 등록 도메인에 적용 중",
     waitingCapture: "브라우저에서 캡처 대기 중...",
     waitingCaptureDesc: "인젝션이 활성화된 브라우저에서 Alt + 클릭으로 요소를 선택하세요.",
     saveSuccess: "가이드가 성공적으로 저장되었습니다!",
@@ -40,13 +37,10 @@ const INSPECTOR_COPY = {
     saveBtn: "Save Guide",
     selector: "CSS Selector",
     injectionSettings: "Injection Settings",
-    injectionEnabled: "Injection Enabled",
-    injectionDisabled: "Injection Disabled",
     injectionDomainsLabel: "Target Domains",
     injectionDomainsDesc:
       "Script injection applies only to registered domains in the domain list. You can toggle injection ON/OFF for each domain.",
     addDomainPlaceholder: "example.com (Press Enter)",
-    globalApply: "Applied to all domains",
     waitingCapture: "Waiting for capture from browser...",
     waitingCaptureDesc: "Press Alt + Click on any element in the injected browser.",
     saveSuccess: "Guide saved successfully!",
@@ -59,7 +53,6 @@ export type InspectorPanelCopy = (typeof INSPECTOR_COPY)[keyof typeof INSPECTOR_
 export function useInspectorPanel() {
   const lang = useAtomValue(languageAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
-  const [inspectorEnabled, setInspectorEnabled] = useAtom(proxyInspectorEnabledAtom);
   const [injectionDomains, setInjectionDomains] = useState<string[]>([]);
   const [newDomain, setNewDomain] = useState("");
   const [captured, setCaptured] = useState<CapturedElement | null>(null);
@@ -90,14 +83,6 @@ export function useInspectorPanel() {
       unlisten.then((fn) => fn());
     };
   }, []);
-
-  const handleToggleInspector = useCallback(
-    async (enabled: boolean) => {
-      setInspectorEnabled(enabled);
-      await commands.setGlobalInspectorEnabled(enabled).then(unwrap);
-    },
-    [setInspectorEnabled],
-  );
 
   const handleAddDomain = useCallback(
     async (e: React.KeyboardEvent) => {
@@ -144,14 +129,12 @@ export function useInspectorPanel() {
   return {
     t,
     isProxyRunning: !!isProxyRunning,
-    inspectorEnabled: !!inspectorEnabled,
     injectionDomains,
     newDomain,
     captured,
     role,
     description,
     lastSavedId,
-    onToggleInspector: handleToggleInspector,
     onNewDomainChange: setNewDomain,
     onAddDomain: handleAddDomain,
     onRemoveDomain: handleRemoveDomain,

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.6.10] - 2026-08-06
+
+### Added
+
+- **Team Workspace Full-View UI**: Rebuilt the team experience as a DomainHub-style L→R panel stack (workspace list · home · members · sync · billing). Unified `/team` and Chrome team surface entry points.
+
+### Changed
+
+- **InjectionApp modular split**: Split the ~3200-line monolith into `api/`, `hooks/`, `ui/`, and `lib/` modules for easier maintenance.
+- **Simpler injection gate**: HTML injection now depends only on registered domains plus the `injection_domains` list, not the global Inspector On/Off flag. Removed the global toggle from Inspector settings and the `Ctrl+Alt+I` shortcut.
+- **No injection UI heartbeat polling**: Early interceptor already observes fetch/XHR traffic, so the 2.5s polling of `status`, `proxy-routes`, and `logging-domains` was removed; data refreshes when popovers open.
+
+### Fixed
+
+- **Missing XHR API calls**: Fixed early interceptor `XMLHttpRequest.send` using `apply(this, body)`, which broke POST/JSON requests; now uses `apply(this, arguments)` (e.g. `GetContentAndTerms`).
+- **Removed fetch double-wrap**: Stopped re-patching fetch/XHR in InjectionApp, which could block some page APIs.
+
 ## [v2.6.9] - 2026-08-06
 
 ### Added

@@ -4,6 +4,23 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.6.10] - 2026-08-06
+
+### Added (추가 기능)
+
+- **팀 워크스페이스 전체 뷰 UI**: DomainHub 스타일의 L→R 패널(워크스페이스 목록 · 홈 · 멤버 · 동기화 · 요금제)로 팀 화면을 재구성했습니다. `/team`과 Chrome 팀 서피스 진입점을 통일했습니다.
+
+### Changed (변경 사항)
+
+- **InjectionApp 모듈 분리**: ~3200줄 단일 파일을 `api/` · `hooks/` · `ui/` · `lib/`로 분리해 유지보수성을 개선했습니다.
+- **인젝션 게이트 단순화**: 전역 Inspector On/Off와 무관하게, 등록 도메인 + `injection_domains` 목록만으로 HTML 주입 여부를 결정합니다. Inspector 설정 패널의 전역 토글과 `Ctrl+Alt+I` 단축키는 제거했습니다.
+- **인젝션 UI 폴링 제거**: early interceptor가 fetch/XHR을 관찰하므로 `status` / `proxy-routes` / `logging-domains` 2.5초 하트비트 폴링을 없앴습니다. 팝오버를 열 때만 갱신합니다.
+
+### Fixed (버그 수정)
+
+- **XHR API 호출 누락**: early interceptor의 `XMLHttpRequest.send`가 `apply(this, body)`로 잘못 전달되어 POST/JSON 요청이 깨지던 문제를 `apply(this, arguments)`로 수정했습니다 (예: `GetContentAndTerms`).
+- **fetch 이중 패치 제거**: InjectionApp이 fetch/XHR을 다시 감싸던 코드를 제거해 일부 API가 차단되던 부작용을 없앴습니다.
+
 ## [v2.6.9] - 2026-08-06
 
 ### Added (추가 기능)
