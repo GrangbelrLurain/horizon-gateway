@@ -1,7 +1,9 @@
 import { normalizeDomainUrl } from "@/entities/domain";
+import type { MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { pullResources, pushResources } from "./api";
+import { mockRuleMatchKey } from "./syncDiff";
 import type { ResourceKind } from "./types";
 
 export type SyncMode = "merge_url" | "append_only" | "overwrite" | "merge_id";
@@ -27,6 +29,14 @@ export interface WorkspaceSyncOptions {
    * `undefined` = all local domains eligible for the selected mode.
    */
   selectedDomainIds?: number[];
+  /** Push only: local mock rule ids to upload (merge into remote by match key). */
+  selectedMockRuleIds?: string[];
+  /** Pull only: domain match keys to merge from remote. */
+  selectedDomainKeys?: string[];
+  /** Pull only: mock rule match keys to merge from remote. */
+  selectedMockRuleKeys?: string[];
+  /** Generic match keys for selective sync (groups, scenarios, links). */
+  selectedItemKeys?: string[];
 }
 
 export const DEFAULT_SYNC_KINDS: ResourceKind[] = [
@@ -86,11 +96,23 @@ export function domainMatchKey(url: string, key: DomainMatchKey = "hostname"): s
   }
 
   if (key === "exact_url") {
-    let cleaned = trimmed.toLowerCase();
-    if (cleaned.endsWith("/")) {
-      cleaned = cleaned.slice(0, -1);
+    try {
+      const withScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed) ? trimmed : `https://${trimmed}`;
+      const u = new URL(withScheme);
+      u.hash = "";
+      let path = u.pathname;
+      if (path.length > 1 && path.endsWith("/")) {
+        path = path.slice(0, -1);
+      }
+      u.pathname = path;
+      return u.href.toLowerCase();
+    } catch {
+      let cleaned = trimmed.toLowerCase();
+      if (cleaned.endsWith("/")) {
+        cleaned = cleaned.slice(0, -1);
+      }
+      return cleaned;
     }
-    return cleaned;
   }
 
   try {
@@ -117,6 +139,120 @@ function normalizeOptions(options?: Partial<WorkspaceSyncOptions> | SyncMode): W
     ...options,
     kinds: options?.kinds?.length ? [...options.kinds] : [...DEFAULT_SYNC_KINDS],
   };
+}
+
+function filterLocalMockRules(rules: MockRule[], selectedMockRuleIds?: string[]): MockRule[] {
+  if (!selectedMockRuleIds) {
+    return rules;
+  }
+  const selected = new Set(selectedMockRuleIds);
+  return rules.filter((r) => selected.has(r.id));
+}
+
+async function mergeSelectedMocksIntoRemote(
+  workspaceId: string,
+  localMocksAll: MockRule[],
+  selectedMockRuleIds: string[],
+): Promise<MockRule[]> {
+  const localSelected = filterLocalMockRules(localMocksAll, selectedMockRuleIds);
+  let remoteMocks: MockRule[] = [];
+  try {
+    const rows = await pullResources(workspaceId);
+    remoteMocks = (rows.find((r) => r.kind === "mock_rules")?.payload as MockRule[]) ?? [];
+  } catch {
+    remoteMocks = [];
+  }
+  const byKey = new Map(remoteMocks.map((m) => [mockRuleMatchKey(m), m]));
+  for (const local of localSelected) {
+    const key = mockRuleMatchKey(local);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? { ...existing, ...local, id: existing.id } : local);
+  }
+  return Array.from(byKey.values());
+}
+
+async function mergeSelectedDomainsIntoRemote(
+  workspaceId: string,
+  localDomainsAll: DomainItem[],
+  selectedDomainIds: number[],
+  opts: WorkspaceSyncOptions,
+): Promise<DomainItem[]> {
+  const localSelected = filterLocalDomains(localDomainsAll, selectedDomainIds);
+  let remoteDomains: DomainItem[] = [];
+  try {
+    const rows = await pullResources(workspaceId);
+    remoteDomains = (rows.find((r) => r.kind === "domains")?.payload as DomainItem[]) ?? [];
+  } catch {
+    remoteDomains = [];
+  }
+  const byKey = new Map(remoteDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
+  for (const local of localSelected) {
+    const key = domainMatchKey(local.url, opts.matchKey);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? { ...existing, ...local, id: existing.id } : local);
+  }
+  return Array.from(byKey.values());
+}
+
+function filterRemoteDomainsByKeys(
+  remoteDomains: DomainItem[],
+  selectedDomainKeys: string[],
+  matchKey: DomainMatchKey,
+): DomainItem[] {
+  const keySet = new Set(selectedDomainKeys);
+  return remoteDomains.filter((d) => keySet.has(domainMatchKey(d.url, matchKey)));
+}
+
+function filterRemoteMocksByKeys(remoteMocks: MockRule[], selectedMockRuleKeys: string[]): MockRule[] {
+  const keySet = new Set(selectedMockRuleKeys);
+  return remoteMocks.filter((m) => keySet.has(mockRuleMatchKey(m)));
+}
+
+function mergeSelectedDomainsIntoLocal(
+  localDomains: DomainItem[],
+  remoteDomains: DomainItem[],
+  selectedDomainKeys: string[],
+  opts: WorkspaceSyncOptions,
+): DomainItem[] {
+  const toPull = filterRemoteDomainsByKeys(remoteDomains, selectedDomainKeys, opts.matchKey);
+  const localByKey = new Map(localDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
+  const merged = [...localDomains];
+  for (const rem of toPull) {
+    const key = domainMatchKey(rem.url, opts.matchKey);
+    const existing = localByKey.get(key);
+    if (existing) {
+      const idx = merged.findIndex((d) => d.id === existing.id);
+      if (idx !== -1) {
+        merged[idx] = { ...existing, ...rem, id: existing.id };
+      }
+    } else {
+      merged.push(rem);
+    }
+  }
+  return merged;
+}
+
+function mergeSelectedMocksIntoLocal(
+  localMocks: MockRule[],
+  remoteMocks: MockRule[],
+  selectedMockRuleKeys: string[],
+): MockRule[] {
+  const toPull = filterRemoteMocksByKeys(remoteMocks, selectedMockRuleKeys);
+  const localByKey = new Map(localMocks.map((m) => [mockRuleMatchKey(m), m]));
+  const merged = [...localMocks];
+  for (const rem of toPull) {
+    const key = mockRuleMatchKey(rem);
+    const existing = localByKey.get(key);
+    if (existing) {
+      const idx = merged.findIndex((m) => m.id === existing.id);
+      if (idx !== -1) {
+        merged[idx] = { ...existing, ...rem, id: existing.id };
+      }
+    } else {
+      merged.push(rem);
+    }
+  }
+  return merged;
 }
 
 function filterLocalDomains(domains: DomainItem[], selectedDomainIds?: number[]): DomainItem[] {
@@ -296,19 +432,92 @@ export async function pushWorkspaceSync(
 
   const tasks: Promise<unknown>[] = [];
   if (kindSet.has("domains")) {
-    tasks.push(pushResources(workspaceId, "domains", finalDomains, userId));
+    let domainsPayload = finalDomains;
+    if (opts.selectedDomainIds?.length) {
+      domainsPayload = await mergeSelectedDomainsIntoRemote(workspaceId, localDomainsAll, opts.selectedDomainIds, opts);
+    }
+    tasks.push(pushResources(workspaceId, "domains", domainsPayload, userId));
   }
   if (kindSet.has("groups")) {
-    tasks.push(pushResources(workspaceId, "groups", finalGroups, userId));
+    let groupsPayload = finalGroups;
+    if (opts.selectedItemKeys?.length && kindSet.size === 1 && kindSet.has("groups")) {
+      const keySet = new Set(opts.selectedItemKeys);
+      const localSelected = (localData.groups as unknown as GroupItem[]).filter((g) => keySet.has(String(g.id)));
+      let remoteGroups: GroupItem[] = [];
+      try {
+        const rows = await pullResources(workspaceId);
+        remoteGroups = (rows.find((r) => r.kind === "groups")?.payload as GroupItem[]) ?? [];
+      } catch {
+        remoteGroups = [];
+      }
+      const byId = new Map(remoteGroups.map((g) => [String(g.id), g]));
+      for (const g of localSelected) {
+        byId.set(String(g.id), g);
+      }
+      groupsPayload = Array.from(byId.values());
+    }
+    tasks.push(pushResources(workspaceId, "groups", groupsPayload, userId));
   }
   if (kindSet.has("domain_group_links")) {
-    tasks.push(pushResources(workspaceId, "domain_group_links", finalLinks, userId));
+    let linksPayload = finalLinks;
+    if (opts.selectedItemKeys?.length && kindSet.size === 1 && kindSet.has("domain_group_links")) {
+      const keySet = new Set(opts.selectedItemKeys);
+      const localSelected = (localData.domainGroupLinks as unknown[]).filter((l, i) => {
+        const key = JSON.stringify(l) || `local-${i}`;
+        return keySet.has(key);
+      });
+      let remoteLinks: LinkItem[] = [];
+      try {
+        const rows = await pullResources(workspaceId);
+        remoteLinks = (rows.find((r) => r.kind === "domain_group_links")?.payload as LinkItem[]) ?? [];
+      } catch {
+        remoteLinks = [];
+      }
+      const byKey = new Map(remoteLinks.map((l, i) => [JSON.stringify(l) || `remote-${i}`, l]));
+      for (const l of localSelected) {
+        byKey.set(JSON.stringify(l), l as LinkItem);
+      }
+      linksPayload = Array.from(byKey.values());
+    }
+    tasks.push(pushResources(workspaceId, "domain_group_links", linksPayload, userId));
   }
   if (kindSet.has("scenarios")) {
-    tasks.push(pushResources(workspaceId, "scenarios", finalScenarios, userId));
+    let scenariosPayload = finalScenarios;
+    if (opts.selectedItemKeys?.length && kindSet.size === 1 && kindSet.has("scenarios")) {
+      const keySet = new Set(opts.selectedItemKeys);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const localSelected = ((localData.scenarios ?? []) as any[]).filter((s, i) => keySet.has(s.id ?? `local-${i}`));
+      let remoteScenarios: unknown[] = [];
+      try {
+        const rows = await pullResources(workspaceId);
+        remoteScenarios = (rows.find((r) => r.kind === "scenarios")?.payload as unknown[]) ?? [];
+      } catch {
+        remoteScenarios = [];
+      }
+      const byKey = new Map(
+        remoteScenarios.map((s, i) => {
+          const item = s as { id?: string };
+          return [item.id ?? `remote-${i}`, s];
+        }),
+      );
+      for (const s of localSelected) {
+        const item = s as { id?: string };
+        byKey.set(item.id ?? JSON.stringify(s), s);
+      }
+      scenariosPayload = Array.from(byKey.values());
+    }
+    tasks.push(pushResources(workspaceId, "scenarios", scenariosPayload, userId));
   }
   if (kindSet.has("mock_rules")) {
-    tasks.push(pushResources(workspaceId, "mock_rules", finalMockRules, userId));
+    let mocksPayload = finalMockRules;
+    if (opts.selectedMockRuleIds?.length) {
+      mocksPayload = await mergeSelectedMocksIntoRemote(
+        workspaceId,
+        (localData.mockRules as MockRule[]) ?? [],
+        opts.selectedMockRuleIds,
+      );
+    }
+    tasks.push(pushResources(workspaceId, "mock_rules", mocksPayload, userId));
   }
   await Promise.all(tasks);
 }
@@ -338,19 +547,20 @@ export async function pullWorkspaceSync(
   const remoteGroups = (byKind.groups as GroupItem[]) ?? [];
   const remoteLinks = (byKind.domain_group_links as LinkItem[]) ?? [];
   const remoteScenarios = (byKind.scenarios as unknown[]) ?? [];
-  const remoteMockRules = (byKind.mock_rules as unknown[]) ?? [];
+  const remoteMockRules = (byKind.mock_rules as MockRule[]) ?? [];
 
   let nextDomains = localData.domains as unknown as DomainItem[];
   let nextGroups = localData.groups as unknown as GroupItem[];
   let nextLinks = localData.domainGroupLinks as unknown as LinkItem[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let nextScenarios: any[] = localData.scenarios ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let nextMockRules: any[] = localData.mockRules ?? [];
+  let nextMockRules: MockRule[] = (localData.mockRules as MockRule[]) ?? [];
 
   if (opts.mode === "overwrite") {
     if (kindSet.has("domains")) {
-      nextDomains = remoteDomains;
+      nextDomains = opts.selectedDomainKeys?.length
+        ? mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts)
+        : remoteDomains;
     }
     if (kindSet.has("groups")) {
       nextGroups = remoteGroups;
@@ -362,13 +572,19 @@ export async function pullWorkspaceSync(
       nextScenarios = remoteScenarios;
     }
     if (kindSet.has("mock_rules")) {
-      nextMockRules = remoteMockRules;
+      nextMockRules = opts.selectedMockRuleKeys?.length
+        ? mergeSelectedMocksIntoLocal(nextMockRules, remoteMockRules, opts.selectedMockRuleKeys)
+        : remoteMockRules;
     }
   } else if (opts.mode === "append_only") {
     if (kindSet.has("domains")) {
-      const localUrlSet = new Set(nextDomains.map((d) => domainMatchKey(d.url, opts.matchKey)));
-      const newRemoteDomains = remoteDomains.filter((d) => !localUrlSet.has(domainMatchKey(d.url, opts.matchKey)));
-      nextDomains = [...nextDomains, ...newRemoteDomains];
+      if (opts.selectedDomainKeys?.length) {
+        nextDomains = mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts);
+      } else {
+        const localUrlSet = new Set(nextDomains.map((d) => domainMatchKey(d.url, opts.matchKey)));
+        const newRemoteDomains = remoteDomains.filter((d) => !localUrlSet.has(domainMatchKey(d.url, opts.matchKey)));
+        nextDomains = [...nextDomains, ...newRemoteDomains];
+      }
     }
     if (kindSet.has("groups")) {
       nextGroups = Array.from(
@@ -385,28 +601,36 @@ export async function pullWorkspaceSync(
       nextScenarios = [...nextScenarios, ...remoteScenarios];
     }
     if (kindSet.has("mock_rules")) {
-      nextMockRules = [...nextMockRules, ...remoteMockRules];
+      if (opts.selectedMockRuleKeys?.length) {
+        nextMockRules = mergeSelectedMocksIntoLocal(nextMockRules, remoteMockRules, opts.selectedMockRuleKeys);
+      } else {
+        nextMockRules = [...nextMockRules, ...remoteMockRules];
+      }
     }
   } else if (opts.mode === "merge_url") {
     if (kindSet.has("domains")) {
-      const localByKey = new Map(nextDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
-      const mergedDomains: DomainItem[] = [...nextDomains];
-      for (const remDom of remoteDomains) {
-        const key = domainMatchKey(remDom.url, opts.matchKey);
-        const existingLocal = localByKey.get(key);
-        if (existingLocal) {
-          if (opts.overlapPolicy === "keep_target") {
-            continue;
+      if (opts.selectedDomainKeys?.length) {
+        nextDomains = mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts);
+      } else {
+        const localByKey = new Map(nextDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
+        const mergedDomains: DomainItem[] = [...nextDomains];
+        for (const remDom of remoteDomains) {
+          const key = domainMatchKey(remDom.url, opts.matchKey);
+          const existingLocal = localByKey.get(key);
+          if (existingLocal) {
+            if (opts.overlapPolicy === "keep_target") {
+              continue;
+            }
+            const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);
+            if (idx !== -1) {
+              mergedDomains[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
+            }
+          } else {
+            mergedDomains.push(remDom);
           }
-          const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);
-          if (idx !== -1) {
-            mergedDomains[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
-          }
-        } else {
-          mergedDomains.push(remDom);
         }
+        nextDomains = mergedDomains;
       }
-      nextDomains = mergedDomains;
     }
     if (kindSet.has("groups")) {
       nextGroups = Array.from(
@@ -423,28 +647,36 @@ export async function pullWorkspaceSync(
       nextScenarios = [...nextScenarios, ...remoteScenarios];
     }
     if (kindSet.has("mock_rules")) {
-      nextMockRules = [...nextMockRules, ...remoteMockRules];
+      if (opts.selectedMockRuleKeys?.length) {
+        nextMockRules = mergeSelectedMocksIntoLocal(nextMockRules, remoteMockRules, opts.selectedMockRuleKeys);
+      } else {
+        nextMockRules = [...nextMockRules, ...remoteMockRules];
+      }
     }
   } else {
     // merge_id
     if (kindSet.has("domains")) {
-      const localById = new Map(nextDomains.map((d) => [d.id, d]));
-      const mergedDomains: DomainItem[] = [...nextDomains];
-      for (const remDom of remoteDomains) {
-        const existingLocal = localById.get(remDom.id);
-        if (existingLocal) {
-          if (opts.overlapPolicy === "keep_target") {
-            continue;
+      if (opts.selectedDomainKeys?.length) {
+        nextDomains = mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts);
+      } else {
+        const localById = new Map(nextDomains.map((d) => [d.id, d]));
+        const mergedDomains: DomainItem[] = [...nextDomains];
+        for (const remDom of remoteDomains) {
+          const existingLocal = localById.get(remDom.id);
+          if (existingLocal) {
+            if (opts.overlapPolicy === "keep_target") {
+              continue;
+            }
+            const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);
+            if (idx !== -1) {
+              mergedDomains[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
+            }
+          } else {
+            mergedDomains.push(remDom);
           }
-          const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);
-          if (idx !== -1) {
-            mergedDomains[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
-          }
-        } else {
-          mergedDomains.push(remDom);
         }
+        nextDomains = mergedDomains;
       }
-      nextDomains = mergedDomains;
     }
     if (kindSet.has("groups")) {
       nextGroups = Array.from(
@@ -461,7 +693,11 @@ export async function pullWorkspaceSync(
       nextScenarios = [...nextScenarios, ...remoteScenarios];
     }
     if (kindSet.has("mock_rules")) {
-      nextMockRules = [...nextMockRules, ...remoteMockRules];
+      if (opts.selectedMockRuleKeys?.length) {
+        nextMockRules = mergeSelectedMocksIntoLocal(nextMockRules, remoteMockRules, opts.selectedMockRuleKeys);
+      } else {
+        nextMockRules = [...nextMockRules, ...remoteMockRules];
+      }
     }
   }
 

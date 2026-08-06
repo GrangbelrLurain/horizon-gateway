@@ -45,6 +45,151 @@ export async function createWorkspace(name: string, ownerId?: string): Promise<W
   return data as Workspace;
 }
 
+export async function updateWorkspace(workspaceId: string, patch: { name: string }): Promise<Workspace> {
+  const { data, error } = await supabase
+    .from("workspaces")
+    .update({ name: patch.name.trim() })
+    .eq("id", workspaceId)
+    .select()
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data as Workspace;
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  const { error } = await supabase.from("workspaces").delete().eq("id", workspaceId);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function removeMember(memberId: string): Promise<void> {
+  const { error } = await supabase.from("workspace_members").delete().eq("id", memberId);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function transferWorkspaceOwnership(workspaceId: string, newOwnerProfileId: string): Promise<Workspace> {
+  const { data: userData } = await supabase.auth.getUser();
+  const currentOwnerId = userData?.user?.id;
+  if (!currentOwnerId) {
+    throw new Error("User must be authenticated");
+  }
+  if (newOwnerProfileId === currentOwnerId) {
+    throw new Error("Cannot transfer ownership to yourself");
+  }
+
+  const { data: workspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .single();
+  if (workspaceError || !workspace) {
+    throw workspaceError ?? new Error("Workspace not found");
+  }
+  if (workspace.owner_id !== currentOwnerId) {
+    throw new Error("Only the workspace owner can transfer ownership");
+  }
+
+  const { data: targetMember, error: targetError } = await supabase
+    .from("workspace_members")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("profile_id", newOwnerProfileId)
+    .maybeSingle();
+  if (targetError) {
+    throw targetError;
+  }
+  if (!targetMember) {
+    throw new Error("Target user is not a workspace member");
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("workspaces")
+    .update({ owner_id: newOwnerProfileId })
+    .eq("id", workspaceId)
+    .eq("owner_id", currentOwnerId)
+    .select()
+    .single();
+  if (updateError) {
+    throw updateError;
+  }
+
+  const { error: promoteError } = await supabase
+    .from("workspace_members")
+    .update({ role: "owner" })
+    .eq("workspace_id", workspaceId)
+    .eq("profile_id", newOwnerProfileId);
+  if (promoteError) {
+    throw promoteError;
+  }
+
+  const { error: demoteError } = await supabase
+    .from("workspace_members")
+    .update({ role: "admin" })
+    .eq("workspace_id", workspaceId)
+    .eq("profile_id", currentOwnerId);
+  if (demoteError) {
+    throw demoteError;
+  }
+
+  return updated as Workspace;
+}
+
+export async function setMemberRole(
+  workspaceId: string,
+  memberId: string,
+  role: "admin" | "member",
+): Promise<WorkspaceMember> {
+  const { data: userData } = await supabase.auth.getUser();
+  const currentUserId = userData?.user?.id;
+  if (!currentUserId) {
+    throw new Error("User must be authenticated");
+  }
+
+  const { data: workspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .single();
+  if (workspaceError || !workspace) {
+    throw workspaceError ?? new Error("Workspace not found");
+  }
+  if (workspace.owner_id !== currentUserId) {
+    throw new Error("Only the workspace owner can change member roles");
+  }
+
+  const { data: member, error: memberError } = await supabase
+    .from("workspace_members")
+    .select("profile_id, role")
+    .eq("id", memberId)
+    .eq("workspace_id", workspaceId)
+    .single();
+  if (memberError || !member) {
+    throw memberError ?? new Error("Member not found");
+  }
+  if (member.profile_id === workspace.owner_id) {
+    throw new Error("Cannot change the workspace owner's role");
+  }
+  if (member.profile_id === currentUserId) {
+    throw new Error("Cannot change your own role");
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("workspace_members")
+    .update({ role })
+    .eq("id", memberId)
+    .select()
+    .single();
+  if (updateError) {
+    throw updateError;
+  }
+  return updated as WorkspaceMember;
+}
+
 export async function listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
   const { data, error } = await supabase
     .from("workspace_members")

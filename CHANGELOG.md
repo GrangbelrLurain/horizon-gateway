@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.0] - 2026-08-06
+
+### Added
+
+- **Team sync browser**: Push/Pull split diff view with per-kind catalog, conflict details for scenarios, and snapshot-based diff without re-fetching on every tab switch.
+- **Workspace onboarding**: When no workspaces exist, show a centered create/join form instead of an empty list.
+- **Owner workspace management**: Rename or delete a workspace (name confirmation modal), remove members, transfer ownership, and grant/revoke Admin (Owner-only UI).
+- **Member action confirm modal**: Replaced `window.confirm` for Admin grant/revoke with a dedicated confirmation dialog.
+
+### Changed
+
+- **Group link sync rows**: Domain URL is shown as the primary label; group name appears as secondary text for easier scanning.
+- **Admin invite gate**: Invite codes and token management are limited to Owner and Admin roles in the UI.
+- **Domain sync matching**: Host-based matching compares only `enabled`; URL differences surface as informational detail instead of false conflicts.
+
+### Fixed
+
+- **Sync filter selection**: Select-all / clear now applies correctly to the filtered list.
+- **Sync empty states**: Clear guidance when a category has no local or remote items.
+
 ## [v2.6.10] - 2026-08-06
 
 ### Added

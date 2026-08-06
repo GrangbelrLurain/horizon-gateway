@@ -9,13 +9,18 @@ import {
   createShareableInvite,
   createWorkspace,
   declineInvite,
+  deleteWorkspace,
   inviteMember,
   listInvites,
   listMembers,
   listMyPendingInvites,
   listWorkspaces,
   type MyPendingInvite,
+  removeMember,
   revokeInvite,
+  setMemberRole,
+  transferWorkspaceOwnership,
+  updateWorkspace,
 } from "../api";
 import { hasProAccess, isUnlimitedTeam } from "../lib/entitlement";
 import { activeWorkspaceIdAtom } from "../store";
@@ -38,7 +43,6 @@ export function useTeamWorkspace() {
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useAtom(activeWorkspaceIdAtom);
   const [panels, setPanels] = useState<TeamPanelId[]>([]);
-  const [syncAction, setSyncAction] = useState<"push" | "pull">("push");
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
@@ -54,9 +58,19 @@ export function useTeamWorkspace() {
   const [accepting, setAccepting] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [renamingWorkspace, setRenamingWorkspace] = useState(false);
+  const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [transferringOwnership, setTransferringOwnership] = useState(false);
+  const [updatingMemberRoleId, setUpdatingMemberRoleId] = useState<string | null>(null);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
-  const guard = useWorkspaceGuard(activeWorkspace, members, supaProfile);
+  const isWorkspaceOwner = Boolean(activeWorkspace && userId && activeWorkspace.owner_id === userId);
+  const currentMembership = members.find((m) => m.profile_id === userId);
+  const isWorkspaceAdmin = Boolean(
+    isWorkspaceOwner || currentMembership?.role === "admin" || currentMembership?.role === "owner",
+  );
+  const guard = useWorkspaceGuard(activeWorkspace, members, supaProfile, { canManageTeam: isWorkspaceAdmin });
 
   const ownedWorkspaces = workspaces.filter((w) => w.owner_id === userId);
   const unlimited = isUnlimitedTeam(supaProfile);
@@ -250,6 +264,12 @@ export function useTeamWorkspace() {
       return;
     }
     if (!guard.canInvite) {
+      if (!isWorkspaceAdmin) {
+        toastError(
+          lang === "ko" ? "초대 권한이 없습니다. Owner·Admin만 초대할 수 있습니다." : "Only Owner or Admin can invite.",
+        );
+        return;
+      }
       if (guard.isSeatFull) {
         toastInfo(
           lang === "ko"
@@ -291,6 +311,12 @@ export function useTeamWorkspace() {
       return;
     }
     if (!guard.canInvite) {
+      if (!isWorkspaceAdmin) {
+        toastError(
+          lang === "ko" ? "초대 권한이 없습니다. Owner·Admin만 초대할 수 있습니다." : "Only Owner or Admin can invite.",
+        );
+        return;
+      }
       if (guard.isSeatFull) {
         toastInfo(
           lang === "ko"
@@ -401,12 +427,10 @@ export function useTeamWorkspace() {
     }
     setAccepting(true);
     try {
-      await acceptInvite(inviteToken.trim(), userId);
+      const member = await acceptInvite(inviteToken.trim(), userId);
       setInviteToken("");
       await refreshWorkspaces();
-      if (activeWorkspaceId) {
-        await refreshMembersAndInvites(activeWorkspaceId);
-      }
+      selectWorkspace(member.workspace_id);
       toastSuccess(lang === "ko" ? "초대를 수락했습니다." : "Invite accepted.");
     } catch (e: unknown) {
       console.error("acceptInvite:", e);
@@ -421,7 +445,7 @@ export function useTeamWorkspace() {
     }
   };
 
-  const openSync = (action: "push" | "pull") => {
+  const openSync = () => {
     if (!activeWorkspaceId) {
       toastError(lang === "ko" ? "먼저 워크스페이스를 선택하세요." : "Select a workspace first.");
       return;
@@ -433,39 +457,155 @@ export function useTeamWorkspace() {
       openBilling();
       return;
     }
-    setSyncAction(action);
     openPanel("sync");
   };
 
-  const handleExecuteSync = async (options: WorkspaceSyncOptions) => {
+  const handleExecuteSync = async (
+    action: "push" | "pull",
+    options: WorkspaceSyncOptions,
+    opts?: { stayOpen?: boolean },
+  ) => {
     if (!userId || !activeWorkspaceId) {
       return;
     }
-    const action = syncAction;
     setSyncing(action);
     try {
       if (action === "push") {
         await pushWorkspaceSync(activeWorkspaceId, userId, options);
         toastSuccess(
-          lang === "ko"
-            ? "팀 워크스페이스에 선택한 설정을 동기화(업로드)했습니다."
-            : "Pushed selected settings to workspace.",
+          lang === "ko" ? "선택한 항목을 워크스페이스에 업로드했습니다." : "Pushed selected items to workspace.",
         );
       } else {
         await pullWorkspaceSync(activeWorkspaceId, options);
-        toastSuccess(
-          lang === "ko"
-            ? "팀 워크스페이스에서 선택한 설정을 동기화(가져오기)했습니다."
-            : "Pulled selected settings from workspace.",
-        );
+        toastSuccess(lang === "ko" ? "선택한 항목을 로컬에 가져왔습니다." : "Pulled selected items from workspace.");
       }
-      closeLastPanel();
+      if (!opts?.stayOpen) {
+        closeLastPanel();
+      }
+      return true;
     } catch (e: unknown) {
       console.error("handleExecuteSync:", e);
       const errMsg = (e as { message?: string })?.message;
       toastError(lang === "ko" ? `동기화 실패: ${errMsg || "오류 발생"}` : `Sync failed: ${errMsg || "Unknown error"}`);
+      return false;
     } finally {
       setSyncing(null);
+    }
+  };
+
+  const handleRenameWorkspace = async (name: string): Promise<boolean> => {
+    if (!activeWorkspaceId || !name.trim()) {
+      return false;
+    }
+    setRenamingWorkspace(true);
+    try {
+      const updated = await updateWorkspace(activeWorkspaceId, { name: name.trim() });
+      setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+      toastSuccess(lang === "ko" ? "워크스페이스 이름을 변경했습니다." : "Workspace renamed.");
+      return true;
+    } catch (e: unknown) {
+      console.error("handleRenameWorkspace:", e);
+      const errMsg = (e as { message?: string })?.message;
+      toastError(lang === "ko" ? `이름 변경 실패: ${errMsg || "오류"}` : `Rename failed: ${errMsg || "Unknown error"}`);
+      return false;
+    } finally {
+      setRenamingWorkspace(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async (): Promise<boolean> => {
+    if (!activeWorkspaceId) {
+      return false;
+    }
+    setDeletingWorkspace(true);
+    try {
+      await deleteWorkspace(activeWorkspaceId);
+      setWorkspaces((prev) => prev.filter((w) => w.id !== activeWorkspaceId));
+      clearWorkspaceSelection();
+      toastSuccess(lang === "ko" ? "워크스페이스를 삭제했습니다." : "Workspace deleted.");
+      return true;
+    } catch (e: unknown) {
+      console.error("handleDeleteWorkspace:", e);
+      const errMsg = (e as { message?: string })?.message;
+      toastError(lang === "ko" ? `삭제 실패: ${errMsg || "오류"}` : `Delete failed: ${errMsg || "Unknown error"}`);
+      return false;
+    } finally {
+      setDeletingWorkspace(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string): Promise<boolean> => {
+    if (!activeWorkspaceId || !isWorkspaceOwner) {
+      return false;
+    }
+    setRemovingMemberId(memberId);
+    try {
+      await removeMember(memberId);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      toastSuccess(lang === "ko" ? "멤버를 제거했습니다." : "Member removed.");
+      return true;
+    } catch (e: unknown) {
+      console.error("handleRemoveMember:", e);
+      const errMsg = (e as { message?: string })?.message;
+      toastError(lang === "ko" ? `멤버 제거 실패: ${errMsg || "오류"}` : `Remove failed: ${errMsg || "Unknown error"}`);
+      return false;
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  const handleTransferOwnership = async (newOwnerProfileId: string, memberLabel: string): Promise<boolean> => {
+    if (!activeWorkspaceId || !isWorkspaceOwner || !userId) {
+      return false;
+    }
+    setTransferringOwnership(true);
+    try {
+      const updated = await transferWorkspaceOwnership(activeWorkspaceId, newOwnerProfileId);
+      setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+      await refreshMembersAndInvites(activeWorkspaceId);
+      toastSuccess(
+        lang === "ko" ? `${memberLabel}님에게 Owner 권한을 넘겼습니다.` : `Ownership transferred to ${memberLabel}.`,
+      );
+      return true;
+    } catch (e: unknown) {
+      console.error("handleTransferOwnership:", e);
+      const errMsg = (e as { message?: string })?.message;
+      toastError(
+        lang === "ko" ? `Owner 넘기기 실패: ${errMsg || "오류"}` : `Transfer failed: ${errMsg || "Unknown error"}`,
+      );
+      return false;
+    } finally {
+      setTransferringOwnership(false);
+    }
+  };
+
+  const handleSetMemberRole = async (memberId: string, role: "admin" | "member"): Promise<boolean> => {
+    if (!activeWorkspaceId || !isWorkspaceOwner) {
+      return false;
+    }
+    setUpdatingMemberRoleId(memberId);
+    try {
+      const updated = await setMemberRole(activeWorkspaceId, memberId, role);
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role: updated.role } : m)));
+      toastSuccess(
+        lang === "ko"
+          ? role === "admin"
+            ? "Admin으로 지정했습니다."
+            : "Admin 권한을 해제했습니다."
+          : role === "admin"
+            ? "Member promoted to Admin."
+            : "Admin role removed.",
+      );
+      return true;
+    } catch (e: unknown) {
+      console.error("handleSetMemberRole:", e);
+      const errMsg = (e as { message?: string })?.message;
+      toastError(
+        lang === "ko" ? `권한 변경 실패: ${errMsg || "오류"}` : `Role update failed: ${errMsg || "Unknown error"}`,
+      );
+      return false;
+    } finally {
+      setUpdatingMemberRoleId(null);
     }
   };
 
@@ -490,8 +630,16 @@ export function useTeamWorkspace() {
     accepting,
     processingInviteId,
     copiedToken,
+    renamingWorkspace,
+    deletingWorkspace,
+    removingMemberId,
+    transferringOwnership,
+    updatingMemberRoleId,
     activeWorkspaceId,
     activeWorkspace,
+    isWorkspaceOwner,
+    isWorkspaceAdmin,
+    currentMemberRole: currentMembership?.role ?? null,
     guard,
     ownedWorkspaces,
     unlimited,
@@ -499,7 +647,6 @@ export function useTeamWorkspace() {
     activeIsPro,
     planBadge,
     panels,
-    syncAction,
     selectWorkspace,
     clearWorkspaceSelection,
     openPanel,
@@ -517,6 +664,11 @@ export function useTeamWorkspace() {
     handleAcceptInvite,
     openSync,
     handleExecuteSync,
+    handleRenameWorkspace,
+    handleDeleteWorkspace,
+    handleRemoveMember,
+    handleTransferOwnership,
+    handleSetMemberRole,
   };
 }
 

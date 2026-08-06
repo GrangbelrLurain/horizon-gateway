@@ -123,11 +123,6 @@ export function WorkspaceListPane({ ctrl }: WorkspaceListPaneProps) {
         )}
 
         <div className="flex flex-col gap-1.5">
-          {workspaces.length === 0 && (
-            <p className="text-xs text-base-content/40 py-4 text-center">
-              {lang === "ko" ? "아직 워크스페이스가 없습니다." : "No workspaces yet."}
-            </p>
-          )}
           {workspaces.map((w) => (
             <button
               key={w.id}

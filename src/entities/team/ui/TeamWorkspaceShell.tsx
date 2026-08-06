@@ -10,6 +10,7 @@ import { MembersPanel } from "./MembersPanel";
 import { SyncPanel } from "./SyncPanel";
 import { WorkspaceHomePanel } from "./WorkspaceHomePanel";
 import { WorkspaceListPane } from "./WorkspaceListPane";
+import { WorkspaceOnboardingPanel } from "./WorkspaceOnboardingPanel";
 
 export interface TeamWorkspaceShellProps {
   onCloseToHub?: () => void;
@@ -95,22 +96,28 @@ export function TeamWorkspaceShell({ onCloseToHub, escapeRef }: TeamWorkspaceShe
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-        <WorkspaceListPane ctrl={ctrl} />
+        {ctrl.workspaces.length === 0 ? (
+          <WorkspaceOnboardingPanel ctrl={ctrl} />
+        ) : (
+          <>
+            <WorkspaceListPane ctrl={ctrl} />
 
-        {ctrl.panels.includes("home") && <WorkspaceHomePanel ctrl={ctrl} onClose={ctrl.clearWorkspaceSelection} />}
-        {ctrl.panels.includes("members") && <MembersPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
-        {ctrl.panels.includes("sync") && <SyncPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
-        {ctrl.panels.includes("billing") && <BillingPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
+            {ctrl.panels.includes("home") && <WorkspaceHomePanel ctrl={ctrl} onClose={ctrl.clearWorkspaceSelection} />}
+            {ctrl.panels.includes("members") && <MembersPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
+            {ctrl.panels.includes("sync") && <SyncPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
+            {ctrl.panels.includes("billing") && <BillingPanel ctrl={ctrl} onClose={ctrl.closeLastPanel} />}
 
-        {ctrl.panels.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100 min-w-[240px]">
-            <div className="w-14 h-14 rounded-2xl bg-base-200 flex items-center justify-center mb-3">
-              <Users className="w-7 h-7 text-base-content/20" />
-            </div>
-            <p className="text-sm font-bold text-base-content/50">
-              {lang === "ko" ? "워크스페이스를 선택하세요" : "Select a workspace"}
-            </p>
-          </div>
+            {ctrl.panels.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-base-100 min-w-[240px]">
+                <div className="w-14 h-14 rounded-2xl bg-base-200 flex items-center justify-center mb-3">
+                  <Users className="w-7 h-7 text-base-content/20" />
+                </div>
+                <p className="text-sm font-bold text-base-content/50">
+                  {lang === "ko" ? "워크스페이스를 선택하세요" : "Select a workspace"}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

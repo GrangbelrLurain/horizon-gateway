@@ -3,7 +3,7 @@ import { getTeamEntitlement, isUnlimitedTeam } from "../lib/entitlement";
 import type { Workspace, WorkspaceMember } from "../types";
 
 export interface WorkspaceGuardResult {
-  /** Member invitation is allowed (under seat limit & active) */
+  /** Member invitation is allowed (admin/owner, under seat limit & active) */
   canInvite: boolean;
   /** Workspace sync is allowed (active) */
   canSync: boolean;
@@ -21,6 +21,7 @@ export function useWorkspaceGuard(
   workspace: Workspace | null,
   members: WorkspaceMember[],
   profile?: DBProfile | null,
+  options?: { canManageTeam?: boolean },
 ): WorkspaceGuardResult {
   const unlimited = isUnlimitedTeam(profile);
   const entitlement = getTeamEntitlement(profile);
@@ -33,9 +34,10 @@ export function useWorkspaceGuard(
   const isCanceled = workspace?.status === "canceled";
   // Owner entitlement bypasses billing lock for personal use / internal accounts
   const isLocked = entitlement ? false : isPastDue || isCanceled;
+  const canManageTeam = options?.canManageTeam ?? false;
 
   return {
-    canInvite: !isSeatFull && !isLocked,
+    canInvite: canManageTeam && !isSeatFull && !isLocked,
     canSync: !isLocked,
     isSeatFull,
     isLocked,
