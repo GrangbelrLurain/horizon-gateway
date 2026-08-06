@@ -4,20 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [v2.6.6] - 2026-08-05
+## [v2.6.6] - 2026-08-06
 
 ### Added
 
+- **Team Workspace Domain List Sync (Phase 1)**: Introduced team workspace domain and group list synchronization via explicit Push/Pull actions. Teams can now share domain registries, groups, and mock rules safely across members without sharing sensitive CA certificates, tokens, or packet logs.
+- **Free Tier Policy & Workspace Guard**: Added `useWorkspaceGuard` to enforce Free Tier limits (1 owned workspace, max 3 member seats). Displays upgrade callout banners and locks sync actions when seats are full or subscription is past due.
+- **Pending Invite Token Management & Direct Copy**: Automatically copies generated invite tokens to the clipboard upon invitation and adds a "Pending Invites" list UI with a 1-click token copy button for convenient manual sharing.
 - **Social sharing Open Graph meta tags**: Added Open Graph and Twitter Card meta tags to the official website landing and Changelog pages. Sharing `https://gateway.delete-horizon.com/ko/changelog/` on Kakao, Microsoft Teams, Slack, LinkedIn, and similar platforms now renders a rich card preview with title, description, and image.
 - **OG share image**: Added a Horizon Gateway logo-based 1200×630 PNG OG image (`og-image.png`) and a build script that auto-generates it from the SVG source during the website build pipeline.
 
 ### Changed
 
+- **Workspace Sync UX Refactoring**: Removed the redundant sync toggle switch in `TeamSection`. Push and Pull buttons are now directly visible and accessible upon selecting an active workspace.
 - **Website canonical and OG URL setup**: Set Astro `site` to `https://gateway.delete-horizon.com` and added `canonical`, `og:url`, `og:site_name`, `og:locale`, and image dimension/alt meta tags.
 - **Changelog page share description**: Changelog URL shares now use a changelog-specific description instead of the landing page copy.
 
 ### Fixed
 
+- **Supabase Workspace & Resource RLS Policies**: Fixed RLS 403 / 42501 errors during workspace creation and resource pushing by updating `is_workspace_member()` and workspace SELECT policies to explicitly grant access to workspace owners (`owner_id = auth.uid()`).
 - **Production inspector.js serving**: Fixed `/.horizon-gateway/inspector.js` failing to locate the bundled resource in release builds, which caused only a warning stub to be served. The path is now resolved via Tauri `resource_dir()` so the injection script is served correctly in both dev and production environments.
 
 ## [v2.6.5] - 2026-08-05

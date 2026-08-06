@@ -166,6 +166,9 @@ as $$
   select exists (
     select 1 from public.workspace_members m
     where m.workspace_id = ws_id and m.profile_id = auth.uid()
+  ) or exists (
+    select 1 from public.workspaces w
+    where w.id = ws_id and w.owner_id = auth.uid()
   );
 $$;
 
@@ -190,9 +193,10 @@ alter table public.workspace_resources enable row level security;
 -- workspaces
 do $$
 begin
+  drop policy if exists "workspaces_select_member" on public.workspaces;
   create policy "workspaces_select_member" on public.workspaces
     for select to authenticated
-    using (public.is_workspace_member(id));
+    using (public.is_workspace_member(id) or owner_id = auth.uid());
 exception when duplicate_object then null;
 end $$;
 

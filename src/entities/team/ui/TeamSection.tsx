@@ -1,15 +1,29 @@
 import { useAtom, useAtomValue } from "jotai";
-import { CloudDownload, CloudUpload, CreditCard, Loader2, Plus, UserPlus, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CloudDownload,
+  CloudUpload,
+  Copy,
+  CreditCard,
+  Globe,
+  Loader2,
+  Lock,
+  Plus,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom, supabaseProfileAtom, supabaseSessionAtom } from "@/entities/app";
 import { commands } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
-import { toastError, toastSuccess } from "@/shared/ui/toast";
-import { acceptInvite, createWorkspace, inviteMember, listMembers, listWorkspaces } from "../api";
-import { activeWorkspaceIdAtom, teamSyncEnabledAtom } from "../store";
+import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
+import { acceptInvite, createWorkspace, inviteMember, listInvites, listMembers, listWorkspaces } from "../api";
+import { useWorkspaceGuard } from "../model/useWorkspaceGuard";
+import { activeWorkspaceIdAtom } from "../store";
 import { pullWorkspaceSync, pushWorkspaceSync } from "../sync";
-import type { Workspace, WorkspaceMember } from "../types";
+import type { Workspace, WorkspaceInvite, WorkspaceMember } from "../types";
 
 const LEMON_CHECKOUT_URL =
   (import.meta.env.VITE_LEMON_SQUEEZY_CHECKOUT_URL as string | undefined) ||
@@ -22,10 +36,10 @@ export function TeamSection() {
   const userId = session?.user?.id ?? null;
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useAtom(activeWorkspaceIdAtom);
-  const [syncEnabled, setSyncEnabled] = useAtom(teamSyncEnabledAtom);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -34,8 +48,14 @@ export function TeamSection() {
   const [syncing, setSyncing] = useState<"push" | "pull" | null>(null);
   const [inviteToken, setInviteToken] = useState("");
   const [accepting, setAccepting] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
+  const guard = useWorkspaceGuard(activeWorkspace, members);
+
+  // Owned workspaces count for Free Tier limitation check
+  const ownedWorkspaces = workspaces.filter((w) => w.owner_id === userId);
+  const hasReachedFreeWorkspaceLimit = ownedWorkspaces.length >= 1;
 
   const refreshWorkspaces = useCallback(async () => {
     if (!userId) {
@@ -59,18 +79,51 @@ export function TeamSection() {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
 
+  const refreshMembersAndInvites = useCallback(async (wsId: string) => {
+    try {
+      const [mList, iList] = await Promise.all([listMembers(wsId), listInvites(wsId)]);
+      setMembers(mList);
+      setInvites(iList.filter((inv) => inv.status === "pending"));
+    } catch (e) {
+      console.error("refreshMembersAndInvites:", e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!activeWorkspaceId) {
       setMembers([]);
+      setInvites([]);
       return;
     }
-    listMembers(activeWorkspaceId)
-      .then(setMembers)
-      .catch((e) => console.error("listMembers:", e));
-  }, [activeWorkspaceId]);
+    void refreshMembersAndInvites(activeWorkspaceId);
+  }, [activeWorkspaceId, refreshMembersAndInvites]);
+
+  const handleCheckout = async () => {
+    if (!activeWorkspaceId) {
+      toastError(lang === "ko" ? "먼저 워크스페이스를 선택하세요." : "Select a workspace first.");
+      return;
+    }
+    const separator = LEMON_CHECKOUT_URL.includes("?") ? "&" : "?";
+    const url = `${LEMON_CHECKOUT_URL}${separator}checkout[custom][workspace_id]=${encodeURIComponent(activeWorkspaceId)}`;
+    try {
+      await commands.openExternalUrl(url);
+    } catch (e) {
+      console.error("openExternalUrl:", e);
+      toastError(lang === "ko" ? "결제 페이지를 여는 데 실패했습니다." : "Failed to open checkout page.");
+    }
+  };
 
   const handleCreateWorkspace = async () => {
     if (!userId || !newWorkspaceName.trim()) {
+      return;
+    }
+    if (hasReachedFreeWorkspaceLimit) {
+      toastInfo(
+        lang === "ko"
+          ? "Free 플랜에서는 1개의 워크스페이스만 생성할 수 있습니다. 추가 생성을 위해 Team Pro 플랜으로 업그레이드하세요."
+          : "Free plan allows 1 workspace. Upgrade to Team Pro plan for unlimited workspaces.",
+      );
+      void handleCheckout();
       return;
     }
     setCreating(true);
@@ -92,16 +145,56 @@ export function TeamSection() {
     if (!userId || !activeWorkspaceId || !inviteEmail.trim()) {
       return;
     }
+    if (!guard.canInvite) {
+      if (guard.isSeatFull) {
+        toastInfo(
+          lang === "ko"
+            ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. 팀 인원을 추가하려면 Team Pro 플랜으로 업그레이드하세요.`
+            : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Upgrade to Team Pro plan to add more members.`,
+        );
+        void handleCheckout();
+      } else if (guard.isLocked) {
+        toastError(
+          lang === "ko"
+            ? "워크스페이스 결제 상태가 비활성입니다. 결제를 확인하세요."
+            : "Workspace subscription is locked. Check payment status.",
+        );
+      }
+      return;
+    }
+
     setInviting(true);
     try {
-      await inviteMember(activeWorkspaceId, inviteEmail.trim(), userId);
+      const inv = await inviteMember(activeWorkspaceId, inviteEmail.trim(), userId);
       setInviteEmail("");
-      toastSuccess(lang === "ko" ? "초대를 보냈습니다." : "Invite sent.");
+      await refreshMembersAndInvites(activeWorkspaceId);
+
+      try {
+        await navigator.clipboard.writeText(inv.token);
+        toastSuccess(
+          lang === "ko"
+            ? `초대를 생성하고 토큰을 클립보드에 복사했습니다: ${inv.token}`
+            : `Invite created and token copied to clipboard: ${inv.token}`,
+        );
+      } catch {
+        toastSuccess(lang === "ko" ? `초대를 보냈습니다. 초대 토큰: ${inv.token}` : `Invite sent. Token: ${inv.token}`);
+      }
     } catch (e) {
       console.error("inviteMember:", e);
       toastError(lang === "ko" ? "초대 전송에 실패했습니다." : "Failed to send invite.");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleCopyToken = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopiedToken(token);
+      toastSuccess(lang === "ko" ? "초대 토큰이 클립보드에 복사되었습니다." : "Invite token copied to clipboard.");
+      setTimeout(() => setCopiedToken(null), 2000);
+    } catch {
+      toastError(lang === "ko" ? "복사에 실패했습니다." : "Failed to copy.");
     }
   };
 
@@ -114,6 +207,9 @@ export function TeamSection() {
       await acceptInvite(inviteToken.trim(), userId);
       setInviteToken("");
       await refreshWorkspaces();
+      if (activeWorkspaceId) {
+        await refreshMembersAndInvites(activeWorkspaceId);
+      }
       toastSuccess(lang === "ko" ? "초대를 수락했습니다." : "Invite accepted.");
     } catch (e) {
       console.error("acceptInvite:", e);
@@ -124,13 +220,23 @@ export function TeamSection() {
   };
 
   const handlePush = async () => {
-    if (!userId || !activeWorkspaceId || !syncEnabled) {
+    if (!userId || !activeWorkspaceId) {
+      return;
+    }
+    if (!guard.canSync) {
+      toastError(
+        lang === "ko" ? "구독 결제가 만료되어 동기화가 제한되었습니다." : "Sync is locked due to expired subscription.",
+      );
       return;
     }
     setSyncing("push");
     try {
       await pushWorkspaceSync(activeWorkspaceId, userId);
-      toastSuccess(lang === "ko" ? "워크스페이스에 업로드했습니다." : "Pushed to workspace.");
+      toastSuccess(
+        lang === "ko"
+          ? "팀 워크스페이스에 도메인 및 그룹 설정을 업로드했습니다."
+          : "Pushed domain & group settings to workspace.",
+      );
     } catch (e) {
       console.error("pushWorkspaceSync:", e);
       toastError(lang === "ko" ? "업로드에 실패했습니다." : "Push failed.");
@@ -140,33 +246,28 @@ export function TeamSection() {
   };
 
   const handlePull = async () => {
-    if (!activeWorkspaceId || !syncEnabled) {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    if (!guard.canSync) {
+      toastError(
+        lang === "ko" ? "구독 결제가 만료되어 동기화가 제한되었습니다." : "Sync is locked due to expired subscription.",
+      );
       return;
     }
     setSyncing("pull");
     try {
       await pullWorkspaceSync(activeWorkspaceId);
-      toastSuccess(lang === "ko" ? "워크스페이스에서 가져왔습니다." : "Pulled from workspace.");
+      toastSuccess(
+        lang === "ko"
+          ? "팀 워크스페이스에서 도메인 및 그룹 설정을 가져왔습니다."
+          : "Pulled domain & group settings from workspace.",
+      );
     } catch (e) {
       console.error("pullWorkspaceSync:", e);
       toastError(lang === "ko" ? "가져오기에 실패했습니다." : "Pull failed.");
     } finally {
       setSyncing(null);
-    }
-  };
-
-  const handleCheckout = async () => {
-    if (!activeWorkspaceId) {
-      toastError(lang === "ko" ? "먼저 워크스페이스를 선택하세요." : "Select a workspace first.");
-      return;
-    }
-    const separator = LEMON_CHECKOUT_URL.includes("?") ? "&" : "?";
-    const url = `${LEMON_CHECKOUT_URL}${separator}checkout[custom][workspace_id]=${encodeURIComponent(activeWorkspaceId)}`;
-    try {
-      await commands.openExternalUrl(url);
-    } catch (e) {
-      console.error("openExternalUrl:", e);
-      toastError(lang === "ko" ? "결제 페이지를 여는 데 실패했습니다." : "Failed to open checkout page.");
     }
   };
 
@@ -181,23 +282,43 @@ export function TeamSection() {
           <span className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg">
             <Users className="w-4 h-4" />
           </span>
-          {lang === "ko" ? "워크스페이스 관리" : "Workspace management"}
+          {lang === "ko" ? "워크스페이스 및 팀 관리" : "Workspace & Team Management"}
         </h3>
         {loading && <Loader2 className="w-4 h-4 animate-spin text-base-content/40" />}
       </div>
 
       <p className="text-xs text-base-content/60 leading-relaxed max-w-2xl">
         {lang === "ko"
-          ? "워크스페이스를 만들어 팀원을 초대하고, 도메인/그룹/mock 설정을 공유할 수 있습니다."
-          : "Create a workspace to invite teammates and share domains/groups/mock configuration."}
+          ? "팀원과 함께 도메인 리스트, 그룹 및 Mock 설정을 공유할 수 있는 공유 워크스페이스입니다."
+          : "Share domain lists, groups, and mock configuration with your team in a shared workspace."}
       </p>
+
+      {/* Subscription Status Lock Warning Banner */}
+      {activeWorkspace && guard.isLocked && (
+        <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3 text-amber-600 dark:text-amber-400 text-xs font-medium">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>
+            {lang === "ko"
+              ? "워크스페이스 구독이 만료되거나 비활성화되었습니다. 팀 동기화를 계속하려면 결제를 확인하세요."
+              : "Workspace subscription is expired or inactive. Check payment status to continue sync."}
+          </span>
+          <Button variant="primary" size="sm" className="ml-auto text-xs py-1 h-7" onClick={handleCheckout}>
+            {lang === "ko" ? "결제 갱신" : "Renew"}
+          </Button>
+        </div>
+      )}
 
       {/* Workspace list + create */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
-            {lang === "ko" ? "내 워크스페이스" : "My Workspaces"}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+              {lang === "ko" ? "내 워크스페이스" : "My Workspaces"}
+            </span>
+            <span className="text-[10px] text-base-content/40">
+              {lang === "ko" ? `Free: ${ownedWorkspaces.length}/1개` : `Free: ${ownedWorkspaces.length}/1 max`}
+            </span>
+          </div>
           <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
             {workspaces.length === 0 && (
               <p className="text-xs text-base-content/40 py-2">
@@ -215,8 +336,10 @@ export function TeamSection() {
                     : "border-base-200 bg-base-200/40 text-base-content hover:bg-base-200/70"
                 }`}
               >
-                {w.name}
-                <span className="ml-2 text-[10px] text-base-content/40 uppercase">{w.status}</span>
+                <div className="flex items-center justify-between">
+                  <span className="truncate">{w.name}</span>
+                  <span className="ml-2 text-[10px] text-base-content/40 uppercase shrink-0">{w.status}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -247,9 +370,19 @@ export function TeamSection() {
 
         {/* Members + invite */}
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
-            {lang === "ko" ? "멤버" : "Members"} {activeWorkspace ? `— ${activeWorkspace.name}` : ""}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
+              {lang === "ko" ? "멤버 목록" : "Members"} {activeWorkspace ? `— ${activeWorkspace.name}` : ""}
+            </span>
+            {activeWorkspace && (
+              <span
+                className={`text-[10px] font-semibold ${guard.isSeatFull ? "text-amber-500" : "text-base-content/40"}`}
+              >
+                {guard.memberCount} / {guard.seatLimit} {lang === "ko" ? "명" : "seats"}
+              </span>
+            )}
+          </div>
+
           <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
             {!activeWorkspace && (
               <p className="text-xs text-base-content/40 py-2">
@@ -267,13 +400,22 @@ export function TeamSection() {
                 </div>
               ))}
           </div>
+
           <div className="flex gap-2 mt-1">
             <Input
               type="email"
-              placeholder={lang === "ko" ? "이메일로 초대" : "Invite by email"}
+              placeholder={
+                guard.isSeatFull
+                  ? lang === "ko"
+                    ? "정원 초과 (업그레이드 필요)"
+                    : "Limit reached (Upgrade required)"
+                  : lang === "ko"
+                    ? "이메일로 초대"
+                    : "Invite by email"
+              }
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              disabled={!activeWorkspace}
+              disabled={!activeWorkspace || !guard.canInvite}
               className="h-9 text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -288,64 +430,112 @@ export function TeamSection() {
               onClick={handleInvite}
               disabled={!activeWorkspace || !inviteEmail.trim() || inviting}
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              {guard.isSeatFull ? (
+                <Lock className="w-3.5 h-3.5 text-amber-500" />
+              ) : (
+                <UserPlus className="w-3.5 h-3.5" />
+              )}
               {lang === "ko" ? "초대" : "Invite"}
             </Button>
           </div>
+
+          {/* Pending Invites Token List */}
+          {activeWorkspace && invites.length > 0 && (
+            <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-base-200">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                {lang === "ko" ? "대기 중인 초대 (토큰 복사)" : "Pending Invites (Copy Token)"}
+              </span>
+              <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
+                {invites.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs"
+                  >
+                    <span className="truncate text-base-content/80 font-medium">{inv.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyToken(inv.token)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-base-100 border border-base-300 text-[10px] font-medium text-base-content/70 hover:text-primary transition-all shrink-0 shadow-sm"
+                    >
+                      {copiedToken === inv.token ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-500" />
+                          {lang === "ko" ? "복사됨" : "Copied"}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          {lang === "ko" ? "토큰 복사" : "Copy Token"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Sync + Checkout */}
+      {/* Sync + Domain List Focus & Checkout */}
       <div className="flex flex-col gap-3 pt-4 border-t border-base-200">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              className="toggle toggle-primary toggle-sm cursor-pointer"
-              checked={syncEnabled}
-              onChange={(e) => setSyncEnabled(e.target.checked)}
-              disabled={!activeWorkspace}
-            />
-            <div>
-              <p className="text-sm font-bold text-base-content">
-                {lang === "ko" ? "워크스페이스 동기화" : "Workspace Sync"}
-              </p>
-              <p className="text-[10px] text-base-content/50">
-                {lang === "ko"
-                  ? "도메인/그룹/mock만 공유합니다. CA·토큰·트래픽 로그는 제외됩니다."
-                  : "Shares domains/groups/mocks only. CA, tokens, and traffic logs are excluded."}
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-bold text-base-content flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-primary" />
+              {lang === "ko" ? "도메인 리스트 및 설정 동기화" : "Domain List & Settings Sync"}
+            </p>
+            <p className="text-[10px] text-base-content/50">
+              {lang === "ko"
+                ? "도메인 목록 및 그룹/mock 규칙만 공유합니다. (CA·토큰·패킷 로그 제외)"
+                : "Shares domain lists, groups, and mock rules only. (Excludes CA, tokens, logs)"}
+            </p>
           </div>
 
           <Button variant="primary" size="sm" className="gap-1.5 shadow-md shadow-primary/10" onClick={handleCheckout}>
             <CreditCard className="w-3.5 h-3.5" />
-            {lang === "ko" ? "팀 플랜 결제" : "Upgrade Team Plan"}
+            {lang === "ko" ? "Team Pro 업그레이드" : "Upgrade Team Pro"}
           </Button>
         </div>
 
-        {syncEnabled && activeWorkspace && (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" className="gap-1.5" onClick={handlePush} disabled={syncing !== null}>
+        {activeWorkspace && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={handlePush}
+              disabled={syncing !== null || guard.isLocked}
+            >
               {syncing === "push" ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <CloudUpload className="w-3.5 h-3.5" />
               )}
-              {lang === "ko" ? "업로드 (Push)" : "Push"}
+              {lang === "ko" ? "도메인 목록 업로드 (Push)" : "Push Domain List"}
             </Button>
-            <Button variant="secondary" size="sm" className="gap-1.5" onClick={handlePull} disabled={syncing !== null}>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={handlePull}
+              disabled={syncing !== null || guard.isLocked}
+            >
               {syncing === "pull" ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <CloudDownload className="w-3.5 h-3.5" />
               )}
-              {lang === "ko" ? "가져오기 (Pull)" : "Pull"}
+              {lang === "ko" ? "도메인 목록 가져오기 (Pull)" : "Pull Domain List"}
             </Button>
+            <span className="text-[10px] text-base-content/40 ml-1">
+              {lang === "ko" ? "ID 대조 기반 스마트 병합 모드" : "Smart Merge Mode by ID"}
+            </span>
           </div>
         )}
       </div>
 
+      {/* Join with Invite Token */}
       <div className="flex flex-col gap-2 pt-2 border-t border-base-200">
         <span className="text-[10px] font-bold uppercase tracking-widest text-base-content/50">
           {lang === "ko" ? "초대 토큰으로 참가" : "Join with invite token"}
@@ -371,7 +561,7 @@ export function TeamSection() {
 
       {supaProfile?.email && (
         <p className="text-[10px] text-base-content/30">
-          {lang === "ko" ? "로그인:" : "Signed in as:"} {supaProfile.email}
+          {lang === "ko" ? "로그인 계정:" : "Signed in as:"} {supaProfile.email}
         </p>
       )}
     </div>

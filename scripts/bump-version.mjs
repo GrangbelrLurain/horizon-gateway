@@ -62,7 +62,8 @@ function main() {
 	console.log("  1. Update CHANGELOG.md with the new version");
 	console.log("  2. git add -A && git commit -m \"chore: bump to v" + next + "\"");
 	console.log(`  3. git tag v${next}`);
-	console.log("  4. git push && git push --tags");
+	console.log(`  4. pnpm version:verify v${next}   # catch tag/file drift before push`);
+	console.log("  5. git push && git push --tags");
 }
 
 main();

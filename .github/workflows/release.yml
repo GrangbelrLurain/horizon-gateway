@@ -6,8 +6,21 @@ on:
       - "v*"
 
 jobs:
+  # 0. Fail fast if git tag != package/tauri/Cargo versions (prevents latest.json lying)
+  verify-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: verify tag matches package / tauri.conf / Cargo.toml
+        run: node scripts/verify-release-version.mjs "${{ github.ref_name }}"
+
   # 1. Draft Release를 딱 '한 번만' 먼저 생성하는 잡
   create-release:
+    needs: verify-version
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -25,14 +38,15 @@ jobs:
         with:
           # 푸시된 태그 이름을 사용하여 Draft를 만듭니다.
           tag_name: ${{ github.ref_name }}
-          name: "Horizon Gateway v${{ github.ref_name }}"
+          # ref_name already includes leading "v" (e.g. v2.6.6) — do not prefix another "v"
+          name: "Horizon Gateway ${{ github.ref_name }}"
           body: "See the assets below to download the latest version of Horizon Gateway."
           draft: true
           prerelease: false
 
   # 2. 빌드 및 에셋 업로드 (매트릭스)
   publish:
-    needs: create-release # 릴리스 생성이 완료될 때까지 대기
+    needs: [verify-version, create-release] # 버전 검증 + 릴리스 생성 완료 대기
     permissions:
       contents: write
     strategy:
@@ -51,6 +65,10 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      # Re-check on each runner so a bad matrix job cannot upload mismatched artifacts
+      - name: verify tag matches package / tauri.conf / Cargo.toml
+        run: node scripts/verify-release-version.mjs "${{ github.ref_name }}"
 
       # 1. pnpm 설치 (새로 추가된 부분!)
       - name: install pnpm

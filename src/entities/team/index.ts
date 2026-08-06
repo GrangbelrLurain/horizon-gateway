@@ -1,4 +1,5 @@
 export * from "./api";
+export * from "./model/useWorkspaceGuard";
 export * from "./store";
 export * from "./sync";
 export * from "./types";

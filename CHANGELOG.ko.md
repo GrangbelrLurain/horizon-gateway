@@ -4,20 +4,25 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
-## [v2.6.6] - 2026-08-05
+## [v2.6.6] - 2026-08-06
 
 ### Added (추가 기능)
 
+- **팀 워크스페이스 도메인 리스트 동기화 (1차)**: 명시적 Push/Pull 방식을 통해 팀원 간 도메인 목록, 그룹, Mock 규칙을 동기화하는 기능을 추가했습니다. CA 인증서, 토큰, 패킷 로그 등 민감 정보는 제외하고 설정 데이터만 안전하게 공유합니다.
+- **Free Tier 정책 및 워크스페이스 게이트키핑**: Free Tier 사용자의 워크스페이스 1개 소유 제한 및 정원(최대 3명) 제한을 관리하는 `useWorkspaceGuard`를 도입했습니다. 정원 초과 또는 결제 만료(`past_due`/`canceled`) 시 안내 배너를 노출하고 동기화 기능을 제한합니다.
+- **대기 중인 초대 토큰 관리 및 즉시 복사**: 멤버 초대 시 생성된 초대 토큰(UUID)을 클립보드에 자동 복사하고, "대기 중인 초대" 목록에서 언제든 토큰을 다시 복사할 수 있는 1-Click 복사 버튼을 추가했습니다.
 - **소셜 공유 OG 메타 태그**: 공식 웹사이트 랜딩·Changelog 페이지에 Open Graph·Twitter Card 메타 태그를 추가했습니다. 카카오, Microsoft Teams, Slack, LinkedIn 등에서 `https://gateway.delete-horizon.com/ko/changelog/` 링크 공유 시 제목·설명·이미지가 포함된 카드 미리보기가 표시됩니다.
 - **OG 공유 이미지**: Horizon Gateway 로고 기반 1200×630 PNG OG 이미지(`og-image.png`)를 추가하고, 빌드 시 SVG 소스에서 자동 생성하는 스크립트를 웹사이트 빌드 파이프라인에 포함했습니다.
 
 ### Changed (변경 사항)
 
+- **워크스페이스 동기화 UX 개선**: `TeamSection` 내의 불필요한 동기화 토글 스위치를 제거했습니다. 워크스페이스 선택 시 `도메인 목록 업로드 (Push)` 및 `가져오기 (Pull)` 버튼이 항상 즉시 노출됩니다.
 - **웹사이트 canonical·OG URL 정비**: Astro `site`를 `https://gateway.delete-horizon.com`으로 설정하고 `canonical`, `og:url`, `og:site_name`, `og:locale`, 이미지 크기·alt 메타 태그를 추가했습니다.
 - **Changelog 페이지 공유 설명**: Changelog URL 공유 시 랜딩 페이지 문구 대신 changelog 전용 description(`Horizon Gateway의 최신 기능 추가 및 업데이트 이력입니다.`)이 카드에 표시됩니다.
 
 ### Fixed (버그 수정)
 
+- **Supabase 워크스페이스 RLS 정책 보완**: `is_workspace_member()` 헬퍼 함수와 워크스페이스 SELECT 정책을 수정하여, 소유자(`owner_id = auth.uid()`)가 멤버 행 삽입 전에도 본인의 워크스페이스 및 리소스를 403 / 42501 RLS 거부 없이 조회 및 업로드할 수 있도록 보완했습니다.
 - **프로덕션 빌드 inspector.js 제공 수정**: 릴리스 빌드에서 `/.horizon-gateway/inspector.js`가 번들 리소스를 찾지 못해 경고 스텁만 제공되던 문제를 수정했습니다. Tauri `resource_dir()`로 `inspector.js` 경로를 해석하여 개발·프로덕션 환경 모두에서 인젝션 스크립트가 올바르게 제공됩니다.
 
 ## [v2.6.5] - 2026-08-05

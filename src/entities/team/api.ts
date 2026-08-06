@@ -16,16 +16,29 @@ export async function listWorkspaces(): Promise<Workspace[]> {
   return (data ?? []) as Workspace[];
 }
 
-export async function createWorkspace(name: string, ownerId: string): Promise<Workspace> {
-  const { data, error } = await supabase.from("workspaces").insert({ name, owner_id: ownerId }).select().single();
+export async function createWorkspace(name: string, ownerId?: string): Promise<Workspace> {
+  const { data: userData } = await supabase.auth.getUser();
+  const effectiveOwnerId = userData?.user?.id ?? ownerId;
+  if (!effectiveOwnerId) {
+    throw new Error("User must be authenticated to create a workspace");
+  }
+
+  const { data, error } = await supabase
+    .from("workspaces")
+    .insert({ name, owner_id: effectiveOwnerId })
+    .select()
+    .single();
+
   if (error) {
     throw error;
   }
   // Owner is also granted a `workspace_members` row so member listings/RLS include them.
-  // A DB trigger may also do this; upsert here is a safe no-op if it already exists.
   const { error: memberError } = await supabase
     .from("workspace_members")
-    .upsert({ workspace_id: data.id, profile_id: ownerId, role: "owner" }, { onConflict: "workspace_id,profile_id" });
+    .upsert(
+      { workspace_id: data.id, profile_id: effectiveOwnerId, role: "owner" },
+      { onConflict: "workspace_id,profile_id" },
+    );
   if (memberError) {
     console.error("createWorkspace: failed to upsert owner membership:", memberError.message);
   }
@@ -119,8 +132,11 @@ export async function pushResources(
   workspaceId: string,
   kind: ResourceKind,
   payload: unknown,
-  updatedBy: string,
+  updatedBy?: string,
 ): Promise<WorkspaceResource> {
+  const { data: userData } = await supabase.auth.getUser();
+  const effectiveUpdatedBy = userData?.user?.id ?? updatedBy ?? null;
+
   const { data, error } = await supabase
     .from("workspace_resources")
     .upsert(
@@ -128,7 +144,7 @@ export async function pushResources(
         workspace_id: workspaceId,
         kind,
         payload,
-        updated_by: updatedBy,
+        updated_by: effectiveUpdatedBy,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "workspace_id,kind" },

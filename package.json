@@ -1,7 +1,7 @@
 {
   "name": "horizon-gateway",
   "private": true,
-  "version": "2.6.5",
+  "version": "2.6.6",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",
     "version:major": "node scripts/bump-version.mjs major",
+    "version:verify": "node scripts/verify-release-version.mjs",
     "web:dev": "node scripts/sync-logos.mjs && pnpm --prefix website dev",
     "web:build": "node scripts/sync-logos.mjs && pnpm --prefix website build"
   },
