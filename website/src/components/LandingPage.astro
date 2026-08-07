@@ -1,7 +1,7 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { ui } from '../i18n/ui';
-import type { Lang } from '../i18n/ui';
+import type { Lang } from "../i18n/ui";
+import { ui } from "../i18n/ui";
+import Layout from "../layouts/Layout.astro";
 
 interface Props {
   lang: Lang;
@@ -9,12 +9,12 @@ interface Props {
 
 const { lang } = Astro.props;
 
-const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
-  // @ts-ignore
-  return ui[lang][key] ?? ui['ko'][key];
+const t = (key: keyof (typeof ui)["ko"] | keyof (typeof ui)["en"]) => {
+  // @ts-expect-error
+  return ui[lang][key] ?? ui["ko"][key];
 };
 
-const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
 <Layout lang={lang}>
@@ -305,19 +305,33 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '');
   const downloadSubText = document.getElementById('primary-download-subtext');
   
   if (downloadBtn && downloadText && downloadSubText) {
-    if (userAgent.includes('win')) {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
-      downloadText.textContent = lang === 'ko' ? 'Windows용 다운로드' : 'Download for Windows';
-      downloadSubText.textContent = 'Download .msi (v2.1.2)';
-    } else if (userAgent.includes('mac')) {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
-      downloadText.textContent = lang === 'ko' ? 'macOS용 다운로드' : 'Download for macOS';
-      downloadSubText.textContent = 'Download .dmg (v2.1.2)';
-    } else {
-      downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
-      downloadText.textContent = lang === 'ko' ? 'GitHub 릴리즈 페이지' : 'GitHub Releases Page';
-      downloadSubText.textContent = lang === 'ko' ? '모든 OS 설치파일 목록' : 'All Operating Systems';
-    }
+    let currentVer = 'v2.7.2';
+    const updateDownloadInfo = (ver: string) => {
+      if (userAgent.includes('win')) {
+        downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
+        downloadText.textContent = lang === 'ko' ? 'Windows용 다운로드' : 'Download for Windows';
+        downloadSubText.textContent = `Download .msi (${ver})`;
+      } else if (userAgent.includes('mac')) {
+        downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
+        downloadText.textContent = lang === 'ko' ? 'macOS용 다운로드' : 'Download for macOS';
+        downloadSubText.textContent = `Download .dmg (${ver})`;
+      } else {
+        downloadBtn.href = 'https://github.com/GrangbelrLurain/horizon-gateway/releases/latest';
+        downloadText.textContent = lang === 'ko' ? 'GitHub 릴리즈 페이지' : 'GitHub Releases Page';
+        downloadSubText.textContent = lang === 'ko' ? '모든 OS 설치파일 목록' : 'All Operating Systems';
+      }
+    };
+    updateDownloadInfo(currentVer);
+
+    // Dynamically fetch latest GitHub tag name to guarantee up-to-date version text
+    fetch('https://api.github.com/repos/GrangbelrLurain/horizon-gateway/releases/latest')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.tag_name) {
+          updateDownloadInfo(data.tag_name);
+        }
+      })
+      .catch(() => {});
   }
 
   // 2. CLI Command Copy Functionality

@@ -1,12 +1,12 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { Content as EnContent } from '../../../CHANGELOG.md';
-import { Content as KoContent } from '../../../CHANGELOG.ko.md';
-import enChangelogRaw from '../../../CHANGELOG.md?raw';
-import koChangelogRaw from '../../../CHANGELOG.ko.md?raw';
-import { ui } from '../i18n/ui';
-import type { Lang } from '../i18n/ui';
-import { buildChangelogShareDescription } from '../lib/changelogShareDescription';
+import { Content as KoContent } from "../../../CHANGELOG.ko.md";
+import koChangelogRaw from "../../../CHANGELOG.ko.md?raw";
+import { Content as EnContent } from "../../../CHANGELOG.md";
+import enChangelogRaw from "../../../CHANGELOG.md?raw";
+import type { Lang } from "../i18n/ui";
+import { ui } from "../i18n/ui";
+import Layout from "../layouts/Layout.astro";
+import { buildChangelogShareDescription } from "../lib/changelogShareDescription";
 
 interface Props {
   lang: Lang;
@@ -19,18 +19,15 @@ const CHANGELOGS: Record<string, any> = {
   ko: KoContent,
 };
 
-const Content = CHANGELOGS[lang] ?? CHANGELOGS['en'];
+const Content = CHANGELOGS[lang] ?? CHANGELOGS["en"];
 
-const t = (key: keyof typeof ui['ko'] | keyof typeof ui['en']) => {
-  // @ts-ignore
-  return ui[lang][key] ?? ui['ko'][key];
+const t = (key: keyof (typeof ui)["ko"] | keyof (typeof ui)["en"]) => {
+  // @ts-expect-error
+  return ui[lang][key] ?? ui["ko"][key];
 };
 
-const changelogRaw = lang === 'ko' ? koChangelogRaw : enChangelogRaw;
-const shareDescription = buildChangelogShareDescription(
-  changelogRaw,
-  t('changelog.subtitle'),
-);
+const changelogRaw = lang === "ko" ? koChangelogRaw : enChangelogRaw;
+const shareDescription = buildChangelogShareDescription(changelogRaw, t("changelog.subtitle"));
 ---
 
 <Layout

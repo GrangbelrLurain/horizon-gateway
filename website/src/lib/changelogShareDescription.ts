@@ -7,10 +7,7 @@ const VERSION_HEADER = /^## \[v?([\d.]+)\]\s*-\s*\d{4}-\d{2}-\d{2}\s*$/m;
 const BOLD_TITLE = /^\s*-\s+\*\*(.+?)\*\*/gm;
 const MAX_LENGTH = 180;
 
-export function buildChangelogShareDescription(
-  md: string,
-  fallback: string,
-): string {
+export function buildChangelogShareDescription(md: string, fallback: string): string {
   const header = md.match(VERSION_HEADER);
   if (!header || header.index === undefined) {
     return fallback;
@@ -19,8 +16,7 @@ export function buildChangelogShareDescription(
   const version = header[1];
   const bodyStart = header.index + header[0].length;
   const nextHeader = md.slice(bodyStart).search(/^## \[/m);
-  const body =
-    nextHeader === -1 ? md.slice(bodyStart) : md.slice(bodyStart, bodyStart + nextHeader);
+  const body = nextHeader === -1 ? md.slice(bodyStart) : md.slice(bodyStart, bodyStart + nextHeader);
 
   const titles: string[] = [];
   for (const match of body.matchAll(BOLD_TITLE)) {
@@ -32,7 +28,7 @@ export function buildChangelogShareDescription(
   }
 
   const prefix = `v${version} — `;
-  let description = prefix + titles.join(', ');
+  const description = prefix + titles.join(", ");
 
   if (description.length <= MAX_LENGTH) {
     return description;
@@ -41,7 +37,7 @@ export function buildChangelogShareDescription(
   // Keep as many full titles as fit, then ellipsis.
   const kept: string[] = [];
   for (const title of titles) {
-    const candidate = prefix + [...kept, title].join(', ');
+    const candidate = prefix + [...kept, title].join(", ");
     if (candidate.length + 1 > MAX_LENGTH) {
       break;
     }
@@ -53,5 +49,5 @@ export function buildChangelogShareDescription(
     return `${prefix}${truncated}…`;
   }
 
-  return `${prefix}${kept.join(', ')}…`;
+  return `${prefix}${kept.join(", ")}…`;
 }
