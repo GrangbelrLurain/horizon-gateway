@@ -1,5 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { deleteRemoteResourceItem, upsertRemoteResourceItem } from "../api";
 import type { TeamWorkspaceController } from "../model/useTeamWorkspace";
 import { DEFAULT_SYNC_OPTIONS } from "../sync";
 import { buildCatalogCountsFromSnapshot, loadSyncSnapshot, SYNC_CATALOG_KINDS, type SyncSnapshot } from "../syncDiff";
@@ -14,13 +16,14 @@ interface SyncPanelProps {
 }
 
 export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
-  const { lang, activeWorkspaceId, syncing, handleExecuteSync } = ctrl;
+  const { lang, activeWorkspaceId, syncing, handleExecuteSync, isWorkspaceAdmin } = ctrl;
   const [activeKind, setActiveKind] = useState<ResourceKind>("domains");
   const [syncAction, setSyncAction] = useState<"push" | "pull">("push");
   const [catalogCounts, setCatalogCounts] = useState<Partial<Record<ResourceKind, SyncCatalogCounts>>>({});
   const [snapshot, setSnapshot] = useState<SyncSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [managingRemote, setManagingRemote] = useState(false);
 
   const handleCountsChange = useCallback((kind: ResourceKind, counts: SyncCatalogCounts) => {
     setCatalogCounts((prev) => ({ ...prev, [kind]: counts }));
@@ -56,6 +59,48 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
     }
   };
 
+  const handleDeleteRemoteItem = async (kind: ResourceKind, itemId: string | number): Promise<boolean> => {
+    if (!activeWorkspaceId || !isWorkspaceAdmin) {
+      return false;
+    }
+    setManagingRemote(true);
+    try {
+      await deleteRemoteResourceItem(activeWorkspaceId, kind, itemId);
+      toastSuccess(lang === "ko" ? "서버에서 삭제했습니다." : "Deleted from server.");
+      setRefreshToken((t) => t + 1);
+      return true;
+    } catch (e) {
+      console.error(e);
+      toastError(lang === "ko" ? "서버 삭제에 실패했습니다." : "Failed to delete from server.");
+      return false;
+    } finally {
+      setManagingRemote(false);
+    }
+  };
+
+  const handleUpsertRemoteItem = async (
+    kind: ResourceKind,
+    item: Record<string, unknown>,
+    options?: { replaceId?: string | number },
+  ): Promise<boolean> => {
+    if (!activeWorkspaceId || !isWorkspaceAdmin) {
+      return false;
+    }
+    setManagingRemote(true);
+    try {
+      await upsertRemoteResourceItem(activeWorkspaceId, kind, item, options);
+      toastSuccess(lang === "ko" ? "서버에 저장했습니다." : "Saved to server.");
+      setRefreshToken((t) => t + 1);
+      return true;
+    } catch (e) {
+      console.error(e);
+      toastError(lang === "ko" ? "서버 저장에 실패했습니다." : "Failed to save to server.");
+      return false;
+    } finally {
+      setManagingRemote(false);
+    }
+  };
+
   if (!activeWorkspaceId) {
     return null;
   }
@@ -64,7 +109,9 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
     <div className="flex flex-col h-full min-h-0 shrink-0 flex-1 min-w-[680px] max-w-[920px] border-r border-base-300 bg-base-100">
       <div className="flex items-center gap-2 h-10 px-3 border-b border-base-300 bg-base-200/80 shrink-0">
         <span className="text-primary shrink-0">
-          <RefreshCw className={`w-3.5 h-3.5 ${snapshotLoading || syncing !== null ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${snapshotLoading || syncing !== null || managingRemote ? "animate-spin" : ""}`}
+          />
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-black text-base-content truncate">
@@ -89,7 +136,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
           activeKind={activeKind}
           onSelectKind={setActiveKind}
           counts={catalogCounts}
-          loading={snapshotLoading || syncing !== null}
+          loading={snapshotLoading || syncing !== null || managingRemote}
         />
 
         <div className="flex flex-col flex-1 min-h-0 min-w-[360px]">
@@ -97,7 +144,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
             lang={lang}
             action={syncAction}
             onActionChange={setSyncAction}
-            disabled={syncing !== null || snapshotLoading}
+            disabled={syncing !== null || snapshotLoading || managingRemote}
           />
           <SyncDiffListPane
             lang={lang}
@@ -106,9 +153,13 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
             snapshot={snapshot}
             snapshotLoading={snapshotLoading}
             busy={syncing !== null}
+            canManageRemote={isWorkspaceAdmin}
+            managingRemote={managingRemote}
             onCountsChange={handleCountsChange}
             onRefresh={() => setRefreshToken((t) => t + 1)}
             onSync={(options) => void handleSync(options)}
+            onDeleteRemoteItem={handleDeleteRemoteItem}
+            onUpsertRemoteItem={handleUpsertRemoteItem}
           />
         </div>
       </div>

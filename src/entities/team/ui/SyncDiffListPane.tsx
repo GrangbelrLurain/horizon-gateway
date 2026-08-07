@@ -5,12 +5,16 @@ import {
   Check,
   Loader2,
   Minus,
+  Pencil,
+  Plus,
   RefreshCw,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
+import { Modal } from "@/shared/ui/modal/Modal";
 import { DEFAULT_SYNC_OPTIONS, type DomainMatchKey, type WorkspaceSyncOptions } from "../sync";
 import {
   buildSyncDiffFromSnapshot,
@@ -23,6 +27,7 @@ import {
   visibleItemsForAction,
 } from "../syncDiff";
 import type { ResourceKind } from "../types";
+import { canEditServerKind, ServerResourceEditModal, type ServerResourceEditMode } from "./ServerResourceEditModal";
 import { emptyCatalogCounts, type SyncCatalogCounts } from "./SyncCatalogPane";
 
 type DiffFilter = "all" | SyncDiffStatus;
@@ -61,9 +66,18 @@ interface SyncDiffListPaneProps {
   snapshot: SyncSnapshot | null;
   snapshotLoading?: boolean;
   busy?: boolean;
+  /** Owner/Admin: delete and upsert server payload items. */
+  canManageRemote?: boolean;
+  managingRemote?: boolean;
   onCountsChange: (kind: ResourceKind, counts: SyncCatalogCounts) => void;
   onRefresh: () => void;
   onSync: (options: WorkspaceSyncOptions) => void;
+  onDeleteRemoteItem?: (kind: ResourceKind, itemId: string | number) => Promise<boolean>;
+  onUpsertRemoteItem?: (
+    kind: ResourceKind,
+    item: Record<string, unknown>,
+    options?: { replaceId?: string | number },
+  ) => Promise<boolean>;
 }
 
 export function SyncDiffListPane({
@@ -73,9 +87,13 @@ export function SyncDiffListPane({
   snapshot,
   snapshotLoading,
   busy,
+  canManageRemote,
+  managingRemote,
   onCountsChange,
   onRefresh,
   onSync,
+  onDeleteRemoteItem,
+  onUpsertRemoteItem,
 }: SyncDiffListPaneProps) {
   const [items, setItems] = useState<SyncDiffItem[]>([]);
   const [localCount, setLocalCount] = useState(0);
@@ -84,10 +102,14 @@ export function SyncDiffListPane({
   const [filter, setFilter] = useState<DiffFilter>("all");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [matchKey, setMatchKey] = useState<DomainMatchKey>(DEFAULT_SYNC_OPTIONS.matchKey);
+  const [editMode, setEditMode] = useState<ServerResourceEditMode | null>(null);
+  const [editingItem, setEditingItem] = useState<Record<string, unknown> | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string | number; label: string } | null>(null);
   const onCountsChangeRef = useRef(onCountsChange);
   onCountsChangeRef.current = onCountsChange;
 
   const loading = snapshotLoading || snapshot == null;
+  const remoteBusy = Boolean(managingRemote);
 
   useEffect(() => {
     if (!snapshot) {
@@ -269,16 +291,84 @@ export function SyncDiffListPane({
     };
   }, [action, filter, kind, lang, localCount, remoteCount, search]);
 
-  const canSync = !busy && !loading && selectedKeys.size > 0;
+  const canSync = !busy && !loading && !remoteBusy && selectedKeys.size > 0;
+  const showRemoteManage = Boolean(canManageRemote && onDeleteRemoteItem && onUpsertRemoteItem);
+
+  const findRemotePayload = (remoteId: string | number | undefined): Record<string, unknown> | null => {
+    if (remoteId == null || !snapshot) {
+      return null;
+    }
+    const list = (snapshot.remoteByKind[kind] as Record<string, unknown>[] | undefined) ?? [];
+    if (kind === "domain_group_links") {
+      const [domainId, groupId] = String(remoteId).split(":");
+      const found = list.find((row) => String(row.domain_id) === domainId && String(row.group_id) === groupId);
+      return found ?? null;
+    }
+    const found = list.find((row) => String(row.id) === String(remoteId));
+    return found ?? null;
+  };
+
+  const linkDomainOptions = useMemo(() => {
+    if (!snapshot) {
+      return [];
+    }
+    const remote = (snapshot.remoteByKind.domains as { id?: number; url?: string }[] | undefined) ?? [];
+    const local = (snapshot.localData.domains as { id?: number; url?: string }[] | undefined) ?? [];
+    const source = remote.length > 0 ? remote : local;
+    return source
+      .filter((d): d is { id: number; url: string } => d.id != null && Boolean(d.url))
+      .map((d) => ({ id: d.id, label: d.url }));
+  }, [snapshot]);
+
+  const linkGroupOptions = useMemo(() => {
+    if (!snapshot) {
+      return [];
+    }
+    const remote = (snapshot.remoteByKind.groups as { id?: number | string; name?: string }[] | undefined) ?? [];
+    const local = (snapshot.localData.groups as { id?: number | string; name?: string }[] | undefined) ?? [];
+    const source = remote.length > 0 ? remote : local;
+    return source
+      .filter((g): g is { id: number | string; name: string } => g.id != null && Boolean(g.name))
+      .map((g) => ({ id: g.id, label: g.name }));
+  }, [snapshot]);
+
+  const openCreate = () => {
+    if (!canEditServerKind(kind)) {
+      return;
+    }
+    setEditingItem(null);
+    setEditMode("create");
+  };
+
+  const openEdit = (item: SyncDiffItem) => {
+    if (!canEditServerKind(kind) || item.remoteId == null) {
+      return;
+    }
+    setEditingItem(findRemotePayload(item.remoteId));
+    setEditMode("edit");
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-[360px] bg-base-100">
       <div className="shrink-0 px-3 py-2 border-b border-base-300 flex flex-col gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-base-content/45">
-          {lang === "ko"
-            ? `3. ${KIND_LABELS[kind].ko} · ${action === "push" ? "Push (로컬→서버)" : "Pull (서버→로컬)"}`
-            : `3. ${KIND_LABELS[kind].en} · ${action === "push" ? "Push (local→remote)" : "Pull (remote→local)"}`}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="flex-1 text-[10px] font-bold uppercase tracking-wider text-base-content/45">
+            {lang === "ko"
+              ? `3. ${KIND_LABELS[kind].ko} · ${action === "push" ? "Push (로컬→서버)" : "Pull (서버→로컬)"}`
+              : `3. ${KIND_LABELS[kind].en} · ${action === "push" ? "Push (local→remote)" : "Pull (remote→local)"}`}
+          </p>
+          {showRemoteManage && canEditServerKind(kind) && (
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={loading || busy || remoteBusy}
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border border-base-300 text-base-content/60 hover:text-base-content hover:bg-base-200 disabled:opacity-40"
+            >
+              <Plus className="w-3 h-3" />
+              {lang === "ko" ? "서버에 추가" : "Add to server"}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/35" />
@@ -292,11 +382,11 @@ export function SyncDiffListPane({
           <button
             type="button"
             onClick={onRefresh}
-            disabled={loading || busy}
+            disabled={loading || busy || remoteBusy}
             className="p-1.5 rounded-md border border-base-300 text-base-content/50 hover:text-base-content hover:bg-base-200 disabled:opacity-40"
             title={lang === "ko" ? "새로고침" : "Refresh"}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || remoteBusy ? "animate-spin" : ""}`} />
           </button>
         </div>
 
@@ -409,73 +499,109 @@ export function SyncDiffListPane({
             const meta = STATUS_META[item.status];
             const checked = selectedKeys.has(item.key);
             const disabled = item.status === "same";
+            const canEditRemote =
+              showRemoteManage && canEditServerKind(kind) && item.remoteId != null && Boolean(onUpsertRemoteItem);
+            const canDeleteRemote = showRemoteManage && item.remoteId != null && Boolean(onDeleteRemoteItem);
             return (
-              <label
+              <div
                 key={item.key}
-                className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
                   checked ? "border-primary/40 bg-primary/5" : "border-base-200 hover:bg-base-200/40"
-                } ${disabled ? "opacity-60 cursor-default" : ""}`}
+                } ${disabled ? "opacity-60" : ""}`}
               >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={disabled || busy}
-                  onChange={() => !disabled && toggleKey(item.key)}
-                  className="checkbox checkbox-xs checkbox-primary mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={`text-xs font-bold truncate ${
-                        kind === "domain_group_links" ? "font-mono text-[11px]" : ""
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta.className}`}
-                    >
-                      {meta.icon}
-                      {meta[lang]}
-                    </span>
-                  </div>
-                  {item.detail && (
-                    <p
-                      className={`text-[10px] truncate mt-0.5 ${
-                        kind === "domain_group_links"
-                          ? "text-base-content/65 font-medium"
-                          : "text-base-content/45 font-mono"
-                      }`}
-                    >
-                      {kind === "domain_group_links"
-                        ? `${lang === "ko" ? "그룹" : "Group"}: ${item.detail}`
-                        : item.detail}
-                    </p>
-                  )}
-                  {item.infoDetail && (
-                    <p className="text-[10px] text-base-content/50 mt-1 leading-snug">{item.infoDetail}</p>
-                  )}
-                  {item.status === "conflict" && item.conflictDetail && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-snug">
-                      {item.conflictDetail}
-                    </p>
-                  )}
-                  {item.status === "conflict" && (item.localDetail || item.remoteDetail) && (
-                    <div className="mt-1 flex flex-col gap-0.5 text-[9px] font-mono leading-snug">
-                      {item.remoteDetail && (
-                        <span className="text-violet-600 dark:text-violet-400 truncate">
-                          {lang === "ko" ? "서버" : "Remote"}: {item.remoteDetail}
-                        </span>
-                      )}
-                      {item.localDetail && (
-                        <span className="text-sky-600 dark:text-sky-400 truncate">
-                          {lang === "ko" ? "로컬" : "Local"}: {item.localDetail}
-                        </span>
-                      )}
+                <label className="flex items-start gap-2.5 flex-1 min-w-0 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disabled || busy || remoteBusy}
+                    onChange={() => !disabled && toggleKey(item.key)}
+                    className="checkbox checkbox-xs checkbox-primary mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-xs font-bold truncate ${
+                          kind === "domain_group_links" || kind === "domains" ? "font-mono text-[11px]" : ""
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${meta.className}`}
+                      >
+                        {meta.icon}
+                        {meta[lang]}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </label>
+                    {item.detail && (
+                      <p
+                        className={`text-[10px] truncate mt-0.5 ${
+                          kind === "domain_group_links"
+                            ? "text-base-content/65 font-medium"
+                            : "text-base-content/45 font-mono"
+                        }`}
+                      >
+                        {kind === "domain_group_links"
+                          ? `${lang === "ko" ? "그룹" : "Group"}: ${item.detail}`
+                          : item.detail}
+                      </p>
+                    )}
+                    {item.infoDetail && (
+                      <p className="text-[10px] text-base-content/50 mt-1 leading-snug">{item.infoDetail}</p>
+                    )}
+                    {item.status === "conflict" && item.conflictDetail && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-snug">
+                        {item.conflictDetail}
+                      </p>
+                    )}
+                    {item.status === "conflict" && (item.localDetail || item.remoteDetail) && (
+                      <div className="mt-1 flex flex-col gap-0.5 text-[9px] font-mono leading-snug">
+                        {item.remoteDetail && (
+                          <span className="text-violet-600 dark:text-violet-400 truncate">
+                            {lang === "ko" ? "서버" : "Remote"}: {item.remoteDetail}
+                          </span>
+                        )}
+                        {item.localDetail && (
+                          <span className="text-sky-600 dark:text-sky-400 truncate">
+                            {lang === "ko" ? "로컬" : "Local"}: {item.localDetail}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                {(canEditRemote || canDeleteRemote) && (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {canEditRemote && (
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        disabled={busy || remoteBusy}
+                        className="p-1 rounded-md text-base-content/40 hover:text-base-content hover:bg-base-200 disabled:opacity-40"
+                        title={lang === "ko" ? "서버에서 수정" : "Edit on server"}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {canDeleteRemote && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteTarget({
+                            id: item.remoteId as string | number,
+                            label: item.label,
+                          })
+                        }
+                        disabled={busy || remoteBusy}
+                        className="p-1 rounded-md text-base-content/40 hover:text-error hover:bg-error/10 disabled:opacity-40"
+                        title={lang === "ko" ? "서버에서 삭제" : "Delete from server"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })
         )}
@@ -504,6 +630,68 @@ export function SyncDiffListPane({
           )}
         </Button>
       </div>
+
+      <ServerResourceEditModal
+        lang={lang}
+        kind={kind}
+        mode={editMode}
+        initial={editingItem}
+        domainOptions={linkDomainOptions}
+        groupOptions={linkGroupOptions}
+        busy={remoteBusy}
+        onClose={() => {
+          setEditMode(null);
+          setEditingItem(null);
+        }}
+        onSave={async (payload, options) => {
+          if (!onUpsertRemoteItem) {
+            return false;
+          }
+          return onUpsertRemoteItem(kind, payload, options);
+        }}
+      />
+
+      <Modal
+        isOpen={deleteTarget !== null}
+        onClose={remoteBusy ? () => undefined : () => setDeleteTarget(null)}
+        size="sm"
+      >
+        <Modal.Header
+          title={lang === "ko" ? "서버에서 삭제" : "Delete from server"}
+          description={deleteTarget?.label}
+        />
+        <Modal.Body className="pt-2 pb-4">
+          <p className="text-xs text-base-content/70 leading-relaxed">
+            {lang === "ko"
+              ? "이 항목을 워크스페이스 서버 데이터에서 제거합니다. 로컬에는 영향이 없습니다."
+              : "Removes this item from workspace server data. Local data is unchanged."}
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)} disabled={remoteBusy}>
+            {lang === "ko" ? "취소" : "Cancel"}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            className="bg-error hover:bg-error/90 border-error text-error-content"
+            disabled={remoteBusy || !deleteTarget || !onDeleteRemoteItem}
+            onClick={() => {
+              if (!deleteTarget || !onDeleteRemoteItem) {
+                return;
+              }
+              void (async () => {
+                const ok = await onDeleteRemoteItem(kind, deleteTarget.id);
+                if (ok) {
+                  setDeleteTarget(null);
+                }
+              })();
+            }}
+          >
+            {remoteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : lang === "ko" ? "삭제" : "Delete"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

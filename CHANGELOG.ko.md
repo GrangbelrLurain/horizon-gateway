@@ -4,6 +4,21 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.1] - 2026-08-07
+
+### Added (추가 기능)
+
+- **서버 리소스 Admin 편집**: Owner/Admin이 폼으로 워크스페이스 서버 항목(도메인·Mock·그룹·시나리오·그룹 연결)을 추가·수정·삭제할 수 있습니다. 전체 Push 없이도 가능합니다.
+
+### Changed (변경 사항)
+
+- **도메인 sync 라벨**: `http(s)://` 혼재를 없애 스캔하기 쉽게 통일했습니다.
+- **공유 Modal**: radius를 `rounded-xl`로 줄이고, 패딩·헤더 클리핑을 고쳐 확인 다이얼로그가 잘리지 않게 했습니다.
+
+### Fixed (버그 수정)
+
+- **Mock 규칙 sync 목록**: host·name까지 매칭하고 동일 method/path 중복이 덮이지 않아, 서버 Mock이 Pull 목록에 모두 보입니다.
+
 ## [v2.7.0] - 2026-08-06
 
 ### Added (추가 기능)

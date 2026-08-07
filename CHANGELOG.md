@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.1] - 2026-08-07
+
+### Added
+
+- **Server resource admin editor**: Owner/Admin can add, edit, or delete workspace server items (domains, mock rules, groups, scenarios, group links) with forms—without a full Push overwrite.
+
+### Changed
+
+- **Domain sync labels**: Display domains without mixed `http(s)://` prefixes for consistent scanning.
+- **Shared Modal**: Smaller radius (`rounded-xl`), tighter padding, and non-clipping headers so confirm dialogs stay readable.
+
+### Fixed
+
+- **Mock rule sync list**: Matching now includes host and name, and duplicate method/path rows no longer collapse—so all server mocks appear in the Pull list.
+
 ## [v2.7.0] - 2026-08-06
 
 ### Added

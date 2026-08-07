@@ -65,8 +65,23 @@ export const KIND_LABELS: Record<ResourceKind, { ko: string; en: string }> = {
   domain_group_links: { ko: "그룹 연결", en: "Group links" },
 };
 
-export function mockRuleMatchKey(rule: Pick<MockRule, "method" | "url_pattern">): string {
-  return `${(rule.method ?? "GET").toUpperCase()} ${(rule.url_pattern ?? "").trim()}`;
+/** Stable key for pairing local/remote mocks. Includes host + name so variants of the same path stay distinct. */
+export function mockRuleMatchKey(rule: Pick<MockRule, "method" | "url_pattern" | "host" | "name">): string {
+  return [
+    (rule.method ?? "GET").toUpperCase(),
+    (rule.host ?? "").trim().toLowerCase(),
+    (rule.url_pattern ?? "").trim(),
+    (rule.name ?? "").trim().toLowerCase(),
+  ].join(" :: ");
+}
+
+/** Display domain URLs without mixed http(s):// prefixes. */
+export function formatDomainDisplayUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.replace(/^https?:\/\//i, "");
 }
 
 function normalizeName(name: string): string {
@@ -207,7 +222,7 @@ function linkComparable(link: DomainGroupLink, ctx: LinkResolveContext): string 
 }
 
 function linkLabel(link: DomainGroupLink, ctx: LinkResolveContext): { label: string; detail: string } {
-  const url = resolveDomainUrl(link.domain_id, ctx);
+  const url = formatDomainDisplayUrl(resolveDomainUrl(link.domain_id, ctx));
   const groupName = resolveGroupName(link.group_id, ctx);
   return { label: url, detail: groupName };
 }
@@ -310,11 +325,11 @@ function buildDomainDiff(
         key,
         {
           key,
-          label: d.url,
+          label: formatDomainDisplayUrl(d.url),
           detail: matchKey === "exact_url" ? undefined : `match(${matchKey}): ${key}`,
           localId: d.id,
           payload: domainComparable(d, matchKey),
-          summary: d.url,
+          summary: formatDomainDisplayUrl(d.url),
         },
       ];
     }),
@@ -326,11 +341,11 @@ function buildDomainDiff(
         key,
         {
           key,
-          label: d.url,
+          label: formatDomainDisplayUrl(d.url),
           detail: matchKey === "exact_url" ? undefined : `match(${matchKey}): ${key}`,
           remoteId: d.id,
           payload: domainComparable(d, matchKey),
-          summary: d.url,
+          summary: formatDomainDisplayUrl(d.url),
         },
       ];
     }),
@@ -390,32 +405,54 @@ function buildDomainDiff(
 }
 
 function buildMockDiff(localMocks: MockRule[], remoteMocks: MockRule[]): SyncDiffItem[] {
-  const localMap = new Map(
-    localMocks.map((m) => [
-      mockRuleMatchKey(m),
-      {
-        key: mockRuleMatchKey(m),
-        label: m.name || m.url_pattern,
-        detail: `${m.method} ${m.url_pattern}`,
-        localId: m.id,
-        payload: mockComparable(m),
-        summary: summarizeRecord(mockComparable(m) as Record<string, unknown>, [...MOCK_DIFF_FIELDS]),
-      },
-    ]),
-  );
-  const remoteMap = new Map(
-    remoteMocks.map((m) => [
-      mockRuleMatchKey(m),
-      {
-        key: mockRuleMatchKey(m),
-        label: m.name || m.url_pattern,
-        detail: `${m.method} ${m.url_pattern}`,
-        remoteId: m.id,
-        payload: mockComparable(m),
-        summary: summarizeRecord(mockComparable(m) as Record<string, unknown>, [...MOCK_DIFF_FIELDS]),
-      },
-    ]),
-  );
+  const groupBy = (rules: MockRule[]) => {
+    const map = new Map<string, MockRule[]>();
+    for (const rule of rules) {
+      const key = mockRuleMatchKey(rule);
+      const list = map.get(key) ?? [];
+      list.push(rule);
+      map.set(key, list);
+    }
+    return map;
+  };
+
+  const localGroups = groupBy(localMocks);
+  const remoteGroups = groupBy(remoteMocks);
+  const semanticKeys = new Set([...localGroups.keys(), ...remoteGroups.keys()]);
+  const localMap = new Map<string, DiffSide>();
+  const remoteMap = new Map<string, DiffSide>();
+
+  for (const semantic of semanticKeys) {
+    const locals = localGroups.get(semantic) ?? [];
+    const remotes = remoteGroups.get(semantic) ?? [];
+    const pairCount = Math.max(locals.length, remotes.length);
+    for (let i = 0; i < pairCount; i++) {
+      const local = locals[i];
+      const remote = remotes[i];
+      const key = `${semantic}#${local?.id ?? remote?.id ?? i}`;
+      if (local) {
+        localMap.set(key, {
+          key,
+          label: local.name || local.url_pattern,
+          detail: [local.method, local.host, local.url_pattern].filter(Boolean).join(" "),
+          localId: local.id,
+          payload: mockComparable(local),
+          summary: summarizeRecord(mockComparable(local) as Record<string, unknown>, [...MOCK_DIFF_FIELDS]),
+        });
+      }
+      if (remote) {
+        remoteMap.set(key, {
+          key,
+          label: remote.name || remote.url_pattern,
+          detail: [remote.method, remote.host, remote.url_pattern].filter(Boolean).join(" "),
+          remoteId: remote.id,
+          payload: mockComparable(remote),
+          summary: summarizeRecord(mockComparable(remote) as Record<string, unknown>, [...MOCK_DIFF_FIELDS]),
+        });
+      }
+    }
+  }
+
   return buildPairDiff(localMap, remoteMap, [...MOCK_DIFF_FIELDS]);
 }
 
@@ -488,6 +525,7 @@ function buildLinkDiff(
   remoteLinks: DomainGroupLink[],
   ctx: LinkResolveContext,
 ): SyncDiffItem[] {
+  const linkRefId = (link: DomainGroupLink) => `${link.domain_id}:${link.group_id}`;
   const localMap = new Map(
     localLinks.map((link) => {
       const key = linkMatchKey(link, ctx);
@@ -498,6 +536,7 @@ function buildLinkDiff(
           key,
           label,
           detail,
+          localId: linkRefId(link),
           payload: linkComparable(link, ctx),
           summary: `${label} · ${detail}`,
         },
@@ -514,6 +553,7 @@ function buildLinkDiff(
           key,
           label,
           detail,
+          remoteId: linkRefId(link),
           payload: linkComparable(link, ctx),
           summary: `${label} · ${detail}`,
         },

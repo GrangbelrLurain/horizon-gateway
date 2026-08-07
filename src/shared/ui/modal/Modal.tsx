@@ -83,7 +83,7 @@ export function Modal({ children, isOpen, onClose, size = "xl" }: ModalProps) {
         <div
           className={cn(
             "relative flex w-full max-h-[90vh] flex-col overflow-hidden",
-            "bg-base-100 text-base-content rounded-3xl shadow-[0_32px_128px_rgba(0,0,0,0.4)] border border-base-300/50",
+            "bg-base-100 text-base-content rounded-xl shadow-[0_24px_80px_rgba(0,0,0,0.28)] border border-base-300/50",
             sizeClass,
           )}
         >
@@ -106,21 +106,21 @@ Modal.Header = function ModalHeader({
   const { onClose } = useModalContext();
 
   return (
-    <div className="px-10 pt-10 pb-5 flex items-start justify-between relative overflow-hidden">
-      <div className="flex flex-col gap-1.5 relative z-10">
-        <h3 className="text-2xl font-black text-base-content tracking-tighter uppercase leading-none">{title}</h3>
+    <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-3 shrink-0">
+      <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+        <h3 className="text-lg font-black text-base-content tracking-tight leading-snug break-words">{title}</h3>
         {description && (
-          <p className="text-sm text-base-content/50 font-black uppercase tracking-widest opacity-60">{description}</p>
+          <p className="text-xs text-base-content/50 font-medium leading-snug break-all">{description}</p>
         )}
       </div>
-      <div className="flex items-center gap-2 relative z-10">
+      <div className="flex items-center gap-2 shrink-0">
         {children}
         <button
           type="button"
           onClick={onClose}
-          className="btn btn-ghost btn-md btn-circle hover:bg-base-200 transition-colors"
+          className="btn btn-ghost btn-sm btn-circle hover:bg-base-200 transition-colors"
         >
-          <X className="w-5 h-5 text-base-content/40 hover:text-base-content transition-colors" />
+          <X className="w-4 h-4 text-base-content/40 hover:text-base-content transition-colors" />
         </button>
       </div>
     </div>
@@ -129,7 +129,7 @@ Modal.Header = function ModalHeader({
 
 Modal.Body = function ModalBody({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("px-10 py-5 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-base-300", className)}>
+    <div className={cn("px-6 py-4 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-base-300", className)}>
       {children}
     </div>
   );
@@ -137,7 +137,7 @@ Modal.Body = function ModalBody({ children, className }: { children: React.React
 
 Modal.Footer = function ModalFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-10 py-8 bg-base-200/50 backdrop-blur-sm flex items-center justify-end gap-4 border-t border-base-300/30">
+    <div className="px-6 py-4 bg-base-200/50 backdrop-blur-sm flex items-center justify-end gap-3 border-t border-base-300/30 shrink-0">
       {children}
     </div>
   );

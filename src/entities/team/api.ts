@@ -402,3 +402,102 @@ export async function pullResources(workspaceId: string, kind?: ResourceKind): P
   }
   return (data ?? []) as WorkspaceResource[];
 }
+
+async function mutateWorkspaceResourcePayload(
+  workspaceId: string,
+  kind: ResourceKind,
+  mutate: (items: unknown[]) => unknown[],
+): Promise<WorkspaceResource> {
+  const rows = await pullResources(workspaceId, kind);
+  const current = rows[0]?.payload;
+  const list = Array.isArray(current) ? [...current] : [];
+  const next = mutate(list);
+  return pushResources(workspaceId, kind, next);
+}
+
+function itemIdOf(item: unknown): string | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const id = (item as { id?: unknown }).id;
+  if (id === null || id === undefined) {
+    return null;
+  }
+  return String(id);
+}
+
+function linkRefOf(item: unknown): string | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const domainId = (item as { domain_id?: unknown }).domain_id;
+  const groupId = (item as { group_id?: unknown }).group_id;
+  if (domainId == null || groupId == null) {
+    return null;
+  }
+  return `${domainId}:${groupId}`;
+}
+
+function matchesResourceItem(kind: ResourceKind, item: unknown, targetId: string): boolean {
+  if (kind === "domain_group_links") {
+    return linkRefOf(item) === targetId;
+  }
+  return itemIdOf(item) === targetId;
+}
+
+/** Remove one item from a workspace resource payload by id (Admin+). */
+export async function deleteRemoteResourceItem(
+  workspaceId: string,
+  kind: ResourceKind,
+  itemId: string | number,
+): Promise<WorkspaceResource> {
+  const target = String(itemId);
+  return mutateWorkspaceResourcePayload(workspaceId, kind, (items) =>
+    items.filter((item) => !matchesResourceItem(kind, item, target)),
+  );
+}
+
+export interface UpsertRemoteResourceOptions {
+  /** When editing identity fields (e.g. link domain/group), remove this id first. */
+  replaceId?: string | number;
+}
+
+/** Insert or replace one item in a workspace resource payload by id (Admin+). */
+export async function upsertRemoteResourceItem(
+  workspaceId: string,
+  kind: ResourceKind,
+  item: Record<string, unknown>,
+  options?: UpsertRemoteResourceOptions,
+): Promise<WorkspaceResource> {
+  return mutateWorkspaceResourcePayload(workspaceId, kind, (items) => {
+    let next = items;
+    if (options?.replaceId != null) {
+      const replaceTarget = String(options.replaceId);
+      next = next.filter((row) => !matchesResourceItem(kind, row, replaceTarget));
+    }
+
+    if (kind === "domain_group_links") {
+      const domainId = Number(item.domain_id);
+      const groupId = Number(item.group_id);
+      if (!Number.isFinite(domainId) || !Number.isFinite(groupId)) {
+        return next;
+      }
+      const link = { domain_id: domainId, group_id: groupId };
+      const linkKey = `${domainId}:${groupId}`;
+      next = next.filter((row) => linkRefOf(row) !== linkKey);
+      return [...next, link];
+    }
+
+    const target = itemIdOf(item);
+    if (target == null) {
+      return [...next, item];
+    }
+    const idx = next.findIndex((x) => itemIdOf(x) === target);
+    if (idx >= 0) {
+      const updated = [...next];
+      updated[idx] = { ...(next[idx] as object), ...item };
+      return updated;
+    }
+    return [...next, item];
+  });
+}

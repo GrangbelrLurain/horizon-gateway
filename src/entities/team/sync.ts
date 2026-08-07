@@ -194,18 +194,28 @@ async function mergeSelectedDomainsIntoRemote(
   return Array.from(byKey.values());
 }
 
+function selectionMatchesKey(selectedKeys: Set<string>, baseKey: string, itemId?: string | number): boolean {
+  if (selectedKeys.has(baseKey)) {
+    return true;
+  }
+  if (itemId == null) {
+    return false;
+  }
+  return selectedKeys.has(`${baseKey}#${itemId}`) || selectedKeys.has(String(itemId));
+}
+
 function filterRemoteDomainsByKeys(
   remoteDomains: DomainItem[],
   selectedDomainKeys: string[],
   matchKey: DomainMatchKey,
 ): DomainItem[] {
   const keySet = new Set(selectedDomainKeys);
-  return remoteDomains.filter((d) => keySet.has(domainMatchKey(d.url, matchKey)));
+  return remoteDomains.filter((d) => selectionMatchesKey(keySet, domainMatchKey(d.url, matchKey), d.id));
 }
 
 function filterRemoteMocksByKeys(remoteMocks: MockRule[], selectedMockRuleKeys: string[]): MockRule[] {
   const keySet = new Set(selectedMockRuleKeys);
-  return remoteMocks.filter((m) => keySet.has(mockRuleMatchKey(m)));
+  return remoteMocks.filter((m) => selectionMatchesKey(keySet, mockRuleMatchKey(m), m.id));
 }
 
 function mergeSelectedDomainsIntoLocal(
