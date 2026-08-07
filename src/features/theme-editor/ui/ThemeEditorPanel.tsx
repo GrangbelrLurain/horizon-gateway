@@ -64,19 +64,23 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
   const [draft, setDraft] = useState<CustomTheme>(() => ({
     ...activeTheme,
     colors: {
-      ...activeTheme.colors,
-      primaryContent: activeTheme.colors?.primaryContent || (activeTheme.base === "light" ? "#ffffff" : "#020617"),
-      secondaryContent: activeTheme.colors?.secondaryContent || (activeTheme.base === "light" ? "#ffffff" : "#020617"),
-      accentContent: activeTheme.colors?.accentContent || (activeTheme.base === "light" ? "#ffffff" : "#020617"),
+      ...(activeTheme?.colors || {}),
+      primaryContent: activeTheme?.colors?.primaryContent || (activeTheme?.base === "light" ? "#ffffff" : "#020617"),
+      secondaryContent:
+        activeTheme?.colors?.secondaryContent || (activeTheme?.base === "light" ? "#ffffff" : "#020617"),
+      accentContent: activeTheme?.colors?.accentContent || (activeTheme?.base === "light" ? "#ffffff" : "#020617"),
     },
   }));
   const [fontQuery, setFontQuery] = useState("");
 
   useEffect(() => {
+    if (!activeTheme) {
+      return;
+    }
     setDraft({
       ...activeTheme,
       colors: {
-        ...activeTheme.colors,
+        ...(activeTheme.colors || {}),
         primaryContent: activeTheme.colors?.primaryContent || (activeTheme.base === "light" ? "#ffffff" : "#020617"),
         secondaryContent:
           activeTheme.colors?.secondaryContent || (activeTheme.base === "light" ? "#ffffff" : "#020617"),

@@ -86,8 +86,8 @@ function panelsEqual(a: PanelEntry[], b: PanelEntry[]): boolean {
 }
 
 export function usePanelNavigation() {
-  const navigate = useNavigate({ from: "/" });
-  const search = useSearch({ from: "/" });
+  const navigate = useNavigate();
+  const search: HubSearchParams = useSearch({ strict: false });
   const [domainId, setDomainId] = useAtom(selectedDomainIdAtom);
   const [panels, setPanels] = useAtom(panelStackAtom);
   const setHandoff = useSetAtom(hubHandoffAtom);
@@ -113,7 +113,9 @@ export function usePanelNavigation() {
   const syncUrl = useCallback(
     (nextDomainId: number | null, nextPanels: PanelEntry[], nextGlobalSurface: HubSurfaceId | null) => {
       navigate({
-        search: searchFromState(nextDomainId, nextPanels, nextGlobalSurface),
+        to: "/",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        search: searchFromState(nextDomainId, nextPanels, nextGlobalSurface) as any,
         replace: true,
       });
     },

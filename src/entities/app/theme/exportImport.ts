@@ -54,7 +54,8 @@ export function parseAndValidateThemeJson(jsonString: string): {
     }
 
     return { theme, warning };
-  } catch (err: any) {
-    return { error: `Failed to parse theme JSON: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Failed to parse theme JSON: ${message}` };
   }
 }

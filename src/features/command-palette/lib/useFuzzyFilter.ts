@@ -38,11 +38,13 @@ function buildCorpus(cmd: PaletteCommandDef, lang: "ko" | "en"): CorpusLayer[] {
     }
   }
 
-  if (meta.description?.[lang]) {
-    layers.push({ text: meta.description[lang]!, weight: 20 });
+  const descLang = meta.description?.[lang];
+  if (descLang) {
+    layers.push({ text: descLang, weight: 20 });
   }
-  if (meta.description?.[otherLang]) {
-    layers.push({ text: meta.description[otherLang]!, weight: 10 });
+  const descOther = meta.description?.[otherLang];
+  if (descOther) {
+    layers.push({ text: descOther, weight: 10 });
   }
 
   layers.push({ text: cmd.id, weight: 5 });

@@ -72,7 +72,7 @@ export type PaletteCommandDef = {
   icon?: React.ReactNode;
   meta: PaletteCommandMeta;
   steps?: PaletteStepDef[];
-  action: (values: Record<string, string>) => void | string | Promise<void | string | undefined>;
+  action: (values: Record<string, string>) => unknown;
 };
 
 // ─── Runtime Session State ─────────────────────────────────────────────────

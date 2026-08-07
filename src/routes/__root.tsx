@@ -54,7 +54,14 @@ const RootLayout = () => {
   }, [theme]);
 
   useEffect(() => {
-    const color = userProfile.avatarColor;
+    const color = userProfile?.avatarColor;
+    if (!color) {
+      const styleTag = document.getElementById("dynamic-theme");
+      if (styleTag) {
+        styleTag.remove();
+      }
+      return;
+    }
     const colorMap: Record<string, string> = {
       "bg-gradient-to-br from-indigo-500 to-purple-600": "#6366f1",
       "bg-gradient-to-br from-blue-500 to-cyan-400": "#3b82f6",
@@ -85,7 +92,7 @@ const RootLayout = () => {
         styleTag.remove();
       }
     }
-  }, [userProfile.avatarColor]);
+  }, [userProfile?.avatarColor]);
 
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
   const [isLoading, setIsLoading] = useState(false);

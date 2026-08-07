@@ -12,11 +12,23 @@ export const customThemesAtom = atomWithStorage<CustomTheme[]>("horizon-gateway-
 export const activeCustomThemeAtom = atom<CustomTheme>((get) => {
   const currentTheme = get(themeAtom);
   const customList = get(customThemesAtom);
-  const foundCustom = customList.find((t) => t.id === currentTheme);
+  const safeList = Array.isArray(customList) ? customList : [];
+  const foundCustom = safeList.find((t) => t && t.id === currentTheme);
   if (foundCustom) {
-    return foundCustom;
+    return {
+      ...DEFAULT_DARK_THEME,
+      ...foundCustom,
+      colors: {
+        ...DEFAULT_DARK_THEME.colors,
+        ...(foundCustom.colors || {}),
+      },
+      typography: {
+        ...DEFAULT_DARK_THEME.typography,
+        ...(foundCustom.typography || {}),
+      },
+    };
   }
-  const foundBuiltin = BUILTIN_PRESETS.find((t) => t.id === currentTheme);
+  const foundBuiltin = BUILTIN_PRESETS.find((t) => t && t.id === currentTheme);
   return foundBuiltin || DEFAULT_DARK_THEME;
 });
 
