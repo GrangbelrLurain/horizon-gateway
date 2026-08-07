@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.2] - 2026-08-07
+
+### Added
+
+- **`Ctrl+P` Command Palette & Naming Specification**:
+  - Implemented 24 structured multilingual fuzzy-search commands across 7 categories (`[Domain]`, `[Proxy]`, `[Mocking]`, `[Tool]`, `[Log]`, `[Settings]`, `[Team]`).
+  - Multi-step form engine (`Select`, `Autocomplete`, `Input`) with seamless focus management.
+- **Custom Theme & Font Editor (`chrome/theme`)**:
+  - Built full color palette editor with 10 grouped color pickers including contrasting text colors (`primaryContent`, `secondaryContent`, `accentContent`) and local system font detection (`local()`).
+  - Added `.hgtheme.json` Export/Import support.
+
+### Changed
+
+- **TopBar Popover Menu Integration**:
+  - Placed `🎨 Theme & Font Editor` item inside TopBar Settings Popover menu list.
+- **Profile UI Refactoring**:
+  - Removed avatar theme color swatch and dark profile background; streamlined inline layout for name, role, and language.
+
+### Fixed
+
+- **Command Palette GPU Rendering Bottleneck**:
+  - Removed modal `backdrop-blur-sm` filter to eliminate GPU frame drops on Windows WebView2.
+- **Keystroke IPC Latency**:
+  - Fixed autocomplete step to load data ONCE on open and perform in-memory fuzzy filtering for 60fps instant keystroke response.
+- **ErrorBoundary Layout**:
+  - Centered crash recovery UI across full window height (`min-h-screen`, `h-full`).
+
 ## [v2.7.1] - 2026-08-07
 
 ### Added

@@ -7,6 +7,7 @@ import { languageAtom, usePromiseModal } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
 import { TeamWorkspaceShell } from "@/entities/team";
 import type { Domain } from "@/shared/api";
+import { ErrorBoundary } from "@/shared/ui/error-boundary";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
@@ -80,60 +81,64 @@ function HubPanelWrapper({ panel, domain, features, panelIndex, panels, nav, hos
     return <DisabledPanel key={`${panel.id}-disabled`} panelId={panel.id} domain={domain} onClose={onClose} />;
   }
 
-  switch (panel.id) {
-    case "overview":
-      return (
-        <DomainOverviewPanel
-          key="overview"
-          domain={domain}
-          onClose={onClose}
-          onOpenPanel={(id, params) => nav.openPanel(id, params)}
-          activePanelIds={panels.map((p) => p.id)}
-        />
-      );
-    case "monitor":
-      return <DomainMonitorPanel key="monitor" domain={domain} onClose={onClose} />;
-    case "proxy":
-      return <DomainProxyPanel key="proxy" domain={domain} onClose={onClose} />;
-    case "api":
-      return (
-        <DomainApiPanel
-          key="api"
-          domain={domain}
-          onClose={onClose}
-          onOpenPanel={(id) => nav.openPanel(id)}
-          activeSection={panels.find((p) => p.id.startsWith("api/") && p.id !== "api/log")?.id}
-        />
-      );
-    case "api/logs":
-      return (
-        <DomainApiLogsPanel
-          key="api/logs"
-          domain={domain}
-          onClose={onClose}
-          onSelectLog={(logId) => nav.openPanel("api/log", { logId })}
-          selectedLogId={panels.find((p) => p.id === "api/log")?.params?.logId}
-        />
-      );
-    case "api/log":
-      return (
-        <DomainApiLogDetailPanel
-          key={`api/log-${panel.params?.logId}`}
-          logId={panel.params?.logId ?? ""}
-          domainId={domain.id}
-          hostFilter={hostFilter}
-          onClose={onClose}
-        />
-      );
-    case "api/mocking":
-      return <DomainApiMockingPanel key="api/mocking" domain={domain} onClose={onClose} />;
-    case "api/schema":
-      return <DomainApiSchemaPanel key="api/schema" domain={domain} onClose={onClose} />;
-    case "debug":
-      return <DomainDebugPanel key="debug" domain={domain} onClose={onClose} />;
-    default:
-      return null;
-  }
+  const renderPanelContent = () => {
+    switch (panel.id) {
+      case "overview":
+        return (
+          <DomainOverviewPanel
+            key="overview"
+            domain={domain}
+            onClose={onClose}
+            onOpenPanel={(id, params) => nav.openPanel(id, params)}
+            activePanelIds={panels.map((p) => p.id)}
+          />
+        );
+      case "monitor":
+        return <DomainMonitorPanel key="monitor" domain={domain} onClose={onClose} />;
+      case "proxy":
+        return <DomainProxyPanel key="proxy" domain={domain} onClose={onClose} />;
+      case "api":
+        return (
+          <DomainApiPanel
+            key="api"
+            domain={domain}
+            onClose={onClose}
+            onOpenPanel={(id) => nav.openPanel(id)}
+            activeSection={panels.find((p) => p.id.startsWith("api/") && p.id !== "api/log")?.id}
+          />
+        );
+      case "api/logs":
+        return (
+          <DomainApiLogsPanel
+            key="api/logs"
+            domain={domain}
+            onClose={onClose}
+            onSelectLog={(logId) => nav.openPanel("api/log", { logId })}
+            selectedLogId={panels.find((p) => p.id === "api/log")?.params?.logId}
+          />
+        );
+      case "api/log":
+        return (
+          <DomainApiLogDetailPanel
+            key={`api/log-${panel.params?.logId}`}
+            logId={panel.params?.logId ?? ""}
+            domainId={domain.id}
+            hostFilter={hostFilter}
+            onClose={onClose}
+          />
+        );
+      case "api/mocking":
+        return <DomainApiMockingPanel key="api/mocking" domain={domain} onClose={onClose} />;
+      case "api/schema":
+        return <DomainApiSchemaPanel key="api/schema" domain={domain} onClose={onClose} />;
+      case "debug":
+        return <DomainDebugPanel key="debug" domain={domain} onClose={onClose} />;
+      default:
+        return null;
+    }
+  };
+
+  return <ErrorBoundary fallbackTitle={`Panel error (${panel.id})`}>{renderPanelContent()}</ErrorBoundary>;
 }
 
 export function DomainHubPage() {

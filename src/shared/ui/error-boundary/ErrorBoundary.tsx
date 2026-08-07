@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const title = this.props.fallbackTitle ?? "Something went wrong";
 
     return (
-      <div className="flex h-full min-h-[240px] w-full flex-col items-center justify-center gap-4 bg-base-200 p-8 text-center">
+      <div className="flex flex-1 h-full min-h-screen w-full flex-col items-center justify-center gap-4 bg-base-200 p-8 text-center">
         <div className="max-w-md rounded-2xl border border-error/20 bg-base-100 p-8 shadow-sm">
           <h2 className="mb-2 text-xl font-bold text-base-content">{title}</h2>
           <p className="mb-4 text-sm text-base-content/60">

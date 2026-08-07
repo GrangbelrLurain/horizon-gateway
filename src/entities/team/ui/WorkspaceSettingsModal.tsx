@@ -26,7 +26,7 @@ export function WorkspaceSettingsModal({ ctrl, mode, onClose }: WorkspaceSetting
     }
     setEditName(activeWorkspace.name);
     setDeleteConfirmName("");
-  }, [mode, activeWorkspace?.id, activeWorkspace?.name]);
+  }, [mode, activeWorkspace]);
 
   if (!activeWorkspace || !mode) {
     return null;

@@ -22,7 +22,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
   const [catalogCounts, setCatalogCounts] = useState<Partial<Record<ResourceKind, SyncCatalogCounts>>>({});
   const [snapshot, setSnapshot] = useState<SyncSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [_refreshToken, setRefreshToken] = useState(0);
   const [managingRemote, setManagingRemote] = useState(false);
 
   const handleCountsChange = useCallback((kind: ResourceKind, counts: SyncCatalogCounts) => {
@@ -50,7 +50,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
 
   useEffect(() => {
     void reloadSnapshot();
-  }, [reloadSnapshot, refreshToken]);
+  }, [reloadSnapshot]);
 
   const handleSync = async (options: Parameters<typeof handleExecuteSync>[1]) => {
     const ok = await handleExecuteSync(syncAction, options, { stayOpen: true });

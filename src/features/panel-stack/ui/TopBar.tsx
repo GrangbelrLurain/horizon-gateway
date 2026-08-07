@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Gift, Lock, LogIn, Server, Settings, User, Users } from "lucide-react";
+import { Gift, Lock, LogIn, Palette, Search, Server, Settings, User, Users } from "lucide-react";
 import { useState } from "react";
 import {
   getInitials,
@@ -11,6 +11,7 @@ import {
   supabaseSessionAtom,
   WindowControls,
 } from "@/entities/app";
+import { commandPaletteOpenAtom } from "@/features/command-palette";
 import { UpdateToolbarBadge, updateChangelogModalOpenAtom } from "@/features/update";
 import { commands } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
@@ -46,6 +47,7 @@ export function TopBar({
 
   const session = useAtomValue(supabaseSessionAtom);
   const profile = useAtomValue(supabaseProfileAtom);
+  const setPaletteOpen = useSetAtom(commandPaletteOpenAtom);
   const teamLocked = !session;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -105,8 +107,23 @@ export function TopBar({
       <div
         data-tauri-drag-region
         onDoubleClick={() => appWindow.toggleMaximize()}
-        className="flex-1 h-full min-w-[48px] cursor-default"
-      />
+        className="flex-1 flex items-center justify-center h-full min-w-[48px] cursor-default px-4"
+      >
+        <button
+          type="button"
+          data-tauri-drag-region={false}
+          onClick={() => setPaletteOpen(true)}
+          className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all text-xs w-full max-w-sm"
+        >
+          <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span className="flex-1 text-left truncate text-[11px]">
+            {lang === "ko" ? "명령어 및 도메인 검색..." : "Type a command or search..."}
+          </span>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-slate-800 text-[10px] font-mono text-slate-400 border border-slate-700">
+            Ctrl+P
+          </kbd>
+        </button>
+      </div>
 
       <div className="flex items-center gap-0.5 px-2 shrink-0">
         <UpdateToolbarBadge />
@@ -156,14 +173,14 @@ export function TopBar({
                 className="fixed inset-0 z-40 cursor-default"
                 onClick={() => setSettingsMenuOpen(false)}
               />
-              <div className="absolute right-0 top-9 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <button
                   type="button"
                   onClick={() => {
                     onOpenInfrastructure();
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                 >
                   <Server className="w-3.5 h-3.5 text-primary" />
                   {t.infrastructure}
@@ -174,7 +191,7 @@ export function TopBar({
                     onOpenSettings();
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                 >
                   <Settings className="w-3.5 h-3.5 text-primary" />
                   {t.settings}
@@ -182,10 +199,21 @@ export function TopBar({
                 <button
                   type="button"
                   onClick={() => {
+                    onOpenGlobalTool("chrome/theme" as any);
+                    setSettingsMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Palette className="w-3.5 h-3.5 text-accent" />
+                  {lang === "ko" ? "테마 & 폰트 에디터" : "Theme & Font Editor"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     setChangelogOpen(true);
                     setSettingsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800/40"
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800/40 cursor-pointer"
                 >
                   <Gift className="w-3.5 h-3.5 text-primary" />
                   {lang === "ko" ? "업데이트 내역" : "Changelog"}

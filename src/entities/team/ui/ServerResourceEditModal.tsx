@@ -356,56 +356,53 @@ export function ServerResourceEditModal({
           </>
         )}
 
-        {kind === "domain_group_links" && (
-          <>
-            {!linkOptionsReady ? (
-              <p className="text-xs text-base-content/55 leading-relaxed">
-                {lang === "ko"
-                  ? "서버에 도메인과 그룹이 있어야 연결을 추가할 수 있습니다. 먼저 도메인·그룹을 Push하거나 서버에 추가하세요."
-                  : "Server needs domains and groups before links can be added. Push or create them first."}
-              </p>
-            ) : (
-              <>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40 pl-1">
-                    {lang === "ko" ? "도메인" : "Domain"}
-                  </span>
-                  <select
-                    className="select select-bordered select-sm font-mono"
-                    value={linkDomainId}
-                    onChange={(e) => setLinkDomainId(e.target.value)}
-                    disabled={busy}
-                  >
-                    <option value="">{lang === "ko" ? "선택…" : "Select…"}</option>
-                    {sortedDomains.map((d) => (
-                      <option key={String(d.id)} value={String(d.id)}>
-                        {formatDomainDisplayUrl(d.label)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40 pl-1">
-                    {lang === "ko" ? "그룹" : "Group"}
-                  </span>
-                  <select
-                    className="select select-bordered select-sm"
-                    value={linkGroupId}
-                    onChange={(e) => setLinkGroupId(e.target.value)}
-                    disabled={busy}
-                  >
-                    <option value="">{lang === "ko" ? "선택…" : "Select…"}</option>
-                    {sortedGroups.map((g) => (
-                      <option key={String(g.id)} value={String(g.id)}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-          </>
-        )}
+        {kind === "domain_group_links" &&
+          (!linkOptionsReady ? (
+            <p className="text-xs text-base-content/55 leading-relaxed">
+              {lang === "ko"
+                ? "서버에 도메인과 그룹이 있어야 연결을 추가할 수 있습니다. 먼저 도메인·그룹을 Push하거나 서버에 추가하세요."
+                : "Server needs domains and groups before links can be added. Push or create them first."}
+            </p>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40 pl-1">
+                  {lang === "ko" ? "도메인" : "Domain"}
+                </span>
+                <select
+                  className="select select-bordered select-sm font-mono"
+                  value={linkDomainId}
+                  onChange={(e) => setLinkDomainId(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">{lang === "ko" ? "선택…" : "Select…"}</option>
+                  {sortedDomains.map((d) => (
+                    <option key={String(d.id)} value={String(d.id)}>
+                      {formatDomainDisplayUrl(d.label)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40 pl-1">
+                  {lang === "ko" ? "그룹" : "Group"}
+                </span>
+                <select
+                  className="select select-bordered select-sm"
+                  value={linkGroupId}
+                  onChange={(e) => setLinkGroupId(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">{lang === "ko" ? "선택…" : "Select…"}</option>
+                  {sortedGroups.map((g) => (
+                    <option key={String(g.id)} value={String(g.id)}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ))}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>

@@ -145,11 +145,11 @@ export function SyncDiffListPane({
   useEffect(() => {
     setSearch("");
     setFilter("all");
-  }, [kind, action]);
+  }, []);
 
   useEffect(() => {
     setSelectedKeys(new Set(defaultSelectableKeys(action, items)));
-  }, [action]);
+  }, [action, items]);
 
   const actionItems = useMemo(() => visibleItemsForAction(action, items), [action, items]);
 

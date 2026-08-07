@@ -22,7 +22,7 @@ export function TransferOwnershipModal({ ctrl, target, onClose }: TransferOwners
 
   useEffect(() => {
     setConfirmName("");
-  }, [target?.profileId, activeWorkspace?.id]);
+  }, []);
 
   if (!activeWorkspace || !target) {
     return null;

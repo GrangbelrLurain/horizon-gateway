@@ -5,7 +5,7 @@ export * from "./status/store";
 export * from "./telemetry/client";
 export * from "./telemetry/store";
 export * from "./telemetry/TelemetryProvider";
-export * from "./theme/store";
+export * from "./theme";
 export * from "./ui/store";
 export * from "./ui/Titlebar";
 export * from "./ui/WindowControls";

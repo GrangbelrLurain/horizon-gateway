@@ -36,6 +36,9 @@ const ChromeInfrastructure = lazy(() =>
 const ChromeSettings = lazy(() =>
   import("../ui/surfaces/ChromeSettingsSurface").then((m) => ({ default: m.ChromeSettingsSurface })),
 );
+const ChromeTheme = lazy(() =>
+  import("../ui/surfaces/ChromeThemeSurface").then((m) => ({ default: m.ChromeThemeSurface })),
+);
 const ChromeGroups = lazy(() =>
   import("../ui/surfaces/ChromeGroupsSurface").then((m) => ({ default: m.ChromeGroupsSurface })),
 );
@@ -88,6 +91,15 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     detachHeight: 820,
     kind: "chrome",
     Component: ChromeSettings,
+  },
+  "chrome/theme": {
+    id: "chrome/theme",
+    titleKey: "settings",
+    route: "/popup/theme",
+    detachWidth: 720,
+    detachHeight: 820,
+    kind: "chrome",
+    Component: ChromeTheme,
   },
   "chrome/groups": {
     id: "chrome/groups",

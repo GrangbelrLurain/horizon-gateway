@@ -14,6 +14,7 @@ export type DomainPanelId = PanelId;
 export type HubSurfaceId =
   | "chrome/infrastructure"
   | "chrome/settings"
+  | "chrome/theme"
   | "chrome/groups"
   | "chrome/add-domain"
   | "chrome/profile"
@@ -33,6 +34,7 @@ export type HubSurfaceId =
 const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "chrome/infrastructure",
   "chrome/settings",
+  "chrome/theme",
   "chrome/groups",
   "chrome/add-domain",
   "chrome/profile",

@@ -2,14 +2,16 @@ import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { TelemetryProvider, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
+import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
 import { UpdateBanner, UpdateChangelogModal, UpdateToolbarBadge, useUpdateCheck } from "@/features/update";
 import { UserProfileSetup } from "@/features/user-profile";
+import { useShortcut } from "@/shared/lib/keyboard";
 import { useIsDetachedWindow, useIsPopupWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { useIsDetached } from "@/shared/lib/tauri/useIsDetached";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -138,6 +140,20 @@ const RootLayout = () => {
     </main>
   );
 
+  const setCommandPaletteOpen = useSetAtom(commandPaletteOpenAtom);
+
+  useShortcut({
+    id: "open-command-palette",
+    key: "p",
+    ctrl: true,
+    group: "palette",
+    description: { ko: "명령어 팔레트 열기", en: "Open Command Palette" },
+    handler: (e) => {
+      e.preventDefault();
+      setCommandPaletteOpen((prev) => !prev);
+    },
+  });
+
   const globalOverlays = (
     <>
       <CreateMockModal />
@@ -146,6 +162,7 @@ const RootLayout = () => {
       <UpdateChangelogModal />
       <ToastHost />
       <TelemetryProvider />
+      <CommandPalette />
     </>
   );
 
