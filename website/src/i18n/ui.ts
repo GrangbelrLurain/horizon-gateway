@@ -9,7 +9,7 @@ export const ui = {
   ko: {
     "nav.home": "Home",
     "nav.changelog": "변경 이력",
-    "hero.badge": "v2.7.2 릴리즈",
+    "hero.badge": "v2.7.3 릴리즈",
     "hero.title.pre": "당신의 로컬 개발 인프라를",
     "hero.title.post": "지키는 관측소, ",
     "hero.subtitle":
@@ -17,8 +17,8 @@ export const ui = {
     "hero.download.win": "Windows용 다운로드",
     "hero.download.mac": "macOS용 다운로드",
     "hero.download.all": "모든 설치 파일 보기",
-    "hero.download.sub.win": "Download .msi (v2.7.2)",
-    "hero.download.sub.mac": "Download .dmg (v2.7.2)",
+    "hero.download.sub.win": "Download .msi (v2.7.3)",
+    "hero.download.sub.mac": "Download .dmg (v2.7.3)",
     "hero.download.sub.all": "View All Installers",
     "features.title": "로컬 인프라 제어의 ",
     "features.title.accent": "핵심 기능",
@@ -68,7 +68,7 @@ export const ui = {
   en: {
     "nav.home": "Home",
     "nav.changelog": "Changelog",
-    "hero.badge": "v2.7.2 Release",
+    "hero.badge": "v2.7.3 Release",
     "hero.title.pre": "The local dev-infra",
     "hero.title.post": "control center, ",
     "hero.subtitle":
@@ -76,8 +76,8 @@ export const ui = {
     "hero.download.win": "Download for Windows",
     "hero.download.mac": "Download for macOS",
     "hero.download.all": "View All Releases",
-    "hero.download.sub.win": "Download .msi (v2.7.2)",
-    "hero.download.sub.mac": "Download .dmg (v2.7.2)",
+    "hero.download.sub.win": "Download .msi (v2.7.3)",
+    "hero.download.sub.mac": "Download .dmg (v2.7.3)",
     "hero.download.sub.all": "View All Installers",
     "features.title": "Core features of ",
     "features.title.accent": "Infra Control",

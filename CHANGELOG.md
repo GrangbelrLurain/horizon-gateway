@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.3] - 2026-08-07
+
+### Fixed
+
+- **TanStack Router Invariant Error Fix**:
+  - Removed strict route constraint (`from: "/"`) in `usePanelNavigation`'s `useSearch` and `useNavigate` to prevent runtime crash (`Invariant failed: Could not find an active match from '/'`) when mounting `CommandPalette` on sub-routes or popup windows.
+- **Theme & Null Safety Defense**:
+  - Added defensive null checks and fallback mappings in `activeCustomThemeAtom` and `applyThemeToDocument` to prevent render exceptions when `localStorage` theme state is invalid or partial.
+- **Enhanced ErrorBoundary Diagnostics**:
+  - Upgraded `ErrorBoundary` to display error stack traces, component stacks, and a `Reset local storage` recovery action.
+
 ## [v2.7.2] - 2026-08-07
 
 ### Added

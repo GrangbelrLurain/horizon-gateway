@@ -4,6 +4,17 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.3] - 2026-08-07
+
+### Fixed (버그 수정)
+
+- **TanStack Router 라우터 인버리언트 예외 수정**:
+  - `usePanelNavigation`의 `useSearch` 및 `useNavigate`에 적용된 엄격한 경로 제약(`from: "/"`)을 유연하게 전환하여, 하위 라우트나 팝업/독립 창 화면에서 `CommandPalette`가 마운트될 때 발생하던 런타임 크래시(`Invariant failed: Could not find an active match from '/'`)를 해결했습니다.
+- **테마 & 널 안전성 방어 로직 강화**:
+  - `activeCustomThemeAtom` 및 `applyThemeToDocument`에 방어적 널 체크 및 기본값 Fallback 매핑을 추가하여 `localStorage` 테마 데이터가 유효하지 않거나 손상되었을 때 발생할 수 있는 런타임 렌더링 예외를 방지했습니다.
+- **에러 바운더리 진단 기능 강화**:
+  - `ErrorBoundary`에서 에러 스택, 컴포넌트 스택 추적 및 저장소 초기화(`Reset local storage`) 기능을 제공하도록 개선했습니다.
+
 ## [v2.7.2] - 2026-08-07
 
 ### Added (추가 기능)
