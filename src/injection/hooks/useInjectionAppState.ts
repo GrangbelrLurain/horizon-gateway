@@ -29,41 +29,34 @@ export function useInjectionAppState() {
     setIsGuideModalOpen(false);
   };
 
+  // Mount-only bootstrap. Do NOT depend on hook return objects — they are new
+  // references every render and would retrigger fetches → setState → infinite loop.
   useEffect(() => {
     gateway.fetchStatus();
     proxy.fetchProxyRoutes();
     mock.fetchMockRules();
     traffic.fetchLoggingDomains();
-  }, [
-    gateway.fetchStatus,
-    proxy.fetchProxyRoutes,
-    mock.fetchMockRules,
-    traffic.fetchLoggingDomains,
-    proxy,
-    traffic,
-    gateway,
-    mock,
-  ]);
+  }, [gateway.fetchStatus, proxy.fetchProxyRoutes, mock.fetchMockRules, traffic.fetchLoggingDomains]);
 
   useEffect(() => {
     if (isPrxPopoverOpen) {
       proxy.fetchProxyRoutes();
       gateway.fetchStatus();
     }
-  }, [isPrxPopoverOpen, proxy.fetchProxyRoutes, gateway.fetchStatus, gateway, proxy]);
+  }, [isPrxPopoverOpen, proxy.fetchProxyRoutes, gateway.fetchStatus]);
 
   useEffect(() => {
     if (isMockListOpen) {
       mock.fetchMockRules();
       gateway.fetchStatus();
     }
-  }, [isMockListOpen, mock.fetchMockRules, gateway.fetchStatus, gateway, mock]);
+  }, [isMockListOpen, mock.fetchMockRules, gateway.fetchStatus]);
 
   useEffect(() => {
     if (isLogPopoverOpen) {
       traffic.fetchLoggingDomains();
     }
-  }, [isLogPopoverOpen, traffic.fetchLoggingDomains, traffic]);
+  }, [isLogPopoverOpen, traffic.fetchLoggingDomains]);
 
   useEffect(() => {
     const existing = (window as unknown as { __wt_mocked_requests?: MockedApiEntry[] }).__wt_mocked_requests;
@@ -92,7 +85,7 @@ export function useInjectionAppState() {
     };
     window.addEventListener("wt:mocked-request", handleMockedEvent);
     return () => window.removeEventListener("wt:mocked-request", handleMockedEvent);
-  }, [mock.setMockedRequests, mock]);
+  }, [mock.setMockedRequests]);
 
   return {
     ...gateway,

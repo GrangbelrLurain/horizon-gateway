@@ -4,6 +4,12 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.4] - 2026-08-07
+
+### Fixed (버그 수정)
+
+- **인젝션 API 요청 폭주**: `useInjectionAppState` effect가 매 렌더마다 바뀌는 훅 반환 객체에 의존해 `status` / `proxy-routes` / `mock-rules` / `logging-domains`가 초당 수백 건씩 호출되던 무한 루프를 수정했습니다. 안정적인 fetch 콜백만 의존하도록 변경했습니다.
+
 ## [v2.7.3] - 2026-08-07
 
 ### Fixed (버그 수정)

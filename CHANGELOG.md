@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.4] - 2026-08-07
+
+### Fixed
+
+- **Injection API fetch storm**: `useInjectionAppState` effects depended on whole hook return objects that change every render, causing an infinite loop of `status` / `proxy-routes` / `mock-rules` / `logging-domains` requests (hundreds per second). Dependencies now use only stable fetch callbacks.
+
 ## [v2.7.3] - 2026-08-07
 
 ### Fixed
