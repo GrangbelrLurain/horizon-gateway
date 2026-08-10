@@ -370,6 +370,7 @@ pub fn run() {
             let ca_service_for_proxy = Arc::clone(&ca_service);
             let mocking_service_for_proxy = Arc::clone(&mocking_service);
             let inspector_svc_for_proxy = inspector_service.clone();
+            let inspector_svc_for_watch = inspector_service.clone();
             let domain_service_for_proxy = Arc::new(domain_service.clone());
 
             app.manage(ca_service);
@@ -388,6 +389,20 @@ pub fn run() {
             app.manage(pipeline_library_service);
             app.manage(json_schema_registry_service);
             app.manage(crypto_preset_service);
+
+            // CLI/other-process writes to inspector_annotations.json → reload + notify GUI
+            if !is_cli_mode {
+                let watch_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        if inspector_svc_for_watch.reload_if_stale() {
+                            tracing::info!("annotations file changed on disk; reloaded");
+                            let _ = watch_handle.emit("annotations-updated", ());
+                        }
+                    }
+                });
+            }
             // Deep Link Listener
             use tauri_plugin_deep_link::DeepLinkExt;
             let handle = app.handle().clone();

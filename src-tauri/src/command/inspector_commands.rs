@@ -37,7 +37,7 @@ pub struct DeleteAnnotationPayload {
 pub const ADD_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_annotation",
     description: "UX 인스펙터 정책(주석)을 추가합니다.",
-    payload_example: r#"{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "Submit button", "timestamp": 0, "domain": "", "url": ""}"#,
+    payload_example: r#"{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "Submit button", "timestamp": 0, "domain": "", "url": "", "locators": [{"strategy": "css", "value": ".btn"}]}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -66,12 +66,27 @@ pub struct UpdateAnnotationPayload {
     pub id: String,
     pub role: String,
     pub description: String,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default, rename = "hostPattern")]
+    pub host_pattern: Option<String>,
+    #[serde(default, rename = "pathPattern")]
+    pub path_pattern: Option<String>,
+    #[serde(default)]
+    pub locators: Option<Vec<crate::model::inspector::AnnotationLocator>>,
+    #[serde(default, rename = "lastValidation")]
+    pub last_validation: Option<crate::model::inspector::LocatorValidation>,
+    /// When true, clears persisted lastValidation.
+    #[serde(default, rename = "clearValidation")]
+    pub clear_validation: Option<bool>,
 }
 
 pub const UPDATE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_annotation",
     description: "UX 인스펙터 정책(주석)을 수정합니다.",
-    payload_example: r#"{"id": "uuid", "role": "button", "description": "Updated description"}"#,
+    payload_example: r#"{"id": "uuid", "role": "button", "description": "Updated description", "domain": "modetour.dev", "hostPattern": "*.modetour.dev", "pathPattern": "/products/*"}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -86,7 +101,18 @@ pub fn update_annotation(
 }
 
 pub fn update_annotation_svc(service: &InspectorService, payload: UpdateAnnotationPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
-    service.update_annotation(payload.id, payload.role, payload.description);
+    service.update_annotation(
+        payload.id,
+        payload.role,
+        payload.description,
+        payload.domain,
+        payload.url,
+        payload.host_pattern,
+        payload.path_pattern,
+        payload.locators,
+        payload.last_validation,
+        payload.clear_validation.unwrap_or(false),
+    );
     let list = service.get_all();
     Ok(ApiResponse {
         message: "정책이 수정되었습니다.".to_string(),

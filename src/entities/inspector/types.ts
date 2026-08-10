@@ -1,4 +1,10 @@
-export type { Annotation } from "@/shared/api";
+export type {
+  Annotation,
+  AnnotationLocator,
+  LocatorStrategy,
+  LocatorValidation,
+  LocatorValidationStatus,
+} from "@/shared/api";
 
 /** FE-only: captured element before saving as annotation */
 export interface CapturedElement {

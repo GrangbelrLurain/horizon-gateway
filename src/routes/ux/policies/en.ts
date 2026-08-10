@@ -31,4 +31,10 @@ export const en = {
   viewPreview: "Report Preview",
   editPolicy: "Edit Guide Info",
   urlLabel: "Linked URL",
+  domainLabel: "Group Domain",
+  hostPatternLabel: "Host Pattern",
+  pathPatternLabel: "Path Pattern",
+  hostPatternPlaceholder: "e.g. *.modetour.dev, localhost (* = wildcard)",
+  pathPatternPlaceholder: "e.g. /products/*, /checkout (** = recursive)",
+  patternHelp: "Use wildcards (*) to dynamically match guides across multiple hosts and path patterns.",
 };

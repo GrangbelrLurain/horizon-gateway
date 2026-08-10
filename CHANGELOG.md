@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.5] - 2026-08-10
+
+### Added
+
+- **Annotation multi-strategy locators**: Guides store ordered locators (`testid` / `role` / `label` / `text` / `css`) instead of a single CSS selector; inspect capture builds a priority list, and legacy annotations migrate on load.
+- **Locator validation & promote**: In-page badges show `ok` / `weak` / `broken` / `ambiguous`; weak guides with exactly one working fallback can promote that locator to primary (no silent rewrite).
+- **CLI ↔ GUI annotation sync**: Running app watches `inspector_annotations.json` and emits `annotations-updated` when headless CLI writes; injection badges poll so agent edits appear without restart.
+- **CLI guide docs**: Horizon Gateway skill documents annotation CRUD, query syntax, validation repair rules, and `url` → `pathPattern` helper behavior.
+
+### Changed
+
+- **Policies & injection UX**: Markdown guide rendering, edit/new policy modals, host/path pattern helpers, and clearer badge/toolbar copy for locator workflows.
+
+### Fixed
+
+- **`update_annotation` partial updates**: Omitting `hostPattern` / `pathPattern` no longer clears them; passing `url` alone derives `pathPattern` from the URL path.
+
 ## [v2.7.4] - 2026-08-07
 
 ### Fixed

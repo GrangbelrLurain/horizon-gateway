@@ -31,4 +31,10 @@ export const ko = {
   viewPreview: "리포트 미리보기",
   editPolicy: "가이드 정보 수정",
   urlLabel: "연결된 URL",
+  domainLabel: "그룹 도메인 (Domain)",
+  hostPatternLabel: "호스트 매칭 패턴 (Host Pattern)",
+  pathPatternLabel: "경로 매칭 패턴 (Path Pattern)",
+  hostPatternPlaceholder: "예: *.modetour.dev, localhost (* = 와일드카드)",
+  pathPatternPlaceholder: "예: /products/*, /checkout (** = 전체 하위 경로)",
+  patternHelp: "와일드카드(*)를 사용하여 여러 도메인 및 경로에 동일한 가이드를 동적으로 적용할 수 있습니다.",
 };

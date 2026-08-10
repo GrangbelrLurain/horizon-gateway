@@ -1,3 +1,5 @@
+import { Copy, Edit3, Eye, FileText, Pin, Search, Target, Trash2, X } from "lucide-react";
+import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 
 type State = Pick<
@@ -8,6 +10,10 @@ type State = Pick<
   | "setIsInspectMode"
   | "showPolicyBadges"
   | "setShowPolicyBadges"
+  | "setEditingAnnotation"
+  | "copyDescription"
+  | "copySelector"
+  | "copySummary"
   | "deleteAnnotation"
   | "closeAllPopovers"
 >;
@@ -21,8 +27,7 @@ export function GuideModal({ s }: { s: State }) {
         bottom: `${s.dragOffset.y + 48}px`,
         width: "360px",
         maxHeight: "65vh",
-        backgroundColor: "rgba(15, 23, 42, 0.95)",
-        backdropFilter: "blur(16px)",
+        backgroundColor: "rgba(15, 23, 42, 0.98)",
         borderRadius: "16px",
         border: "1px solid rgba(236, 72, 153, 0.4)",
         boxShadow: "0 20px 50px -10px rgba(0,0,0,0.7), 0 0 20px rgba(236, 72, 153, 0.15)",
@@ -46,7 +51,7 @@ export function GuideModal({ s }: { s: State }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ color: "#ec4899", fontSize: "14px" }}>📌</span>
+          <Pin style={{ width: "15px", height: "15px", color: "#ec4899" }} />
           <span style={{ fontWeight: "700", fontSize: "13px", color: "#ec4899" }}>
             가이드 관리 ({s.currentPagePolicies.length})
           </span>
@@ -67,12 +72,14 @@ export function GuideModal({ s }: { s: State }) {
             border: "none",
             color: "rgba(255,255,255,0.6)",
             cursor: "pointer",
-            fontSize: "14px",
-            padding: "2px 6px",
+            padding: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
           title="닫기"
         >
-          ✕
+          <X style={{ width: "16px", height: "16px" }} />
         </button>
       </div>
 
@@ -107,7 +114,10 @@ export function GuideModal({ s }: { s: State }) {
             gap: "6px",
           }}
         >
-          🔍 {s.isInspectMode ? "선택 중..." : "요소 선택 (인스펙터)"}
+          <Search
+            style={{ width: "13px", height: "13px", color: s.isInspectMode ? "#60a5fa" : "rgba(255,255,255,0.7)" }}
+          />
+          <span>{s.isInspectMode ? "선택 중..." : "요소 선택 (인스펙터)"}</span>
         </button>
         <button
           type="button"
@@ -126,7 +136,10 @@ export function GuideModal({ s }: { s: State }) {
             gap: "6px",
           }}
         >
-          👁️ 배지 {s.showPolicyBadges ? "ON" : "OFF"}
+          <Eye
+            style={{ width: "13px", height: "13px", color: s.showPolicyBadges ? "#f472b6" : "rgba(255,255,255,0.7)" }}
+          />
+          <span>배지 {s.showPolicyBadges ? "ON" : "OFF"}</span>
         </button>
       </div>
 
@@ -135,62 +148,195 @@ export function GuideModal({ s }: { s: State }) {
           현재 페이지에 등록된 가이드가 없습니다.
           <br />
           <span style={{ fontSize: "11px", opacity: 0.8, marginTop: "6px", display: "block" }}>
-            '🔍 요소 선택' 버튼을 눌러 화면 요소를 지정하세요.
+            '요소 선택' 버튼을 눌러 화면 요소를 지정하세요.
           </span>
         </div>
       ) : (
-        <div style={{ overflowY: "auto", padding: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div
+          style={{
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: "10px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
           {s.currentPagePolicies.map((ann, idx) => (
             <div
               key={ann.id}
               style={{
-                backgroundColor: "rgba(255,255,255,0.05)",
-                borderRadius: "8px",
-                padding: "8px 10px",
+                background: "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.7) 100%)",
+                borderRadius: "12px",
+                padding: "10px 12px",
                 fontSize: "11px",
-                border: "1px solid rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
                 display: "flex",
                 flexDirection: "column",
-                gap: "4px",
+                gap: "6px",
+                maxWidth: "100%",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span
                     style={{
-                      backgroundColor: "#ec4899",
-                      color: "white",
+                      backgroundColor: "rgba(236, 72, 153, 0.2)",
+                      color: "#ec4899",
                       fontSize: "9px",
                       fontWeight: "900",
-                      padding: "1px 5px",
-                      borderRadius: "4px",
+                      padding: "2px 6px",
+                      borderRadius: "6px",
+                      border: "1px solid rgba(236, 72, 153, 0.3)",
                     }}
                   >
                     #{idx + 1}
                   </span>
-                  <span style={{ fontWeight: "700", color: "#f3f4f6" }}>{ann.role}</span>
+                  <span style={{ fontWeight: "700", color: "#f8fafc", fontSize: "12px" }}>{ann.role}</span>
                 </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => s.setEditingAnnotation(ann)}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.06)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "4px",
+                      color: "#f472b6",
+                      cursor: "pointer",
+                      padding: "3px 6px",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "3px",
+                    }}
+                    title="수정"
+                  >
+                    <Edit3 style={{ width: "11px", height: "11px" }} />
+                    <span>수정</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => s.deleteAnnotation(ann.id, e)}
+                    style={{
+                      background: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.2)",
+                      borderRadius: "4px",
+                      color: "#f87171",
+                      cursor: "pointer",
+                      padding: "3px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    title="삭제"
+                  >
+                    <Trash2 style={{ width: "11px", height: "11px" }} />
+                  </button>
+                </div>
+              </div>
+
+              {ann.description && (
+                <MarkdownRenderer
+                  content={ann.description}
+                  style={{ fontSize: "11px", color: "rgba(241, 245, 249, 0.88)" }}
+                  codeStyle={{
+                    backgroundColor: "rgba(99, 102, 241, 0.15)",
+                    color: "#a5b4fc",
+                    border: "1px solid rgba(165, 180, 252, 0.25)",
+                  }}
+                />
+              )}
+
+              <div
+                style={{
+                  fontSize: "9.5px",
+                  fontFamily: "monospace",
+                  color: "rgba(148, 163, 184, 0.6)",
+                  wordBreak: "break-all",
+                }}
+              >
+                {ann.selector}
+              </div>
+
+              {/* Action Toolbar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  paddingTop: "6px",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                }}
+              >
                 <button
                   type="button"
-                  onClick={() => s.deleteAnnotation(ann.id)}
+                  onClick={(e) => s.copyDescription(ann, e)}
                   style={{
-                    background: "none",
-                    border: "none",
-                    color: "#ef4444",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    color: "rgba(255, 255, 255, 0.75)",
                     cursor: "pointer",
-                    fontSize: "12px",
-                    padding: "2px",
+                    padding: "3px 6px",
+                    fontSize: "9.5px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "3px",
                   }}
-                  title="삭제"
+                  title="설명 복사"
                 >
-                  🗑️
+                  <Copy style={{ width: "10px", height: "10px", color: "#60a5fa" }} />
+                  <span>설명 복사</span>
                 </button>
-              </div>
-              {ann.description && (
-                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>{ann.description}</div>
-              )}
-              <div style={{ fontSize: "9px", fontFamily: "monospace", color: "rgba(255,255,255,0.4)" }}>
-                {ann.selector}
+                <button
+                  type="button"
+                  onClick={(e) => s.copySelector(ann, e)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    cursor: "pointer",
+                    padding: "3px 6px",
+                    fontSize: "9.5px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "3px",
+                  }}
+                  title="Selector 복사"
+                >
+                  <Target style={{ width: "10px", height: "10px", color: "#34d399" }} />
+                  <span>Selector</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => s.copySummary(ann, e)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "4px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    cursor: "pointer",
+                    padding: "3px 6px",
+                    fontSize: "9.5px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "3px",
+                  }}
+                  title="요약 복사"
+                >
+                  <FileText style={{ width: "10px", height: "10px", color: "#fbbf24" }} />
+                  <span>요약 복사</span>
+                </button>
               </div>
             </div>
           ))}

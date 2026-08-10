@@ -77,11 +77,11 @@ export const commands = {
 	openExternalUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_external_url", { url })),
 	openInspectorWindow: (url: string, script: string | null) => typedError<null, string>(__TAURI_INVOKE("open_inspector_window", { url, script })),
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
-	getAnnotations: () => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("get_annotations")),
-	addAnnotation: (payload: Annotation) => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),
-	updateAnnotation: (payload: UpdateAnnotationPayload) => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("update_annotation", { payload })),
-	deleteAnnotation: (payload: DeleteAnnotationPayload) => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("delete_annotation", { payload })),
-	importAnnotations: (payload: ImportAnnotationsPayload) => typedError<ApiResponse<Annotation[]>, string>(__TAURI_INVOKE("import_annotations", { payload })),
+	getAnnotations: () => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("get_annotations")),
+	addAnnotation: (payload: Annotation_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),
+	updateAnnotation: (payload: UpdateAnnotationPayload_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("update_annotation", { payload })),
+	deleteAnnotation: (payload: DeleteAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("delete_annotation", { payload })),
+	importAnnotations: (payload: ImportAnnotationsPayload_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("import_annotations", { payload })),
 	setGlobalInspectorEnabled: (payload: boolean) => typedError<null, string>(__TAURI_INVOKE("set_global_inspector_enabled", { payload })),
 	getGlobalInspectorEnabled: () => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("get_global_inspector_enabled")),
 	getInjectionDomains: () => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("get_injection_domains")),
@@ -142,7 +142,25 @@ export type AddLocalRoutePayload = {
 	targetPort: number,
 };
 
-export type Annotation = {
+export type Annotation = Annotation_Serialize | Annotation_Deserialize;
+
+export type AnnotationLocator = AnnotationLocator_Serialize | AnnotationLocator_Deserialize;
+
+export type AnnotationLocator_Deserialize = {
+	strategy: LocatorStrategy,
+	value?: string | null,
+	role?: string | null,
+	name?: string | null,
+};
+
+export type AnnotationLocator_Serialize = {
+	strategy: LocatorStrategy,
+	value?: string | null,
+	role?: string | null,
+	name?: string | null,
+};
+
+export type Annotation_Deserialize = {
 	id: string,
 	selector: string,
 	content: string,
@@ -153,6 +171,29 @@ export type Annotation = {
 	timestamp: number | null,
 	domain?: string,
 	url?: string,
+	hostPattern?: string | null,
+	pathPattern?: string | null,
+	/**  Priority-ordered locators. Index 0 is primary. */
+	locators?: AnnotationLocator_Deserialize[],
+	lastValidation?: LocatorValidation_Deserialize | null,
+};
+
+export type Annotation_Serialize = {
+	id: string,
+	selector: string,
+	content: string,
+	tagName: string,
+	thumbnail: string,
+	role: string,
+	description: string,
+	timestamp: number | null,
+	domain: string,
+	url: string,
+	hostPattern: string | null,
+	pathPattern: string | null,
+	/**  Priority-ordered locators. Index 0 is primary. */
+	locators: AnnotationLocator_Serialize[],
+	lastValidation?: LocatorValidation_Serialize | null,
 };
 
 export type ApiLogEntry = {
@@ -430,8 +471,14 @@ export type GetSavedPipelinePayload = {
 	id: string,
 };
 
-export type ImportAnnotationsPayload = {
-	annotations: Annotation[],
+export type ImportAnnotationsPayload = ImportAnnotationsPayload_Serialize | ImportAnnotationsPayload_Deserialize;
+
+export type ImportAnnotationsPayload_Deserialize = {
+	annotations: Annotation_Deserialize[],
+};
+
+export type ImportAnnotationsPayload_Serialize = {
+	annotations: Annotation_Serialize[],
 };
 
 export type ImportCryptoPresetsPayload = ImportCryptoPresetsPayload_Serialize | ImportCryptoPresetsPayload_Deserialize;
@@ -479,6 +526,30 @@ export type LocalRoute = {
 	/**  Local target port */
 	target_port: number,
 	enabled: boolean,
+};
+
+export type LocatorStrategy = "testid" | "role" | "text" | "css" | "label";
+
+export type LocatorValidation = LocatorValidation_Serialize | LocatorValidation_Deserialize;
+
+export type LocatorValidationStatus = "ok" | "weak" | "broken" | "ambiguous";
+
+export type LocatorValidation_Deserialize = {
+	status: LocatorValidationStatus,
+	checkedAt: number | null,
+	primaryMatches: number,
+	fallbackMatches?: number[],
+	resolvedBy?: number | null,
+	suggestPromoteTo?: number | null,
+};
+
+export type LocatorValidation_Serialize = {
+	status: LocatorValidationStatus,
+	checkedAt: number | null,
+	primaryMatches: number,
+	fallbackMatches: number[],
+	resolvedBy?: number | null,
+	suggestPromoteTo?: number | null,
 };
 
 export type MockRule = {
@@ -852,10 +923,34 @@ export type StartLocalProxyPayload = {
 	port: number | null,
 };
 
-export type UpdateAnnotationPayload = {
+export type UpdateAnnotationPayload = UpdateAnnotationPayload_Serialize | UpdateAnnotationPayload_Deserialize;
+
+export type UpdateAnnotationPayload_Deserialize = {
 	id: string,
 	role: string,
 	description: string,
+	domain: string | null,
+	url: string | null,
+	hostPattern?: string | null,
+	pathPattern?: string | null,
+	locators?: AnnotationLocator_Deserialize[] | null,
+	lastValidation?: LocatorValidation_Deserialize | null,
+	/**  When true, clears persisted lastValidation. */
+	clearValidation?: boolean | null,
+};
+
+export type UpdateAnnotationPayload_Serialize = {
+	id: string,
+	role: string,
+	description: string,
+	domain: string | null,
+	url: string | null,
+	hostPattern: string | null,
+	pathPattern: string | null,
+	locators: AnnotationLocator_Serialize[] | null,
+	lastValidation: LocatorValidation_Serialize | null,
+	/**  When true, clears persisted lastValidation. */
+	clearValidation: boolean | null,
 };
 
 export type UpdateCryptoPresetPayload = {

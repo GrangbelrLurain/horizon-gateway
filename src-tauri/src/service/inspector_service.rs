@@ -1,7 +1,9 @@
-use crate::model::inspector::{Annotation, InspectorSettings};
+use crate::model::inspector::{Annotation, AnnotationLocator, InspectorSettings, LocatorValidation};
 use crate::storage::versioned::{load_versioned, save_versioned};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct InspectorService {
@@ -11,25 +13,91 @@ pub struct InspectorService {
     pub domains_storage_path: PathBuf,
     pub settings: Arc<Mutex<InspectorSettings>>,
     pub settings_storage_path: PathBuf,
+    /// Last known mtime of annotations file (CLI/other-process writes sync).
+    last_seen_mtime: Arc<Mutex<Option<SystemTime>>>,
 }
 
 impl InspectorService {
     pub fn new(storage_path: PathBuf, domains_storage_path: PathBuf, settings_storage_path: PathBuf) -> Self {
-        let initial_annotations = load_versioned(&storage_path);
-        let initial_domains = load_versioned(&domains_storage_path);
-        let initial_settings = load_versioned(&settings_storage_path);
-        Self {
+        let mut initial_annotations: Vec<Annotation> = load_versioned(&storage_path);
+        let mut migrated = false;
+        for ann in &mut initial_annotations {
+            if ann.locators.is_empty() {
+                ann.migrate_locators();
+                if !ann.locators.is_empty() {
+                    migrated = true;
+                }
+            }
+        }
+        let mtime = Self::read_mtime(&storage_path);
+        let svc = Self {
             annotations: Arc::new(Mutex::new(initial_annotations)),
             storage_path,
-            injection_domains: Arc::new(Mutex::new(initial_domains)),
+            injection_domains: Arc::new(Mutex::new(load_versioned(&domains_storage_path))),
             domains_storage_path,
-            settings: Arc::new(Mutex::new(initial_settings)),
+            settings: Arc::new(Mutex::new(load_versioned(&settings_storage_path))),
             settings_storage_path,
+            last_seen_mtime: Arc::new(Mutex::new(mtime)),
+        };
+        if migrated {
+            let list = svc.annotations.lock().unwrap().clone();
+            svc.persist(&list);
+        }
+        svc
+    }
+
+    fn read_mtime(path: &PathBuf) -> Option<SystemTime> {
+        fs::metadata(path).and_then(|m| m.modified()).ok()
+    }
+
+    fn touch_seen_mtime(&self) {
+        *self.last_seen_mtime.lock().unwrap() = Self::read_mtime(&self.storage_path);
+    }
+
+    /// Reload annotations from disk when another process (e.g. headless CLI) wrote the file.
+    /// Returns true if in-memory state was replaced.
+    pub fn reload_if_stale(&self) -> bool {
+        let mtime = Self::read_mtime(&self.storage_path);
+        let mut last = self.last_seen_mtime.lock().unwrap();
+        if mtime == *last {
+            return false;
+        }
+        let mut list: Vec<Annotation> = load_versioned(&self.storage_path);
+        for ann in &mut list {
+            if ann.locators.is_empty() {
+                ann.migrate_locators();
+            }
+        }
+        *self.annotations.lock().unwrap() = list;
+        *last = mtime;
+        true
+    }
+
+    /// Pathname from a full URL (query/hash stripped). Used when CLI passes `url` only.
+    pub fn extract_path_from_url(url: &str) -> Option<String> {
+        let s = url.trim();
+        if s.is_empty() {
+            return None;
+        }
+        let after_scheme = if let Some(idx) = s.find("://") {
+            &s[idx + 3..]
+        } else {
+            s
+        };
+        let path_start = after_scheme.find('/')?;
+        let path = &after_scheme[path_start..];
+        let path = path.split('?').next().unwrap_or(path);
+        let path = path.split('#').next().unwrap_or(path);
+        if path.is_empty() {
+            Some("/".to_string())
+        } else {
+            Some(path.to_string())
         }
     }
 
     fn persist(&self, list: &Vec<Annotation>) {
         save_versioned(&self.storage_path, list);
+        self.touch_seen_mtime();
     }
 
     fn persist_domains(&self, list: &Vec<String>) {
@@ -47,41 +115,132 @@ impl InspectorService {
     }
 
     pub fn get_all(&self) -> Vec<Annotation> {
-        self.annotations.lock().unwrap().clone()
+        let _ = self.reload_if_stale();
+        let mut list = self.annotations.lock().unwrap().clone();
+        let mut changed = false;
+        for ann in &mut list {
+            if ann.locators.is_empty() {
+                ann.migrate_locators();
+                changed = true;
+            }
+        }
+        if changed {
+            *self.annotations.lock().unwrap() = list.clone();
+            self.persist(&list);
+        }
+        list
     }
 
-    pub fn add_annotation(&self, annotation: Annotation) {
+    pub fn add_annotation(&self, mut annotation: Annotation) {
+        let _ = self.reload_if_stale();
+        if annotation
+            .path_pattern
+            .as_ref()
+            .map(|p| p.trim().is_empty())
+            .unwrap_or(true)
+        {
+            if let Some(path) = Self::extract_path_from_url(&annotation.url) {
+                annotation.path_pattern = Some(path);
+            }
+        }
+        annotation.migrate_locators();
+        annotation.sync_selector_from_locators();
         let mut list = self.annotations.lock().unwrap();
+        list.retain(|a| a.id != annotation.id);
         list.push(annotation);
         self.persist(&list);
     }
 
     pub fn import_annotations(&self, annotations: Vec<Annotation>) {
+        let _ = self.reload_if_stale();
         let mut list = self.annotations.lock().unwrap();
-        for ann in annotations {
-            // 기존에 같은 ID가 있으면 제거 (덮어쓰기 효과)
+        for mut ann in annotations {
+            if ann
+                .path_pattern
+                .as_ref()
+                .map(|p| p.trim().is_empty())
+                .unwrap_or(true)
+            {
+                if let Some(path) = Self::extract_path_from_url(&ann.url) {
+                    ann.path_pattern = Some(path);
+                }
+            }
+            ann.migrate_locators();
+            ann.sync_selector_from_locators();
             list.retain(|a| a.id != ann.id);
             list.push(ann);
         }
         self.persist(&list);
     }
 
-    pub fn update_annotation(&self, id: String, role: String, description: String) {
+    pub fn update_annotation(
+        &self,
+        id: String,
+        role: String,
+        description: String,
+        domain: Option<String>,
+        url: Option<String>,
+        host_pattern: Option<String>,
+        path_pattern: Option<String>,
+        locators: Option<Vec<AnnotationLocator>>,
+        last_validation: Option<LocatorValidation>,
+        clear_validation: bool,
+    ) {
+        let _ = self.reload_if_stale();
         let mut list = self.annotations.lock().unwrap();
         if let Some(ann) = list.iter_mut().find(|a| a.id == id) {
             ann.role = role;
             ann.description = description;
+            if let Some(d) = domain {
+                ann.domain = d;
+            }
+            if let Some(ref u) = url {
+                ann.url = u.clone();
+            }
+            // Omit = leave unchanged; Some("") = clear; Some(value) = set.
+            if let Some(hp) = host_pattern {
+                ann.host_pattern = if hp.trim().is_empty() {
+                    None
+                } else {
+                    Some(hp)
+                };
+            }
+            match (&url, path_pattern) {
+                (_, Some(pp)) => {
+                    ann.path_pattern = if pp.trim().is_empty() {
+                        None
+                    } else {
+                        Some(pp)
+                    };
+                }
+                (Some(u), None) => {
+                    if let Some(derived) = Self::extract_path_from_url(u) {
+                        ann.path_pattern = Some(derived);
+                    }
+                }
+                (None, None) => {}
+            }
+            if let Some(locs) = locators {
+                ann.locators = locs;
+                ann.sync_selector_from_locators();
+            } else if ann.locators.is_empty() {
+                ann.migrate_locators();
+            }
+            if clear_validation {
+                ann.last_validation = None;
+            } else if let Some(v) = last_validation {
+                ann.last_validation = Some(v);
+            }
         }
         self.persist(&list);
     }
 
     pub fn delete_annotation(&self, id: String) {
+        let _ = self.reload_if_stale();
         let mut list = self.annotations.lock().unwrap();
         list.retain(|a| a.id != id);
         self.persist(&list);
     }
-
-    // ── Injection Domains ──────────────────────────────────────────────────
 
     pub fn get_injection_domains(&self) -> Vec<String> {
         self.injection_domains.lock().unwrap().clone()
@@ -93,7 +252,6 @@ impl InspectorService {
         self.persist_domains(&list);
     }
 
-    /// Extracted host string from URL or host representation.
     pub fn extract_host_key(url: &str) -> String {
         let s = url.trim();
         let without_scheme = if let Some(idx) = s.find("://") {
@@ -105,8 +263,6 @@ impl InspectorService {
         host_part.split(':').next().unwrap_or(host_part).to_lowercase()
     }
 
-    /// Automatically sync registered domains to ensure newly added or migrated existing domains
-    /// have injection ON by default if they are not explicitly stored.
     pub fn sync_registered_domains(&self, registered_domains: &[crate::model::domain::Domain]) {
         let mut list = self.injection_domains.lock().unwrap();
         let mut changed = false;
@@ -120,5 +276,27 @@ impl InspectorService {
         if changed {
             self.persist_domains(&list);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_path_from_url_strips_query_and_hash() {
+        assert_eq!(
+            InspectorService::extract_path_from_url("https://modetour.dev/checkout?x=1#top"),
+            Some("/checkout".to_string())
+        );
+        assert_eq!(
+            InspectorService::extract_path_from_url("https://modetour.dev/products/123"),
+            Some("/products/123".to_string())
+        );
+        assert_eq!(InspectorService::extract_path_from_url("https://modetour.dev"), None);
+        assert_eq!(
+            InspectorService::extract_path_from_url("https://modetour.dev/"),
+            Some("/".to_string())
+        );
     }
 }

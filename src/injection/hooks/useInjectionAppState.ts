@@ -14,8 +14,16 @@ export function useInjectionAppState() {
   const mock = useMockRules();
   const traffic = useTrafficLogs();
   const annotations = useAnnotations();
-  const inspect = useInspectMode(annotations.fetchAnnotations);
+  const inspect = useInspectMode(annotations.fetchAnnotations, annotations.allAnnotations);
   const dock = useDockDrag();
+
+  // Stable callbacks only — do not put hook return objects in effect deps
+  // (new object identity every render → fetch storm).
+  const fetchStatus = gateway.fetchStatus;
+  const fetchProxyRoutes = proxy.fetchProxyRoutes;
+  const fetchMockRules = mock.fetchMockRules;
+  const fetchLoggingDomains = traffic.fetchLoggingDomains;
+  const setMockedRequests = mock.setMockedRequests;
 
   const [isPrxPopoverOpen, setIsPrxPopoverOpen] = useState(false);
   const [isMockListOpen, setIsMockListOpen] = useState(false);
@@ -29,39 +37,37 @@ export function useInjectionAppState() {
     setIsGuideModalOpen(false);
   };
 
-  // Mount-only bootstrap. Do NOT depend on hook return objects — they are new
-  // references every render and would retrigger fetches → setState → infinite loop.
   useEffect(() => {
-    gateway.fetchStatus();
-    proxy.fetchProxyRoutes();
-    mock.fetchMockRules();
-    traffic.fetchLoggingDomains();
-  }, [gateway.fetchStatus, proxy.fetchProxyRoutes, mock.fetchMockRules, traffic.fetchLoggingDomains]);
+    fetchStatus();
+    fetchProxyRoutes();
+    fetchMockRules();
+    fetchLoggingDomains();
+  }, [fetchStatus, fetchProxyRoutes, fetchMockRules, fetchLoggingDomains]);
 
   useEffect(() => {
     if (isPrxPopoverOpen) {
-      proxy.fetchProxyRoutes();
-      gateway.fetchStatus();
+      fetchProxyRoutes();
+      fetchStatus();
     }
-  }, [isPrxPopoverOpen, proxy.fetchProxyRoutes, gateway.fetchStatus]);
+  }, [isPrxPopoverOpen, fetchProxyRoutes, fetchStatus]);
 
   useEffect(() => {
     if (isMockListOpen) {
-      mock.fetchMockRules();
-      gateway.fetchStatus();
+      fetchMockRules();
+      fetchStatus();
     }
-  }, [isMockListOpen, mock.fetchMockRules, gateway.fetchStatus]);
+  }, [isMockListOpen, fetchMockRules, fetchStatus]);
 
   useEffect(() => {
     if (isLogPopoverOpen) {
-      traffic.fetchLoggingDomains();
+      fetchLoggingDomains();
     }
-  }, [isLogPopoverOpen, traffic.fetchLoggingDomains]);
+  }, [isLogPopoverOpen, fetchLoggingDomains]);
 
   useEffect(() => {
     const existing = (window as unknown as { __wt_mocked_requests?: MockedApiEntry[] }).__wt_mocked_requests;
     if (Array.isArray(existing) && existing.length > 0) {
-      mock.setMockedRequests((prev) => {
+      setMockedRequests((prev) => {
         const merged = [...prev];
         for (const item of existing) {
           if (!merged.some((m) => m.url === item.url && m.method === item.method)) {
@@ -75,7 +81,7 @@ export function useInjectionAppState() {
     const handleMockedEvent = (e: Event) => {
       const detail = (e as CustomEvent<MockedApiEntry>).detail;
       if (detail) {
-        mock.setMockedRequests((prev) => {
+        setMockedRequests((prev) => {
           if (prev.some((m) => m.id === detail.id || (m.url === detail.url && m.method === detail.method))) {
             return prev;
           }
@@ -85,7 +91,7 @@ export function useInjectionAppState() {
     };
     window.addEventListener("wt:mocked-request", handleMockedEvent);
     return () => window.removeEventListener("wt:mocked-request", handleMockedEvent);
-  }, [mock.setMockedRequests]);
+  }, [setMockedRequests]);
 
   return {
     ...gateway,

@@ -4,6 +4,23 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.5] - 2026-08-10
+
+### Added (추가 기능)
+
+- **어노테이션 다중 Locator**: 가이드가 CSS 단일 selector 대신 `testid` / `role` / `label` / `text` / `css` 우선순위 배열을 저장합니다. 클릭 캡처 시 목록을 만들고, 기존 데이터는 로드 시 마이그레이션합니다.
+- **Locator 검증 & 승격**: 페이지 배지에 `ok` / `weak` / `broken` / `ambiguous`를 표시하고, weak이면서 fallback이 정확히 1개일 때만 primary 승격을 제안합니다(자동 rewrite 없음).
+- **CLI ↔ GUI 어노테이션 동기화**: 실행 중인 앱이 `inspector_annotations.json` 변경을 감지해 `annotations-updated`를 발행하고, 인젝션 배지도 폴링으로 CLI 변경을 반영합니다.
+- **CLI 가이드 문서**: Horizon Gateway skill에 어노테이션 CRUD, 쿼리 문법, validation 수리 규칙, `url` → `pathPattern` 자동 추출을 정리했습니다.
+
+### Changed (변경 사항)
+
+- **Policies & 인젝션 UX**: 가이드 Markdown 렌더링, 편집/신규 모달, host/path 패턴 헬퍼, Locator 작업용 배지·툴바 문구를 개선했습니다.
+
+### Fixed (버그 수정)
+
+- **`update_annotation` 부분 업데이트**: `hostPattern` / `pathPattern`을 생략해도 기존 값이 지워지지 않으며, `url`만 넘기면 path에서 `pathPattern`을 자동 추출합니다.
+
 ## [v2.7.4] - 2026-08-07
 
 ### Fixed (버그 수정)

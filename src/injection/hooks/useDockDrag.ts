@@ -1,6 +1,18 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
+function getClientPos(
+  e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent,
+): { x: number; y: number } | null {
+  if ("touches" in e && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  if ("clientX" in e && typeof e.clientX === "number") {
+    return { x: e.clientX, y: e.clientY };
+  }
+  return null;
+}
+
 export function useDockDrag() {
   const [dragOffset, setDragOffset] = useState({ x: 24, y: 24 });
   const [isDragging, setIsDragging] = useState(false);
@@ -28,24 +40,39 @@ export function useDockDrag() {
     }, 400);
   };
 
-  const handleDragStart = (e: React.MouseEvent) => {
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const pos = getClientPos(e);
+    if (!pos) {
+      return;
+    }
+
     setIsDragging(true);
     setIsDocked(false);
     hasMoved.current = false;
     setDragStart({
-      x: e.clientX + dragOffset.x,
-      y: window.innerHeight - e.clientY - dragOffset.y,
+      x: pos.x + dragOffset.x,
+      y: window.innerHeight - pos.y - dragOffset.y,
     });
     e.stopPropagation();
   };
 
   useEffect(() => {
-    const handleDragMove = (e: MouseEvent) => {
+    const handleDragMove = (e: MouseEvent | TouchEvent) => {
       if (!isDragging) {
         return;
       }
-      const newX = dragStart.x - e.clientX;
-      const newY = window.innerHeight - e.clientY - dragStart.y;
+
+      const pos = getClientPos(e);
+      if (!pos) {
+        return;
+      }
+
+      if ("cancelable" in e && e.cancelable) {
+        e.preventDefault();
+      }
+
+      const newX = dragStart.x - pos.x;
+      const newY = window.innerHeight - pos.y - dragStart.y;
 
       if (Math.abs(newX - dragOffset.x) > 3 || Math.abs(newY - dragOffset.y) > 3) {
         hasMoved.current = true;
@@ -57,7 +84,7 @@ export function useDockDrag() {
       });
     };
 
-    const handleMouseUp = () => {
+    const handleDragEnd = () => {
       setIsDragging(false);
       if (dragOffset.x <= 20) {
         setIsDocked(true);
@@ -67,11 +94,17 @@ export function useDockDrag() {
 
     if (isDragging) {
       window.addEventListener("mousemove", handleDragMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("mouseup", handleDragEnd);
+      window.addEventListener("touchmove", handleDragMove, { passive: false });
+      window.addEventListener("touchend", handleDragEnd);
+      window.addEventListener("touchcancel", handleDragEnd);
     }
     return () => {
       window.removeEventListener("mousemove", handleDragMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleDragMove);
+      window.removeEventListener("touchend", handleDragEnd);
+      window.removeEventListener("touchcancel", handleDragEnd);
     };
   }, [isDragging, dragStart, dragOffset]);
 

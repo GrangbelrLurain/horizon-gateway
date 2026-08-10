@@ -1,29 +1,50 @@
-import { FolderTree, Globe, PlusCircle, Save, X } from "lucide-react";
-import type { InjectionAppState } from "../hooks/useInjectionAppState";
+import { Edit3, FolderTree, Globe, Save, X } from "lucide-react";
+import { useState } from "react";
+import type { Annotation } from "@/entities/inspector";
+import { saveAnnotationApi } from "../api/gateway";
 
-type State = Pick<
-  InjectionAppState,
-  | "editingElement"
-  | "setEditingElement"
-  | "role"
-  | "setRole"
-  | "description"
-  | "setDescription"
-  | "hostPattern"
-  | "setHostPattern"
-  | "pathPattern"
-  | "setPathPattern"
-  | "suggestedHostPatterns"
-  | "suggestedPathPatterns"
-  | "isSaving"
-  | "saveAnnotation"
->;
+interface EditPolicyModalProps {
+  annotation: Annotation;
+  onClose: () => void;
+  onSaved: () => void;
+  showToast: (msg: string) => void;
+}
 
-export function NewPolicyModal({ s }: { s: State }) {
-  const editingElement = s.editingElement;
-  if (!editingElement) {
-    return null;
-  }
+export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: EditPolicyModalProps) {
+  const [role, setRole] = useState(annotation.role || "");
+  const [description, setDescription] = useState(annotation.description || "");
+  const [hostPattern, setHostPattern] = useState(annotation.hostPattern || "");
+  const [pathPattern, setPathPattern] = useState(annotation.pathPattern || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!role.trim()) {
+      return;
+    }
+    setIsSaving(true);
+
+    const updated: Annotation = {
+      ...annotation,
+      role: role.trim(),
+      description: description.trim(),
+      hostPattern: hostPattern.trim(),
+      pathPattern: pathPattern.trim(),
+    };
+
+    try {
+      const res = await saveAnnotationApi(updated as Record<string, unknown>);
+      if (res.ok) {
+        onSaved();
+        showToast("가이드가 수정되었습니다.");
+        window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
+        onClose();
+      }
+    } catch (_e) {
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -48,7 +69,7 @@ export function NewPolicyModal({ s }: { s: State }) {
           padding: "20px 24px",
           borderRadius: "20px",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-          border: "1px solid rgba(59, 130, 246, 0.35)",
+          border: "1px solid rgba(236, 72, 153, 0.35)",
           color: "white",
           display: "flex",
           flexDirection: "column",
@@ -57,12 +78,12 @@ export function NewPolicyModal({ s }: { s: State }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <PlusCircle style={{ width: "18px", height: "18px", color: "#3b82f6" }} />
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>신규 가이드 등록</h3>
+            <Edit3 style={{ width: "16px", height: "16px", color: "#ec4899" }} />
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>가이드 수정</h3>
           </div>
           <button
             type="button"
-            onClick={() => s.setEditingElement(null)}
+            onClick={onClose}
             style={{
               background: "none",
               border: "none",
@@ -79,34 +100,17 @@ export function NewPolicyModal({ s }: { s: State }) {
           </button>
         </div>
 
-        <div
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            padding: "10px 12px",
-            borderRadius: "10px",
-            fontSize: "10.5px",
-            color: "rgba(255, 255, 255, 0.6)",
-            lineHeight: "1.4",
-          }}
-        >
-          <span style={{ fontWeight: "700", color: "rgba(255,255,255,0.8)" }}>Selector: </span>
-          <code style={{ color: "#60a5fa", wordBreak: "break-all", fontFamily: "monospace" }}>
-            {editingElement.selector}
-          </code>
-        </div>
-
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
-            htmlFor="wt-role-input"
+            htmlFor="edit-role-input"
             style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
           >
             가이드명 (Role / Title)
           </label>
           <input
-            id="wt-role-input"
-            value={s.role}
-            onChange={(e) => s.setRole(e.target.value)}
+            id="edit-role-input"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             placeholder="예: 로그인 버튼 정책"
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -123,15 +127,15 @@ export function NewPolicyModal({ s }: { s: State }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
-            htmlFor="wt-desc-input"
+            htmlFor="edit-desc-input"
             style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
           >
             설명 (Description - 마크다운 지원)
           </label>
           <textarea
-            id="wt-desc-input"
-            value={s.description}
-            onChange={(e) => s.setDescription(e.target.value)}
+            id="edit-desc-input"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="상세 규칙, 코드 참조(`path`), - 목록..."
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -142,7 +146,7 @@ export function NewPolicyModal({ s }: { s: State }) {
               fontSize: "12px",
               lineHeight: "1.5",
               outline: "none",
-              minHeight: "90px",
+              minHeight: "100px",
               resize: "vertical",
               fontFamily: "inherit",
             }}
@@ -150,10 +154,9 @@ export function NewPolicyModal({ s }: { s: State }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-          {/* Host Pattern */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label
-              htmlFor="wt-host-pattern"
+              htmlFor="edit-host-pattern"
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
@@ -166,9 +169,9 @@ export function NewPolicyModal({ s }: { s: State }) {
               <Globe style={{ width: "10px", height: "10px", color: "#60a5fa" }} /> Host Pattern
             </label>
             <input
-              id="wt-host-pattern"
-              value={s.hostPattern}
-              onChange={(e) => s.setHostPattern(e.target.value)}
+              id="edit-host-pattern"
+              value={hostPattern}
+              onChange={(e) => setHostPattern(e.target.value)}
               placeholder="예: *.modetour.dev"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -181,38 +184,11 @@ export function NewPolicyModal({ s }: { s: State }) {
                 outline: "none",
               }}
             />
-
-            {/* Host Pattern Suggestions */}
-            {s.suggestedHostPatterns.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "2px" }}>
-                {s.suggestedHostPatterns.map((pat) => (
-                  <button
-                    key={pat}
-                    type="button"
-                    onClick={() => s.setHostPattern(pat)}
-                    style={{
-                      background: s.hostPattern === pat ? "rgba(59, 130, 246, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                      border: s.hostPattern === pat ? "1px solid #3b82f6" : "1px solid rgba(255, 255, 255, 0.1)",
-                      borderRadius: "4px",
-                      color: s.hostPattern === pat ? "#93c5fd" : "rgba(255, 255, 255, 0.6)",
-                      fontSize: "9px",
-                      fontFamily: "monospace",
-                      padding: "2px 6px",
-                      cursor: "pointer",
-                    }}
-                    title="패턴 선택"
-                  >
-                    {pat}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Path Pattern */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label
-              htmlFor="wt-path-pattern"
+              htmlFor="edit-path-pattern"
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
@@ -225,9 +201,9 @@ export function NewPolicyModal({ s }: { s: State }) {
               <FolderTree style={{ width: "10px", height: "10px", color: "#f472b6" }} /> Path Pattern
             </label>
             <input
-              id="wt-path-pattern"
-              value={s.pathPattern}
-              onChange={(e) => s.setPathPattern(e.target.value)}
+              id="edit-path-pattern"
+              value={pathPattern}
+              onChange={(e) => setPathPattern(e.target.value)}
               placeholder="예: /products/*"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -240,39 +216,13 @@ export function NewPolicyModal({ s }: { s: State }) {
                 outline: "none",
               }}
             />
-
-            {/* Path Pattern Suggestions */}
-            {s.suggestedPathPatterns.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "2px" }}>
-                {s.suggestedPathPatterns.map((pat) => (
-                  <button
-                    key={pat}
-                    type="button"
-                    onClick={() => s.setPathPattern(pat)}
-                    style={{
-                      background: s.pathPattern === pat ? "rgba(236, 72, 153, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                      border: s.pathPattern === pat ? "1px solid #ec4899" : "1px solid rgba(255, 255, 255, 0.1)",
-                      borderRadius: "4px",
-                      color: s.pathPattern === pat ? "#f472b6" : "rgba(255, 255, 255, 0.6)",
-                      fontSize: "9px",
-                      fontFamily: "monospace",
-                      padding: "2px 6px",
-                      cursor: "pointer",
-                    }}
-                    title="패턴 선택"
-                  >
-                    {pat}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
           <button
             type="button"
-            onClick={() => s.setEditingElement(null)}
+            onClick={onClose}
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.08)",
               border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -288,10 +238,10 @@ export function NewPolicyModal({ s }: { s: State }) {
           </button>
           <button
             type="button"
-            onClick={s.saveAnnotation}
-            disabled={!s.role || s.isSaving}
+            onClick={handleSave}
+            disabled={!role.trim() || isSaving}
             style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+              background: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
               border: "none",
               borderRadius: "10px",
               padding: "8px 18px",
@@ -302,11 +252,11 @@ export function NewPolicyModal({ s }: { s: State }) {
               display: "flex",
               alignItems: "center",
               gap: "6px",
-              opacity: !s.role || s.isSaving ? 0.5 : 1,
+              opacity: !role.trim() || isSaving ? 0.5 : 1,
             }}
           >
             <Save style={{ width: "14px", height: "14px" }} />
-            {s.isSaving ? "저장 중..." : "가이드 저장"}
+            {isSaving ? "저장 중..." : "저장 완료"}
           </button>
         </div>
       </div>

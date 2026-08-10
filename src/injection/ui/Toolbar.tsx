@@ -1,3 +1,4 @@
+import { ChevronLeft, Minimize2, Pin } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 import { StatusDot } from "./StatusDot";
 
@@ -43,8 +44,7 @@ export function Toolbar({ s }: { s: State }) {
             right: "0px",
             zIndex: 2147483647,
             pointerEvents: "auto",
-            backgroundColor: "rgba(15, 23, 42, 0.95)",
-            backdropFilter: "blur(12px)",
+            backgroundColor: "rgba(15, 23, 42, 0.98)",
             padding: "8px 12px",
             borderRadius: "100px 0 0 100px",
             border: "1px solid rgba(255,255,255,0.25)",
@@ -57,10 +57,12 @@ export function Toolbar({ s }: { s: State }) {
             gap: "8px",
             fontFamily: "sans-serif",
             userSelect: "none",
+            touchAction: "none",
             transition: "all 0.2s ease-in-out",
           }}
           onMouseEnter={s.handleMouseEnter}
           onMouseDown={s.handleDragStart}
+          onTouchStart={s.handleDragStart}
           onClick={(e) => {
             if (!s.hasMoved.current) {
               e.stopPropagation();
@@ -70,7 +72,7 @@ export function Toolbar({ s }: { s: State }) {
           }}
           title="클릭/호버하여 툴바 펼치기"
         >
-          <span style={{ fontSize: "12px", fontWeight: "900", color: "#f59e0b" }}>⟨</span>
+          <ChevronLeft style={{ width: "14px", height: "14px", color: "#f59e0b" }} />
           <div
             style={{
               width: "8px",
@@ -102,8 +104,7 @@ export function Toolbar({ s }: { s: State }) {
               display: "flex",
               alignItems: "center",
               gap: "4px",
-              backgroundColor: "rgba(15, 23, 42, 0.95)",
-              backdropFilter: "blur(12px)",
+              backgroundColor: "rgba(15, 23, 42, 0.98)",
               padding: "4px 8px",
               borderRadius: s.isDocked ? "100px 0 0 100px" : "100px",
               border: "1px solid rgba(255,255,255,0.2)",
@@ -112,8 +113,10 @@ export function Toolbar({ s }: { s: State }) {
               color: "white",
               fontFamily: "sans-serif",
               cursor: s.isDragging ? "grabbing" : "grab",
+              touchAction: "none",
             }}
             onMouseDown={s.handleDragStart}
+            onTouchStart={s.handleDragStart}
           >
             {s.isCompact ? (
               <div
@@ -226,7 +229,7 @@ export function Toolbar({ s }: { s: State }) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "2px",
+                    gap: "4px",
                     borderLeft: "1px solid rgba(255,255,255,0.15)",
                     paddingLeft: "6px",
                     marginLeft: "2px",
@@ -242,12 +245,14 @@ export function Toolbar({ s }: { s: State }) {
                       border: "none",
                       color: "rgba(255,255,255,0.5)",
                       cursor: "pointer",
-                      fontSize: "11px",
                       padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                    title="화면 오른쪽 가장자리에 숨기기 ( ( | )"
+                    title="화면 오른쪽 가장자리에 숨기기"
                   >
-                    📌
+                    <Pin style={{ width: "12px", height: "12px" }} />
                   </button>
                   <button
                     onClick={(e) => {
@@ -259,12 +264,14 @@ export function Toolbar({ s }: { s: State }) {
                       border: "none",
                       color: "rgba(255,255,255,0.5)",
                       cursor: "pointer",
-                      fontSize: "11px",
                       padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                     title="미니 아이콘 모드로 접기"
                   >
-                    ↔
+                    <Minimize2 style={{ width: "12px", height: "12px" }} />
                   </button>
                 </div>
               </div>

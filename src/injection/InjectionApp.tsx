@@ -1,5 +1,7 @@
 import { useInjectionAppState } from "./hooks/useInjectionAppState";
+import { EditPolicyModal } from "./ui/EditPolicyModal";
 import { GuideModal } from "./ui/GuideModal";
+import { InjectionToast } from "./ui/InjectionToast";
 import { InspectOverlay } from "./ui/InspectOverlay";
 import { LogDetailModal } from "./ui/LogDetailModal";
 import { MockEditorModal } from "./ui/MockEditorModal";
@@ -26,6 +28,13 @@ export function InjectionApp() {
             index={i + 1}
             isActive={s.activeBadgeId === ann.id}
             onToggle={() => s.setActiveBadgeId(s.activeBadgeId === ann.id ? null : ann.id)}
+            onEdit={(target) => s.setEditingAnnotation(target)}
+            onCopyDescription={(target) => s.copyDescription(target)}
+            onCopySelector={(target) => s.copySelector(target)}
+            onCopySummary={(target) => s.copySummary(target)}
+            onDelete={(id) => s.deleteAnnotation(id)}
+            onPromote={(target, idx) => void s.promoteAnnotation(target, idx)}
+            onValidation={(target, validation) => void s.persistValidation(target, validation)}
           />
         ))}
 
@@ -38,6 +47,15 @@ export function InjectionApp() {
       {s.selectedLogDetail && <LogDetailModal s={s} />}
       {s.isGuideModalOpen && <GuideModal s={s} />}
       {s.editingElement && <NewPolicyModal s={s} />}
+      {s.editingAnnotation && (
+        <EditPolicyModal
+          annotation={s.editingAnnotation}
+          onClose={() => s.setEditingAnnotation(null)}
+          onSaved={s.fetchAnnotations}
+          showToast={s.showToast}
+        />
+      )}
+      <InjectionToast message={s.toastMessage} onClose={() => s.setToastMessage(null)} />
     </div>
   );
 }

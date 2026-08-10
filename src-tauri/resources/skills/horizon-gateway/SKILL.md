@@ -1,6 +1,6 @@
 ---
 name: horizon-gateway
-description: Inspect HTTP/API traffic, proxy status, domain monitoring, mock rules, and sandbox libraries captured by Horizon Gateway. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, local routing, pipelines, JSON schemas, or crypto presets.
+description: Inspect HTTP/API traffic, proxy status, domain monitoring, mock rules, UI/UX guides (annotations), and sandbox libraries captured by Horizon Gateway. Use when the user asks about network requests, API logs, proxy setup, domain health, HTTP debugging, local routing, pipelines, JSON schemas, crypto presets, inspector policies, or page UI/UX guidelines.
 ---
 
 # Horizon Gateway Skill
@@ -145,9 +145,75 @@ horizon-gateway cli run get_saved_pipelines '{}' --query data.[].{id,name}
 | Pipeline library | `get_saved_pipelines`, `create_saved_pipeline`, `execute_pipeline` |
 | JSON Schema registry | `get_json_schemas`, `create_json_schema`, `validate_json_schema` |
 | Crypto presets | `get_crypto_presets`, `create_crypto_preset`, `process_crypto` |
-| Inspector policies | `get_annotations`, `add_annotation` |
+| Inspector / UI/UX guides | `get_annotations`, `add_annotation`, `update_annotation`, `delete_annotation`, `import_annotations` |
 
 Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
+
+### UI/UX Guides (Annotations)
+
+Use when reading or maintaining selector-level UI/UX guidelines before editing page UI. Guides are stored locally by Horizon Gateway and can be matched by `domain` / `url` / `hostPattern` / `pathPattern` in the app.
+
+Each guide may include **`locators`** (priority list: `testid` → `role` → `label` → `text` → `css`) and **`lastValidation`** (`ok` | `weak` | `broken` | `ambiguous`). Prefer testid/role/text over brittle CSS paths. Do **not** invent long `nth-of-type` CSS. Promote a fallback to primary only when status is `weak` and exactly one fallback matches (never auto-rewrite `broken`/`ambiguous`).
+
+`--query` filters are **exact string equality** (not glob matching).
+
+Always run `horizon-gateway cli help <command>` first if unsure — use `payloadExample` as the template. Prefer `@file.json` payloads on Windows PowerShell.
+
+#### 1. Read / Search Guides
+
+```bash
+# Compact fields including locators + validation
+horizon-gateway cli run get_annotations '{}' --query "data.[].{id,selector,role,description,domain,locators,lastValidation}"
+
+# Broken / weak guides for repair
+horizon-gateway cli run get_annotations '{}' --query "data[lastValidation.status==broken].{id,role,locators}"
+horizon-gateway cli run get_annotations '{}' --query "data[lastValidation.status==weak].{id,role,locators}"
+
+# Filter by exact domain
+horizon-gateway cli run get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,description,pathPattern}"
+
+# Filter by exact id
+horizon-gateway cli run get_annotations '{}' --query "data[id==g-101]"
+```
+
+#### 2. Add Guide
+
+`add_annotation` accepts a full `Annotation` (include `locators` when known):
+
+```bash
+horizon-gateway cli run add_annotation '{"id":"g-101","selector":"[data-testid=\"submit\"]","content":"","tagName":"BUTTON","thumbnail":"","role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","timestamp":0,"domain":"modetour.dev","url":"https://modetour.dev/checkout","hostPattern":"*.modetour.dev","pathPattern":"/checkout","locators":[{"strategy":"testid","value":"submit"},{"strategy":"css","value":"[data-testid=\"submit\"]"}]}'
+```
+
+#### 3. Update Guide
+
+`update_annotation` requires **`id`, `role`, and `description`**. Optional: `domain`, `url`, `hostPattern`, `pathPattern`, `locators`, `lastValidation`.
+
+If you pass `url` and omit `pathPattern`, the path is derived automatically from the URL (query/hash stripped). Omitted `hostPattern` / `pathPattern` leave existing values unchanged (do not clear them).
+
+```bash
+# pathPattern auto-filled to /checkout
+horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","description":"Lock 5s and show success toast","url":"https://modetour.dev/checkout"}'
+
+horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","description":"Lock 5s and show success toast","domain":"modetour.dev","url":"https://modetour.dev/checkout","hostPattern":"*.modetour.dev","pathPattern":"/checkout"}'
+```
+
+Running GUI watches `inspector_annotations.json` and emits `annotations-updated` within ~1s after CLI writes, so the Policies UI refreshes without restart.
+
+To promote a weak fallback to primary, reorder `locators` so the working strategy is index 0 and pass them in `locators` (or use the in-page badge CTA).
+
+#### 4. Delete Guide
+
+```bash
+horizon-gateway cli run delete_annotation '{"id":"g-101"}'
+```
+
+#### 5. Bulk Import
+
+```bash
+horizon-gateway cli run import_annotations @annotations.json
+```
+
+`annotations.json` shape: `{"annotations":[ /* Annotation objects */ ]}`.
 
 ### Query syntax (`--query`)
 
@@ -163,8 +229,8 @@ Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
 | Task | Prefer |
 |------|--------|
 | Search/filter API logs | `logs.mjs` |
-| Get domains, proxy status, mocking rules, sandbox libraries | `horizon-gateway cli` |
-| Mutate settings | `horizon-gateway cli` |
+| Get domains, proxy status, mocking rules, sandbox libraries, UI/UX guides | `horizon-gateway cli` |
+| Mutate settings / guides | `horizon-gateway cli` |
 
 ### CLI limits
 
@@ -172,7 +238,7 @@ Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
 - **`guiOnly` commands** (`open_window`, `save_root_ca`, …): Fail in headless `cli run` with a clear error — use the desktop app.
 - **`start_local_proxy`**: Headless not supported yet (needs GUI `AppHandle` for proxy runtime).
 - **Reading API logs**: Prefer `logs.mjs` (streaming, token-efficient).
-- **GUI open + CLI write**: Avoid concurrent writes to the same app_data JSON files.
+- **GUI open + CLI write**: Annotation file changes are picked up by the running GUI (~1s). Still avoid racing GUI and CLI saves on the same annotation at the exact same moment.
 - **`execute_pipeline`**: Rust runner only; FE-only `script` nodes are not supported via CLI.
 - Always call `cli help <command>` before `run` if unsure — use the returned `payloadExample` as the template.
 

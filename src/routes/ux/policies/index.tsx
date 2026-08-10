@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import type { Annotation } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
@@ -57,7 +58,14 @@ function PolicyListPage() {
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Annotation | null>(null);
-  const [editForm, setEditForm] = useState({ role: "", description: "", url: "" });
+  const [editForm, setEditForm] = useState({
+    role: "",
+    description: "",
+    domain: "",
+    hostPattern: "",
+    pathPattern: "",
+    url: "",
+  });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -119,7 +127,14 @@ function PolicyListPage() {
 
   const openEditModal = (ann: Annotation) => {
     setEditingPolicy(ann);
-    setEditForm({ role: ann.role, description: ann.description, url: ann.url || "" });
+    setEditForm({
+      role: ann.role,
+      description: ann.description,
+      domain: ann.domain || "",
+      hostPattern: ann.hostPattern || "",
+      pathPattern: ann.pathPattern || "",
+      url: ann.url || "",
+    });
     setIsEditModalOpen(true);
   };
 
@@ -132,6 +147,10 @@ function PolicyListPage() {
         id: editingPolicy.id,
         role: editForm.role,
         description: editForm.description,
+        domain: editForm.domain,
+        url: editForm.url,
+        hostPattern: editForm.hostPattern,
+        pathPattern: editForm.pathPattern,
       }),
     );
     if (res.success && res.data) {
@@ -479,19 +498,38 @@ function PolicyListPage() {
                     </div>
                   </div>
 
-                  <div className="flex-1">
-                    <p className="text-sm text-base-content/70 line-clamp-3 leading-relaxed min-h-[60px]">
-                      {ann.description || "-"}
-                    </p>
+                  <div className="flex-1 min-w-0 max-w-full">
+                    <MarkdownRenderer
+                      content={ann.description || "-"}
+                      className="text-sm text-base-content/80 leading-relaxed min-h-[60px]"
+                    />
                   </div>
 
                   <div className="flex flex-col gap-3 pt-4 border-t border-base-200">
-                    <div className="flex items-center justify-between text-[10px] font-medium text-base-content/40">
-                      <div className="flex items-center gap-1">
-                        <Globe className="w-3 h-3" />
-                        <span className="font-bold">{ann.domain}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-base-content/50">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1 bg-base-200 px-2 py-0.5 rounded font-bold text-base-content/70">
+                          <Globe className="w-3 h-3 text-primary" />
+                          <span>{ann.domain || "Global"}</span>
+                        </div>
+                        {ann.hostPattern && (
+                          <span
+                            className="bg-primary/10 text-primary font-mono px-1.5 py-0.5 rounded border border-primary/20"
+                            title="Host Pattern"
+                          >
+                            H: {ann.hostPattern}
+                          </span>
+                        )}
+                        {ann.pathPattern && (
+                          <span
+                            className="bg-secondary/10 text-secondary font-mono px-1.5 py-0.5 rounded border border-secondary/20"
+                            title="Path Pattern"
+                          >
+                            P: {ann.pathPattern}
+                          </span>
+                        )}
                       </div>
-                      <span>{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
+                      <span className="whitespace-nowrap">{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -659,17 +697,11 @@ function PolicyListPage() {
                               minHeight: "120px",
                             }}
                           >
-                            <p
-                              style={{
-                                color: "#334155",
-                                fontSize: "18px",
-                                margin: 0,
-                                whiteSpace: "pre-wrap",
-                                lineHeight: "1.6",
-                              }}
-                            >
-                              {ann.description}
-                            </p>
+                            <MarkdownRenderer
+                              content={ann.description}
+                              style={{ color: "#334155", fontSize: "16px", lineHeight: "1.6" }}
+                              codeStyle={{ backgroundColor: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe" }}
+                            />
                           </div>
 
                           {(visibleFields.tag || visibleFields.selector) && (
@@ -772,7 +804,7 @@ function PolicyListPage() {
       {/* Edit Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
         <Modal.Header title={t.editPolicy} />
-        <Modal.Body className="flex flex-col gap-5">
+        <Modal.Body className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
               {t.roleLabel}
@@ -780,9 +812,10 @@ function PolicyListPage() {
             <Input
               value={editForm.role}
               onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
-              className="font-bold text-lg"
+              className="font-bold text-base"
             />
           </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
               {t.descLabel}
@@ -790,14 +823,63 @@ function PolicyListPage() {
             <textarea
               value={editForm.description}
               onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-              className="textarea textarea-bordered bg-base-200/50 min-h-[120px] focus:outline-primary leading-relaxed"
+              className="textarea textarea-bordered bg-base-200/50 min-h-[100px] focus:outline-primary leading-relaxed text-sm"
+              placeholder="Description (Markdown format supported: `code`, **bold**, - list)..."
             />
           </div>
-          <div className="flex flex-col gap-1.5 opacity-50">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-base-200">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
+                {t.domainLabel}
+              </label>
+              <Input
+                value={editForm.domain}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
+                className="font-mono text-xs"
+                placeholder="modetour.dev"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
+                {t.hostPatternLabel}
+              </label>
+              <Input
+                value={editForm.hostPattern}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
+                className="font-mono text-xs"
+                placeholder={t.hostPatternPlaceholder}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
+              {t.pathPatternLabel}
+            </label>
+            <Input
+              value={editForm.pathPattern}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, pathPattern: e.target.value }))}
+              className="font-mono text-xs"
+              placeholder={t.pathPatternPlaceholder}
+            />
+          </div>
+
+          <div className="p-3 bg-base-200/60 rounded-xl flex items-start gap-2 text-xs text-base-content/70">
+            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="leading-snug text-[11px]">{t.patternHelp}</p>
+          </div>
+
+          <div className="flex flex-col gap-1.5 opacity-60">
             <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
               {t.urlLabel}
             </label>
-            <Input value={editForm.url} disabled className="font-mono text-xs bg-base-200" />
+            <Input
+              value={editForm.url}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
+              className="font-mono text-xs bg-base-200"
+            />
           </div>
         </Modal.Body>
         <Modal.Footer>
