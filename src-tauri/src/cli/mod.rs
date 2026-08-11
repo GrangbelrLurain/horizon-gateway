@@ -90,6 +90,9 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::local_route_commands::START_LOCAL_PROXY_CLI_INFO,
     crate::command::local_route_commands::STOP_LOCAL_PROXY_CLI_INFO,
     crate::command::local_route_commands::SET_LOCAL_ROUTING_ENABLED_CLI_INFO,
+    crate::command::transparent_proxy_commands::START_TRANSPARENT_PROXY_CLI_INFO,
+    crate::command::transparent_proxy_commands::STOP_TRANSPARENT_PROXY_CLI_INFO,
+    crate::command::transparent_proxy_commands::GET_TRANSPARENT_PROXY_STATUS_CLI_INFO,
     // --- Mocking ---
     crate::command::mocking_commands::GET_MOCKING_STATUS_CLI_INFO,
     crate::command::mocking_commands::SET_MOCKING_ENABLED_CLI_INFO,

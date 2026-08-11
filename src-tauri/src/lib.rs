@@ -44,6 +44,8 @@ mod service {
     pub mod pipeline_library_service;
     pub mod json_schema_registry_service;
     pub mod crypto_preset_service;
+    pub mod transparent_proxy_service;
+    pub mod proxy_runtime_state;
 }
 
 use crate::service::api_log_service::ApiLogService;
@@ -78,6 +80,7 @@ mod command {
     pub mod pipeline_library_commands;
     pub mod json_schema_registry_commands;
     pub mod crypto_preset_commands;
+    pub mod transparent_proxy_commands;
 }
 
 use command::inspector_commands::{
@@ -134,12 +137,18 @@ use command::crypto_preset_commands::{
     create_crypto_preset, delete_crypto_preset, get_crypto_preset, get_crypto_presets,
     import_crypto_presets, update_crypto_preset,
 };
+use command::transparent_proxy_commands::{
+    get_transparent_proxy_status, start_transparent_proxy, stop_transparent_proxy,
+};
 use crate::service::tunnel_service::TunnelService;
 use crate::service::usb_service::UsbService;
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
         .commands(tauri_specta::collect_commands![
+            get_transparent_proxy_status,
+            start_transparent_proxy,
+            stop_transparent_proxy,
             regist_domains,
             get_domains,
             remove_domains,

@@ -24,11 +24,32 @@ fn current_proxy_status() -> ProxyStatusPayload {
     let port = PROXY_PORT.load(Ordering::Relaxed);
     let rh = PROXY_REVERSE_HTTP.load(Ordering::Relaxed);
     let rht = PROXY_REVERSE_HTTPS.load(Ordering::Relaxed);
+
+    if port != 0 {
+        return ProxyStatusPayload {
+            running: true,
+            port,
+            reverse_http_port: if rh != 0 { Some(rh) } else { None },
+            reverse_https_port: if rht != 0 { Some(rht) } else { None },
+            local_routing_enabled: local_proxy::is_local_routing_enabled(),
+        };
+    }
+
+    if let Some(active) = crate::service::proxy_runtime_state::ProxyRuntimeStateService::load_active_state() {
+        return ProxyStatusPayload {
+            running: true,
+            port: active.port,
+            reverse_http_port: active.reverse_http_port,
+            reverse_https_port: active.reverse_https_port,
+            local_routing_enabled: local_proxy::is_local_routing_enabled(),
+        };
+    }
+
     ProxyStatusPayload {
-        running: port != 0,
-        port,
-        reverse_http_port: if rh != 0 { Some(rh) } else { None },
-        reverse_https_port: if rht != 0 { Some(rht) } else { None },
+        running: false,
+        port: 0,
+        reverse_http_port: None,
+        reverse_https_port: None,
         local_routing_enabled: local_proxy::is_local_routing_enabled(),
     }
 }
@@ -615,6 +636,7 @@ pub async fn start_local_proxy_svc(
     }
 
     PROXY_PORT.store(port, Ordering::Relaxed);
+    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(port, reverse_http, reverse_https);
     set_auto_start_error(None); // clear any previous error
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
@@ -743,6 +765,7 @@ pub fn stop_local_proxy_svc(app: Option<tauri::AppHandle>) -> Result<ApiResponse
 
     // Clear system PAC URL
     let _ = SystemProxyService::clear_pac_url();
+    crate::service::proxy_runtime_state::ProxyRuntimeStateService::clear_state();
 
     let _ = PROXY_PORT.swap(0, Ordering::Relaxed);
     let _ = PROXY_REVERSE_HTTP.swap(0, Ordering::Relaxed);
@@ -926,6 +949,7 @@ pub async fn auto_start_proxy(
     }
 
     PROXY_PORT.store(port, Ordering::Relaxed);
+    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(port, reverse_http, reverse_https);
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
 

@@ -4,6 +4,11 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
+	getTransparentProxyStatus: () => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("get_transparent_proxy_status")),
+	startTransparentProxy: (payload: {
+	port: number | null,
+} | null) => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("start_transparent_proxy", { payload })),
+	stopTransparentProxy: () => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("stop_transparent_proxy")),
 	registDomains: (payload: RegistDomainsPayload) => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("regist_domains", { payload })),
 	getDomains: () => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("get_domains")),
 	removeDomains: (payload: RemoveDomainsPayload) => typedError<ApiResponse<Domain | null>, string>(__TAURI_INVOKE("remove_domains", { payload })),
@@ -78,6 +83,7 @@ export const commands = {
 	openInspectorWindow: (url: string, script: string | null) => typedError<null, string>(__TAURI_INVOKE("open_inspector_window", { url, script })),
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
 	getAnnotations: () => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("get_annotations")),
+	getAnnotation: (payload: GetAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize | null>, string>(__TAURI_INVOKE("get_annotation", { payload })),
 	addAnnotation: (payload: Annotation_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),
 	updateAnnotation: (payload: UpdateAnnotationPayload_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("update_annotation", { payload })),
 	deleteAnnotation: (payload: DeleteAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("delete_annotation", { payload })),
@@ -86,6 +92,8 @@ export const commands = {
 	getGlobalInspectorEnabled: () => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("get_global_inspector_enabled")),
 	getInjectionDomains: () => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("get_injection_domains")),
 	setInjectionDomains: (payload: SetInjectionDomainsPayload) => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("set_injection_domains", { payload })),
+	addInjectionDomain: (payload: SingleDomainPayload) => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("add_injection_domain", { payload })),
+	removeInjectionDomain: (payload: SingleDomainPayload) => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("remove_injection_domain", { payload })),
 	getScenarios: () => typedError<ApiResponse<Scenario[]>, string>(__TAURI_INVOKE("get_scenarios")),
 	createScenario: (payload: CreateScenarioPayload) => typedError<ApiResponse<Scenario>, string>(__TAURI_INVOKE("create_scenario", { payload })),
 	updateScenario: (id: string, name: string | null, description: string | null, enabled: boolean | null) => typedError<Scenario, string>(__TAURI_INVOKE("update_scenario", { id, name, description, enabled })),
@@ -161,14 +169,14 @@ export type AnnotationLocator_Serialize = {
 };
 
 export type Annotation_Deserialize = {
-	id: string,
-	selector: string,
-	content: string,
-	tagName: string,
-	thumbnail: string,
-	role: string,
-	description: string,
-	timestamp: number | null,
+	id?: string,
+	selector?: string,
+	content?: string,
+	tagName?: string,
+	thumbnail?: string,
+	role?: string,
+	description?: string,
+	timestamp?: number | null,
 	domain?: string,
 	url?: string,
 	hostPattern?: string | null,
@@ -420,6 +428,10 @@ export type DownloadApiSchemaPayload = {
 	domainId: number,
 	/**  URL to fetch OpenAPI/Swagger schema from. */
 	url: string,
+};
+
+export type GetAnnotationPayload = {
+	id: string,
 };
 
 export type GetApiLogDetailPayload = {
@@ -919,16 +931,31 @@ export type SettingsExport_Serialize = {
 	mockRules: MockRule[],
 };
 
+export type SingleDomainPayload = {
+	domain: string,
+};
+
 export type StartLocalProxyPayload = {
 	port: number | null,
+};
+
+export type StartTransparentProxyPayload = {
+	port: number | null,
+};
+
+export type TransparentProxyStatus = {
+	running: boolean,
+	targetPort: number,
+	activeConnections: number,
+	errorMessage: string | null,
 };
 
 export type UpdateAnnotationPayload = UpdateAnnotationPayload_Serialize | UpdateAnnotationPayload_Deserialize;
 
 export type UpdateAnnotationPayload_Deserialize = {
 	id: string,
-	role: string,
-	description: string,
+	role?: string | null,
+	description?: string | null,
 	domain?: string | null,
 	url?: string | null,
 	hostPattern?: string | null,
@@ -941,8 +968,8 @@ export type UpdateAnnotationPayload_Deserialize = {
 
 export type UpdateAnnotationPayload_Serialize = {
 	id: string,
-	role: string,
-	description: string,
+	role: string | null,
+	description: string | null,
 	domain: string | null,
 	url: string | null,
 	hostPattern: string | null,

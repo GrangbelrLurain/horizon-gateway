@@ -249,6 +249,20 @@ pub fn dispatch_headless(
             let result = command::local_route_commands::set_local_routing_enabled_svc(None, parsed, &ctx.proxy_settings_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "start_transparent_proxy" => {
+            let parsed: Option<command::transparent_proxy_commands::StartTransparentProxyPayload> =
+                serde_json::from_value(payload).ok();
+            let result = command::transparent_proxy_commands::start_transparent_proxy_svc(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "stop_transparent_proxy" => {
+            let result = command::transparent_proxy_commands::stop_transparent_proxy_svc()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_transparent_proxy_status" => {
+            let result = command::transparent_proxy_commands::get_transparent_proxy_status_svc()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "get_mocking_status" => {
                         let result = command::mocking_commands::get_mocking_status_svc(&ctx.mocking_service)?;
             Ok(serde_json::to_value(result).unwrap())
