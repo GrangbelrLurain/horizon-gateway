@@ -55,8 +55,6 @@ use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_group_service::DomainGroupService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::domain_service::DomainService;
-use crate::service::inspector_service::InspectorService;
-use crate::service::local_route_service::LocalRouteService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 use std::sync::Arc;
 
@@ -141,7 +139,6 @@ use command::transparent_proxy_commands::{
     get_transparent_proxy_status, start_transparent_proxy, stop_transparent_proxy,
 };
 use crate::service::tunnel_service::TunnelService;
-use crate::service::usb_service::UsbService;
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
@@ -569,7 +566,7 @@ pub fn install_rustls_provider() {
 
 /// Headless `cli run` — bootstraps services without Tauri/WebView.
 pub fn execute_cli_headless(args: &[String]) -> i32 {
-    use tracing_subscriber::{filter::LevelFilter, util::SubscriberInitExt};
+    use tracing_subscriber::filter::LevelFilter;
 
     install_rustls_provider();
 

@@ -25,7 +25,9 @@ struct SessionKey {
 
 #[derive(Debug, Clone)]
 struct SessionVal {
+    #[allow(dead_code)]
     orig_dst_ip: Ipv4Addr,
+    #[allow(dead_code)]
     orig_dst_port: u16,
 }
 

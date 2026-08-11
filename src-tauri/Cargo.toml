@@ -88,9 +88,10 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-# `static` embeds the user-mode library so the app can start without WinDivert.dll
-# on PATH. Official WinDivert64.sys is still bundled next to the exe for the driver.
-windivert = { version = "0.6", features = ["vendored", "static"] }
+# Dynamically link official WinDivert.dll (via WINDIVERT_PATH). Do NOT use `static` —
+# vendored static objects redefine CRT symbols (memcpy) and break MSVC link (LNK2005/1169).
+# `vendored` remains a fallback when WINDIVERT_PATH is unset (local/dev without config).
+windivert = { version = "0.6", features = ["vendored"] }
 etherparse = "0.13"
 
 
