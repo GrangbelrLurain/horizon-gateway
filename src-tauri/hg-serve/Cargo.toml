@@ -1,0 +1,18 @@
+[lints]
+workspace = true
+
+[package]
+name = "horizon-gateway-serve"
+version = "2.7.7"
+edition = "2021"
+description = "Headless Horizon Gateway backend (proxy, mock, transparent proxy)"
+
+[[bin]]
+name = "horizon-gateway-serve"
+path = "src/main.rs"
+
+[build-dependencies]
+winres = "0.1"
+
+[dependencies]
+horizon-gateway = { path = "../hg-gui" }

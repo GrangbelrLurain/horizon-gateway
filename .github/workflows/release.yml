@@ -106,7 +106,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           # Official WinDivert x64 redistributable (dll/lib/sys) for dynamic link on Windows
-          WINDIVERT_PATH: ${{ github.workspace }}/src-tauri/resources/windivert
+          WINDIVERT_PATH: ${{ github.workspace }}/src-tauri/hg-gui/resources/windivert
         with:
           # 중요: 위에서 생성된 Release ID를 그대로 사용합니다.
           releaseId: ${{ needs.create-release.outputs.release_id }}

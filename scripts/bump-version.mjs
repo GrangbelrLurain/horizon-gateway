@@ -45,16 +45,22 @@ function main() {
 	writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
 	// Update tauri.conf.json
-	const tauriPath = join(ROOT, "src-tauri", "tauri.conf.json");
+	const tauriPath = join(ROOT, "src-tauri", "hg-gui", "tauri.conf.json");
 	const tauri = JSON.parse(readFileSync(tauriPath, "utf8"));
 	tauri.version = next;
 	writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
-	// Update Cargo.toml
-	const cargoPath = join(ROOT, "src-tauri", "Cargo.toml");
-	let cargo = readFileSync(cargoPath, "utf8");
-	cargo = cargo.replace(/^version = ".*"$/m, `version = "${next}"`);
-	writeFileSync(cargoPath, cargo);
+	// Update workspace crate versions
+	for (const crateRel of [
+		"src-tauri/hg-gui/Cargo.toml",
+		"src-tauri/hg-core/Cargo.toml",
+		"src-tauri/hg-serve/Cargo.toml",
+	]) {
+		const cargoPath = join(ROOT, crateRel);
+		let cargo = readFileSync(cargoPath, "utf8");
+		cargo = cargo.replace(/^version = ".*"$/m, `version = "${next}"`);
+		writeFileSync(cargoPath, cargo);
+	}
 
 	console.log(`Bumped ${current} → ${next}`);
 	console.log("");

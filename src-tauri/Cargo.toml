@@ -1,13 +1,15 @@
-[lints.rust]
+[workspace]
+members = ["hg-core", "hg-gui", "hg-serve"]
+resolver = "2"
+
+[workspace.lints.rust]
 unsafe_code = "deny"
 
-[lints.clippy]
+[workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
-# Tauri API constraints
 needless_pass_by_value = "allow"
 unnecessary_wraps = "allow"
-# Refactor/design - allow for now
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
@@ -17,86 +19,3 @@ type_complexity = "allow"
 cast_possible_truncation = "allow"
 similar_names = "allow"
 unused_async = "allow"
-
-[package]
-name = "horizon-gateway"
-version = "2.7.7"
-description = "A Tauri App"
-authors = ["you"]
-edition = "2021"
-default-run = "horizon-gateway"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "horizon_gateway_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
-
-[build-dependencies]
-tauri-build = { version = "2", features = [] }
-
-[dependencies]
-tauri = { version = "2", features = [] }
-specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
-tauri-specta = { version = "=2.0.0-rc.25", features = ["typescript"] }
-specta-typescript = "=0.0.12"
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
-tauri-plugin-deep-link = "2"
-tauri-plugin-single-instance = "2"
-dirs = "6"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-chrono = { version = "0.4", features = ["serde"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream", "gzip", "brotli"] }
-tokio = { version = "1", features = ["full"] }
-futures = "0.3.31"
-axum = { version = "0.7", features = ["macros"] }
-hyper = "1"
-tower-http = { version = "0.6.8", features = ["cors"] }
-get_if_addrs = "0.5.3"
-hyper-util = { version = "0.1", features = ["client-legacy", "service"] }
-hickory-resolver = { version = "0.25", features = ["tokio"] }
-rustls = { version = "0.23", features = ["ring"] }
-rustls-pki-types = "1.11"
-tokio-rustls = "0.26"
-rcgen = "0.13"
-time = "0.3"
-uuid = { version = "1.21.0", features = ["v4"] }
-http-body-util = "0.1.3"
-tracing = "0.1.44"
-tracing-subscriber = "0.3.23"
-tracing-core = "0.1.36"
-base64 = "0.21"
-jsonschema = "0.26"
-aes-gcm = "0.10"
-jsonwebtoken = "9"
-urlencoding = "2.1"
-hex = "0.4.3"
-sha2 = "0.10"
-hmac = "0.12"
-rusqlite = { version = "0.32", features = ["bundled"] }
-
-[dev-dependencies]
-tempfile = "3"
-
-[target.'cfg(windows)'.dependencies]
-winreg = "0.55"
-# Dynamically link official WinDivert.dll (via WINDIVERT_PATH). Do NOT use `static` —
-# vendored static objects redefine CRT symbols (memcpy) and break MSVC link (LNK2005/1169).
-# `vendored` remains a fallback when WINDIVERT_PATH is unset (local/dev without config).
-windivert = { version = "0.6", features = ["vendored"] }
-etherparse = "0.13"
-
-
-
-
-[[bin]]
-name = "export_bindings"
-path = "src/bin/export_bindings.rs"

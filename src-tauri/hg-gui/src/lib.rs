@@ -61,6 +61,7 @@ use std::sync::Arc;
 mod logging;
 mod cli;
 mod runtime;
+pub mod serve;
 mod command {
     pub mod api_log_commands;
     pub mod domain_commands;

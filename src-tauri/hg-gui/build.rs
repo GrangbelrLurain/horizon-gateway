@@ -11,8 +11,6 @@ fn main() {
 fn build_tauri() {
     #[cfg(windows)]
     {
-        // Product decision: always elevate on Windows so WinDivert / system networking
-        // features work reliably instead of failing mid-session without admin.
         let windows = tauri_build::WindowsAttributes::new()
             .app_manifest(include_str!("windows-app-manifest.xml"));
         tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
@@ -29,6 +27,7 @@ fn build_tauri() {
 fn sync_skill_md_resource() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let source_skill = manifest_dir
+        .join("..")
         .join("..")
         .join(".agents")
         .join("skills")

@@ -70,8 +70,8 @@ jobs:
 
       - name: Clippy
         working-directory: src-tauri
-        run: cargo clippy --all-targets
+        run: cargo clippy --workspace --all-targets
 
       - name: Test
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --workspace

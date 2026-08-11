@@ -156,7 +156,7 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
             .into_response();
     }
     if path == "/.horizon-gateway/logo.svg" {
-        let svg = include_str!("../../../../../app-icon.svg");
+        let svg = include_str!("../../../../../../app-icon.svg");
         return (
             StatusCode::OK,
             [(CONTENT_TYPE, HeaderValue::from_static("image/svg+xml"))],

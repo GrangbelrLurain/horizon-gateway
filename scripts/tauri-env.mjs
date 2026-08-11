@@ -27,8 +27,13 @@ if (fs.existsSync(envPath)) {
 
 const cliPath = path.join(__dirname, '../node_modules/@tauri-apps/cli/tauri.js');
 const args = process.argv.slice(2);
+const configFlag = ['--config', '-c'];
+const hasConfig = args.some((a, i) => configFlag.includes(a) || (i > 0 && configFlag.includes(args[i - 1])));
+const tauriArgs = hasConfig
+  ? args
+  : ['--config', path.join(__dirname, '../src-tauri/hg-gui/tauri.conf.json'), ...args];
 
-const child = spawn(process.execPath, [cliPath, ...args], { stdio: 'inherit' });
+const child = spawn(process.execPath, [cliPath, ...tauriArgs], { stdio: 'inherit' });
 
 child.on('close', (code) => {
   process.exit(code);

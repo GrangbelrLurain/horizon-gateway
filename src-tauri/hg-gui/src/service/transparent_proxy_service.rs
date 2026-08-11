@@ -193,6 +193,7 @@ fn ensure_windivert_sidecars() -> Result<(), String> {
     search_roots.push(exe_dir.clone());
     if let Ok(cwd) = std::env::current_dir() {
         search_roots.push(cwd.join("resources").join("windivert"));
+        search_roots.push(cwd.join("src-tauri").join("hg-gui").join("resources").join("windivert"));
         search_roots.push(cwd.join("src-tauri").join("resources").join("windivert"));
     }
 

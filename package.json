@@ -14,7 +14,7 @@
     "format": "biome check --write",
     "format:f": "biome check --write --unsafe",
     "type-check": "tsc --noEmit",
-    "clippy": "cd src-tauri && cargo clippy",
+    "clippy": "cd src-tauri && cargo clippy --workspace --all-targets",
     "prepare": "husky",
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",

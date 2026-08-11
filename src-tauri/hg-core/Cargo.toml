@@ -1,0 +1,13 @@
+[lints]
+workspace = true
+
+[package]
+name = "hg-core"
+version = "2.7.7"
+edition = "2021"
+description = "Shared Horizon Gateway core types and serve protocol"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1.21.0", features = ["serde", "v4"] }

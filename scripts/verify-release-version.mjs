@@ -33,12 +33,17 @@ function readJsonVersion(relPath, key = "version") {
   return { path: relPath, version: normalizeVersion(json[key]) };
 }
 
-function readCargoVersion() {
-  const relPath = "src-tauri/Cargo.toml";
-  const cargo = readFileSync(join(ROOT, relPath), "utf8");
-  // Prefer [package] version near the top (first version = line)
-  const match = cargo.match(/^version\s*=\s*"([^"]+)"/m);
-  return { path: relPath, version: normalizeVersion(match?.[1] ?? null) };
+function readCargoVersions() {
+  const crates = [
+    "src-tauri/hg-gui/Cargo.toml",
+    "src-tauri/hg-core/Cargo.toml",
+    "src-tauri/hg-serve/Cargo.toml",
+  ];
+  return crates.map((relPath) => {
+    const cargo = readFileSync(join(ROOT, relPath), "utf8");
+    const match = cargo.match(/^version\s*=\s*"([^"]+)"/m);
+    return { path: relPath, version: normalizeVersion(match?.[1] ?? null) };
+  });
 }
 
 function resolveExpectedRaw() {
@@ -70,8 +75,8 @@ function main() {
 
   const sources = [
     readJsonVersion("package.json"),
-    readJsonVersion("src-tauri/tauri.conf.json"),
-    readCargoVersion(),
+    readJsonVersion("src-tauri/hg-gui/tauri.conf.json"),
+    ...readCargoVersions(),
   ];
 
   console.log(`Expected release version: ${expected} (from ${expectedRaw})`);
