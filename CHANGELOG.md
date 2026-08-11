@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.6] - 2026-08-11
+
+### Added
+
+- **Visual coordinate badge clustering (`2+`)**: Automatically merges overlapping policy badges whose screen coordinates are within 24px or target the same element into a single stack badge (`2+`).
+- **Multi-policy popup tab switcher**: Grouped cluster badges display a top tab bar (`[#2 ...] [#3 ...]`) inside the tooltip card, allowing one-click switching between overlapping policies.
+- **Dynamic route & wildcard matching**: Extended `pattern.ts` to match Next.js/Nuxt dynamic params (`[id]`, `{id}`, `:id`, `[...slug]`) and N-level wildcards (`/*`, `/**`) on root (`/`) and deep subpages.
+
+### Changed
+
+- **Policy edit modal dark glass redesign**: Unified Watchtower main app's policy edit modal (`src/routes/ux/policies/index.tsx`) with injection script's sleek dark glass theme (`Edit3` icon, `Globe`/`FolderTree` icons, pink gradient save button).
+- **Nested markdown list indentation**: Automatically detects leading whitespace/tabs in markdown guide content to render hierarchical sub-bullets (`• iframe...`) cleanly indented under parent numbered badges.
+
+### Fixed
+
+- **Popup card viewport clipping & off-screen floating gap**: Clamped popup card position and dynamic `maxHeight` so tooltips sit directly adjacent to badge dots without floating gaps, and remain strictly within 16px safety margins on all 4 viewport edges.
+- **Post-scroll real-time cluster re-calculation**: Attached useCapture scroll and resize listeners (`window.addEventListener("scroll", ..., true)`) so badge overlap clusters continuously re-evaluate during page scrolling.
+
 ## [v2.7.5] - 2026-08-10
 
 ### Added

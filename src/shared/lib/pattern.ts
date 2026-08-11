@@ -56,18 +56,9 @@ export function matchHostPattern(
 }
 
 /**
- * Matches actualPath (e.g. `/products/123`) against pathPattern (or targetUrl pathname as fallback).
- * Supports:
- * - Empty/undefined/'*'/'**' => matches any path
- * - Wildcard `*` => matches single path segment or characters (e.g. `/products/*`)
- * - Double wildcard `**` => matches arbitrary path depth (e.g. `/products/**`)
- * - Named params `:id` => matches a single path segment (e.g. `/users/:id/edit`)
+ * Helper to test a single path pattern string against actualPath.
  */
-export function matchPathPattern(
-  pathPattern: string | undefined | null,
-  targetUrl: string | undefined | null,
-  actualPath: string,
-): boolean {
+function matchSinglePathPattern(pattern: string, actualPath: string): boolean {
   let cleanActual = actualPath.trim().split("?")[0].split("#")[0];
   if (!cleanActual.startsWith("/")) {
     cleanActual = `/${cleanActual}`;
@@ -76,37 +67,80 @@ export function matchPathPattern(
     cleanActual = cleanActual.slice(0, -1);
   }
 
-  const rawPattern = (pathPattern || "").trim();
-  if (rawPattern) {
-    let patt = rawPattern.split("?")[0].split("#")[0];
-    if (!patt.startsWith("/")) {
-      patt = `/${patt}`;
-    }
-    if (patt.length > 1 && patt.endsWith("/")) {
-      patt = patt.slice(0, -1);
-    }
+  let patt = pattern.trim().split("?")[0].split("#")[0];
+  if (!patt.startsWith("/")) {
+    patt = `/${patt}`;
+  }
+  if (patt.length > 1 && patt.endsWith("/")) {
+    patt = patt.slice(0, -1);
+  }
 
-    if (patt === "*" || patt === "**" || patt === "") {
+  // Root or all-path wildcards: `/*`, `/**`, `*`, `""` match root `/` and any subpath
+  if (patt === "*" || patt === "**" || patt === "/*" || patt === "/**" || patt === "" || patt === "/") {
+    return true;
+  }
+
+  // Trailing wildcard `/*` or `/**`, e.g. `/promotion/*` or `/promotion/**`
+  if (patt.endsWith("/*") || patt.endsWith("/**")) {
+    const prefix = patt.endsWith("/**") ? patt.slice(0, -3) : patt.slice(0, -2);
+    const cleanPrefix = prefix === "" ? "/" : prefix;
+    if (cleanActual === cleanPrefix || cleanActual.startsWith(cleanPrefix === "/" ? "/" : `${cleanPrefix}/`)) {
       return true;
     }
+  }
 
-    const regexStr = `^${patt
-      .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-      .replace(/\\\*\\\*/g, ".*")
-      .replace(/\\\*/g, "[^/]+")
-      .replace(/:[a-zA-Z0-9_]+/g, "[^/]+")}$`;
+  // Convert Next.js / Nuxt / SvelteKit dynamic route syntax
+  // 1. `[...slug]` or `[...id]` -> `.*` (catch-all)
+  let regexPatt = patt.replace(/\[\.\.\.[^\]]+\]/g, ".*");
+  // 2. `[id]`, `{id}`, `:id` -> `[^/]+` (single segment param)
+  regexPatt = regexPatt.replace(/\[[^\]]+\]/g, "[^/]+");
+  regexPatt = regexPatt.replace(/\{[^}]+\}/g, "[^/]+");
+  regexPatt = regexPatt.replace(/:[a-zA-Z0-9_]+/g, "[^/]+");
 
+  // Escape special regex chars EXCEPT `.*` and `[^/]+`
+  const regexStr = `^${regexPatt
+    .replace(/[.+?^${}()|[\]\\]/g, (match) => {
+      return `\\${match}`;
+    })
+    .replace(/\\\.\\\*/g, ".*")
+    .replace(/\\\[\\\^\/\\\]\\\+/g, "[^/]+")
+    .replace(/\\\*/g, ".*")}$`;
+
+  try {
     return new RegExp(regexStr).test(cleanActual);
+  } catch (_e) {
+    return cleanActual === patt;
+  }
+}
+
+/**
+ * Matches actualPath (e.g. `/promotion/1266`) against pathPattern (or targetUrl pathname as fallback).
+ * Supports:
+ * - Empty/undefined/'*'/'**'/'/*' => matches root `/` and any path
+ * - Next.js dynamic routes: `/promotion/[id]`, `/promotion/[...slug]`
+ * - Parameterized routes: `/promotion/:id`, `/promotion/{id}`
+ * - Wildcards: `/promotion/*`, `/promotion/**`
+ * - Comma-separated multiple patterns: `/promotion/*, /events/[id]`
+ */
+export function matchPathPattern(
+  pathPattern: string | undefined | null,
+  targetUrl: string | undefined | null,
+  actualPath: string,
+): boolean {
+  const rawPattern = (pathPattern || "").trim();
+  if (rawPattern) {
+    const patterns = rawPattern
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return patterns.some((p) => matchSinglePathPattern(p, actualPath));
   }
 
   if (targetUrl?.trim()) {
     try {
       const parsed = new URL(targetUrl.startsWith("http") ? targetUrl : `http://${targetUrl}`);
-      let targetPath = parsed.pathname || "/";
-      if (targetPath.length > 1 && targetPath.endsWith("/")) {
-        targetPath = targetPath.slice(0, -1);
-      }
-      return targetPath === cleanActual;
+      const targetPath = parsed.pathname || "/";
+      return matchSinglePathPattern(targetPath, actualPath);
     } catch (_e) {
       return true;
     }

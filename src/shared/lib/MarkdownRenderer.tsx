@@ -169,7 +169,16 @@ export function MarkdownRenderer({ content, className = "", style = {}, codeStyl
     >
       {lines.map((line, lineIdx) => {
         const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={`line-${lineIdx}`} style={{ height: "4px" }} />;
+        }
+
+        const leadingWhitespaceMatch = line.match(/^[\s\t]+/);
+        const leadingSpaces = leadingWhitespaceMatch ? leadingWhitespaceMatch[0].replace(/\t/g, "  ").length : 0;
+        const indentLevel = Math.max(0, Math.floor(leadingSpaces / 2));
+
         if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          const paddingLeft = indentLevel > 0 ? `${14 + indentLevel * 14}px` : "6px";
           return (
             <div
               key={`line-${lineIdx}`}
@@ -177,17 +186,66 @@ export function MarkdownRenderer({ content, className = "", style = {}, codeStyl
                 display: "flex",
                 gap: "8px",
                 alignItems: "flex-start",
-                paddingLeft: "4px",
+                paddingLeft,
+                marginTop: "2px",
+                marginBottom: "2px",
               }}
             >
-              <span style={{ color: "#60a5fa", opacity: 0.8, fontSize: "1.1em" }}>•</span>
-              <div style={{ flex: 1, minWidth: 0 }}>{renderFormattedInlineText(line.replace(/^[-*]\s+/, ""))}</div>
+              <span style={{ color: "#60a5fa", opacity: 0.85, fontSize: "1.1em", lineHeight: "1.4" }}>•</span>
+              <div style={{ flex: 1, minWidth: 0, color: indentLevel > 0 ? "rgba(241, 245, 249, 0.88)" : "inherit" }}>
+                {renderFormattedInlineText(trimmed.replace(/^[-*\u2022]\s*/, "").replace(/^[-*\u2022]\s*/, ""))}
+              </div>
             </div>
           );
         }
 
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          const num = numMatch[1];
+          const rest = numMatch[2];
+          const paddingLeft = indentLevel > 0 ? `${14 + indentLevel * 14}px` : "2px";
+          return (
+            <div
+              key={`line-${lineIdx}`}
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: "flex-start",
+                paddingLeft,
+                marginTop: "4px",
+                marginBottom: "3px",
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: "18px",
+                  height: "18px",
+                  padding: "0 5px",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(59, 130, 246, 0.18)",
+                  border: "1px solid rgba(96, 165, 250, 0.35)",
+                  color: "#93c5fd",
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  fontFamily: "monospace",
+                  flexShrink: 0,
+                  marginTop: "3px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                }}
+              >
+                {num}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>{renderFormattedInlineText(rest)}</div>
+            </div>
+          );
+        }
+
+        const paddingLeft = indentLevel > 0 ? `${14 + indentLevel * 14}px` : "0px";
         return (
-          <div key={`line-${lineIdx}`} style={{ minWidth: 0 }}>
+          <div key={`line-${lineIdx}`} style={{ minWidth: 0, paddingLeft }}>
             {renderFormattedInlineText(line)}
           </div>
         );

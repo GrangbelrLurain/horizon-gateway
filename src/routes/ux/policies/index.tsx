@@ -10,13 +10,16 @@ import {
   BookOpen,
   Download,
   Edit2,
+  Edit3,
   ExternalLink,
   FileText,
+  FolderTree,
   Globe,
   Info,
   LayoutGrid,
   Maximize2,
   RotateCcw,
+  Save,
   Search,
   Settings2,
   Trash2,
@@ -31,9 +34,7 @@ import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
-import { Input } from "@/shared/ui/input/Input";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
-import { Modal } from "@/shared/ui/modal/Modal";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
@@ -802,95 +803,316 @@ function PolicyListPage() {
       </div>
 
       {/* Edit Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
-        <Modal.Header title={t.editPolicy} />
-        <Modal.Body className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-              {t.roleLabel}
-            </label>
-            <Input
-              value={editForm.role}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
-              className="font-bold text-base"
-            />
-          </div>
+      {isEditModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            pointerEvents: "auto",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEditModalOpen(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
+              width: "480px",
+              maxWidth: "calc(100vw - 32px)",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
+              border: "1px solid rgba(236, 72, 153, 0.35)",
+              color: "white",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Edit3 style={{ width: "20px", height: "20px", color: "#ec4899" }} />
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "800", color: "#f8fafc" }}>{t.editPolicy}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "rgba(255, 255, 255, 0.5)",
+                  cursor: "pointer",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                }}
+              >
+                <X style={{ width: "20px", height: "20px" }} />
+              </button>
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-              {t.descLabel}
-            </label>
-            <textarea
-              value={editForm.description}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-              className="textarea textarea-bordered bg-base-200/50 min-h-[100px] focus:outline-primary leading-relaxed text-sm"
-              placeholder="Description (Markdown format supported: `code`, **bold**, - list)..."
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-base-200">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-                {t.domainLabel}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label
+                htmlFor="app-edit-role"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  color: "rgba(255,255,255,0.5)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t.roleLabel}
               </label>
-              <Input
-                value={editForm.domain}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
-                className="font-mono text-xs"
-                placeholder="modetour.dev"
+              <input
+                id="app-edit-role"
+                value={editForm.role}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "10px",
+                  padding: "10px 12px",
+                  color: "white",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  outline: "none",
+                }}
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-                {t.hostPatternLabel}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label
+                htmlFor="app-edit-desc"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  color: "rgba(255,255,255,0.5)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t.descLabel}
               </label>
-              <Input
-                value={editForm.hostPattern}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
-                className="font-mono text-xs"
-                placeholder={t.hostPatternPlaceholder}
+              <textarea
+                id="app-edit-desc"
+                value={editForm.description}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Description (Markdown format supported)..."
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "10px",
+                  padding: "10px 12px",
+                  color: "white",
+                  fontSize: "12px",
+                  lineHeight: "1.5",
+                  outline: "none",
+                  minHeight: "100px",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
               />
             </div>
-          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-              {t.pathPatternLabel}
-            </label>
-            <Input
-              value={editForm.pathPattern}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, pathPattern: e.target.value }))}
-              className="font-mono text-xs"
-              placeholder={t.pathPatternPlaceholder}
-            />
-          </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label
+                  htmlFor="app-edit-domain"
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "800",
+                    color: "rgba(255,255,255,0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <Globe style={{ width: "11px", height: "11px", color: "#60a5fa" }} /> {t.domainLabel}
+                </label>
+                <input
+                  id="app-edit-domain"
+                  value={editForm.domain}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
+                  placeholder="www.modetour.com"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "#93c5fd",
+                    fontSize: "11px",
+                    fontFamily: "monospace",
+                    outline: "none",
+                  }}
+                />
+              </div>
 
-          <div className="p-3 bg-base-200/60 rounded-xl flex items-start gap-2 text-xs text-base-content/70">
-            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="leading-snug text-[11px]">{t.patternHelp}</p>
-          </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label
+                  htmlFor="app-edit-host"
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "800",
+                    color: "rgba(255,255,255,0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <Globe style={{ width: "11px", height: "11px", color: "#60a5fa" }} /> {t.hostPatternLabel}
+                </label>
+                <input
+                  id="app-edit-host"
+                  value={editForm.hostPattern}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
+                  placeholder={t.hostPatternPlaceholder}
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.06)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    color: "#93c5fd",
+                    fontSize: "11px",
+                    fontFamily: "monospace",
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
 
-          <div className="flex flex-col gap-1.5 opacity-60">
-            <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-              {t.urlLabel}
-            </label>
-            <Input
-              value={editForm.url}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
-              className="font-mono text-xs bg-base-200"
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label
+                htmlFor="app-edit-path"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  color: "rgba(255,255,255,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <FolderTree style={{ width: "11px", height: "11px", color: "#f472b6" }} /> {t.pathPatternLabel}
+              </label>
+              <input
+                id="app-edit-path"
+                value={editForm.pathPattern}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, pathPattern: e.target.value }))}
+                placeholder={t.pathPatternPlaceholder}
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "8px",
+                  padding: "8px 10px",
+                  color: "#f472b6",
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
+              }}
+            >
+              <Info style={{ width: "14px", height: "14px", color: "#3b82f6", flexShrink: 0, marginTop: "2px" }} />
+              <p style={{ margin: 0, fontSize: "11px", color: "rgba(255, 255, 255, 0.6)", lineHeight: "1.4" }}>
+                {t.patternHelp}
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", opacity: 0.7 }}>
+              <label
+                htmlFor="app-edit-url"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  color: "rgba(255,255,255,0.5)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t.urlLabel}
+              </label>
+              <input
+                id="app-edit-url"
+                value={editForm.url}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "8px",
+                  padding: "8px 10px",
+                  color: "rgba(255, 255, 255, 0.8)",
+                  fontSize: "11px",
+                  fontFamily: "monospace",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "10px",
+                  padding: "9px 18px",
+                  color: "white",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {t.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdate}
+                disabled={!editForm.role}
+                style={{
+                  background: "linear-gradient(135deg, #ec4899 0%, #d946ef 100%)",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "9px 20px",
+                  color: "white",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 4px 14px rgba(236, 72, 153, 0.4)",
+                  opacity: !editForm.role ? 0.5 : 1,
+                }}
+              >
+                <Save style={{ width: "14px", height: "14px" }} />
+                {t.save}
+              </button>
+            </div>
           </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>
-            {t.cancel}
-          </Button>
-          <Button variant="primary" onClick={handleUpdate} disabled={!editForm.role}>
-            {t.save}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        </div>
+      )}
 
       {/* Image Zoom Modal */}
       {zoomImage && (

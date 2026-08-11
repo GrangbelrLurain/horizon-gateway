@@ -1,4 +1,4 @@
-import { ArrowUpCircle, Copy, Edit3, FileText, Pin, Target, Trash2 } from "lucide-react";
+import { ArrowUpCircle, Copy, Edit3, FileText, Pin, Target, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
@@ -14,9 +14,15 @@ const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }
 const persistThrottleMs = 30_000;
 const lastPersistedAt = new Map<string, number>();
 
+export interface PolicyBadgeGroupItem {
+  annotation: Annotation;
+  index: number;
+}
+
 export function PolicyBadge({
-  annotation,
+  annotation: singleAnnotation,
   index,
+  items,
   isActive,
   onToggle,
   onEdit,
@@ -27,8 +33,9 @@ export function PolicyBadge({
   onPromote,
   onValidation,
 }: {
-  annotation: Annotation;
-  index: number;
+  annotation?: Annotation;
+  index?: number;
+  items?: PolicyBadgeGroupItem[];
   isActive: boolean;
   onToggle: () => void;
   onEdit?: (ann: Annotation) => void;
@@ -39,20 +46,35 @@ export function PolicyBadge({
   onPromote?: (ann: Annotation, promoteIndex: number) => void;
   onValidation?: (ann: Annotation, validation: LocatorValidation) => void;
 }) {
+  const badgeItems: PolicyBadgeGroupItem[] =
+    items && items.length > 0
+      ? items
+      : singleAnnotation && index != null
+        ? [{ annotation: singleAnnotation, index }]
+        : [];
+
+  const [activeSubIndex, setActiveSubIndex] = useState(0);
+  const currentItem = badgeItems[activeSubIndex] || badgeItems[0];
+  const targetAnnotation = currentItem?.annotation;
+  const primaryAnnotation = badgeItems[0]?.annotation;
+
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const [validation, setValidation] = useState<LocatorValidation | null>(annotation.lastValidation ?? null);
+  const [validation, setValidation] = useState<LocatorValidation | null>(targetAnnotation?.lastValidation ?? null);
   const lastStatusRef = useRef<string | null>(null);
 
   const updatePosition = useCallback(() => {
-    const { el, validation: nextValidation } = resolveAnnotation(annotation);
+    if (!primaryAnnotation) {
+      return;
+    }
+    const { el, validation: nextValidation } = resolveAnnotation(primaryAnnotation);
     setValidation(nextValidation);
 
     if (onValidation && lastStatusRef.current !== nextValidation.status) {
       lastStatusRef.current = nextValidation.status;
-      const prev = lastPersistedAt.get(annotation.id) ?? 0;
+      const prev = lastPersistedAt.get(primaryAnnotation.id) ?? 0;
       if (Date.now() - prev > persistThrottleMs) {
-        lastPersistedAt.set(annotation.id, Date.now());
-        onValidation(annotation, nextValidation);
+        lastPersistedAt.set(primaryAnnotation.id, Date.now());
+        onValidation(primaryAnnotation, nextValidation);
       }
     }
 
@@ -64,7 +86,7 @@ export function PolicyBadge({
     } else if (rect) {
       setRect(null);
     }
-  }, [annotation, onValidation, rect]);
+  }, [primaryAnnotation, onValidation, rect]);
 
   useEffect(() => {
     updatePosition();
@@ -78,19 +100,23 @@ export function PolicyBadge({
     };
   }, [updatePosition]);
 
+  // broken / ambiguous with no unique element: no floating badge
+  if (!targetAnnotation || !rect || rect.width === 0 || rect.height === 0) {
+    return null;
+  }
+  if (rect.top === 0 && rect.left === 0) {
+    return null;
+  }
+
+  const annotation = targetAnnotation;
   const status = validation?.status ?? "broken";
   const statusMeta = STATUS_COLOR[status] ?? STATUS_COLOR.broken;
   const locators = ensureLocators(annotation);
   const suggestIdx = validation?.suggestPromoteTo ?? null;
   const canPromote = status === "weak" && suggestIdx != null && onPromote;
 
-  // broken / ambiguous with no unique element: no floating badge
-  if (!rect || rect.width === 0 || rect.height === 0) {
-    return null;
-  }
-  if (rect.top === 0 && rect.left === 0) {
-    return null;
-  }
+  const isCluster = badgeItems.length > 1;
+  const badgeLabel = isCluster ? `${badgeItems[0].index}+` : `${badgeItems[0]?.index ?? 1}`;
 
   const badgeBg =
     status === "ok"
@@ -103,12 +129,15 @@ export function PolicyBadge({
           ? "linear-gradient(135deg, #c084fc 0%, #7e22ce 100%)"
           : "linear-gradient(135deg, #f87171 0%, #b91c1c 100%)";
 
+  const dotLeft = Math.max(4, Math.min((rect?.left ?? 16) - 12, window.innerWidth - 32));
+  const dotTop = Math.max(4, Math.min((rect?.top ?? 16) - 12, window.innerHeight - 32));
+
   return (
     <div
       style={{
         position: "fixed",
-        top: rect.top - 12,
-        left: rect.left - 12,
+        top: `${dotTop}px`,
+        left: `${dotLeft}px`,
         zIndex: 2147483640,
         pointerEvents: "auto",
       }}
@@ -126,43 +155,58 @@ export function PolicyBadge({
             onToggle();
           }
         }}
-        title={`locator: ${statusMeta.label}`}
+        title={`locator: ${statusMeta.label}${isCluster ? ` (${badgeItems.length} policies)` : ""}`}
         style={{
-          width: "24px",
-          height: "24px",
+          width: isCluster ? "28px" : "24px",
+          height: isCluster ? "28px" : "24px",
           borderRadius: "50%",
           backgroundImage: badgeBg,
           color: "white",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "11px",
+          fontSize: isCluster ? "10px" : "11px",
           fontWeight: "900",
           cursor: "pointer",
-          boxShadow: isActive ? "0 0 16px rgba(239, 68, 68, 0.6)" : "0 4px 14px rgba(59, 130, 246, 0.5)",
+          boxShadow: isCluster
+            ? "0 0 16px rgba(96, 165, 250, 0.7), 3px 3px 0 rgba(236, 72, 153, 0.5)"
+            : isActive
+              ? "0 0 16px rgba(239, 68, 68, 0.6)"
+              : "0 4px 14px rgba(59, 130, 246, 0.5)",
           border: `2px solid ${statusMeta.border}`,
           transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
           transform: isActive ? "scale(1.15)" : "scale(1)",
         }}
       >
-        {index}
+        {badgeLabel}
       </div>
       {isActive && (
         <div
           style={{
-            position: "absolute",
-            top: "32px",
-            left: "0",
-            width: "320px",
-            maxWidth: "calc(100vw - 32px)",
-            maxHeight: "380px",
+            position: "fixed",
+            top:
+              rect && rect.bottom + 280 > window.innerHeight
+                ? "auto"
+                : `${Math.max(16, Math.min(dotTop + 28, window.innerHeight - 200))}px`,
+            bottom:
+              rect && rect.bottom + 280 > window.innerHeight
+                ? `${Math.max(16, window.innerHeight - dotTop + 4)}px`
+                : "auto",
+            left: `${Math.max(16, Math.min(dotLeft, window.innerWidth - 456))}px`,
+            minWidth: "280px",
+            width: "max-content",
+            maxWidth: "min(440px, calc(100vw - 32px))",
+            maxHeight:
+              rect && rect.bottom + 280 > window.innerHeight
+                ? `${Math.max(160, Math.min(420, dotTop - 20))}px`
+                : `${Math.max(160, Math.min(420, window.innerHeight - dotTop - 44))}px`,
             overflowY: "auto",
             background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
             color: "white",
             padding: "16px",
             borderRadius: "16px",
-            boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-            border: "1px solid rgba(255, 255, 255, 0.14)",
+            boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
+            border: "1px solid rgba(59, 130, 246, 0.35)",
             zIndex: 2147483645,
             wordBreak: "break-word",
             overflowWrap: "anywhere",
@@ -172,9 +216,62 @@ export function PolicyBadge({
             gap: "10px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <Pin style={{ width: "14px", height: "14px", color: "#60a5fa" }} />
+          {isCluster && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                backgroundColor: "rgba(0, 0, 0, 0.35)",
+                padding: "4px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                overflowX: "auto",
+              }}
+            >
+              {badgeItems.map((item, idx) => {
+                const isTabActive = activeSubIndex === idx;
+                return (
+                  <button
+                    key={item.annotation.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSubIndex(idx);
+                    }}
+                    style={{
+                      background: isTabActive
+                        ? "linear-gradient(135deg, #ec4899 0%, #3b82f6 100%)"
+                        : "rgba(255, 255, 255, 0.05)",
+                      border: isTabActive ? "1px solid rgba(255, 255, 255, 0.3)" : "none",
+                      borderRadius: "7px",
+                      color: isTabActive ? "white" : "rgba(255, 255, 255, 0.6)",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      padding: "4px 9px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span>#{item.index}</span>
+                    <span
+                      style={{ maxWidth: "85px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {item.annotation.role}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+              <Pin style={{ width: "14px", height: "14px", color: "#60a5fa", flexShrink: 0 }} />
               <h4
                 style={{
                   margin: 0,
@@ -184,13 +281,16 @@ export function PolicyBadge({
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   letterSpacing: "-0.01em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {annotation.role}
               </h4>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
               <span
                 style={{
                   fontSize: "9px",
@@ -215,7 +315,7 @@ export function PolicyBadge({
                     borderRadius: "6px",
                     color: "#f472b6",
                     cursor: "pointer",
-                    padding: "4px 8px",
+                    padding: "3px 7px",
                     fontSize: "11px",
                     fontWeight: "600",
                     display: "flex",
@@ -224,10 +324,31 @@ export function PolicyBadge({
                   }}
                   title="수정"
                 >
-                  <Edit3 style={{ width: "12px", height: "12px" }} />
+                  <Edit3 style={{ width: "11px", height: "11px" }} />
                   <span>수정</span>
                 </button>
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "rgba(255, 255, 255, 0.5)",
+                  cursor: "pointer",
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "4px",
+                }}
+                title="닫기"
+              >
+                <X style={{ width: "15px", height: "15px" }} />
+              </button>
             </div>
           </div>
 
@@ -241,12 +362,14 @@ export function PolicyBadge({
             }}
           />
 
-          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
-            primary: {locators[0]?.strategy ?? "—"}
-            {validation?.resolvedBy != null && validation.resolvedBy > 0
-              ? ` · resolved via #${validation.resolvedBy} (${locators[validation.resolvedBy]?.strategy})`
-              : ""}
-          </div>
+          {locators.length > 1 && (
+            <div style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
+              primary: {locators[0]?.strategy ?? "—"}
+              {validation?.resolvedBy != null && validation.resolvedBy > 0
+                ? ` · resolved via #${validation.resolvedBy} (${locators[validation.resolvedBy]?.strategy})`
+                : ""}
+            </div>
+          )}
 
           {canPromote && suggestIdx != null && (
             <button
