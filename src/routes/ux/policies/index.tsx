@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
-import type { Annotation } from "@/shared/api";
+import type { Annotation } from "@/entities/inspector";
 import { commands, unwrap } from "@/shared/api";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";

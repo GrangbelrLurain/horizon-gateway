@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/entities/app";
-import type { CapturedElement } from "@/entities/inspector";
-import type { Annotation, ApiLogEntry, MockRule } from "@/shared/api";
+import type { Annotation, CapturedElement } from "@/entities/inspector";
+import type { ApiLogEntry, MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { createMockModalAtom } from "@/shared/store/modals";
@@ -276,6 +276,9 @@ function LiveCapturePage() {
       role,
       description,
       timestamp: Date.now(),
+      hostPattern: null,
+      pathPattern: null,
+      locators: [],
     };
     try {
       const res = unwrap(await commands.addAnnotation(newAnnotation));

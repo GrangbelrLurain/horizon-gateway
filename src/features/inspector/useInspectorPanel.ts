@@ -115,6 +115,9 @@ export function useInspectorPanel() {
       role,
       description,
       timestamp: Date.now(),
+      hostPattern: null,
+      pathPattern: null,
+      locators: [],
     };
 
     const res = await commands.addAnnotation(newAnnotation).then(unwrap);

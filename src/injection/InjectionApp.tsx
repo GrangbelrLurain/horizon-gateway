@@ -137,7 +137,7 @@ export function InjectionApp() {
               items={cluster.items}
               isActive={isClusterActive}
               onToggle={() => {
-                const firstId = cluster.items[0].annotation.id;
+                const firstId = cluster.items[0]?.annotation.id ?? null;
                 s.setActiveBadgeId(isClusterActive ? null : firstId);
               }}
               onEdit={(target) => s.setEditingAnnotation(target)}

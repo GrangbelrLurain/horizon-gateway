@@ -1,4 +1,4 @@
-import type { Annotation, AnnotationLocator, LocatorValidation } from "@/shared/api";
+import type { Annotation, AnnotationLocator, LocatorValidation } from "@/entities/inspector";
 
 export type LocatorResolveResult = {
   el: HTMLElement | null;
