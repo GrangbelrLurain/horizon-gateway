@@ -109,6 +109,7 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::crypto_commands::VALIDATE_JSON_SCHEMA_CLI_INFO,
     // --- Inspector ---
     crate::command::inspector_commands::GET_ANNOTATIONS_CLI_INFO,
+    crate::command::inspector_commands::GET_ANNOTATION_CLI_INFO,
     crate::command::inspector_commands::ADD_ANNOTATION_CLI_INFO,
     crate::command::inspector_commands::UPDATE_ANNOTATION_CLI_INFO,
     crate::command::inspector_commands::DELETE_ANNOTATION_CLI_INFO,
@@ -117,6 +118,8 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::inspector_commands::SET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO,
     crate::command::inspector_commands::GET_INJECTION_DOMAINS_CLI_INFO,
     crate::command::inspector_commands::SET_INJECTION_DOMAINS_CLI_INFO,
+    crate::command::inspector_commands::ADD_INJECTION_DOMAIN_CLI_INFO,
+    crate::command::inspector_commands::REMOVE_INJECTION_DOMAIN_CLI_INFO,
     // --- Pipeline ---
     crate::command::pipeline_commands::EXECUTE_PIPELINE_CLI_INFO,
     crate::command::pipeline_commands::EXECUTE_PIPELINE_API_NODE_CLI_INFO,
@@ -177,13 +180,28 @@ pub fn print_cli_error(msg: &str) {
 }
 
 /// Returns process exit code for `run` (0 success, 1 error). Other subcommands always return 0.
+#[allow(unsafe_code)]
 pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
+    #[cfg(windows)]
+    unsafe {
+        extern "system" {
+            fn SetConsoleCP(wCodePageID: u32) -> i32;
+            fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
+        }
+        SetConsoleCP(65001);
+        SetConsoleOutputCP(65001);
+    }
+
     if args.is_empty() {
         print_error("명령어가 지정되지 않았습니다. (사용 가능한 명령: init, list, help, run)");
         return 1;
     }
 
     let command = &args[0];
+    if command != "init" && init::is_any_skill_outdated() {
+        cli_eprintln("[horizon-gateway] Notice: Installed agent skill is outdated. Run `horizon-gateway cli init` to update.");
+    }
+
     match command.as_str() {
         "init" => {
             init::execute_init(&args[1..]);
@@ -337,9 +355,12 @@ fn print_to_handle(text: &str, n_std_handle: i32) {
     extern "system" {
         fn GetStdHandle(n_std_handle: i32) -> *mut std::ffi::c_void;
         fn GetFileType(h_file: *mut std::ffi::c_void) -> u32;
+        fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
     }
     
     unsafe {
+        SetConsoleOutputCP(65001);
+
         let handle = GetStdHandle(n_std_handle);
         if !handle.is_null() && handle as isize != -1 {
             let file_type = GetFileType(handle);
@@ -444,6 +465,7 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "process_crypto",
     "validate_json_schema",
     "get_annotations",
+    "get_annotation",
     "add_annotation",
     "update_annotation",
     "delete_annotation",
@@ -452,6 +474,8 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "set_global_inspector_enabled",
     "get_injection_domains",
     "set_injection_domains",
+    "add_injection_domain",
+    "remove_injection_domain",
     "export_all_settings",
     "import_all_settings",
     "save_root_ca",
@@ -911,6 +935,13 @@ fn dispatch_command(
             let result = command::inspector_commands::get_annotations(service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
+        "get_annotation" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::GetAnnotationPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::get_annotation(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "add_annotation" => {
             let service = app_handle.state::<InspectorService>();
             let parsed: crate::model::inspector::Annotation = serde_json::from_value(payload)
@@ -960,6 +991,20 @@ fn dispatch_command(
             let parsed: command::inspector_commands::SetInjectionDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::set_injection_domains(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "add_injection_domain" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::SingleDomainPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::add_injection_domain(service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "remove_injection_domain" => {
+            let service = app_handle.state::<InspectorService>();
+            let parsed: command::inspector_commands::SingleDomainPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::remove_injection_domain(service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         // --- Settings ---

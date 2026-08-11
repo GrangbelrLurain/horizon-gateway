@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.7] - 2026-08-11
+
+### Added
+
+- **Single annotation lookup (`get_annotation`) and injection domain helpers (`add_injection_domain`, `remove_injection_domain`)**: Added dedicated CLI commands to query single annotations by ID and atomically add/remove script injection target domains.
+- **`cli init --check` flag and outdated skill notices**: Introduced `--check` flag to inspect skill installation/update status without writing files, and outputs a notice to `stderr` when executing CLI subcommands with an outdated skill.
+- **Automatic skill file sync (`build.rs`)**: Configured build script to copy master `.agents/skills/horizon-gateway/SKILL.md` to embedded app resources at compile time.
+
+### Changed
+
+- **Simplified `add_annotation` / `update_annotation` payloads**: Made `id`, `timestamp`, `selector`, `domain`, `hostPattern`, `pathPattern`, `tagName`, `content`, `thumbnail` optional in `add_annotation` for minimal agent payloads. `update_annotation` now allows updating partial fields like `role` / `description` independently.
+- **Smart `cli init` auto-update**: Running `cli init` automatically updates outdated skill files without requiring `--force`, while avoiding redundant writes when skills are up to date.
+
+### Fixed
+
+- **Windows CLI UTF-8 console I/O**: Applied WinAPI `SetConsoleCP(65001)` and `SetConsoleOutputCP(65001)` on Windows CLI execution to prevent Korean and UTF-8 string encoding corruption.
+- **Fast-path skill update check**: Optimized skill update status checking with file metadata size comparison before reading contents, eliminating file IO overhead during CLI execution.
+
 ## [v2.7.6] - 2026-08-11
 
 ### Added

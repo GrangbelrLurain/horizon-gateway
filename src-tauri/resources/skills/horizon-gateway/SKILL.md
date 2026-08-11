@@ -162,6 +162,9 @@ Always run `horizon-gateway cli help <command>` first if unsure — use `payload
 #### 1. Read / Search Guides
 
 ```bash
+# Get single guide by ID
+horizon-gateway cli run get_annotation '{"id":"g-101"}'
+
 # Compact fields including locators + validation
 horizon-gateway cli run get_annotations '{}' --query "data.[].{id,selector,role,description,domain,locators,lastValidation}"
 
@@ -171,30 +174,29 @@ horizon-gateway cli run get_annotations '{}' --query "data[lastValidation.status
 
 # Filter by exact domain
 horizon-gateway cli run get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,description,pathPattern}"
-
-# Filter by exact id
-horizon-gateway cli run get_annotations '{}' --query "data[id==g-101]"
 ```
 
-#### 2. Add Guide
+#### 2. Add / Upsert Guide
 
-`add_annotation` accepts a full `Annotation` (include `locators` when known):
+`add_annotation` accepts minimal payloads — `id`, `selector`, `domain`, `hostPattern`, `pathPattern`, `timestamp`, `tagName`, `content`, `thumbnail` are all **optional**!
+- If `id` is omitted, a unique ID (`g-xxx`) is generated automatically.
+- If `url` is provided, `domain`, `hostPattern`, and `pathPattern` are derived automatically.
+- `selector` is synced automatically from `locators` (e.g. `[data-testid="submit"]`).
 
 ```bash
-horizon-gateway cli run add_annotation '{"id":"g-101","selector":"[data-testid=\"submit\"]","content":"","tagName":"BUTTON","thumbnail":"","role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","timestamp":0,"domain":"modetour.dev","url":"https://modetour.dev/checkout","hostPattern":"*.modetour.dev","pathPattern":"/checkout","locators":[{"strategy":"testid","value":"submit"},{"strategy":"css","value":"[data-testid=\"submit\"]"}]}'
+horizon-gateway cli run add_annotation '{"role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","url":"https://modetour.dev/checkout","locators":[{"strategy":"testid","value":"submit"}]}'
 ```
 
 #### 3. Update Guide
 
-`update_annotation` requires **`id`, `role`, and `description`**. Optional: `domain`, `url`, `hostPattern`, `pathPattern`, `locators`, `lastValidation`.
-
-If you pass `url` and omit `pathPattern`, the path is derived automatically from the URL (query/hash stripped). Omitted `hostPattern` / `pathPattern` leave existing values unchanged (do not clear them).
+`update_annotation` requires `id`. `role` and `description` are optional (omitted fields remain unchanged).
 
 ```bash
-# pathPattern auto-filled to /checkout
-horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","description":"Lock 5s and show success toast","url":"https://modetour.dev/checkout"}'
+# Update description only
+horizon-gateway cli run update_annotation '{"id":"g-101","description":"Lock 5s and show success toast"}'
 
-horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","description":"Lock 5s and show success toast","domain":"modetour.dev","url":"https://modetour.dev/checkout","hostPattern":"*.modetour.dev","pathPattern":"/checkout"}'
+# Update role & url (pathPattern auto-filled to /checkout)
+horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","url":"https://modetour.dev/checkout"}'
 ```
 
 Running GUI watches `inspector_annotations.json` and emits `annotations-updated` within ~1s after CLI writes, so the Policies UI refreshes without restart.
@@ -214,6 +216,21 @@ horizon-gateway cli run import_annotations @annotations.json
 ```
 
 `annotations.json` shape: `{"annotations":[ /* Annotation objects */ ]}`.
+
+#### 6. Injection Domains
+
+Manage domain list for script injection:
+
+```bash
+# Add domain to injection list
+horizon-gateway cli run add_injection_domain '{"domain":"modetour.dev"}'
+
+# Remove domain from injection list
+horizon-gateway cli run remove_injection_domain '{"domain":"modetour.dev"}'
+
+# Get full injection domain list
+horizon-gateway cli run get_injection_domains '{}'
+```
 
 ### Query syntax (`--query`)
 

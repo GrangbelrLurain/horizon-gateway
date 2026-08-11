@@ -30,14 +30,54 @@ pub fn get_annotations_svc(service: &InspectorService) -> Result<ApiResponse<Vec
 }
 
 #[derive(serde::Deserialize, specta::Type)]
+pub struct GetAnnotationPayload {
+    pub id: String,
+}
+
+pub const GET_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "get_annotation",
+    description: "ID로 특정 UX 인스펙터 정책(주석)을 조회합니다.",
+    payload_example: r#"{"id": "g-101"}"#,
+    category: "inspector",
+    gui_only: false,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_annotation(
+    service: State<'_, InspectorService>,
+    payload: GetAnnotationPayload,
+) -> Result<ApiResponse<Option<Annotation>>, String> {
+    get_annotation_svc(&service, payload)
+}
+
+pub fn get_annotation_svc(
+    service: &InspectorService,
+    payload: GetAnnotationPayload,
+) -> Result<ApiResponse<Option<Annotation>>, String> {
+    let item = service.get_by_id(&payload.id);
+    let success = item.is_some();
+    let message = if success {
+        "정책 조회 완료".to_string()
+    } else {
+        format!("ID '{}'에 해당하는 정책을 찾을 수 없습니다.", payload.id)
+    };
+    Ok(ApiResponse {
+        message,
+        success,
+        data: item,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
 pub struct DeleteAnnotationPayload {
     pub id: String,
 }
 
 pub const ADD_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "add_annotation",
-    description: "UX 인스펙터 정책(주석)을 추가합니다.",
-    payload_example: r#"{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "Submit button", "timestamp": 0, "domain": "", "url": "", "locators": [{"strategy": "css", "value": ".btn"}]}"#,
+    description: "UX 인스펙터 정책(주석)을 추가/업데이트합니다.",
+    payload_example: r#"{"role": "Submit Button", "description": "Prevent duplicate clicks with 3s lock", "domain": "modetour.dev", "url": "https://modetour.dev/checkout", "locators": [{"strategy": "testid", "value": "submit"}]}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -64,8 +104,10 @@ pub fn add_annotation_svc(service: &InspectorService, payload: Annotation) -> Re
 #[derive(serde::Deserialize, specta::Type)]
 pub struct UpdateAnnotationPayload {
     pub id: String,
-    pub role: String,
-    pub description: String,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
     #[serde(default)]
     pub domain: Option<String>,
     #[serde(default)]
@@ -86,7 +128,7 @@ pub struct UpdateAnnotationPayload {
 pub const UPDATE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_annotation",
     description: "UX 인스펙터 정책(주석)을 수정합니다.",
-    payload_example: r#"{"id": "uuid", "role": "button", "description": "Updated description", "domain": "modetour.dev", "hostPattern": "*.modetour.dev", "pathPattern": "/products/*"}"#,
+    payload_example: r#"{"id": "g-101", "role": "Submit Button", "description": "Updated lock logic"}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -124,7 +166,7 @@ pub fn update_annotation_svc(service: &InspectorService, payload: UpdateAnnotati
 pub const DELETE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "delete_annotation",
     description: "UX 인스펙터 정책(주석)을 삭제합니다.",
-    payload_example: r#"{"id": "uuid"}"#,
+    payload_example: r#"{"id": "g-101"}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -156,7 +198,7 @@ pub struct ImportAnnotationsPayload {
 pub const IMPORT_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "import_annotations",
     description: "UX 인스펙터 정책 목록을 일괄 임포트합니다.",
-    payload_example: r#"{"annotations": [{"id": "uuid", "selector": ".btn", "content": "", "tagName": "button", "thumbnail": "", "role": "button", "description": "desc", "timestamp": 0, "domain": "", "url": ""}]}"#,
+    payload_example: r#"{"annotations": [{"role": "Submit Button", "description": "desc", "domain": "modetour.dev", "url": "https://modetour.dev/checkout"}]}"#,
     category: "inspector",
     gui_only: false,
 };
@@ -279,6 +321,69 @@ pub fn set_injection_domains_svc(service: &InspectorService, payload: SetInjecti
     let list = service.get_injection_domains();
     Ok(ApiResponse {
         message: "인젝션 도메인 목록이 저장되었습니다.".to_string(),
+        success: true,
+        data: list,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+pub struct SingleDomainPayload {
+    pub domain: String,
+}
+
+pub const ADD_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "add_injection_domain",
+    description: "UI 인스펙터 스크립트 주입 도메인을 추가합니다.",
+    payload_example: r#"{"domain": "modetour.dev"}"#,
+    category: "inspector",
+    gui_only: false,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn add_injection_domain(
+    service: State<'_, InspectorService>,
+    payload: SingleDomainPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    add_injection_domain_svc(&service, payload)
+}
+
+pub fn add_injection_domain_svc(
+    service: &InspectorService,
+    payload: SingleDomainPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    let list = service.add_injection_domain(&payload.domain);
+    Ok(ApiResponse {
+        message: format!("인젝션 도메인 '{}' 추가 완료", payload.domain),
+        success: true,
+        data: list,
+    })
+}
+
+pub const REMOVE_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "remove_injection_domain",
+    description: "UI 인스펙터 스크립트 주입 도메인을 제거합니다.",
+    payload_example: r#"{"domain": "modetour.dev"}"#,
+    category: "inspector",
+    gui_only: false,
+};
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_injection_domain(
+    service: State<'_, InspectorService>,
+    payload: SingleDomainPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    remove_injection_domain_svc(&service, payload)
+}
+
+pub fn remove_injection_domain_svc(
+    service: &InspectorService,
+    payload: SingleDomainPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
+    let list = service.remove_injection_domain(&payload.domain);
+    Ok(ApiResponse {
+        message: format!("인젝션 도메인 '{}' 제거 완료", payload.domain),
         success: true,
         data: list,
     })

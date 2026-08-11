@@ -81,8 +81,9 @@ mod command {
 }
 
 use command::inspector_commands::{
-    add_annotation, delete_annotation, get_annotations, get_global_inspector_enabled,
-    get_injection_domains, import_annotations, set_global_inspector_enabled, set_injection_domains,
+    add_annotation, add_injection_domain, delete_annotation, get_annotation, get_annotations,
+    get_global_inspector_enabled, get_injection_domains, import_annotations,
+    remove_injection_domain, set_global_inspector_enabled, set_injection_domains,
     update_annotation,
 };
 
@@ -194,6 +195,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             open_inspector_window,
             open_annotation_dialog,
             get_annotations,
+            get_annotation,
             add_annotation,
             update_annotation,
             delete_annotation,
@@ -202,6 +204,8 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_global_inspector_enabled,
             get_injection_domains,
             set_injection_domains,
+            add_injection_domain,
+            remove_injection_domain,
             get_scenarios,
             create_scenario,
             update_scenario,

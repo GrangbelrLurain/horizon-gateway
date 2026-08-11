@@ -4,6 +4,24 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.7] - 2026-08-11
+
+### Added (추가 기능)
+
+- **`get_annotation` 단건 조회 및 인젝션 도메인 개별 조작 명령 (`add_injection_domain`, `remove_injection_domain`)**: CLI에서 ID로 특정 단일 정책만 조회하는 명령과 스크립트 주입 도메인을 1-step으로 즉시 추가/삭제하는 명령어를 추가했습니다.
+- **`cli init --check` 플래그 및 구버전 스킬 노티피케이션**: 스킬 설치/업데이트 상태를 미리 확인하는 `--check` 플래그를 추가하고, CLI 명령 실행 시 구버전 스킬이 감지되면 `stderr`로 안내 메시지를 출력합니다.
+- **스킬 파일 자동 동기화 (`build.rs`)**: `cargo build` 시점에 개발 마스터 `SKILL.md`를 앱 내장 리소스 위치로 자동 복사하여 이중 관리 오차를 원천 차단했습니다.
+
+### Changed (변경 사항)
+
+- **CLI `add_annotation` / `update_annotation` 페이로드 대폭 간소화**: `id`, `timestamp`, `selector`, `domain`, `hostPattern`, `pathPattern`, `tagName`, `content`, `thumbnail`을 모두 옵셔널화하여 minimal 페이로드 작성을 지원합니다. `url` 기반 자동 패턴 도출 및 `locators` 기반 `selector` 자동 동기화가 적용됩니다. `update_annotation` 역시 `role` / `description` 부분 수정이 가능합니다.
+- **`cli init` 스마트 자동 업데이트**: `cli init` 실행 시 `--force` 없이도 기존 스킬이 구버전이면 자동으로 최신 버전으로 갱신되며, 이미 최신 버전인 경우 불필요한 재쓰기를 방지(`up_to_date`)합니다.
+
+### Fixed (버그 수정)
+
+- **Windows CLI UTF-8 콘솔 입출력 보장**: Windows 터미널에서 CLI 실행 시 WinAPI `SetConsoleCP(65001)` 및 `SetConsoleOutputCP(65001)`을 적용하여 한글 및 유니코드 문자가 깨지거나 잘못 파싱되는 문제를 해결했습니다.
+- **스킬 업데이트 검사 Fast-path 최적화**: 파일 메타데이터 크기(`len()`)를 먼저 비교하는 Fast-path 검사를 추가하여 매 CLI 실행 시 발생하던 파일 읽기 IO 부담을 제거했습니다.
+
 ## [v2.7.6] - 2026-08-11
 
 ### Added (추가 기능)

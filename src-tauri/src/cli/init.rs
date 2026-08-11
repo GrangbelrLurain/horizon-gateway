@@ -61,6 +61,7 @@ pub struct InitOptions {
     pub project: bool,
     pub print: bool,
     pub force: bool,
+    pub check: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -114,7 +115,7 @@ pub fn execute_init(args: &[String]) {
         let project_dir = std::env::current_dir()
             .map(|cwd| cwd.join(PROJECT_SKILL_REL))
             .unwrap_or_else(|_| PathBuf::from(PROJECT_SKILL_REL));
-        match write_skill_bundle(&project_dir, options.force) {
+        match write_skill_bundle(&project_dir, options.force, options.check) {
             Ok(status) => installed.push(InstalledPath {
                 target: "project".to_string(),
                 path: project_dir.to_string_lossy().into_owned(),
@@ -131,7 +132,7 @@ pub fn execute_init(args: &[String]) {
     if !options.project {
         for target in &targets {
             let dir = global_skill_dir(&home, *target);
-            match write_skill_bundle(&dir, options.force) {
+            match write_skill_bundle(&dir, options.force, options.check) {
                 Ok(status) => installed.push(InstalledPath {
                     target: target.id().to_string(),
                     path: dir.to_string_lossy().into_owned(),
@@ -187,6 +188,10 @@ fn parse_init_options(args: &[String]) -> InitOptions {
             }
             "--force" => {
                 options.force = true;
+                i += 1;
+            }
+            "--check" => {
+                options.check = true;
                 i += 1;
             }
             _ => i += 1,
@@ -268,14 +273,32 @@ fn global_skill_dir(home: &Path, target: AgentTarget) -> PathBuf {
     }
 }
 
-fn write_skill_bundle(dest: &Path, force: bool) -> Result<String, String> {
+fn write_skill_bundle(dest: &Path, force: bool, check: bool) -> Result<String, String> {
     let skill_file = dest.join("SKILL.md");
     let scripts_dir = dest.join("scripts");
     let logs_file = scripts_dir.join("logs.mjs");
 
     let existed = skill_file.exists();
-    if existed && !force {
-        return Err("already exists (use --force to overwrite)".to_string());
+
+    if existed {
+        let current_skill = fs::read_to_string(&skill_file).unwrap_or_default();
+        let current_logs = fs::read_to_string(&logs_file).unwrap_or_default();
+
+        let is_up_to_date = current_skill == SKILL_MD && current_logs == LOGS_MJS;
+
+        if is_up_to_date && !force {
+            return Ok("up_to_date".to_string());
+        }
+
+        if check {
+            return Ok(if is_up_to_date {
+                "up_to_date".to_string()
+            } else {
+                "outdated".to_string()
+            });
+        }
+    } else if check {
+        return Ok("missing".to_string());
     }
 
     fs::create_dir_all(&scripts_dir).map_err(|e| format!("mkdir failed: {e}"))?;
@@ -283,6 +306,57 @@ fn write_skill_bundle(dest: &Path, force: bool) -> Result<String, String> {
     fs::write(&logs_file, LOGS_MJS).map_err(|e| format!("write logs.mjs failed: {e}"))?;
 
     Ok(if existed { "updated".to_string() } else { "installed".to_string() })
+}
+
+pub fn is_any_skill_outdated() -> bool {
+    let home = match home_dir() {
+        Some(h) => h,
+        None => return false,
+    };
+
+    let project_dir = std::env::current_dir()
+        .map(|cwd| cwd.join(PROJECT_SKILL_REL))
+        .unwrap_or_else(|_| PathBuf::from(PROJECT_SKILL_REL));
+    if check_dir_outdated(&project_dir) {
+        return true;
+    }
+
+    let targets = detect_installed_targets(&home);
+    for target in targets {
+        let dir = global_skill_dir(&home, target);
+        if check_dir_outdated(&dir) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn check_dir_outdated(dir: &Path) -> bool {
+    let skill_file = dir.join("SKILL.md");
+    let meta = match fs::metadata(&skill_file) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+
+    // Fast-path size check: if file size differs, it's outdated without reading content
+    if meta.len() != SKILL_MD.len() as u64 {
+        return true;
+    }
+
+    let logs_file = dir.join("scripts/logs.mjs");
+    if let Ok(logs_meta) = fs::metadata(&logs_file) {
+        if logs_meta.len() != LOGS_MJS.len() as u64 {
+            return true;
+        }
+    } else {
+        return true;
+    }
+
+    let current_skill = fs::read_to_string(&skill_file).unwrap_or_default();
+    let current_logs = fs::read_to_string(&logs_file).unwrap_or_default();
+
+    current_skill != SKILL_MD || current_logs != LOGS_MJS
 }
 
 fn home_dir() -> Option<PathBuf> {

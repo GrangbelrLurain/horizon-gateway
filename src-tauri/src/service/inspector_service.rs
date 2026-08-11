@@ -131,20 +131,51 @@ impl InspectorService {
         list
     }
 
-    pub fn add_annotation(&self, mut annotation: Annotation) {
-        let _ = self.reload_if_stale();
-        if annotation
+    fn normalize_annotation(&self, ann: &mut Annotation) {
+        if ann.id.trim().is_empty() {
+            ann.id = format!("g-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+        }
+        if ann.timestamp == 0 {
+            ann.timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+        }
+        if ann.domain.trim().is_empty() && !ann.url.trim().is_empty() {
+            ann.domain = Self::extract_host_key(&ann.url);
+        }
+        if ann.host_pattern.as_ref().map(|p| p.trim().is_empty()).unwrap_or(true)
+            && !ann.domain.trim().is_empty()
+        {
+            ann.host_pattern = Some(format!("*.{}", ann.domain));
+        }
+        if ann
             .path_pattern
             .as_ref()
             .map(|p| p.trim().is_empty())
             .unwrap_or(true)
         {
-            if let Some(path) = Self::extract_path_from_url(&annotation.url) {
-                annotation.path_pattern = Some(path);
+            if let Some(path) = Self::extract_path_from_url(&ann.url) {
+                ann.path_pattern = Some(path);
             }
         }
-        annotation.migrate_locators();
-        annotation.sync_selector_from_locators();
+        ann.migrate_locators();
+        ann.sync_selector_from_locators();
+    }
+
+    pub fn get_by_id(&self, id: &str) -> Option<Annotation> {
+        let _ = self.reload_if_stale();
+        self.annotations
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|a| a.id == id)
+            .cloned()
+    }
+
+    pub fn add_annotation(&self, mut annotation: Annotation) {
+        let _ = self.reload_if_stale();
+        self.normalize_annotation(&mut annotation);
         let mut list = self.annotations.lock().unwrap();
         list.retain(|a| a.id != annotation.id);
         list.push(annotation);
@@ -155,18 +186,7 @@ impl InspectorService {
         let _ = self.reload_if_stale();
         let mut list = self.annotations.lock().unwrap();
         for mut ann in annotations {
-            if ann
-                .path_pattern
-                .as_ref()
-                .map(|p| p.trim().is_empty())
-                .unwrap_or(true)
-            {
-                if let Some(path) = Self::extract_path_from_url(&ann.url) {
-                    ann.path_pattern = Some(path);
-                }
-            }
-            ann.migrate_locators();
-            ann.sync_selector_from_locators();
+            self.normalize_annotation(&mut ann);
             list.retain(|a| a.id != ann.id);
             list.push(ann);
         }
@@ -176,8 +196,8 @@ impl InspectorService {
     pub fn update_annotation(
         &self,
         id: String,
-        role: String,
-        description: String,
+        role: Option<String>,
+        description: Option<String>,
         domain: Option<String>,
         url: Option<String>,
         host_pattern: Option<String>,
@@ -189,8 +209,12 @@ impl InspectorService {
         let _ = self.reload_if_stale();
         let mut list = self.annotations.lock().unwrap();
         if let Some(ann) = list.iter_mut().find(|a| a.id == id) {
-            ann.role = role;
-            ann.description = description;
+            if let Some(r) = role {
+                ann.role = r;
+            }
+            if let Some(d) = description {
+                ann.description = d;
+            }
             if let Some(d) = domain {
                 ann.domain = d;
             }
@@ -250,6 +274,37 @@ impl InspectorService {
         let mut list = self.injection_domains.lock().unwrap();
         *list = domains;
         self.persist_domains(&list);
+    }
+
+    pub fn add_injection_domain(&self, domain: &str) -> Vec<String> {
+        let mut list = self.injection_domains.lock().unwrap();
+        let host_key = Self::extract_host_key(domain);
+        let key = if host_key.is_empty() {
+            domain.trim().to_lowercase()
+        } else {
+            host_key
+        };
+        if !key.is_empty() && !list.iter().any(|d| d.to_lowercase() == key) {
+            list.push(key);
+            self.persist_domains(&list);
+        }
+        list.clone()
+    }
+
+    pub fn remove_injection_domain(&self, domain: &str) -> Vec<String> {
+        let mut list = self.injection_domains.lock().unwrap();
+        let host_key = Self::extract_host_key(domain);
+        let key = if host_key.is_empty() {
+            domain.trim().to_lowercase()
+        } else {
+            host_key
+        };
+        let before_len = list.len();
+        list.retain(|d| d.to_lowercase() != key);
+        if list.len() != before_len {
+            self.persist_domains(&list);
+        }
+        list.clone()
     }
 
     pub fn extract_host_key(url: &str) -> String {

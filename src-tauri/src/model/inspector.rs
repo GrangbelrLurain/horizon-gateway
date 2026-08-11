@@ -47,14 +47,21 @@ pub struct LocatorValidation {
 
 #[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct Annotation {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub selector: String,
+    #[serde(default)]
     pub content: String,
-    #[serde(rename = "tagName")]
+    #[serde(default, rename = "tagName")]
     pub tag_name: String,
+    #[serde(default)]
     pub thumbnail: String,
+    #[serde(default)]
     pub role: String,
+    #[serde(default)]
     pub description: String,
+    #[serde(default)]
     #[specta(type = f64)]
     pub timestamp: u64,
     #[serde(default)]

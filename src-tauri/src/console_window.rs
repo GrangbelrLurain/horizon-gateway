@@ -5,27 +5,40 @@
 //! when stdout/stderr are not already redirected (pipes/files), so agent `spawn`
 //! and file redirection keep working.
 
-#[cfg(all(windows, not(debug_assertions)))]
+#[cfg(windows)]
 pub fn attach_for_cli() {
-    const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
-    const ERROR_ACCESS_DENIED: u32 = 5;
-
     extern "system" {
-        fn AttachConsole(dw_process_id: u32) -> i32;
-        fn GetLastError() -> u32;
-    }
-
-    // STD_OUTPUT_HANDLE / STD_ERROR_HANDLE
-    if stdio_is_redirected(-11) || stdio_is_redirected(-12) {
-        return;
+        fn SetConsoleCP(wCodePageID: u32) -> i32;
+        fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
     }
 
     unsafe {
-        if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
-            let err = GetLastError();
-            // Already attached (e.g. nested launch) — fine.
-            if err != ERROR_ACCESS_DENIED {
-                return;
+        SetConsoleCP(65001);
+        SetConsoleOutputCP(65001);
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
+        const ERROR_ACCESS_DENIED: u32 = 5;
+
+        extern "system" {
+            fn AttachConsole(dw_process_id: u32) -> i32;
+            fn GetLastError() -> u32;
+        }
+
+        // STD_OUTPUT_HANDLE / STD_ERROR_HANDLE
+        if stdio_is_redirected(-11) || stdio_is_redirected(-12) {
+            return;
+        }
+
+        unsafe {
+            if AttachConsole(ATTACH_PARENT_PROCESS) == 0 {
+                let err = GetLastError();
+                // Already attached (e.g. nested launch) — fine.
+                if err != ERROR_ACCESS_DENIED {
+                    return;
+                }
             }
         }
     }
@@ -49,5 +62,6 @@ fn stdio_is_redirected(n_std_handle: i32) -> bool {
     }
 }
 
-#[cfg(any(not(windows), debug_assertions))]
+#[cfg(not(windows))]
 pub fn attach_for_cli() {}
+

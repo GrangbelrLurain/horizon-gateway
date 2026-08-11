@@ -335,29 +335,35 @@ pub fn dispatch_headless(
             Ok(serde_json::to_value(result).unwrap())
         }
         "get_annotations" => {
-                        let result = command::inspector_commands::get_annotations_svc(&ctx.inspector_service)?;
+            let result = command::inspector_commands::get_annotations_svc(&ctx.inspector_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_annotation" => {
+            let parsed: command::inspector_commands::GetAnnotationPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::get_annotation_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "add_annotation" => {
-                        let parsed: crate::model::inspector::Annotation = serde_json::from_value(payload)
+            let parsed: crate::model::inspector::Annotation = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::add_annotation_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "update_annotation" => {
-                        let parsed: command::inspector_commands::UpdateAnnotationPayload = serde_json::from_value(payload)
+            let parsed: command::inspector_commands::UpdateAnnotationPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::update_annotation_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "delete_annotation" => {
-                        let parsed: command::inspector_commands::DeleteAnnotationPayload = serde_json::from_value(payload)
+            let parsed: command::inspector_commands::DeleteAnnotationPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::delete_annotation_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "import_annotations" => {
-                        let parsed: command::inspector_commands::ImportAnnotationsPayload = serde_json::from_value(payload)
+            let parsed: command::inspector_commands::ImportAnnotationsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::import_annotations_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
@@ -367,19 +373,31 @@ pub fn dispatch_headless(
             Ok(serde_json::to_value(result).unwrap())
         }
         "set_global_inspector_enabled" => {
-                        let enabled: bool = serde_json::from_value(payload)
+            let enabled: bool = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: (true/false 필요) {}", e))?;
             command::inspector_commands::set_global_inspector_enabled_svc(&ctx.inspector_service, enabled)?;
             Ok(serde_json::json!({"success": true, "data": null}))
         }
         "get_injection_domains" => {
-                        let result = command::inspector_commands::get_injection_domains_svc(&ctx.inspector_service)?;
+            let result = command::inspector_commands::get_injection_domains_svc(&ctx.inspector_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "set_injection_domains" => {
-                        let parsed: command::inspector_commands::SetInjectionDomainsPayload = serde_json::from_value(payload)
+            let parsed: command::inspector_commands::SetInjectionDomainsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::set_injection_domains_svc(&ctx.inspector_service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "add_injection_domain" => {
+            let parsed: command::inspector_commands::SingleDomainPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::add_injection_domain_svc(&ctx.inspector_service, parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "remove_injection_domain" => {
+            let parsed: command::inspector_commands::SingleDomainPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::inspector_commands::remove_injection_domain_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "export_all_settings" => {
