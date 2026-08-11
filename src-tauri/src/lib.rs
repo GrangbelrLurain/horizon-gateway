@@ -597,5 +597,18 @@ pub fn execute_cli_headless(args: &[String]) -> i32 {
         runtime,
     };
 
-    cli::execute_cli(args, cli::CliExecutionMode::Headless { env })
+    let code = cli::execute_cli(args, cli::CliExecutionMode::Headless { env });
+
+    // Headless `start_transparent_proxy` must keep this process alive — WinDivert closes when the exe exits.
+    if code == 0
+        && args.first().map(String::as_str) == Some("run")
+        && args.get(1).map(String::as_str) == Some("start_transparent_proxy")
+        && crate::service::transparent_proxy_service::TransparentProxyService::get_status().running
+    {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(3600));
+        }
+    }
+
+    code
 }

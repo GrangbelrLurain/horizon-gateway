@@ -5,7 +5,23 @@ fn main() {
     sync_skill_md_resource();
     #[cfg(windows)]
     copy_windivert_sidecars();
-    tauri_build::build();
+    build_tauri();
+}
+
+fn build_tauri() {
+    #[cfg(windows)]
+    {
+        // Product decision: always elevate on Windows so WinDivert / system networking
+        // features work reliably instead of failing mid-session without admin.
+        let windows = tauri_build::WindowsAttributes::new()
+            .app_manifest(include_str!("windows-app-manifest.xml"));
+        tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+            .expect("failed to run tauri build script");
+    }
+    #[cfg(not(windows))]
+    {
+        tauri_build::build();
+    }
 }
 
 /// Automatically sync project master SKILL.md (`.agents/skills/horizon-gateway/SKILL.md`)

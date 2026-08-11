@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::task::JoinHandle;
+use std::thread::JoinHandle;
 
 static TRANSPARENT_RUNNING: AtomicBool = AtomicBool::new(false);
 static TRANSPARENT_PORT: AtomicU16 = AtomicU16::new(0);
@@ -95,7 +95,8 @@ impl TransparentProxyService {
 
         let nat_table = Arc::clone(&NAT_TABLE);
 
-        let join_handle = tokio::spawn(async move {
+        // WinDivert recv/send is blocking — use a std thread so headless CLI works without Tokio.
+        let join_handle = std::thread::spawn(move || {
             tracing::info!("[transparent-proxy] WinDivert NAT worker started for target port {}", target_proxy_port);
             let mut packet_buf = vec![0u8; 65535];
             let target_ip = Ipv4Addr::new(127, 0, 0, 1);
@@ -157,7 +158,7 @@ impl TransparentProxyService {
 
         if let Ok(mut guard) = TRANSPARENT_HANDLE.lock() {
             if let Some(h) = guard.take() {
-                h.abort();
+                let _ = h.join();
             }
         }
 
