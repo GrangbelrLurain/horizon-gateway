@@ -37,6 +37,14 @@ static NAT_TABLE: std::sync::LazyLock<NatTable> =
 pub struct TransparentProxyService;
 
 impl TransparentProxyService {
+    /// Copy bundled WinDivert sidecars next to the exe when missing (MSI/NSIS resource layouts).
+    pub fn ensure_runtime_sidecars() {
+        #[cfg(target_os = "windows")]
+        if let Err(e) = ensure_windivert_sidecars() {
+            tracing::warn!("[transparent-proxy] sidecar prepare: {e}");
+        }
+    }
+
     pub fn get_status() -> TransparentProxyStatus {
         let active = if let Ok(guard) = NAT_TABLE.lock() {
             guard.len() as u32
@@ -57,6 +65,8 @@ impl TransparentProxyService {
         if TRANSPARENT_RUNNING.load(Ordering::Relaxed) {
             return Ok(Self::get_status());
         }
+
+        ensure_windivert_sidecars()?;
 
         let pid = std::process::id();
         let filter = format!(
@@ -151,6 +161,75 @@ impl TransparentProxyService {
 
         Ok(Self::get_status())
     }
+}
+
+/// Ensure official WinDivert sidecars sit next to the executable (required by WinDivertOpen).
+#[cfg(target_os = "windows")]
+fn ensure_windivert_sidecars() -> Result<(), String> {
+    use std::fs;
+    use std::path::PathBuf;
+
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
+    let exe_dir = exe
+        .parent()
+        .ok_or_else(|| "current_exe has no parent directory".to_string())?
+        .to_path_buf();
+
+    let names = ["WinDivert.dll", "WinDivert64.sys"];
+    let missing: Vec<&str> = names
+        .iter()
+        .copied()
+        .filter(|n| !exe_dir.join(n).is_file())
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    let mut search_roots: Vec<PathBuf> = Vec::new();
+    search_roots.push(exe_dir.join("resources"));
+    search_roots.push(exe_dir.clone());
+    if let Ok(cwd) = std::env::current_dir() {
+        search_roots.push(cwd.join("resources").join("windivert"));
+        search_roots.push(cwd.join("src-tauri").join("resources").join("windivert"));
+    }
+
+    for name in missing {
+        let dest = exe_dir.join(name);
+        let mut copied = false;
+        for root in &search_roots {
+            let src = root.join(name);
+            if src.is_file() {
+                fs::copy(&src, &dest).map_err(|e| {
+                    format!("failed to copy {} -> {}: {e}", src.display(), dest.display())
+                })?;
+                tracing::info!(
+                    "[transparent-proxy] installed sidecar {} from {}",
+                    name,
+                    src.display()
+                );
+                copied = true;
+                break;
+            }
+        }
+        if !copied && name.ends_with(".sys") {
+            return Err(format!(
+                "WinDivert driver missing ({name}). Reinstall Horizon Gateway or place {name} next to the executable."
+            ));
+        }
+        // DLL may be optional when the crate is statically linked.
+        if !copied {
+            tracing::warn!(
+                "[transparent-proxy] optional sidecar not found: {name}"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn ensure_windivert_sidecars() -> Result<(), String> {
+    Ok(())
 }
 
 /// Helper function to modify IPv4 Dst IP and TCP Dst Port in-place in raw IP packet buffer

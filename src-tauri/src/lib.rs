@@ -375,6 +375,7 @@ pub fn run() {
 
             // Sync registered domains to ensure all existing domains are Injection ON by default on startup
             inspector_service.sync_registered_domains(&domain_service.get_all());
+            crate::service::transparent_proxy_service::TransparentProxyService::ensure_runtime_sidecars();
 
             // Clone/read values needed for auto-start before `app.manage()` moves them.
             let route_svc_for_proxy = Arc::clone(&local_route_service);

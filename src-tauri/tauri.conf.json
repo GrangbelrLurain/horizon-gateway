@@ -43,7 +43,9 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "resources/inspector.js": "inspector.js"
+      "resources/inspector.js": "inspector.js",
+      "resources/windivert/WinDivert.dll": "WinDivert.dll",
+      "resources/windivert/WinDivert64.sys": "WinDivert64.sys"
     },
     "windows": {
       "nsis": {

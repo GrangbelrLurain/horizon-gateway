@@ -453,6 +453,9 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "get_proxy_setup_url",
     "stop_local_proxy",
     "set_local_routing_enabled",
+    "start_transparent_proxy",
+    "stop_transparent_proxy",
+    "get_transparent_proxy_status",
     "get_mocking_status",
     "set_mocking_enabled",
     "get_scenarios",
@@ -831,6 +834,20 @@ fn dispatch_command(
             let parsed: command::local_route_commands::SetLocalRoutingEnabledPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::local_route_commands::set_local_routing_enabled(app_handle.clone(), parsed, proxy_settings_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "start_transparent_proxy" => {
+            let parsed: Option<command::transparent_proxy_commands::StartTransparentProxyPayload> =
+                serde_json::from_value(payload).ok();
+            let result = command::transparent_proxy_commands::start_transparent_proxy(parsed)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "stop_transparent_proxy" => {
+            let result = command::transparent_proxy_commands::stop_transparent_proxy()?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "get_transparent_proxy_status" => {
+            let result = command::transparent_proxy_commands::get_transparent_proxy_status()?;
             Ok(serde_json::to_value(result).unwrap())
         }
         // --- Mocking ---
@@ -1359,6 +1376,9 @@ mod parity_tests {
         "get_proxy_status",
         "start_local_proxy",
         "stop_local_proxy",
+        "start_transparent_proxy",
+        "stop_transparent_proxy",
+        "get_transparent_proxy_status",
         "get_proxy_settings",
         "set_proxy_dns_server",
         "set_proxy_port",
@@ -1386,6 +1406,7 @@ mod parity_tests {
         "open_inspector_window",
         "open_annotation_dialog",
         "get_annotations",
+        "get_annotation",
         "add_annotation",
         "update_annotation",
         "delete_annotation",
@@ -1394,6 +1415,8 @@ mod parity_tests {
         "get_global_inspector_enabled",
         "get_injection_domains",
         "set_injection_domains",
+        "add_injection_domain",
+        "remove_injection_domain",
         "get_scenarios",
         "create_scenario",
         "update_scenario",

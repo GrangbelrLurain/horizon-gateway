@@ -88,7 +88,9 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windivert = { version = "0.6", features = ["vendored"] }
+# `static` embeds the user-mode library so the app can start without WinDivert.dll
+# on PATH. Official WinDivert64.sys is still bundled next to the exe for the driver.
+windivert = { version = "0.6", features = ["vendored", "static"] }
 etherparse = "0.13"
 
 
