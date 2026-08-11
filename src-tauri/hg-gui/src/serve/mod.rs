@@ -1,5 +1,22 @@
 //! Headless backend process: owns app services and accepts GUI/CLI IPC.
 
+mod client;
+mod ensure;
+mod events;
+mod events_client;
+mod forward;
+mod logging;
+mod router;
 mod server;
+mod spawn;
+mod tray;
 
+pub use client::{call_command, invoke_args_to_payload, ping};
+pub use ensure::{ensure_running, is_backend_active};
+pub use events::{emit_to_gui, publish_event};
+pub use events_client::start_event_forwarder;
+pub use forward::{is_gui_only, should_forward};
+pub use router::wrap_invoke_handler;
 pub use server::run_serve;
+pub use spawn::serve_exe_path;
+pub use tray::{restart_serve_backend, setup_tray};

@@ -136,7 +136,7 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
             .into_response();
     }
     if path == "/.horizon-gateway/inspector.js" {
-        let js = load_inspector_js(&state.app_handle);
+        let js = load_inspector_js(state.app_handle.as_ref());
 
         return (
             StatusCode::OK,
@@ -172,7 +172,7 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
     (StatusCode::NOT_FOUND, "Not found").into_response()
 }
 
-fn load_inspector_js(app: &AppHandle) -> String {
+fn load_inspector_js(app: Option<&AppHandle>) -> String {
     for candidate in inspector_js_candidates(app) {
         if let Ok(content) = std::fs::read_to_string(&candidate) {
             if !content.trim().is_empty() {
@@ -194,11 +194,13 @@ fn load_inspector_js(app: &AppHandle) -> String {
     INSPECTOR_JS_FALLBACK.to_string()
 }
 
-fn inspector_js_candidates(app: &AppHandle) -> Vec<PathBuf> {
+fn inspector_js_candidates(app: Option<&AppHandle>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    if let Ok(dir) = app.path().resource_dir() {
-        push_inspector_variants(&mut paths, &dir);
+    if let Some(app) = app {
+        if let Ok(dir) = app.path().resource_dir() {
+            push_inspector_variants(&mut paths, &dir);
+        }
     }
 
     if let Ok(exe) = std::env::current_exe() {

@@ -4,7 +4,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use std::sync::Arc;
-use tauri::{Emitter, Manager};
 
 use crate::model::inspector::Annotation;
 use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
@@ -64,7 +63,7 @@ pub(crate) async fn try_handle_api(
     );
 
     if clean_path == "/.horizon-gateway/api/focus" {
-        if let Some(main) = state.app_handle.get_webview_window("main") {
+        if let Some(main) = state.webview_window("main") {
             let _ = main.set_focus();
         }
         return Ok((
@@ -129,7 +128,7 @@ pub(crate) async fn try_handle_api(
                 if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
                     if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
                         state.inspector_service.delete_annotation(id.to_string());
-                        let _ = state.app_handle.emit("annotations-updated", ());
+                        let _ = state.emit("annotations-updated", ());
                         return Ok((StatusCode::OK, "Annotation deleted").into_response());
                     }
                 }
@@ -173,16 +172,14 @@ pub(crate) async fn try_handle_api(
                             "✅ [Horizon Gateway] Annotation saved to file. Total count: {}",
                             count
                         );
-                        let _ = state.app_handle.emit("annotations-updated", ());
+                        let _ = state.emit("annotations-updated", ());
                     }
                     Err(e) => {
                         crate::proxy_log!("❌ [Horizon Gateway] Failed to parse annotation JSON: {}", e);
                     }
                 }
 
-                let _ = state
-                    .app_handle
-                    .emit("annotation-dialog-requested", annotation_val);
+                let _ = state.emit("annotation-dialog-requested", annotation_val);
                 return Ok((StatusCode::OK, "Annotation saved").into_response());
             }
             return Ok((StatusCode::BAD_REQUEST, "Invalid JSON").into_response());
@@ -219,7 +216,7 @@ pub(crate) async fn try_handle_api(
                         id.to_string(), None, None, None, None, None, None, None, Some(enabled),
                     );
                 }
-                let _ = state.app_handle.emit("mock-rules-updated", ());
+                let _ = state.emit("mock-rules-updated", ());
                 return Ok((StatusCode::OK, "Toggled").into_response());
             }
         }
@@ -267,7 +264,7 @@ pub(crate) async fn try_handle_api(
                         enabled,
                     );
                 }
-                let _ = state.app_handle.emit("mock-rules-updated", ());
+                let _ = state.emit("mock-rules-updated", ());
                 return Ok((StatusCode::OK, "Saved").into_response());
             }
         }
@@ -279,7 +276,7 @@ pub(crate) async fn try_handle_api(
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
                 if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
                     state.mocking_service.delete_mock_rule(id.to_string());
-                    let _ = state.app_handle.emit("mock-rules-updated", ());
+                    let _ = state.emit("mock-rules-updated", ());
                     return Ok((StatusCode::OK, "Deleted").into_response());
                 }
             }
@@ -307,7 +304,7 @@ pub(crate) async fn try_handle_api(
                 if let Some(id) = payload.get("id").and_then(|v| v.as_u64()) {
                     let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
                     state.route_service.toggle_enabled(id as u32, enabled);
-                    let _ = state.app_handle.emit("local-routes-updated", ());
+                    let _ = state.emit("local-routes-updated", ());
                     return Ok((StatusCode::OK, "Toggled").into_response());
                 }
             }

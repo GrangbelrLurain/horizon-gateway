@@ -91,10 +91,11 @@ export function SettingsContent() {
   const handleToggleProxy = async (enabled: boolean) => {
     setProxyLoading(true);
     try {
-      if (enabled) {
-        await commands.startLocalProxy(null).then(unwrap);
-      } else {
-        await commands.stopLocalProxy().then(unwrap);
+      const res = enabled
+        ? await commands.startLocalProxy(null).then(unwrap)
+        : await commands.stopLocalProxy().then(unwrap);
+      if (res.success && res.data) {
+        setProxyStatus(res.data);
       }
       await notifyHubDataChanged("features");
     } catch (e) {

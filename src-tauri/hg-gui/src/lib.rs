@@ -443,6 +443,11 @@ pub fn run() {
                 std::process::exit(code);
             }
 
+            if !is_cli_mode {
+                crate::serve::setup_tray(app)?;
+                crate::serve::start_event_forwarder(app.handle().clone());
+            }
+
             // Start the Hand-off diagnostic Axum server
             let app_handle_clone = app.handle().clone();
             let tunnel_service_for_axum = tunnel_service.clone();
@@ -452,40 +457,44 @@ pub fn run() {
                 }
             });
 
-            // ── Auto-start proxy ────────────────────────────────────────────
-            {
-                let app_handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    use tauri::Emitter;
-                    match command::local_route_commands::auto_start_proxy(
-                        app_handle.clone(),
-                        route_svc_for_proxy,
-                        &proxy_settings_snapshot,
-                        api_logging_map_for_proxy,
-                        std::sync::Arc::new(api_log_service.clone()),
-                        ca_service_for_proxy,
-                        mocking_service_for_proxy,
-                        inspector_svc_for_proxy,
-                        domain_service_for_proxy,
-                    )
-                    .await
-                    {
-                        Ok(()) => {
-                            command::local_route_commands::set_auto_start_error(None);
-                            let _ = app_handle.emit(
-                                command::local_route_commands::PROXY_STATUS_CHANGED,
-                                &command::local_route_commands::get_proxy_status_payload(),
-                            );
-                        }
-                        Err(e) => {
-                            tracing::error!("[auto-start] proxy failed: {e}");
-                            command::local_route_commands::set_auto_start_error(Some(e.clone()));
-                            let _ = app_handle
-                                .emit(command::local_route_commands::PROXY_AUTO_START_ERROR, &e);
-                        }
+            // ── Auto-start proxy (serve attach runs off the setup critical path) ──
+            let app_handle_for_proxy = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri::Emitter;
+                let serve_backend_active = crate::serve::ensure_running().is_ok();
+                if serve_backend_active {
+                    tracing::info!("[gui] serve backend active; skipping local proxy auto-start");
+                    return;
+                }
+
+                match command::local_route_commands::auto_start_proxy(
+                    Some(app_handle_for_proxy.clone()),
+                    route_svc_for_proxy,
+                    &proxy_settings_snapshot,
+                    api_logging_map_for_proxy,
+                    std::sync::Arc::new(api_log_service.clone()),
+                    ca_service_for_proxy,
+                    mocking_service_for_proxy,
+                    inspector_svc_for_proxy,
+                    domain_service_for_proxy,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        command::local_route_commands::set_auto_start_error(None);
+                        let _ = app_handle_for_proxy.emit(
+                            command::local_route_commands::PROXY_STATUS_CHANGED,
+                            &command::local_route_commands::get_proxy_status_payload(),
+                        );
                     }
-                });
-            }
+                    Err(e) => {
+                        tracing::error!("[auto-start] proxy failed: {e}");
+                        command::local_route_commands::set_auto_start_error(Some(e.clone()));
+                        let _ = app_handle_for_proxy
+                            .emit(command::local_route_commands::PROXY_AUTO_START_ERROR, &e);
+                    }
+                }
+            });
 
             // Background status check probe (runs every 2 min for domains with check_enabled)
             let handle = app.handle().clone();
@@ -522,17 +531,21 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(specta_builder.invoke_handler())
+        .invoke_handler(serve::wrap_invoke_handler(specta_builder.invoke_handler()))
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| match event {
+        .run(|app_handle, event| {
+            use tauri::Manager;
+
+            match event {
             tauri::RunEvent::WindowEvent {
                 label,
-                event: tauri::WindowEvent::CloseRequested { .. },
+                event: tauri::WindowEvent::CloseRequested { api, .. },
                 ..
-            } => {
-                if label == "main" {
-                    app_handle.exit(0);
+            } if label == "main" => {
+                api.prevent_close();
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.hide();
                 }
             }
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
@@ -552,6 +565,7 @@ pub fn run() {
                 }
             }
             _ => {}
+            }
         });
 }
 
@@ -565,7 +579,7 @@ pub fn install_rustls_provider() {
         .expect("rustls default crypto provider");
 }
 
-/// Headless `cli run` — bootstraps services without Tauri/WebView.
+/// Headless `cli run` — routes through serve when available, otherwise in-process.
 pub fn execute_cli_headless(args: &[String]) -> i32 {
     use tracing_subscriber::filter::LevelFilter;
 
@@ -574,6 +588,13 @@ pub fn execute_cli_headless(args: &[String]) -> i32 {
     let _ = tracing_subscriber::fmt()
         .with_max_level(LevelFilter::ERROR)
         .try_init();
+
+    if args.first().map(String::as_str) == Some("run") {
+        if crate::serve::ensure_running().is_ok() {
+            return cli::execute_run_via_serve(args);
+        }
+        tracing::warn!("[cli] serve unavailable; running headless in-process");
+    }
 
     let ctx = match crate::runtime::bootstrap_app_context() {
         Ok(ctx) => ctx,

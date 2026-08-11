@@ -2,4 +2,6 @@
 
 pub mod protocol;
 
-pub use protocol::{ServeErrorResponse, ServeRequest, ServeResponse, SERVE_TCP_ADDR};
+pub use protocol::{
+    ServeErrorResponse, ServeEvent, ServeRequest, ServeResponse, SERVE_EVENT_ADDR, SERVE_TCP_ADDR,
+};

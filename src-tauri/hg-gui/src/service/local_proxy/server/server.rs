@@ -31,7 +31,7 @@ pub(crate) fn proxy_app(state: Arc<ProxyState>, scheme: &'static str) -> Router 
 /// Handles CONNECT (HTTPS tunnel) and regular HTTP; when `dns_server` is set, pass-through hosts are resolved via it.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_proxy(
-    app_handle: tauri::AppHandle,
+    app_handle: Option<tauri::AppHandle>,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,
@@ -98,7 +98,7 @@ pub async fn run_proxy(
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_reverse_proxy_http(
-    app_handle: tauri::AppHandle,
+    app_handle: Option<tauri::AppHandle>,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,
@@ -147,7 +147,7 @@ pub async fn run_reverse_proxy_http(
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
 #[allow(clippy::too_many_arguments)]
 pub async fn run_reverse_proxy_https(
-    app_handle: tauri::AppHandle,
+    app_handle: Option<tauri::AppHandle>,
     port: u16,
     route_service: Arc<LocalRouteService>,
     dns_server: Option<String>,

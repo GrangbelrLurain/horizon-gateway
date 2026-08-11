@@ -12,7 +12,11 @@ use crate::service::system_proxy_service::SystemProxyService;
 use std::fmt::Write;
 use std::io;
 use std::sync::atomic::{AtomicU16, Ordering};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+
+fn emit_proxy_status(app: Option<&AppHandle>, payload: &ProxyStatusPayload) {
+    crate::serve::emit_to_gui(app, PROXY_STATUS_CHANGED, payload);
+}
 
 /// Build a `ProxyStatusPayload` from the current global state. Public for use in setup hook.
 pub fn get_proxy_status_payload() -> ProxyStatusPayload {
@@ -519,15 +523,12 @@ pub async fn start_local_proxy_svc(
     inspector_service: &crate::service::inspector_service::InspectorService,
     domain_service: &crate::service::domain_service::DomainService,
 ) -> Result<ApiResponse<ProxyStatusPayload>, String> {
-    let app = app.ok_or_else(|| {
-        "start_local_proxy requires the Horizon Gateway GUI AppHandle (proxy runtime). Close other instances or start proxy from the desktop app.".to_string()
-    })?;
     let port = payload
         .and_then(|p| p.port)
         .unwrap_or_else(|| proxy_settings_service.get().proxy_port);
     if PROXY_PORT.load(Ordering::Relaxed) != 0 {
         let payload = current_proxy_status();
-        let _ = app.emit(PROXY_STATUS_CHANGED, &payload);
+        emit_proxy_status(app.as_ref(), &payload);
         return Ok(ApiResponse {
             message: "Proxy already running".to_string(),
             success: true,
@@ -654,7 +655,7 @@ pub async fn start_local_proxy_svc(
         reverse_https_port: reverse_https,
         local_routing_enabled: local_proxy::is_local_routing_enabled(),
     };
-    let _ = app.emit(PROXY_STATUS_CHANGED, &payload);
+    let _ = emit_proxy_status(app.as_ref(), &payload);
     let mut msg = format!("Proxy started on 127.0.0.1:{port}");
     if let Some(p) = reverse_http {
         let _ = write!(&mut msg, ", reverse HTTP :{p}");
@@ -777,7 +778,7 @@ pub fn stop_local_proxy_svc(app: Option<tauri::AppHandle>) -> Result<ApiResponse
         reverse_https_port: None,
         local_routing_enabled: local_proxy::is_local_routing_enabled(),
     };
-    if let Some(app) = app { let _ = app.emit(PROXY_STATUS_CHANGED, &payload); }
+    emit_proxy_status(app.as_ref(), &payload);
     Ok(ApiResponse {
         message: "Proxy stopped".to_string(),
         success: true,
@@ -818,7 +819,7 @@ pub fn set_local_routing_enabled_svc(app: Option<tauri::AppHandle>, payload: Set
     proxy_settings_service.set_local_routing_enabled(payload.enabled);
 
     let status = current_proxy_status();
-    if let Some(app) = app { let _ = app.emit(PROXY_STATUS_CHANGED, &status); }
+    emit_proxy_status(app.as_ref(), &status);
     Ok(ApiResponse {
         message: format!(
             "Local routing {}",
@@ -838,7 +839,7 @@ pub fn set_local_routing_enabled_svc(app: Option<tauri::AppHandle>, payload: Set
 /// Start the proxy using persisted settings. Designed to be called once from the Tauri setup hook.
 #[allow(clippy::too_many_arguments)]
 pub async fn auto_start_proxy(
-    app_handle: tauri::AppHandle,
+    app_handle: Option<tauri::AppHandle>,
     route_service: std::sync::Arc<LocalRouteService>,
     settings: &ProxySettings,
     api_logging_map: std::sync::Arc<
@@ -923,7 +924,7 @@ pub async fn auto_start_proxy(
     }
     if let Some(rht) = reverse_https {
         match local_proxy::run_reverse_proxy_https(
-            app_handle,
+            app_handle.clone(),
             rht,
             std::sync::Arc::clone(&route_service),
             dns_server,
@@ -956,8 +957,10 @@ pub async fn auto_start_proxy(
     // Set system PAC URL
     let pac_url = format!("http://127.0.0.1:{port}/.horizon-gateway/proxy.pac");
     if let Err(e) = SystemProxyService::set_pac_url(&pac_url) {
-        eprintln!("[auto-start] Failed to set system proxy: {e}");
+        tracing::warn!("[auto-start] Failed to set system proxy: {e}");
     }
+
+    emit_proxy_status(app_handle.as_ref(), &current_proxy_status());
 
     let mut msg = format!("[auto-start] Proxy on 127.0.0.1:{port}");
     if let Some(p) = reverse_http {

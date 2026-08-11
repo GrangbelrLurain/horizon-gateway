@@ -6,7 +6,6 @@ use axum::{
 };
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tauri::Emitter;
 
 use crate::model::api_log::ApiLogEntry;
 
@@ -184,7 +183,7 @@ pub(crate) async fn handle_with_logging(
         is_mocked: false,
     };
     state.api_log_service.save_log(&entry);
-    let _ = state.app_handle.emit("api-log-captured", entry);
+    let _ = state.emit("api-log-captured", entry);
 
     let mut builder = Response::builder().status(status);
     if let Some(headers) = builder.headers_mut() {

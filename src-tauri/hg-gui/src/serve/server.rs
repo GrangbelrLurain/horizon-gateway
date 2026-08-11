@@ -10,40 +10,78 @@ use crate::runtime::{bootstrap_app_context, AppContext, CliRuntime};
 /// Blocking entry for the `horizon-gateway-serve` binary.
 pub fn run_serve() -> i32 {
     crate::install_rustls_provider();
-
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(tracing_subscriber::filter::LevelFilter::INFO)
-        .try_init();
+    super::logging::init_serve_logging();
 
     let rt = match tokio::runtime::Runtime::new() {
         Ok(rt) => rt,
         Err(e) => {
-            eprintln!("failed to start async runtime: {e}");
+            tracing::error!("failed to start async runtime: {e}");
             return 1;
         }
     };
 
-    match serve_loop(&rt) {
+    match serve_loop(rt) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("serve exited with error: {e}");
+            tracing::error!("serve exited with error: {e}");
             1
         }
     }
 }
 
-fn serve_loop(rt: &tokio::runtime::Runtime) -> Result<(), String> {
+fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
+    let rt = Arc::new(rt);
     let ctx = Arc::new(bootstrap_app_context()?);
+
+    ctx.inspector_service
+        .sync_registered_domains(&ctx.domain_service.get_all());
+    crate::service::transparent_proxy_service::TransparentProxyService::ensure_runtime_sidecars();
+
+    let route_svc = Arc::clone(&ctx.local_route_service);
+    let proxy_settings_snapshot = ctx.proxy_settings_service.get();
+    let api_logging_map = ctx.api_logging_service.settings_map_arc();
+    let api_log_service = Arc::new(ctx.api_log_service.clone());
+    let ca_service = Arc::clone(&ctx.ca_service);
+    let mocking_service = Arc::clone(&ctx.mocking_service);
+    let inspector_service = ctx.inspector_service.clone();
+    let domain_service = Arc::new(ctx.domain_service.clone());
+
+    let event_bus = super::events::ServeEventBus::new();
+    super::events::ServeEventBus::init_global(Arc::clone(&event_bus));
+    super::events::start_event_listener(event_bus)?;
+
     let listener = TcpListener::bind(SERVE_TCP_ADDR)
         .map_err(|e| format!("failed to bind serve socket {SERVE_TCP_ADDR}: {e}"))?;
 
     tracing::info!("[serve] listening on {SERVE_TCP_ADDR}");
 
+    rt.spawn(async move {
+        if let Err(e) = crate::command::local_route_commands::auto_start_proxy(
+            None,
+            route_svc,
+            &proxy_settings_snapshot,
+            api_logging_map,
+            api_log_service,
+            ca_service,
+            mocking_service,
+            inspector_service,
+            domain_service,
+        )
+        .await
+        {
+            tracing::warn!("[serve] auto-start proxy failed: {e}");
+        }
+    });
+
     for stream in listener.incoming() {
         let stream = stream.map_err(|e| format!("accept failed: {e}"))?;
-        if let Err(e) = handle_client(stream, &ctx, rt) {
-            tracing::warn!("[serve] client session error: {e}");
-        }
+        let ctx = Arc::clone(&ctx);
+        let rt = Arc::clone(&rt);
+        std::thread::spawn(move || {
+            if let Err(e) = handle_client(stream, &ctx, rt.as_ref()) {
+                tracing::warn!("[serve] client session error: {e}");
+            }
+        });
     }
 
     Ok(())

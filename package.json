@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/ensure-injection.mjs && vite",
+    "dev:all": "node scripts/dev-all.mjs",
+    "dev:serve": "node scripts/dev-serve.mjs",
+    "build:serve-sidecar": "node scripts/build-serve-sidecar.mjs",
     "build": "tsc && vite build",
     "build:injection": "vite build --mode injection",
     "watch:injection": "vite build --watch --mode injection",

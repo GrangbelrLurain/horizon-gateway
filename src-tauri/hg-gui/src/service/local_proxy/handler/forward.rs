@@ -6,7 +6,6 @@ use axum::{
 };
 use futures::TryStreamExt;
 use std::sync::Arc;
-use tauri::Emitter;
 
 use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
@@ -150,7 +149,7 @@ pub(crate) async fn handle_pass_through(
                 is_mocked: false,
             };
             // Logging disabled for this host: skip disk I/O, still notify live-capture UI.
-            let _ = state.app_handle.emit("api-log-captured", entry);
+            let _ = state.emit("api-log-captured", entry);
 
             let content_type = res_headers
                 .get(header::CONTENT_TYPE)

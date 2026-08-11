@@ -12,6 +12,7 @@ import {
   savedCryptoPresetsAtom,
   savedJsonSchemasAtom,
 } from "@/entities/sandbox";
+import type { ProxyStatusPayload } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
 import { appStatusLoadedAtom, appStatusLoadingAtom } from "./status/store";
@@ -119,20 +120,11 @@ export function useAppBootstrap() {
   useEffect(() => {
     void refresh();
 
-    const unlistenProxy = listen<{ running: boolean; local_routing_enabled: boolean }>(
-      "proxy-status-changed",
-      (event) => {
-        if (event.payload) {
-          setProxyStatus((prev) => ({
-            running: event.payload.running,
-            local_routing_enabled: event.payload.local_routing_enabled,
-            port: prev?.port ?? null,
-            reverse_http_port: prev?.reverse_http_port ?? null,
-            reverse_https_port: prev?.reverse_https_port ?? null,
-          }));
-        }
-      },
-    );
+    const unlistenProxy = listen<ProxyStatusPayload>("proxy-status-changed", (event) => {
+      if (event.payload) {
+        setProxyStatus(event.payload);
+      }
+    });
 
     const unlistenMocking = listen<{ enabled: boolean }>("mocking-status-changed", (event) => {
       if (event.payload) {

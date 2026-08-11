@@ -27,11 +27,13 @@ if (fs.existsSync(envPath)) {
 
 const cliPath = path.join(__dirname, '../node_modules/@tauri-apps/cli/tauri.js');
 const args = process.argv.slice(2);
+const defaultConfig = path.join(__dirname, '../src-tauri/hg-gui/tauri.conf.json');
 const configFlag = ['--config', '-c'];
 const hasConfig = args.some((a, i) => configFlag.includes(a) || (i > 0 && configFlag.includes(args[i - 1])));
-const tauriArgs = hasConfig
+// Tauri CLI v2 expects: `tauri dev --config path` (config follows the subcommand).
+const tauriArgs = hasConfig || args.length === 0
   ? args
-  : ['--config', path.join(__dirname, '../src-tauri/hg-gui/tauri.conf.json'), ...args];
+  : [args[0], '--config', defaultConfig, ...args.slice(1)];
 
 const child = spawn(process.execPath, [cliPath, ...tauriArgs], { stdio: 'inherit' });
 

@@ -58,11 +58,10 @@ pub fn set_mocking_enabled(
 }
 
 pub fn set_mocking_enabled_svc(app: Option<tauri::AppHandle>, payload: SetMockingEnabledPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockingSettings>, String> {
-    use tauri::Emitter;
     let settings = service.set_enabled(payload.enabled);
     crate::service::local_proxy::set_mocking_enabled(payload.enabled);
 
-    if let Some(app) = app { let _ = app.emit(MOCKING_STATUS_CHANGED, &settings); }
+    crate::serve::emit_to_gui(app.as_ref(), MOCKING_STATUS_CHANGED, &settings);
     Ok(ApiResponse {
         message: format!(
             "Mocking {}",

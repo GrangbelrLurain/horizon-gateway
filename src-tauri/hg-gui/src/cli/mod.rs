@@ -301,7 +301,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
     }
 }
 
-fn resolve_payload_arg(args: &[String]) -> Option<String> {
+pub(crate) fn resolve_payload_arg(args: &[String]) -> Option<String> {
     if let Some(file_flag) = get_arg_val(args, "--payload") {
         return read_payload_source(&file_flag);
     }
@@ -313,6 +313,43 @@ fn resolve_payload_arg(args: &[String]) -> Option<String> {
         return None;
     }
     read_payload_source(positional)
+}
+
+/// Run a single CLI command through the serve IPC backend.
+pub(crate) fn execute_run_via_serve(args: &[String]) -> i32 {
+    let cmd_name = match args.get(1) {
+        Some(name) => name.as_str(),
+        None => {
+            print_error("실행할 명령어 이름을 입력해주세요. (예: cli run get_api_logs '{}')");
+            return 1;
+        }
+    };
+    let raw_payload = resolve_payload_arg(args).unwrap_or_else(|| "{}".to_string());
+    let query = get_arg_val(args, "--query");
+
+    let payload: Value = match serde_json::from_str(&raw_payload) {
+        Ok(v) => v,
+        Err(e) => {
+            print_error(&format!("요청 페이로드가 올바른 JSON 형식이 아닙니다: {}", e));
+            return 1;
+        }
+    };
+
+    match crate::serve::call_command(cmd_name, payload) {
+        Ok(response) => {
+            let final_response = if let Some(ref q) = query {
+                query::apply_query(&response, q)
+            } else {
+                response
+            };
+            cli_println(&serde_json::to_string_pretty(&final_response).unwrap());
+            0
+        }
+        Err(e) => {
+            print_error(&e);
+            1
+        }
+    }
 }
 
 fn read_payload_source(source: &str) -> Option<String> {

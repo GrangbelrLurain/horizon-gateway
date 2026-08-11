@@ -10,6 +10,11 @@
     CopyFiles /SILENT "$INSTDIR\resources\WinDivert64.sys" "$INSTDIR\WinDivert64.sys"
   skip_wd_sys:
 
+  IfFileExists "$INSTDIR\horizon-gateway-serve.exe" skip_serve
+  IfFileExists "$INSTDIR\resources\horizon-gateway-serve.exe" 0 skip_serve
+    CopyFiles /SILENT "$INSTDIR\resources\horizon-gateway-serve.exe" "$INSTDIR\horizon-gateway-serve.exe"
+  skip_serve:
+
   IfSilent skip_path
   MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to add Horizon Gateway to your environment variables (PATH)?$\r$\nThis allows you to run 'horizon-gateway' from any terminal." IDNO skip_path
   nsExec::Exec `powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$path = [System.Environment]::GetEnvironmentVariable('Path', 'User'); if ($path -split ';' -notcontains '$INSTDIR') { [System.Environment]::SetEnvironmentVariable('Path', ($path + ';$INSTDIR').Trim(';'), 'User') }"`
@@ -17,5 +22,7 @@
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
+  ; Stop headless backend before removing files (WinDivert / proxy).
+  nsExec::Exec `taskkill /IM horizon-gateway-serve.exe /F /T`
   nsExec::Exec `powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$path = [System.Environment]::GetEnvironmentVariable('Path', 'User'); $newPath = ($path -split ';' | Where-Object { $_ -ne '$INSTDIR' }) -join ';'; [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'User')"`
 !macroend

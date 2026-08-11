@@ -6,7 +6,6 @@ use axum::{
 };
 use std::sync::Arc;
 use time::OffsetDateTime;
-use tauri::Emitter;
 
 use crate::model::api_log::ApiLogEntry;
 use crate::service::local_proxy::flags::is_mocking_enabled;
@@ -203,7 +202,7 @@ pub(crate) fn try_mock_response(
         is_mocked: true,
     };
     state.api_log_service.save_log(&entry);
-    let _ = state.app_handle.emit("api-log-captured", entry);
+    let _ = state.emit("api-log-captured", entry);
 
     Some(
         builder

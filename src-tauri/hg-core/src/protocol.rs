@@ -5,6 +5,9 @@ use serde_json::Value;
 /// Named pipes on Windows can replace this in a later phase.
 pub const SERVE_TCP_ADDR: &str = "127.0.0.1:17345";
 
+/// One-way event stream from serve → GUI (NDJSON over TCP).
+pub const SERVE_EVENT_ADDR: &str = "127.0.0.1:17346";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServeRequest {
@@ -29,6 +32,13 @@ pub struct ServeResponse {
 pub struct ServeErrorResponse {
     pub ok: bool,
     pub error: String,
+}
+
+/// NDJSON line on the serve event stream (mirrors Tauri `emit(event, payload)`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServeEvent {
+    pub event: String,
+    pub payload: Value,
 }
 
 impl ServeErrorResponse {

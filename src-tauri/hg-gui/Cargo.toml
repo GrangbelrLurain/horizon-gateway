@@ -18,7 +18,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 hg-core = { path = "../hg-core" }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["typescript"] }
 specta-typescript = "=0.0.12"
@@ -67,6 +67,7 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
+windows-sys = { version = "0.59", features = ["Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 windivert = { version = "0.6", features = ["vendored"] }
 etherparse = "0.13"
 

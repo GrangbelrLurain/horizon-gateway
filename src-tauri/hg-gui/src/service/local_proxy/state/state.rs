@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use serde::Serialize;
+use tauri::{Emitter, Manager};
+
 use crate::service::api_log_service::ApiLogService;
 use crate::service::ca_service::CaService;
 use crate::service::local_route_service::LocalRouteService;
@@ -9,7 +12,7 @@ use crate::service::local_proxy::dns::{build_resolver, TokioResolver};
 use crate::service::local_proxy::tls::HostCertCache;
 
 pub struct ProxyState {
-    pub app_handle: tauri::AppHandle,
+    pub app_handle: Option<tauri::AppHandle>,
     pub(crate) route_service: Arc<LocalRouteService>,
     pub(crate) resolver: Option<Arc<TokioResolver>>,
     pub forward_proxy_port: Option<u16>,
@@ -29,7 +32,7 @@ pub struct ProxyState {
 impl ProxyState {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        app_handle: tauri::AppHandle,
+        app_handle: Option<tauri::AppHandle>,
         route_service: Arc<LocalRouteService>,
         dns_server: Option<String>,
         forward_proxy_port: Option<u16>,
@@ -68,5 +71,16 @@ impl ProxyState {
             inspector_service,
             domain_service,
         }
+    }
+
+    pub(crate) fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) {
+        crate::serve::publish_event(event, payload.clone());
+        if let Some(handle) = &self.app_handle {
+            let _ = handle.emit(event, payload);
+        }
+    }
+
+    pub(crate) fn webview_window(&self, label: &str) -> Option<tauri::WebviewWindow> {
+        self.app_handle.as_ref()?.get_webview_window(label)
     }
 }

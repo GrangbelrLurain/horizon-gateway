@@ -13,7 +13,7 @@ import type { HubDataChangedReason } from "@/shared/lib/tauri/hubEvents";
 import { useHubDataSubscription } from "../lib/hubDataSubscription";
 
 /** Shared across all useDomainHubData() callers in the same window. */
-const hubDataLoadingAtom = atom(true);
+const hubDataLoadingAtom = atom(false);
 export const injectionDomainsAtom = atom<string[]>([]);
 
 export function useDomainHubData() {
