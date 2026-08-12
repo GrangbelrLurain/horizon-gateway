@@ -35,3 +35,7 @@ src-tauri/resources/inspector.js
 
 # AI Agent workspace config and scratch files
 .gemini/
+
+# Local cargo target dirs used for lock-free rebuilds
+src-tauri/target-check/
+src-tauri/src/bindings.ts

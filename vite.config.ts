@@ -15,8 +15,9 @@ const copyInjectionPlugin = () => {
     name: "copy-injection",
     closeBundle() {
       const src = path.resolve(__dirname, "dist/inspector.js");
-      const dest = path.resolve(__dirname, "src-tauri/resources/inspector.js");
+      const dest = path.resolve(__dirname, "src-tauri/hg-gui/resources/inspector.js");
       if (fs.existsSync(src)) {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.copyFileSync(src, dest);
         console.log(`\n✅ Copied ${src} to ${dest}\n`);
       }
