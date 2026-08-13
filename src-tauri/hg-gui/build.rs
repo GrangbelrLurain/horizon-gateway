@@ -1,12 +1,19 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 fn main() {
     embed_inspector_js();
     sync_skill_md_resource();
-    ensure_serve_bundle_resource();
+    // Dev (`tauri dev`) must not write `resources/horizon-gateway-serve.exe`:
+    // Tauri watches hg-gui, so copying that file retriggers a rebuild loop and
+    // os error 32 / STATUS_ENTRYPOINT_NOT_FOUND on Windows.
+    stage_serve_for_release_bundle();
     #[cfg(windows)]
     copy_windivert_sidecars();
     copy_serve_next_to_exe();
+    strip_debug_only_bundle_resources();
     build_tauri();
 }
 
@@ -15,17 +22,20 @@ fn build_tauri() {
     {
         let windows = tauri_build::WindowsAttributes::new()
             .app_manifest(include_str!("windows-app-manifest.xml"));
-        tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
-            .unwrap_or_else(|e| {
-                let msg = e.to_string();
-                if msg.contains("os error 32") {
-                    panic!(
-                        "failed to run tauri build script: {msg}\n\
-                         hint: stop horizon-gateway / horizon-gateway-serve (WinDivert locks target/debug) and retry"
-                    );
-                }
+        if let Err(e) =
+            tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+        {
+            let msg = e.to_string();
+            // Locked sidecar copies only. Do not ignore missing-resource errors:
+            // try_build embeds the Common Controls v6 manifest *after* resource
+            // copy, and skipping that yields STATUS_ENTRYPOINT_NOT_FOUND.
+            if msg.contains("os error 32") || msg.contains("os error 33") {
+                println!("cargo:warning=tauri build script sidecar warning: {msg}");
+                embed_windows_manifest();
+            } else {
                 panic!("failed to run tauri build script: {msg}");
-            });
+            }
+        }
     }
     #[cfg(not(windows))]
     {
@@ -33,67 +43,181 @@ fn build_tauri() {
     }
 }
 
-/// Stage `horizon-gateway-serve.exe` for Tauri bundle resources (NSIS copies next to main exe).
-fn ensure_serve_bundle_resource() {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let resource_dest = manifest_dir
-        .join("resources")
-        .join("horizon-gateway-serve.exe");
-    println!(
-        "cargo:rerun-if-changed={}",
-        resource_dest.display()
-    );
-    println!("cargo:rerun-if-changed=binaries");
+/// RFC 7396-style merge that *keeps* JSON nulls so tauri-build can delete keys.
+fn json_merge_keep_nulls(base: &mut serde_json::Value, patch: &serde_json::Value) {
+    if let serde_json::Value::Object(patch_map) = patch {
+        if !base.is_object() {
+            *base = serde_json::json!({});
+        }
+        let serde_json::Value::Object(base_map) = base else {
+            return;
+        };
+        for (key, val) in patch_map {
+            if val.is_null() {
+                base_map.insert(key.clone(), serde_json::Value::Null);
+            } else {
+                json_merge_keep_nulls(
+                    base_map
+                        .entry(key.clone())
+                        .or_insert(serde_json::Value::Null),
+                    val,
+                );
+            }
+        }
+    } else {
+        *base = patch.clone();
+    }
+}
 
-    if let Some(src) = find_serve_binary(&manifest_dir) {
-        let _ = fs::create_dir_all(resource_dest.parent().unwrap());
-        if fs::copy(&src, &resource_dest).is_ok() {
+/// Dev must not ask tauri-build to copy serve.exe / WinDivert: missing serve.exe
+/// used to abort try_build before the Windows app manifest was embedded.
+fn strip_debug_only_bundle_resources() {
+    if is_release_profile() {
+        return;
+    }
+    let patch = serde_json::json!({
+        "bundle": {
+            "resources": {
+                "resources/horizon-gateway-serve.exe": null,
+                "resources/windivert/WinDivert.dll": null,
+                "resources/windivert/WinDivert64.sys": null
+            }
+        }
+    });
+    let mut merged = env::var("TAURI_CONFIG")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    json_merge_keep_nulls(&mut merged, &patch);
+    env::set_var("TAURI_CONFIG", merged.to_string());
+}
+
+#[cfg(windows)]
+fn embed_windows_manifest() {
+    let mut res = winres::WindowsResource::new();
+    res.set_manifest(include_str!("windows-app-manifest.xml"));
+    if let Err(e) = res.compile() {
+        println!("cargo:warning=failed to embed Windows app manifest: {e}");
+    }
+}
+
+fn is_release_profile() -> bool {
+    env::var("PROFILE").unwrap_or_else(|_| "debug".into()) == "release"
+}
+
+fn profile_target_dir(manifest_dir: &Path) -> PathBuf {
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
+    if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
+        return PathBuf::from(dir).join(&profile);
+    }
+    manifest_dir.join("..").join("target").join(profile)
+}
+
+fn same_path(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(ca), Ok(cb)) => ca == cb,
+        _ => false,
+    }
+}
+
+fn copy_skipping_lock(src: &Path, dest: &Path, label: &str) {
+    if same_path(src, dest) {
+        return;
+    }
+    if let (Ok(src_meta), Ok(dest_meta)) = (src.metadata(), dest.metadata()) {
+        if src_meta.len() == dest_meta.len()
+            && src_meta.modified().ok() == dest_meta.modified().ok()
+        {
             return;
         }
     }
+    if let Some(parent) = dest.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Err(e) = fs::copy(src, dest) {
+        let locked = e.raw_os_error() == Some(32) || e.raw_os_error() == Some(33);
+        if locked {
+            println!(
+                "cargo:warning=skipped copying {label} (file locked — stop horizon-gateway-serve to refresh)"
+            );
+        } else {
+            println!("cargo:warning=failed to copy {label}: {e}");
+        }
+    }
+}
 
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
-    if profile == "release" && !resource_dest.is_file() {
+fn serve_resource_path(manifest_dir: &Path) -> PathBuf {
+    manifest_dir
+        .join("resources")
+        .join("horizon-gateway-serve.exe")
+}
+
+/// Release only: stage serve.exe under `resources/` for NSIS (`tauri.conf.json` bundle.resources).
+/// Never do this in debug — Tauri's hg-gui watcher treats that write as a source change.
+fn stage_serve_for_release_bundle() {
+    println!("cargo:rerun-if-changed=binaries");
+
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let resource_dest = serve_resource_path(&manifest_dir);
+
+    if !is_release_profile() {
+        // Leftover copies would be watched and copied over target/debug/serve.exe.
+        if resource_dest.is_file() {
+            let _ = fs::remove_file(&resource_dest);
+        }
+        return;
+    }
+
+    if let Some(src) = find_serve_binary(&manifest_dir) {
+        copy_skipping_lock(
+            &src,
+            &resource_dest,
+            "horizon-gateway-serve.exe (bundle resource)",
+        );
+        return;
+    }
+
+    if !resource_dest.is_file()
+        || resource_dest
+            .metadata()
+            .map(|m| m.len() == 0)
+            .unwrap_or(true)
+    {
         panic!(
             "horizon-gateway-serve.exe missing for release bundle.\n\
              Run `node scripts/build-serve-sidecar.mjs` before `tauri build`."
         );
     }
-
-    if !resource_dest.is_file() {
-        let _ = fs::create_dir_all(resource_dest.parent().unwrap());
-        let _ = fs::write(&resource_dest, []);
-        println!(
-            "cargo:warning=horizon-gateway-serve.exe placeholder created (dev build); run `cargo build -p horizon-gateway-serve` for a real backend binary"
-        );
-    }
 }
 
-/// Copy serve next to the built GUI exe (dev runs, same layout as NSIS post-install).
+/// Copy serve next to the GUI exe (`src-tauri/target/{profile}/`), not into watched sources.
 fn copy_serve_next_to_exe() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let Some(src) = find_serve_binary(&manifest_dir) else {
+        if !is_release_profile() {
+            println!(
+                "cargo:warning=horizon-gateway-serve not found; run `cargo build -p horizon-gateway-serve` (GUI will spawn it from target/debug)"
+            );
+        }
         return;
     };
 
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
-    let mut target_dir = manifest_dir.join("target").join(&profile);
-    if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
-        target_dir = PathBuf::from(dir).join(&profile);
-    }
-
-    let _ = fs::create_dir_all(&target_dir);
-    let dest = target_dir.join("horizon-gateway-serve.exe");
-    if fs::copy(&src, &dest).is_err() {
-        println!("cargo:warning=failed to copy horizon-gateway-serve.exe next to GUI exe");
-    }
+    let ext = if cfg!(windows) { ".exe" } else { "" };
+    let dest = profile_target_dir(&manifest_dir).join(format!("horizon-gateway-serve{ext}"));
+    copy_skipping_lock(&src, &dest, "horizon-gateway-serve next to GUI exe");
 }
 
-fn find_serve_binary(manifest_dir: &PathBuf) -> Option<PathBuf> {
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
+fn find_serve_binary(manifest_dir: &Path) -> Option<PathBuf> {
     let ext = if cfg!(windows) { ".exe" } else { "" };
-
     let mut candidates = Vec::new();
+
+    // Prefer this profile's workspace binary so debug does not overwrite it
+    // with a leftover release sidecar from binaries/.
+    candidates.push(profile_target_dir(manifest_dir).join(format!("horizon-gateway-serve{ext}")));
 
     if let Ok(target) = env::var("TARGET") {
         candidates.push(
@@ -103,12 +227,16 @@ fn find_serve_binary(manifest_dir: &PathBuf) -> Option<PathBuf> {
         );
     }
 
-    let workspace_target = manifest_dir.join("..").join("target").join(&profile);
-    candidates.push(workspace_target.join(format!("horizon-gateway-serve{ext}")));
-
     if let Ok(entries) = fs::read_dir(manifest_dir.join("binaries")) {
         for entry in entries.flatten() {
-            candidates.push(entry.path());
+            let path = entry.path();
+            if path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("horizon-gateway-serve"))
+            {
+                candidates.push(path);
+            }
         }
     }
 
@@ -195,12 +323,7 @@ fn copy_windivert_sidecars() {
     println!("cargo:rerun-if-changed=resources/windivert/WinDivert.dll");
     println!("cargo:rerun-if-changed=resources/windivert/WinDivert64.sys");
 
-    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
-    let target_dir = manifest_dir.join("target").join(&profile);
-    // Prefer CARGO_TARGET_DIR when set (e.g. workspace / CI).
-    let target_dir = env::var("CARGO_TARGET_DIR")
-        .map(|p| PathBuf::from(p).join(&profile))
-        .unwrap_or(target_dir);
+    let target_dir = profile_target_dir(&manifest_dir);
 
     for name in ["WinDivert.dll", "WinDivert64.sys"] {
         let src = windivert_dir.join(name);
@@ -210,17 +333,6 @@ fn copy_windivert_sidecars() {
             );
             continue;
         }
-        let _ = fs::create_dir_all(&target_dir);
-        let dest = target_dir.join(name);
-        if let Err(e) = fs::copy(&src, &dest) {
-            let locked = e.raw_os_error() == Some(32);
-            if locked {
-                println!(
-                    "cargo:warning=skipped copying {name} (file locked — stop horizon-gateway-serve to refresh sidecars)"
-                );
-            } else {
-                println!("cargo:warning=failed to copy {name} next to exe: {e}");
-            }
-        }
+        copy_skipping_lock(&src, &target_dir.join(name), name);
     }
 }

@@ -7,8 +7,15 @@ export const commands = {
 	getTransparentProxyStatus: () => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("get_transparent_proxy_status")),
 	startTransparentProxy: (payload: {
 	port: number | null,
+	processNames?: string[] | null,
 } | null) => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("start_transparent_proxy", { payload })),
 	stopTransparentProxy: () => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("stop_transparent_proxy")),
+	applyTransparentProxyApps: (payload: {
+	processNames: string[],
+	port: number | null,
+}) => typedError<ApiResponse<TransparentProxyStatus>, string>(__TAURI_INVOKE("apply_transparent_proxy_apps", { payload })),
+	scanOsApps: () => typedError<ApiResponse<OsAppEntry[]>, string>(__TAURI_INVOKE("scan_os_apps")),
+	listTransparentProxyPresets: () => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("list_transparent_proxy_presets")),
 	registDomains: (payload: RegistDomainsPayload) => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("regist_domains", { payload })),
 	getDomains: () => typedError<ApiResponse<Domain[]>, string>(__TAURI_INVOKE("get_domains")),
 	removeDomains: (payload: RemoveDomainsPayload) => typedError<ApiResponse<Domain | null>, string>(__TAURI_INVOKE("remove_domains", { payload })),
@@ -941,6 +948,7 @@ export type StartLocalProxyPayload = {
 
 export type StartTransparentProxyPayload = {
 	port: number | null,
+	processNames?: string[] | null,
 };
 
 export type TransparentProxyStatus = {
@@ -948,6 +956,14 @@ export type TransparentProxyStatus = {
 	targetPort: number,
 	activeConnections: number,
 	errorMessage: string | null,
+	experimental: boolean,
+	processAllowlist: string[],
+};
+
+export type OsAppEntry = {
+	name: string,
+	pids: number[],
+	instanceCount: number,
 };
 
 export type UpdateAnnotationPayload = UpdateAnnotationPayload_Serialize | UpdateAnnotationPayload_Deserialize;

@@ -15,7 +15,7 @@ import {
 import type { ProxyStatusPayload } from "@/shared/api";
 import { supabase } from "@/shared/api/supabase";
 import { HUB_DATA_CHANGED } from "@/shared/lib/tauri/hubEvents";
-import { appStatusLoadedAtom, appStatusLoadingAtom } from "./status/store";
+import { appStatusLoadedAtom, appStatusLoadingAtom, backendUnavailableAtom } from "./status/store";
 import { type DBProfile, supabaseProfileAtom, supabaseSessionAtom } from "./user/store";
 
 interface GithubIdentityInfo {
@@ -57,6 +57,7 @@ export function useAppBootstrap() {
   const setSavedCryptoPresets = useSetAtom(savedCryptoPresetsAtom);
   const setLoading = useSetAtom(appStatusLoadingAtom);
   const setLoaded = useSetAtom(appStatusLoadedAtom);
+  const setBackendUnavailable = useSetAtom(backendUnavailableAtom);
   const setSession = useSetAtom(supabaseSessionAtom);
   const setSupaProfile = useSetAtom(supabaseProfileAtom);
 
@@ -134,6 +135,10 @@ export function useAppBootstrap() {
 
     const unlistenHub = listen(HUB_DATA_CHANGED, () => {
       void refresh();
+    });
+
+    const unlistenBackend = listen<string>("backend-unavailable", (event) => {
+      setBackendUnavailable(event.payload ?? "serve backend unavailable");
     });
 
     const unlistenDeepLink = listen<string>("deep-link-received", async (event) => {
@@ -268,9 +273,10 @@ export function useAppBootstrap() {
       void unlistenProxy.then((fn) => fn());
       void unlistenMocking.then((fn) => fn());
       void unlistenHub.then((fn) => fn());
+      void unlistenBackend.then((fn) => fn());
       void unlistenDeepLink.then((fn) => fn());
     };
-  }, [refresh, setProxyStatus, setMockingEnabled, setSession, setSupaProfile]);
+  }, [refresh, setProxyStatus, setMockingEnabled, setSession, setSupaProfile, setBackendUnavailable]);
 
   return { refresh };
 }

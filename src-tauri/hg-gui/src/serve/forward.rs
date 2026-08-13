@@ -1,13 +1,20 @@
-use crate::cli::CLI_COMMANDS;
+/// GUI-only commands: intercepted by the Tauri specta handler, NOT forwarded to serve.
+/// All other commands are always forwarded to hg-serve via TCP IPC.
+const GUI_ONLY_COMMANDS: &[&str] = &[
+    "open_window",
+    "open_inspector_window",
+    "open_annotation_dialog",
+    "open_external_url",
+    "plugin:updater|check",
+    "plugin:updater|download_and_install",
+];
 
-/// Whether this command should be routed to the serve backend instead of in-process dispatch.
-pub fn should_forward(command: &str) -> bool {
-    !is_gui_only(command)
+/// Returns true if this command must run in-process (needs Tauri AppHandle / WebView).
+pub fn is_gui_only(command: &str) -> bool {
+    GUI_ONLY_COMMANDS.contains(&command)
 }
 
-pub fn is_gui_only(command: &str) -> bool {
-    CLI_COMMANDS
-        .iter()
-        .find(|info| info.name == command)
-        .is_some_and(|info| info.gui_only)
+/// Returns true if this command should be forwarded to hg-serve.
+pub fn should_forward(command: &str) -> bool {
+    !is_gui_only(command)
 }

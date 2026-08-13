@@ -7,6 +7,7 @@ import { proxyStatusAtom } from "@/entities/proxy";
 
 export const appStatusLoadingAtom = atom(false);
 export const appStatusLoadedAtom = atom(false);
+export const backendUnavailableAtom = atom<string | null>(null);
 
 export const domainCountAtom = atom((get) => {
   if (!get(appStatusLoadedAtom)) {

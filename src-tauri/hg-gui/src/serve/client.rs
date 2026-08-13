@@ -4,20 +4,9 @@ use std::time::Duration;
 
 use hg_core::{ServeRequest, ServeResponse, SERVE_TCP_ADDR};
 use serde_json::Value;
-use uuid::Uuid;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const QUICK_PROBE_TIMEOUT: Duration = Duration::from_millis(50);
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// Fast TCP probe — no IPC round-trip.
-pub fn is_port_open(timeout: Duration) -> bool {
-    let addr: std::net::SocketAddr = match SERVE_TCP_ADDR.parse() {
-        Ok(addr) => addr,
-        Err(_) => return false,
-    };
-    TcpStream::connect_timeout(&addr, timeout).is_ok()
-}
 
 /// Ping the serve backend (cheap health check).
 pub fn ping() -> Result<(), String> {
@@ -28,11 +17,7 @@ pub fn ping() -> Result<(), String> {
 
 /// Dispatch a backend command through the serve IPC channel.
 pub fn call_command(command: &str, payload: Value) -> Result<Value, String> {
-    let request = ServeRequest {
-        id: Uuid::new_v4().to_string(),
-        command: command.to_string(),
-        payload,
-    };
+    let request = ServeRequest::new(command, payload);
 
     let response = send_request(&request)?;
     if response.ok {
@@ -80,10 +65,6 @@ fn send_request(request: &ServeRequest) -> Result<ServeResponse, String> {
     }
 
     serde_json::from_str(line.trim()).map_err(|e| format!("invalid serve response JSON: {e}"))
-}
-
-pub fn quick_probe_timeout() -> Duration {
-    QUICK_PROBE_TIMEOUT
 }
 
 /// Normalize Tauri invoke args into the CLI-style payload object.

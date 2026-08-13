@@ -4,7 +4,14 @@ import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
-import { TelemetryProvider, Titlebar, themeAtom, useAppBootstrap, userProfileAtom } from "@/entities/app";
+import {
+  backendUnavailableAtom,
+  TelemetryProvider,
+  Titlebar,
+  themeAtom,
+  useAppBootstrap,
+  userProfileAtom,
+} from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
 import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
 import { useHubHandoffSync } from "@/features/panel-stack";
@@ -113,6 +120,7 @@ const RootLayout = () => {
   const { update } = useUpdateCheck({ onMount: true, delayMs: 3000 });
   const [dismissedUpdate, setDismissedUpdate] = useState(false);
   const showUpdateBanner = update && !dismissedUpdate;
+  const backendUnavailable = useAtomValue(backendUnavailableAtom);
 
   const content = (
     <main
@@ -137,6 +145,12 @@ const RootLayout = () => {
           (isHubPage || isPopupWindow || isDetachedWindow) && "h-full min-h-0",
         )}
       >
+        {backendUnavailable && !isDetached && !isPopupWindow && !isDetachedWindow && (
+          <div className="mb-4 rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+            백엔드(serve)에 연결할 수 없습니다. 프록시·라우팅 기능이 동작하지 않을 수 있습니다.
+            <span className="mt-1 block text-xs opacity-80">{backendUnavailable}</span>
+          </div>
+        )}
         {showUpdateBanner && !isDetached && !isHubPage && !isPopupWindow && !isDetachedWindow && update && (
           <div className="mb-4">
             <UpdateBanner update={update} onDismiss={() => setDismissedUpdate(true)} />

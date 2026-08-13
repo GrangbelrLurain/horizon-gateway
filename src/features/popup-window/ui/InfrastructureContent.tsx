@@ -1,9 +1,9 @@
 import { listen } from "@tauri-apps/api/event";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Download, Route, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/entities/app";
-import { ProxyServerWarning } from "@/entities/proxy";
+import { ProxyServerWarning, proxyStatusAtom } from "@/entities/proxy";
 import { openPopupWindow } from "@/features/popup-window";
 import type { ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
@@ -16,6 +16,7 @@ import { popupKo } from "../i18n/ko";
 export function InfrastructureContent() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? popupKo : popupEn;
+  const setGlobalProxyStatus = useSetAtom(proxyStatusAtom);
   const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
     running: false,
     port: 0,
@@ -26,26 +27,40 @@ export function InfrastructureContent() {
   const [loading, setLoading] = useState(false);
   const [routingLoading, setRoutingLoading] = useState(false);
 
+  const applyStatus = useCallback(
+    (data: ProxyStatusPayload) => {
+      setProxyStatus(data);
+      setGlobalProxyStatus({
+        running: data.running ?? false,
+        local_routing_enabled: data.local_routing_enabled ?? false,
+        port: data.port ?? null,
+        reverse_http_port: data.reverse_http_port ?? null,
+        reverse_https_port: data.reverse_https_port ?? null,
+      });
+    },
+    [setGlobalProxyStatus],
+  );
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await commands.getProxyStatus().then(unwrap);
       if (res.success && res.data) {
-        setProxyStatus(res.data);
+        applyStatus(res.data);
       }
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [applyStatus]);
 
   useEffect(() => {
     void fetchStatus();
     const unlisten = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
-      setProxyStatus(ev.payload);
+      applyStatus(ev.payload);
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [fetchStatus]);
+  }, [fetchStatus, applyStatus]);
 
   const toggleProxy = async () => {
     setLoading(true);
@@ -69,7 +84,7 @@ export function InfrastructureContent() {
     try {
       const res = await commands.setLocalRoutingEnabled({ enabled }).then(unwrap);
       if (res.success && res.data) {
-        setProxyStatus(res.data);
+        applyStatus(res.data);
       }
       await notifyHubDataChanged("features");
       await notifyHubDataChanged("routes");

@@ -3,7 +3,6 @@
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
@@ -12,11 +11,14 @@ dist
 dist-ssr
 *.local
 .env
+.turbo/
+.tanstack/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor/
 .DS_Store
 *.suo
 *.ntvs*
@@ -24,18 +26,24 @@ dist-ssr
 *.sln
 *.sw?
 
+# Testing & Coverage
+coverage/
+.nyc_output/
+
 tmp
 *.tsbuildinfo
 src-tauri/resources/inspector.js
+src-tauri/hg-serve/resources/inspector.js
+src-tauri/hg-serve/resources/horizon-gateway-serve*
 
 # Tauri signing keys (never commit private key!)
-~/
 .tauri/
 *.key
 
 # AI Agent workspace config and scratch files
 .gemini/
+.claude/
 
 # Local cargo target dirs used for lock-free rebuilds
-src-tauri/target-check/
+src-tauri/target-*/
 src-tauri/src/bindings.ts

@@ -1,0 +1,10 @@
+//! Headless backend process: owns app services and accepts GUI/CLI IPC.
+
+pub mod client;
+pub mod events;
+pub mod logging;
+pub mod server;
+
+pub use client::call_command;
+pub use events::{emit_to_gui, publish_event};
+pub use server::run_serve;

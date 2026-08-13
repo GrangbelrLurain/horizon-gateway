@@ -19,14 +19,17 @@ pub fn start_event_forwarder(app: AppHandle) {
 
     thread::spawn(move || {
         loop {
-            if !ensure::should_route_to_backend() {
+            if !ensure::is_backend_active() {
                 thread::sleep(Duration::from_secs(2));
                 continue;
             }
 
             match forward_events(&app) {
                 Ok(()) => tracing::info!("[gui] serve event stream disconnected"),
-                Err(e) => tracing::debug!("[gui] serve event stream: {e}"),
+                Err(e) => {
+                    tracing::debug!("[gui] serve event stream: {e}");
+                    ensure::mark_inactive();
+                }
             }
 
             thread::sleep(Duration::from_secs(2));

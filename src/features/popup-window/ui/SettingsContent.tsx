@@ -1,12 +1,18 @@
 import { listen } from "@tauri-apps/api/event";
 import { useAtom, useAtomValue } from "jotai";
-import { Download, RefreshCw, Route, Server, Upload } from "lucide-react";
+import { Download, RefreshCw, Route, Server, ShieldAlert, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { proxyPortInputAtom, proxyReverseHttpPortInputAtom, proxyReverseHttpsPortInputAtom } from "@/entities/proxy";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
-import type { ProxySettings, ProxyStatusPayload, SettingsExport_Serialize } from "@/shared/api";
+import type {
+  OsAppEntry,
+  ProxySettings,
+  ProxyStatusPayload,
+  SettingsExport_Serialize,
+  TransparentProxyStatus,
+} from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
@@ -47,6 +53,20 @@ export function SettingsContent() {
   const [proxyLoading, setProxyLoading] = useState(false);
   const [proxyPortSaving, setProxyPortSaving] = useState(false);
   const [routingLoading, setRoutingLoading] = useState(false);
+  const [transparentStatus, setTransparentStatus] = useState<TransparentProxyStatus>({
+    running: false,
+    targetPort: 0,
+    activeConnections: 0,
+    errorMessage: null,
+    experimental: true,
+    processAllowlist: [],
+  });
+  const [transparentLoading, setTransparentLoading] = useState(false);
+  const [osApps, setOsApps] = useState<OsAppEntry[]>([]);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [showAdvancedPort, setShowAdvancedPort] = useState(false);
+  const [advancedPortInput, setAdvancedPortInput] = useState("");
 
   const t = lang === "ko" ? settingsKo : settingsEn;
 
@@ -58,6 +78,23 @@ export function SettingsContent() {
       }
     } catch (e) {
       console.error("get_proxy_status:", e);
+    }
+  }, []);
+
+  const fetchTransparentStatus = useCallback(async () => {
+    try {
+      const res = await commands.getTransparentProxyStatus().then(unwrap);
+      if (res.success && res.data) {
+        setTransparentStatus(res.data);
+        if (res.data.processAllowlist.length > 0) {
+          setSelectedApps(res.data.processAllowlist);
+        }
+        if (res.data.targetPort > 0) {
+          setAdvancedPortInput(String(res.data.targetPort));
+        }
+      }
+    } catch (e) {
+      console.error("get_transparent_proxy_status:", e);
     }
   }, []);
 
@@ -79,6 +116,7 @@ export function SettingsContent() {
   useEffect(() => {
     fetchSettings();
     void fetchProxyStatus();
+    void fetchTransparentStatus();
 
     const unlisten = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
       setProxyStatus(ev.payload);
@@ -86,7 +124,7 @@ export function SettingsContent() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [fetchSettings, fetchProxyStatus]);
+  }, [fetchSettings, fetchProxyStatus, fetchTransparentStatus]);
 
   const handleToggleProxy = async (enabled: boolean) => {
     setProxyLoading(true);
@@ -98,10 +136,83 @@ export function SettingsContent() {
         setProxyStatus(res.data);
       }
       await notifyHubDataChanged("features");
+      void fetchTransparentStatus();
     } catch (e) {
       console.error("toggle proxy:", e);
     } finally {
       setProxyLoading(false);
+    }
+  };
+
+  const handleScanOsApps = async () => {
+    setScanLoading(true);
+    try {
+      const res = await commands.scanOsApps().then(unwrap);
+      if (res.success && res.data) {
+        setOsApps(res.data);
+        toastSuccess(res.message);
+      }
+    } catch (e) {
+      console.error("scan_os_apps:", e);
+      toastError(String(e));
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  const toggleSelectedApp = (name: string) => {
+    setSelectedApps((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
+  };
+
+  const parseAdvancedPort = (): number | null => {
+    const trimmed = advancedPortInput.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n < 1 || n > 65535) {
+      return null;
+    }
+    return n;
+  };
+
+  const handleApplyTransparentApps = async () => {
+    setTransparentLoading(true);
+    try {
+      const res = await commands
+        .applyTransparentProxyApps({
+          processNames: selectedApps,
+          port: parseAdvancedPort(),
+        })
+        .then(unwrap);
+      if (res.success && res.data) {
+        setTransparentStatus(res.data);
+        toastSuccess(res.message);
+      }
+    } catch (e) {
+      console.error("apply_transparent_proxy_apps:", e);
+      toastError(String(e));
+      void fetchTransparentStatus();
+    } finally {
+      setTransparentLoading(false);
+    }
+  };
+
+  const handleStopTransparent = async () => {
+    setTransparentLoading(true);
+    try {
+      const res = await commands.stopTransparentProxy().then(unwrap);
+      if (res.success && res.data) {
+        setTransparentStatus(res.data);
+        setSelectedApps([]);
+        toastSuccess(res.message);
+      }
+    } catch (e) {
+      console.error("stop transparent proxy:", e);
+      toastError(String(e));
+      void fetchTransparentStatus();
+    } finally {
+      setTransparentLoading(false);
     }
   };
 
@@ -313,6 +424,109 @@ export function SettingsContent() {
         <div className="flex justify-end">
           <Button variant="secondary" size="sm" onClick={handleSaveAllPorts} disabled={proxyPortSaving}>
             {proxyPortSaving ? t.proxySaving : t.proxySavePorts}
+          </Button>
+        </div>
+      </Section>
+
+      <Section title={t.transparentTitle} desc={t.transparentDesc}>
+        <p className="text-[10px] text-warning font-bold flex items-center gap-1.5">
+          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+          {t.transparentWarn}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-base-content/40 min-w-0">
+            {transparentStatus.running
+              ? `${t.transparentRunning} · :${transparentStatus.targetPort} · ${transparentStatus.processAllowlist.join(", ") || "—"}`
+              : t.transparentStopped}
+          </p>
+          {transparentStatus.running && (
+            <Button variant="secondary" size="sm" onClick={handleStopTransparent} disabled={transparentLoading}>
+              {t.transparentStop}
+            </Button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" className="gap-2" onClick={handleScanOsApps} disabled={scanLoading}>
+            <RefreshCw className={`w-3.5 h-3.5 ${scanLoading ? "animate-spin" : ""}`} />
+            {scanLoading ? t.transparentScanning : t.transparentScan}
+          </Button>
+          <span className="text-[10px] text-base-content/40">{t.transparentScanHint}</span>
+        </div>
+
+        <div className="max-h-48 overflow-y-auto rounded-xl border border-base-300 divide-y divide-base-300">
+          {(() => {
+            const byName = new Map(osApps.map((a) => [a.name.toLowerCase(), a]));
+            for (const name of selectedApps) {
+              const key = name.toLowerCase();
+              if (!byName.has(key)) {
+                byName.set(key, { name, pids: [], instanceCount: 0 });
+              }
+            }
+            const rows = [...byName.values()].sort((a, b) =>
+              a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+            );
+            if (rows.length === 0) {
+              return <p className="text-xs text-base-content/40 px-3 py-4">{t.transparentAppsEmpty}</p>;
+            }
+            return rows.map((app) => {
+              const checked = selectedApps.some((n) => n.toLowerCase() === app.name.toLowerCase());
+              return (
+                <label key={app.name} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-base-200/60">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={checked}
+                    onChange={() => toggleSelectedApp(app.name)}
+                  />
+                  <span className="text-xs font-medium flex-1 truncate">{app.name}</span>
+                  {app.instanceCount > 0 && (
+                    <span className="text-[10px] text-base-content/40 shrink-0">
+                      {app.instanceCount}
+                      {t.transparentInstances}
+                    </span>
+                  )}
+                </label>
+              );
+            });
+          })()}
+        </div>
+
+        <button
+          type="button"
+          className="text-[10px] font-bold text-base-content/50 uppercase tracking-wide"
+          onClick={() => setShowAdvancedPort((v) => !v)}
+        >
+          {t.transparentAdvanced}
+          {showAdvancedPort ? " ▴" : " ▾"}
+        </button>
+        {showAdvancedPort && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor="popup-tp-port" className="text-[10px] font-bold text-base-content/40 uppercase">
+              {t.transparentPortLabel}
+            </label>
+            <Input
+              id="popup-tp-port"
+              type="number"
+              min={1}
+              max={65535}
+              placeholder="8887"
+              className="h-9 text-sm"
+              value={advancedPortInput}
+              onChange={(e) => setAdvancedPortInput(e.target.value)}
+            />
+            <p className="text-[10px] text-base-content/40">{t.transparentPortHint}</p>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleApplyTransparentApps}
+            disabled={transparentLoading || (!proxyStatus.running && selectedApps.length > 0)}
+          >
+            {transparentLoading ? t.transparentApplying : t.transparentApply}
           </Button>
         </div>
       </Section>

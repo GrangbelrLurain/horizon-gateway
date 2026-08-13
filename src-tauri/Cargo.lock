@@ -1964,8 +1964,10 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "hg-core"
 version = "2.7.7"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
+ "specta",
  "uuid",
 ]
 
@@ -2028,6 +2030,39 @@ dependencies = [
 name = "horizon-gateway"
 version = "2.7.7"
 dependencies = [
+ "chrono",
+ "dirs",
+ "hg-core",
+ "rustls",
+ "serde",
+ "serde_json",
+ "specta",
+ "specta-typescript",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-specta",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "uuid",
+ "windows-sys 0.59.0",
+ "winreg 0.55.0",
+ "winres",
+]
+
+[[package]]
+name = "horizon-gateway-serve"
+version = "2.7.7"
+dependencies = [
  "aes-gcm",
  "axum",
  "base64 0.21.7",
@@ -2054,17 +2089,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "specta",
- "specta-typescript",
- "tauri",
- "tauri-build",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-specta",
  "tempfile",
  "time",
  "tokio",
@@ -2076,15 +2100,10 @@ dependencies = [
  "urlencoding",
  "uuid",
  "windivert",
+ "windivert-sys",
+ "windows 0.48.0",
  "windows-sys 0.59.0",
  "winreg 0.55.0",
-]
-
-[[package]]
-name = "horizon-gateway-serve"
-version = "2.7.7"
-dependencies = [
- "horizon-gateway",
  "winres",
 ]
 
@@ -2754,6 +2773,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.114",
+]
+
+[[package]]
+name = "matchers"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
+dependencies = [
+ "regex-automata",
 ]
 
 [[package]]
@@ -5877,10 +5905,14 @@ version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7f578e5945fb242538965c2d0b04418d38ec25c79d160cd279bf0731c8d319"
 dependencies = [
+ "matchers",
  "nu-ansi-term",
+ "once_cell",
+ "regex-automata",
  "sharded-slab",
  "smallvec",
  "thread_local",
+ "tracing",
  "tracing-core",
  "tracing-log",
 ]

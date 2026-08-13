@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { HUB_DATA_CHANGED, type HubDataChangedReason } from "@/shared/lib/tauri/hubEvents";
 
 let subscriberCount = 0;
-let unlistenHub: (() => void) | null = null;
+let unlistenFns: Array<() => void> = [];
 
 export function useHubDataSubscription(onDataChanged: (reason?: HubDataChangedReason) => Promise<void>) {
   useEffect(() => {
@@ -14,15 +14,22 @@ export function useHubDataSubscription(onDataChanged: (reason?: HubDataChangedRe
         const reason = (event.payload as { reason?: HubDataChangedReason } | undefined)?.reason;
         void onDataChanged(reason);
       }).then((fn) => {
-        unlistenHub = fn;
+        unlistenFns.push(fn);
+      });
+      void listen("local-routes-updated", () => {
+        void onDataChanged("routes");
+      }).then((fn) => {
+        unlistenFns.push(fn);
       });
     }
 
     return () => {
       subscriberCount--;
-      if (subscriberCount === 0 && unlistenHub) {
-        unlistenHub();
-        unlistenHub = null;
+      if (subscriberCount === 0) {
+        for (const unlisten of unlistenFns) {
+          unlisten();
+        }
+        unlistenFns = [];
       }
     };
   }, [onDataChanged]);
