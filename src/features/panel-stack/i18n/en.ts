@@ -265,6 +265,8 @@ export const en = {
   bulkBlocksGlobal: "Finish bulk manage before opening global tools",
   debugSubmenu: "Debug Settings",
   toolsProxyGraph: "Proxy Connections",
+  toolsPolicies: "Guide",
+  toolsPoliciesDesc: "Manage UI/UX guides and generate reports in an in-app window.",
   proxyGraphDesc: "Visualize and control active connections between domains and local proxy targets.",
   toolsMonitor: "Monitor Dashboard",
   monitorManageDesc: "Enable monitoring and review health status for all domains in one place.",

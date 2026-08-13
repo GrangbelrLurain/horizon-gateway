@@ -38,6 +38,9 @@ function resolveTitle(titleKey: string, t: typeof ko): string {
     apiLogs: t.apiLogs,
     apiMocking: t.apiMocking,
     apiSchema: t.apiSchema,
+    toolsProxyGraph: t.toolsProxyGraph,
+    toolsMonitor: t.toolsMonitor,
+    toolsPolicies: t.toolsPolicies,
   };
   return map[titleKey] ?? titleKey;
 }

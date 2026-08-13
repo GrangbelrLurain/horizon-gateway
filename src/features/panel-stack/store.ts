@@ -72,5 +72,7 @@ export const hubJsonSchemaSeedAtom = atom<JsonSchemaHandoffSeed | null>(null);
 export const hubSchemaExplorerSeedAtom = atom<SchemaExplorerHandoffSeed | null>(null);
 /** Host filter seed when opening global API logs from domain context bar */
 export const hubApiLogsHostSeedAtom = atom<string | null>(null);
+/** Domain filter seed when opening the guide surface from a domain panel */
+export const hubPoliciesDomainSeedAtom = atom<string | null>(null);
 /** Navigation target from a handoff received via hubEvents (hub window only) */
 export const hubHandoffRemoteTargetAtom = atom<HandoffTarget | null>(null);

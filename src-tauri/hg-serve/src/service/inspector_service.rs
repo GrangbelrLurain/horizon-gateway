@@ -2,8 +2,20 @@ use crate::model::inspector::{Annotation, AnnotationLocator, InspectorSettings, 
 use crate::storage::versioned::{load_versioned, save_versioned};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::SystemTime;
+
+fn annotation_updates_tx() -> &'static tokio::sync::broadcast::Sender<()> {
+    static TX: OnceLock<tokio::sync::broadcast::Sender<()>> = OnceLock::new();
+    TX.get_or_init(|| {
+        let (tx, _) = tokio::sync::broadcast::channel(64);
+        tx
+    })
+}
+
+fn notify_annotation_updates() {
+    let _ = annotation_updates_tx().send(());
+}
 
 #[derive(Clone)]
 pub struct InspectorService {
@@ -70,7 +82,13 @@ impl InspectorService {
         }
         *self.annotations.lock().unwrap() = list;
         *last = mtime;
+        notify_annotation_updates();
         true
+    }
+
+    /// Injected pages subscribe so badges update without polling.
+    pub fn subscribe_updates() -> tokio::sync::broadcast::Receiver<()> {
+        annotation_updates_tx().subscribe()
     }
 
     /// Pathname from a full URL (query/hash stripped). Used when CLI passes `url` only.
@@ -98,6 +116,8 @@ impl InspectorService {
     fn persist(&self, list: &Vec<Annotation>) {
         save_versioned(&self.storage_path, list);
         self.touch_seen_mtime();
+        notify_annotation_updates();
+        crate::serve::publish_event("annotations-updated", ());
     }
 
     fn persist_domains(&self, list: &Vec<String>) {
@@ -353,5 +373,15 @@ mod tests {
             InspectorService::extract_path_from_url("https://modetour.dev/"),
             Some("/".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn annotation_update_broadcast_reaches_subscriber() {
+        let mut rx = InspectorService::subscribe_updates();
+        notify_annotation_updates();
+        tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+            .await
+            .expect("timed out waiting for annotation update")
+            .expect("broadcast closed");
     }
 }

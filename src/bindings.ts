@@ -89,6 +89,7 @@ export const commands = {
 	openExternalUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_external_url", { url })),
 	openInspectorWindow: (url: string, script: string | null) => typedError<null, string>(__TAURI_INVOKE("open_inspector_window", { url, script })),
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
+	quitApp: () => typedError<null, string>(__TAURI_INVOKE("quit_app")),
 	getAnnotations: () => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("get_annotations")),
 	getAnnotation: (payload: GetAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize | null>, string>(__TAURI_INVOKE("get_annotation", { payload })),
 	addAnnotation: (payload: Annotation_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),

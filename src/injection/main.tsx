@@ -5,7 +5,21 @@ import { InjectionApp } from "./InjectionApp";
 declare global {
   interface Window {
     __HORIZON_GATEWAY_LOADED__?: boolean;
+    __TAURI_INTERNALS__?: unknown;
+    __TAURI__?: unknown;
   }
+}
+
+/** The desktop app webview must never mount the proxy inspector toolbar. */
+function isHorizonGatewayShell(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (window.__TAURI_INTERNALS__ || window.__TAURI__) {
+    return true;
+  }
+  const host = window.location.hostname.toLowerCase();
+  return host === "tauri.localhost" || host === "asset.localhost" || host === "ipc.localhost";
 }
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: string }> {
@@ -53,6 +67,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
  * Horizon Gateway Injection Entry Point
  */
 function initInjection() {
+  if (isHorizonGatewayShell()) {
+    return;
+  }
+
   // 1. 전역 플래그 체크
   if (window.__HORIZON_GATEWAY_LOADED__) {
     return;

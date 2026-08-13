@@ -8,7 +8,7 @@ mod command {
 }
 
 use command::window_commands::{
-    open_annotation_dialog, open_external_url, open_inspector_window, open_window,
+    open_annotation_dialog, open_external_url, open_inspector_window, open_window, quit_app,
 };
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -18,6 +18,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             open_external_url,
             open_inspector_window,
             open_annotation_dialog,
+            quit_app,
         ])
 }
 
@@ -135,10 +136,8 @@ pub fn run() {
                     ..
                 } if label == "main" => {
                     api.prevent_close();
-                    use tauri::Manager;
-                    if let Some(window) = app_handle.get_webview_window("main") {
-                        let _ = window.hide();
-                    }
+                    use tauri::Emitter;
+                    let _ = app_handle.emit("main-window-close-requested", ());
                 }
                 _ => {}
             }

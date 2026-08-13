@@ -311,7 +311,7 @@ export function TopBar({
         </div>
       </div>
 
-      <WindowControls />
+      <WindowControls scope="main" />
     </div>
   );
 }

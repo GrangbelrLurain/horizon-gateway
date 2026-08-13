@@ -15,79 +15,87 @@ const copyInjectionPlugin = () => {
     name: "copy-injection",
     closeBundle() {
       const src = path.resolve(__dirname, "dist/inspector.js");
-      const dest = path.resolve(__dirname, "src-tauri/hg-gui/resources/inspector.js");
+      const dests = [
+        path.resolve(__dirname, "src-tauri/hg-gui/resources/inspector.js"),
+        path.resolve(__dirname, "src-tauri/hg-serve/resources/inspector.js"),
+      ];
       if (fs.existsSync(src)) {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.copyFileSync(src, dest);
-        console.log(`\n✅ Copied ${src} to ${dest}\n`);
+        for (const dest of dests) {
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.copyFileSync(src, dest);
+          console.log(`\n✅ Copied ${src} to ${dest}\n`);
+        }
       }
     },
   };
 };
 
 // https://vite.dev/config/
-export default defineConfig(() => ({
-  plugins: [
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-      routeFileIgnorePattern: "((en|ko|store)\\.ts$)",
-    }),
-    react(),
-    tailwindcss(),
-    copyInjectionPlugin(),
-  ],
-  define: {
-    "process.env": {},
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
+export default defineConfig(({ mode }) => {
+  const isInjectionBuild = mode === "injection";
+
+  return {
+    plugins: [
+      ...(!isInjectionBuild
+        ? [
+            tanstackRouter({
+              target: "react",
+              autoCodeSplitting: true,
+              routeFileIgnorePattern: "((en|ko|store)\\.ts$)",
+            }),
+          ]
+        : []),
+      react(),
+      ...(!isInjectionBuild ? [tailwindcss()] : []),
+      copyInjectionPlugin(),
+    ],
+    define: {
+      "process.env": {},
     },
-  },
-  build: {
-    cssCodeSplit: false,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, "index.html"),
-        injection: path.resolve(__dirname, "src/injection/main.tsx"),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "src"),
       },
-      output: {
-        inlineDynamicImports: false,
-        entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === "injection" ? "inspector.js" : "assets/[name]-[hash].js";
-        },
-        manualChunks: (id) => {
-          if (
-            id.includes("src/injection") ||
-            id.includes("node_modules/react") ||
-            id.includes("node_modules/scheduler")
-          ) {
-            return "inspector";
+    },
+    build: {
+      emptyOutDir: !isInjectionBuild,
+      cssCodeSplit: false,
+      rollupOptions: isInjectionBuild
+        ? {
+            input: path.resolve(__dirname, "src/injection/main.tsx"),
+            output: {
+              format: "es",
+              entryFileNames: "inspector.js",
+              inlineDynamicImports: true,
+            },
           }
-        },
+        : {
+            input: path.resolve(__dirname, "index.html"),
+            output: {
+              entryFileNames: "assets/[name]-[hash].js",
+            },
+          },
+    },
+    // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+    //
+    // 1. prevent Vite from obscuring rust errors
+    clearScreen: false,
+    // 2. tauri expects a fixed port, fail if that port is not available
+    server: {
+      port: 1420,
+      strictPort: true,
+      host: host || false,
+      hmr: host
+        ? {
+            protocol: "ws",
+            host,
+            port: 1421,
+          }
+        : undefined,
+      watch: {
+        // 3. tell Vite to ignore watching `src-tauri` and `dist`
+        ignored: ["**/src-tauri/**", "**/dist/**"],
       },
     },
-  },
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri` and `dist`
-      ignored: ["**/src-tauri/**", "**/dist/**"],
-    },
-  },
-}));
+  };
+});

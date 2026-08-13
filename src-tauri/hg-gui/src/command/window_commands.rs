@@ -114,3 +114,11 @@ pub async fn open_external_url(url: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn quit_app(app: AppHandle) -> Result<(), String> {
+    crate::serve::kill_serve_process();
+    app.exit(0);
+    Ok(())
+}

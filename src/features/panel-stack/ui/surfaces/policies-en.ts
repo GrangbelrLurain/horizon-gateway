@@ -1,4 +1,4 @@
-export const en = {
+export const policiesEn = {
   title: "Guide Management",
   subtitle: "Manage UI/UX guides and generate professional reports.",
   filterAll: "All Domains",

@@ -1,10 +1,10 @@
 import { useAtomValue } from "jotai";
-import { FileText } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { languageAtom } from "@/entities/app";
 import type { Domain } from "@/shared/api";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { useDomainHubData } from "../hooks/useDomainHubData";
+import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import { Panel } from "./Panel";
@@ -17,37 +17,30 @@ interface DomainDebugPanelProps {
 export function DomainDebugPanel({ domain, onClose }: DomainDebugPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
+  const nav = usePanelNavigation();
   const { getDomainHost } = useDomainHubData();
   const host = getDomainHost(domain);
 
-  const items = [
-    {
-      icon: <FileText className="w-4 h-4" />,
-      label: t.debugPolicies,
-      desc: t.debugPoliciesDesc,
-      action: () => void openDetachedWindow("/ux/policies", t.debugPolicies, 1100, 760),
-    },
-  ];
-
   return (
     <Panel id="debug" title={t.debugTitle} subtitle={host} onClose={onClose} width="md">
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div key={item.label} className="p-3 rounded-xl border border-base-300 bg-base-100">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-base-200 flex items-center justify-center text-base-content/50 shrink-0">
-                {item.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black">{item.label}</p>
-                <p className="text-[10px] text-base-content/50 mt-0.5">{item.desc}</p>
-              </div>
-            </div>
-            <Button variant="secondary" size="sm" className="w-full mt-3 text-xs" onClick={item.action}>
-              {t.debugOpen}
-            </Button>
+      <div className="p-3 rounded-xl border border-base-300 bg-base-100">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-base-200 flex items-center justify-center text-base-content/50 shrink-0">
+            <BookOpen className="w-4 h-4" />
           </div>
-        ))}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black">{t.debugPolicies}</p>
+            <p className="text-[10px] text-base-content/50 mt-0.5">{t.debugPoliciesDesc}</p>
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full mt-3 text-xs"
+          onClick={() => nav.openGlobalSurface("global/policies")}
+        >
+          {t.debugOpen}
+        </Button>
       </div>
     </Panel>
   );

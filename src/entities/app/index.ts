@@ -10,3 +10,5 @@ export * from "./ui/store";
 export * from "./ui/Titlebar";
 export * from "./ui/WindowControls";
 export * from "./user/store";
+export * from "./window-behavior/i18n";
+export * from "./window-behavior/store";

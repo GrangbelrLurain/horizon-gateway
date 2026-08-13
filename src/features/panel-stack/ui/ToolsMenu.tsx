@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { Activity, FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
+import { Activity, BookOpen, FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
 import { useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
@@ -28,6 +28,8 @@ function surfaceLabel(id: HubSurfaceId, t: typeof ko): string {
       return t.toolsProxyGraph;
     case "global/monitor":
       return t.toolsMonitor;
+    case "global/policies":
+      return t.toolsPolicies;
     default:
       return id;
   }
@@ -53,6 +55,8 @@ function surfaceIcon(id: HubSurfaceId) {
       return Workflow;
     case "global/monitor":
       return Activity;
+    case "global/policies":
+      return BookOpen;
     default:
       return GitBranch;
   }

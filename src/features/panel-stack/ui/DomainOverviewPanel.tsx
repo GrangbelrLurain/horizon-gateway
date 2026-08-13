@@ -1,6 +1,17 @@
 import clsx from "clsx";
-import { useAtomValue } from "jotai";
-import { Activity, ArrowRight, ChevronRight, Code, FileText, FlaskConical, Loader2, Server, Wifi } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  Activity,
+  ArrowRight,
+  BookOpen,
+  ChevronRight,
+  Code,
+  FileText,
+  FlaskConical,
+  Loader2,
+  Server,
+  Wifi,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { ProxyRouteModal } from "@/entities/domain";
@@ -13,6 +24,7 @@ import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
+import { hubPoliciesDomainSeedAtom } from "../store";
 import type { PanelId } from "../types";
 import { Panel } from "./Panel";
 
@@ -45,6 +57,7 @@ export function DomainOverviewPanel({
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
+  const setPoliciesDomainSeed = useSetAtom(hubPoliciesDomainSeedAtom);
   const { getFeatureState, getGroupName, proxyActive, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
@@ -165,10 +178,13 @@ export function DomainOverviewPanel({
         isActive: hasMockRules,
       },
       {
-        id: "debug/policies",
+        id: "global/policies",
         label: t.debugPolicies,
-        icon: <FileText className="w-4 h-4" />,
-        onClick: () => void openDetachedWindow("/ux/policies", t.debugPolicies, 1100, 760),
+        icon: <BookOpen className="w-4 h-4" />,
+        onClick: () => {
+          setPoliciesDomainSeed(displayHost);
+          nav.openGlobalSurface("global/policies");
+        },
         isActive: hasAnnotations,
       },
       {
@@ -214,6 +230,8 @@ export function DomainOverviewPanel({
       hasAnnotations,
       onOpenPanel,
       nav,
+      displayHost,
+      setPoliciesDomainSeed,
     ],
   );
 

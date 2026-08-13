@@ -14,4 +14,4 @@ pub use events_client::start_event_forwarder;
 pub use forward::{is_gui_only, should_forward};
 pub use router::wrap_invoke_handler;
 pub use spawn::{hgc_exe_path, serve_exe_path};
-pub use tray::{restart_serve_backend, setup_tray};
+pub use tray::{kill_serve_process, restart_serve_backend, setup_tray};

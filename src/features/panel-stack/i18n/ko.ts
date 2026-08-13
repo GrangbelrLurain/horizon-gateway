@@ -271,6 +271,8 @@ export const ko: TranslationSchema = {
   bulkBlocksGlobal: "일괄 관리 중에는 전체 도구를 열 수 없습니다",
   debugSubmenu: "디버그 설정",
   toolsProxyGraph: "프록시 연결 맵",
+  toolsPolicies: "가이드",
+  toolsPoliciesDesc: "서비스별 UI/UX 가이드를 내부 창에서 관리하고 리포트를 생성합니다.",
   proxyGraphDesc: "도메인과 로컬 프록시 대상 간의 활성 연결을 시각화하고 제어합니다.",
   toolsMonitor: "모니터링 관리",
   monitorManageDesc: "모든 도메인의 모니터링 ON/OFF와 상태를 한 화면에서 관리합니다.",

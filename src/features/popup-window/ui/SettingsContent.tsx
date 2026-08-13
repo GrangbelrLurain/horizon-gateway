@@ -3,7 +3,13 @@ import { useAtom, useAtomValue } from "jotai";
 import { Download, RefreshCw, Route, Server, ShieldAlert, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { languageAtom } from "@/entities/app";
+import {
+  closeBehaviorAtom,
+  languageAtom,
+  minimizeBehaviorAtom,
+  windowBehaviorEn,
+  windowBehaviorKo,
+} from "@/entities/app";
 import { proxyPortInputAtom, proxyReverseHttpPortInputAtom, proxyReverseHttpsPortInputAtom } from "@/entities/proxy";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import type {
@@ -22,6 +28,41 @@ import { toastError, toastSuccess } from "@/shared/ui/toast";
 import { settingsEn } from "../i18n/settings-en";
 import { settingsKo } from "../i18n/settings-ko";
 
+function WindowBehaviorRadios<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: { id: T; label: string; hint: string }[];
+}) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-[10px] font-black uppercase text-base-content/40 tracking-widest">{label}</legend>
+      <div className="flex flex-col gap-2">
+        {options.map((opt) => (
+          <label key={opt.id} className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              className="radio radio-sm radio-primary mt-0.5"
+              name={label}
+              checked={value === opt.id}
+              onChange={() => onChange(opt.id)}
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-base-content">{opt.label}</span>
+              <span className="block text-[11px] text-base-content/50 leading-snug mt-0.5">{opt.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
   return (
     <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
@@ -38,6 +79,8 @@ export function SettingsContent() {
   const [proxySettings, setProxySettings] = useState<ProxySettings | null>(null);
   const [dnsServerInput, setDnsServerInput] = useState("");
   const lang = useAtomValue(languageAtom);
+  const [closeBehavior, setCloseBehavior] = useAtom(closeBehaviorAtom);
+  const [minimizeBehavior, setMinimizeBehavior] = useAtom(minimizeBehaviorAtom);
   const { update, isChecking, error: updateError, checkForUpdates } = useUpdateCheck({ onMount: false });
 
   const [proxyStatus, setProxyStatus] = useState<ProxyStatusPayload>({
@@ -69,6 +112,7 @@ export function SettingsContent() {
   const [advancedPortInput, setAdvancedPortInput] = useState("");
 
   const t = lang === "ko" ? settingsKo : settingsEn;
+  const wt = lang === "ko" ? windowBehaviorKo : windowBehaviorEn;
 
   const fetchProxyStatus = useCallback(async () => {
     try {
@@ -549,6 +593,29 @@ export function SettingsContent() {
           )}
         </div>
         {update && <UpdateBanner update={update} onDismiss={undefined} />}
+      </Section>
+
+      <Section title={wt.settingsTitle} desc={wt.settingsDesc}>
+        <WindowBehaviorRadios
+          label={wt.closeButtonLabel}
+          value={closeBehavior}
+          onChange={(value) => setCloseBehavior(value)}
+          options={[
+            { id: "ask", label: wt.optionAsk, hint: wt.optionAskHint },
+            { id: "hide", label: wt.hideToTray, hint: wt.hideToTrayHint },
+            { id: "quit", label: wt.quitApp, hint: wt.quitAppHint },
+          ]}
+        />
+        <WindowBehaviorRadios
+          label={wt.minimizeButtonLabel}
+          value={minimizeBehavior}
+          onChange={(value) => setMinimizeBehavior(value)}
+          options={[
+            { id: "ask", label: wt.optionAsk, hint: wt.optionAskHint },
+            { id: "taskbar", label: wt.minimizeToTaskbar, hint: wt.minimizeToTaskbarHint },
+            { id: "tray", label: wt.hideToTray, hint: wt.hideToTrayHint },
+          ]}
+        />
       </Section>
 
       <Section title={t.dnsTitle} desc={t.dnsDesc}>

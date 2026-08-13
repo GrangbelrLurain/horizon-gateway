@@ -332,6 +332,15 @@ mod tests {
         assert!(!is_html_response("application/json", b"{\"a\":1}"));
         assert!(is_html_response("text/html; charset=utf-8", b"not even html bytes"));
     }
+
+    #[test]
+    fn skips_horizon_gateway_shell_hosts() {
+        assert!(is_horizon_gateway_shell_host("tauri.localhost"));
+        assert!(is_horizon_gateway_shell_host("asset.localhost"));
+        assert!(is_horizon_gateway_shell_host("ipc.localhost"));
+        assert!(!is_horizon_gateway_shell_host("localhost"));
+        assert!(!is_horizon_gateway_shell_host("modetour.dev"));
+    }
 }
 
 pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> bool {
@@ -348,12 +357,23 @@ pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> boo
         return false;
     }
 
+    if is_horizon_gateway_shell_host(&host_key) {
+        return false;
+    }
+
     // 2. Per-domain injection list is the only gate (never check global inspector on/off).
     let injection_domains = state.inspector_service.get_injection_domains();
     injection_domains.iter().any(|d| {
         let d_lower = crate::service::inspector_service::InspectorService::extract_host_key(d);
         !d_lower.is_empty() && (host_key == d_lower || host_key.ends_with(&format!(".{d_lower}")))
     })
+}
+
+fn is_horizon_gateway_shell_host(host: &str) -> bool {
+    matches!(
+        host,
+        "tauri.localhost" | "asset.localhost" | "ipc.localhost"
+    )
 }
 
 pub(crate) fn build_proxy_error_response(host_h: &str, error_msg: &str) -> Response {

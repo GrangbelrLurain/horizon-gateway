@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { matchHostPattern, matchPathPattern } from "@/shared/lib/pattern";
-import { deleteAnnotationApi, fetchAnnotationsApi, saveAnnotationApi } from "../api/gateway";
+import { deleteAnnotationApi, fetchAnnotationsApi, saveAnnotationApi, subscribeAnnotations } from "../api/gateway";
 import { denormalizedSelector, ensureLocators, promoteLocator } from "../lib/locator";
 
 export function useAnnotations() {
@@ -22,12 +22,10 @@ export function useAnnotations() {
       }
     };
     window.addEventListener("message", handleMessage);
-    fetchAnnotations();
-    // Headless CLI writes bypass Tauri events; poll so injected badges stay in sync.
-    const pollId = window.setInterval(fetchAnnotations, 2000);
+    const unsubscribe = subscribeAnnotations(setAnnotations);
     return () => {
       window.removeEventListener("message", handleMessage);
-      window.clearInterval(pollId);
+      unsubscribe();
     };
   }, [fetchAnnotations]);
 

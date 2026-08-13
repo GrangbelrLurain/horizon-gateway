@@ -1,11 +1,18 @@
 use axum::{
     extract::Request,
     http::{header, HeaderValue, StatusCode, Uri},
-    response::{IntoResponse, Response},
+    response::{
+        sse::{Event, KeepAlive, Sse},
+        IntoResponse, Response,
+    },
 };
+use futures::stream::{self, StreamExt};
+use std::convert::Infallible;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::model::inspector::Annotation;
+use crate::service::inspector_service::InspectorService;
 use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
 
 use super::super::reserved::{serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX};
@@ -61,6 +68,10 @@ pub(crate) async fn try_handle_api(
         clean_path,
         path
     );
+
+    if clean_path == "/.horizon-gateway/api/annotations/stream" && req.method() == hyper::Method::GET {
+        return Ok(annotations_stream_response(state));
+    }
 
     if clean_path == "/.horizon-gateway/api/focus" {
         if let Some(main) = state.webview_window("main") {
@@ -335,4 +346,32 @@ pub(crate) async fn try_handle_api(
     }
 
     Ok(serve_horizon_gateway_reserved_path(state.clone(), clean_path, &host_h).await)
+}
+
+fn annotations_json(inspector: &InspectorService) -> String {
+    serde_json::to_string(&inspector.get_all()).unwrap_or_else(|_| "[]".to_string())
+}
+
+fn annotations_stream_response(state: &Arc<ProxyState>) -> Response {
+    let inspector = Arc::clone(&state.inspector_service);
+    let initial = annotations_json(&inspector);
+    let rx = InspectorService::subscribe_updates();
+
+    let first = stream::once(async move { Ok::<_, Infallible>(Event::default().data(initial)) });
+    let rest = stream::unfold((rx, inspector), |(mut rx, inspector)| async move {
+        match rx.recv().await {
+            Ok(()) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                let json = annotations_json(&inspector);
+                Some((Ok::<_, Infallible>(Event::default().data(json)), (rx, inspector)))
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => None,
+        }
+    });
+
+    let mut res = Sse::new(first.chain(rest))
+        .keep_alive(KeepAlive::new().interval(Duration::from_secs(15)).text("ping"))
+        .into_response();
+    res.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    res
 }

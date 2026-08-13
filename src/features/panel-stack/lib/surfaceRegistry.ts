@@ -18,7 +18,8 @@ export type SurfaceTitleKey =
   | "apiMocking"
   | "apiSchema"
   | "toolsProxyGraph"
-  | "toolsMonitor";
+  | "toolsMonitor"
+  | "toolsPolicies";
 
 export interface SurfaceRegistryEntry {
   id: HubSurfaceId;
@@ -71,6 +72,9 @@ const GlobalProxyGraph = lazy(() =>
 );
 const GlobalMonitor = lazy(() =>
   import("../ui/surfaces/GlobalMonitorSurface").then((m) => ({ default: m.GlobalMonitorSurface })),
+);
+const GlobalPolicies = lazy(() =>
+  import("../ui/surfaces/GlobalPoliciesSurface").then((m) => ({ default: m.GlobalPoliciesSurface })),
 );
 
 export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
@@ -236,6 +240,15 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     kind: "global",
     Component: GlobalMonitor,
   },
+  "global/policies": {
+    id: "global/policies",
+    titleKey: "toolsPolicies",
+    route: "/ux/policies",
+    detachWidth: 1100,
+    detachHeight: 760,
+    kind: "global",
+    Component: GlobalPolicies,
+  },
 };
 
 export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
@@ -248,6 +261,7 @@ export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
   "global/server-logs",
   "global/proxy-graph",
   "global/monitor",
+  "global/policies",
 ];
 
 export function getSurfaceEntry(id: HubSurfaceId): SurfaceRegistryEntry {

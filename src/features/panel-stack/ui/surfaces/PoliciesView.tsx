@@ -1,0 +1,952 @@
+import { listen } from "@tauri-apps/api/event";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import clsx from "clsx";
+import html2canvas from "html2canvas";
+import { useAtom, useAtomValue } from "jotai";
+import { jsPDF } from "jspdf";
+import {
+  BookOpen,
+  Download,
+  Edit2,
+  ExternalLink,
+  FileText,
+  FolderTree,
+  Globe,
+  Info,
+  LayoutGrid,
+  Maximize2,
+  RotateCcw,
+  Save,
+  Search,
+  Settings2,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { languageAtom } from "@/entities/app";
+import type { Annotation } from "@/entities/inspector";
+import { commands, unwrap } from "@/shared/api";
+import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
+import { Button } from "@/shared/ui/button/Button";
+import { Input } from "@/shared/ui/input/Input";
+import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
+import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { hubPoliciesDomainSeedAtom } from "../../store";
+import { policiesEn } from "./policies-en";
+import { policiesKo } from "./policies-ko";
+
+type ViewMode = "manage" | "report";
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        "px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors whitespace-nowrap shrink-0",
+        active ? "bg-primary text-primary-content" : "bg-base-200 text-base-content/60 hover:bg-base-300",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function PoliciesView() {
+  const lang = useAtomValue(languageAtom);
+  const t = lang === "ko" ? policiesKo : policiesEn;
+
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [search, setSearch] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
+  const [viewMode, setViewMode] = useState<ViewMode>("manage");
+  const [domainSeed, setDomainSeed] = useAtom(hubPoliciesDomainSeedAtom);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState<Annotation | null>(null);
+  const [editForm, setEditForm] = useState({
+    role: "",
+    description: "",
+    domain: "",
+    hostPattern: "",
+    pathPattern: "",
+    url: "",
+  });
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [visibleFields, setVisibleFields] = useState({
+    selector: false,
+    tag: false,
+    url: true,
+  });
+
+  const documentRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  const fetchAnnotations = useCallback(async () => {
+    const res = unwrap(await commands.getAnnotations());
+    if (res.success && res.data) {
+      setAnnotations(res.data);
+    }
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    fetchAnnotations();
+    const unlisten = listen("annotations-updated", fetchAnnotations);
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [fetchAnnotations]);
+
+  const domains = useMemo(() => {
+    const set = new Set<string>();
+    for (const ann of annotations) {
+      if (ann.domain) {
+        set.add(ann.domain);
+      }
+    }
+    return Array.from(set).sort();
+  }, [annotations]);
+
+  useEffect(() => {
+    if (!domainSeed || !ready) {
+      return;
+    }
+    const seed = domainSeed.toLowerCase();
+    const match = domains.find(
+      (d) => d.toLowerCase() === seed || d.toLowerCase().includes(seed) || seed.includes(d.toLowerCase()),
+    );
+    if (match) {
+      setSelectedDomain(match);
+    }
+    setDomainSeed(null);
+  }, [domainSeed, domains, ready, setDomainSeed]);
+
+  const filteredAnnotations = useMemo(() => {
+    const q = search.toLowerCase();
+    return annotations.filter((ann) => {
+      const matchesDomain = selectedDomain === "ALL" || ann.domain === selectedDomain;
+      const matchesSearch =
+        q === "" ||
+        ann.role.toLowerCase().includes(q) ||
+        ann.description.toLowerCase().includes(q) ||
+        ann.selector.toLowerCase().includes(q);
+      return matchesDomain && matchesSearch;
+    });
+  }, [annotations, selectedDomain, search]);
+
+  const handleDelete = async (id: string) => {
+    const res = unwrap(await commands.deleteAnnotation({ id }));
+    if (res.success && res.data) {
+      setAnnotations(res.data);
+    }
+    setDeleteId(null);
+  };
+
+  const openEditModal = (ann: Annotation) => {
+    setEditingPolicy(ann);
+    setEditForm({
+      role: ann.role,
+      description: ann.description,
+      domain: ann.domain || "",
+      hostPattern: ann.hostPattern || "",
+      pathPattern: ann.pathPattern || "",
+      url: ann.url || "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingPolicy) {
+      return;
+    }
+    const res = unwrap(
+      await commands.updateAnnotation({
+        id: editingPolicy.id,
+        role: editForm.role,
+        description: editForm.description,
+        domain: editForm.domain,
+        url: editForm.url,
+        hostPattern: editForm.hostPattern,
+        pathPattern: editForm.pathPattern,
+      }),
+    );
+    if (res.success && res.data) {
+      setAnnotations(res.data);
+      setIsEditModalOpen(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (filteredAnnotations.length === 0) {
+      return;
+    }
+
+    const originalView = viewMode;
+    if (viewMode !== "report") {
+      setViewMode("report");
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    if (!documentRef.current) {
+      return;
+    }
+    setIsExporting(true);
+
+    try {
+      const filePath = await save({
+        filters: [{ name: "PDF Document", extensions: ["pdf"] }],
+        defaultPath: `${t.pdfFileName}.pdf`,
+      });
+      if (!filePath) {
+        setIsExporting(false);
+        if (originalView !== "report") {
+          setViewMode(originalView);
+        }
+        return;
+      }
+
+      const element = documentRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        scrollY: -window.scrollY,
+        scrollX: 0,
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          const styles = clonedDoc.getElementsByTagName("style");
+          for (let i = styles.length - 1; i >= 0; i--) {
+            styles[i].remove();
+          }
+          const links = clonedDoc.getElementsByTagName("link");
+          for (let i = links.length - 1; i >= 0; i--) {
+            if (links[i].rel === "stylesheet") {
+              links[i].remove();
+            }
+          }
+          const reportEl = clonedDoc.getElementById("policy-document-view");
+          if (reportEl) {
+            reportEl.style.width = "1100px";
+            reportEl.style.padding = "80px";
+            reportEl.style.margin = "0 auto";
+          }
+        },
+      });
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pxPerMm = imgWidth / pdfWidth;
+      const canvasPageHeight = pdfHeight * pxPerMm;
+
+      let heightLeft = imgHeight;
+      let sY = 0;
+
+      while (heightLeft > 0) {
+        const h = Math.min(heightLeft, canvasPageHeight);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = imgWidth;
+        pageCanvas.height = h;
+        const ctx = pageCanvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(canvas, 0, sY, imgWidth, h, 0, 0, imgWidth, h);
+        }
+        const pageData = pageCanvas.toDataURL("image/jpeg", 0.9);
+        const renderedHeight = h / pxPerMm;
+        pdf.addImage(pageData, "JPEG", 0, 0, pdfWidth, renderedHeight, undefined, "FAST");
+        heightLeft -= h;
+        sY += h;
+        if (heightLeft > 0) {
+          pdf.addPage();
+        }
+      }
+
+      const pdfArrayBuffer = pdf.output("arraybuffer");
+      await writeFile(filePath, new Uint8Array(pdfArrayBuffer));
+      toastSuccess("PDF 리포트가 성공적으로 생성되었습니다.");
+    } catch (err) {
+      console.error(err);
+      toastError(`PDF 생성 중 오류 발생: ${err}`);
+    } finally {
+      setIsExporting(false);
+      if (originalView !== "report") {
+        setViewMode(originalView);
+      }
+    }
+  };
+
+  const openExternalUrl = async (url: string | null | undefined) => {
+    if (!url) {
+      return;
+    }
+    try {
+      await openPath(url);
+    } catch {
+      try {
+        await openUrl(url);
+      } catch {
+        window.open(url, "_blank");
+      }
+    }
+  };
+
+  const handleExportJson = async () => {
+    try {
+      const filePath = await save({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        defaultPath: "horizon-gateway-policies.json",
+      });
+      if (!filePath) {
+        return;
+      }
+      await writeTextFile(filePath, JSON.stringify(annotations, null, 2));
+      toastSuccess(t.exportSuccess);
+    } catch (err) {
+      toastError(`Export failed: ${err}`);
+    }
+  };
+
+  const handleImportJson = async () => {
+    try {
+      const selected = await open({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }] });
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+      const content = await readTextFile(selected);
+      const imported = JSON.parse(content) as Annotation[];
+      const res = unwrap(await commands.importAnnotations({ annotations: imported }));
+      if (res.success && res.data) {
+        setAnnotations(res.data);
+        toastSuccess(`${imported.length}${t.importSuccess}`);
+      }
+    } catch (err) {
+      toastError(`Import failed: ${err}`);
+    }
+  };
+
+  return (
+    <div className="relative flex flex-col h-full min-h-0 bg-base-100 text-base-content">
+      <div className="flex flex-col gap-3 p-4 border-b border-base-300 bg-base-200/50 shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary shrink-0" />
+              <h1 className="text-sm font-black tracking-tight">{t.title}</h1>
+              <span className="text-[10px] font-bold text-base-content/40">
+                {filteredAnnotations.length}
+                {lang === "ko" ? "개" : ""}
+              </span>
+            </div>
+            <p className="text-[10px] text-base-content/50 font-medium mt-0.5">{t.subtitle}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex bg-base-300 p-0.5 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setViewMode("manage")}
+                className={clsx(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
+                  viewMode === "manage"
+                    ? "bg-base-100 shadow-sm text-primary"
+                    : "text-base-content/45 hover:text-base-content",
+                )}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                {t.viewManage}
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("report")}
+                className={clsx(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
+                  viewMode === "report"
+                    ? "bg-base-100 shadow-sm text-primary"
+                    : "text-base-content/45 hover:text-base-content",
+                )}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {t.viewPreview}
+              </button>
+            </div>
+
+            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-[10px] font-bold" onClick={handleImportJson}>
+              <Upload className="w-3.5 h-3.5" />
+              {t.importJson}
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-[10px] font-bold" onClick={handleExportJson}>
+              <Download className="w-3.5 h-3.5" />
+              {t.exportJson}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              className="h-8 gap-1.5 text-[10px] font-black"
+              onClick={handleExportPdf}
+              disabled={isExporting || filteredAnnotations.length === 0}
+            >
+              {isExporting ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+              {t.exportPdf}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="relative w-48 sm:w-64 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/40" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="pl-8 h-8 text-[11px] rounded-lg shadow-sm"
+              />
+            </div>
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-thin min-w-0 flex-1">
+              <FilterChip active={selectedDomain === "ALL"} onClick={() => setSelectedDomain("ALL")}>
+                {t.filterAll}
+              </FilterChip>
+              {domains.map((d) => (
+                <FilterChip key={d} active={selectedDomain === d} onClick={() => setSelectedDomain(d)}>
+                  {d}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+
+          {viewMode === "report" && (
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-[9px] font-bold text-base-content/40 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Settings2 className="w-3 h-3" />
+                {t.displayOptions}
+              </span>
+              <div className="flex items-center gap-3">
+                {(["url", "tag", "selector"] as const).map((field) => (
+                  <label key={field} className="flex items-center gap-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-xs checkbox-primary rounded-md"
+                      checked={visibleFields[field]}
+                      onChange={(e) => setVisibleFields((prev) => ({ ...prev, [field]: e.target.checked }))}
+                    />
+                    <span className="text-[10px] font-bold text-base-content/60 group-hover:text-primary uppercase">
+                      {field}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 scrollbar-thin">
+        {viewMode === "manage" && (
+          <div>
+            {filteredAnnotations.length === 0 ? (
+              <div className="py-16 flex flex-col items-center justify-center text-base-content/30 rounded-2xl border-2 border-dashed border-base-300">
+                <Info className="w-10 h-10 mb-3 opacity-40" />
+                <p className="text-sm font-bold">{t.noPolicies}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredAnnotations.map((ann, idx) => (
+                  <article
+                    key={ann.id}
+                    className="group flex flex-col gap-3 p-4 rounded-xl border border-base-300 bg-base-100 hover:border-primary/30 hover:shadow-md transition-all min-h-0"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-6 h-6 rounded-md bg-base-200 flex items-center justify-center font-black text-[10px] text-base-content/40 shrink-0">
+                          {idx + 1}
+                        </span>
+                        <h3 className="font-bold text-sm text-base-content truncate" title={ann.role}>
+                          {ann.role}
+                        </h3>
+                      </div>
+                      {ann.url && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="h-7 w-7 p-0 text-primary/40 hover:text-primary hover:bg-primary/10 rounded-full shrink-0"
+                          onClick={() => openExternalUrl(ann.url)}
+                          title={t.visitSite}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {ann.thumbnail ? (
+                      <div className="relative h-28 bg-base-200 overflow-hidden rounded-lg border border-base-300/50 shrink-0">
+                        <img src={ann.thumbnail} alt="" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="rounded-full bg-white/90 text-black border-none h-8 text-[10px]"
+                            onClick={() => setZoomImage(ann.thumbnail)}
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" /> {t.zoom}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="min-h-[4.5rem] max-h-32 overflow-y-auto scrollbar-thin pr-1">
+                      <MarkdownRenderer
+                        content={ann.description || "-"}
+                        className="text-xs text-base-content/80 leading-relaxed"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-2 border-t border-base-200 mt-auto">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-base-content/50">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1 bg-base-200 px-2 py-0.5 rounded font-bold text-base-content/70">
+                            <Globe className="w-3 h-3 text-primary" />
+                            <span className="truncate max-w-[140px]">{ann.domain || "Global"}</span>
+                          </div>
+                          {ann.hostPattern && (
+                            <span
+                              className="bg-primary/10 text-primary font-mono px-1.5 py-0.5 rounded border border-primary/20 truncate max-w-[120px]"
+                              title="Host Pattern"
+                            >
+                              H: {ann.hostPattern}
+                            </span>
+                          )}
+                          {ann.pathPattern && (
+                            <span
+                              className="bg-secondary/10 text-secondary font-mono px-1.5 py-0.5 rounded border border-secondary/20 truncate max-w-[120px]"
+                              title="Path Pattern"
+                            >
+                              P: {ann.pathPattern}
+                            </span>
+                          )}
+                        </div>
+                        <span className="whitespace-nowrap">{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1 gap-1.5 text-[11px] font-bold h-8"
+                          onClick={() => openEditModal(ann)}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          {t.edit}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-none w-8 h-8 p-0 text-error hover:bg-error/10"
+                          onClick={() => setDeleteId(ann.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === "report" && (
+          <div className="animate-in fade-in duration-200">
+            <div
+              ref={documentRef}
+              id="policy-document-view"
+              style={{
+                backgroundColor: "#ffffff",
+                color: "#0f172a",
+                display: "flex",
+                flexDirection: "column",
+                gap: "48px",
+              }}
+              className="p-8 rounded-2xl shadow-sm border border-base-200 mx-auto"
+            >
+              {filteredAnnotations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24" style={{ color: "#cbd5e1" }}>
+                  <Info className="w-12 h-12 mb-3 opacity-40" />
+                  <p className="text-base font-bold">{t.noPolicies}</p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      borderBottom: "2px solid #6366f133",
+                      paddingBottom: "24px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    <div>
+                      <h2 style={{ color: "#6366f1", fontSize: "28px", fontWeight: "900", margin: 0 }}>
+                        {t.pdfFileName.replace(/_/g, " ")}
+                      </h2>
+                      <p
+                        style={{
+                          color: "#94a3b8",
+                          fontSize: "13px",
+                          fontFamily: "monospace",
+                          fontStyle: "italic",
+                          margin: "4px 0 0 0",
+                        }}
+                      >
+                        Generated at: {new Date().toLocaleString()}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p
+                        style={{
+                          color: "#6366f166",
+                          fontSize: "11px",
+                          fontWeight: "900",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          margin: 0,
+                        }}
+                      >
+                        {selectedDomain}
+                      </p>
+                      <p style={{ color: "#0f172a", fontSize: "20px", fontWeight: "900", margin: 0 }}>
+                        {filteredAnnotations.length} {t.policyCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  {filteredAnnotations.map((ann, idx) => (
+                    <div key={ann.id} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <span
+                            style={{
+                              backgroundColor: "#6366f1",
+                              color: "#ffffff",
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: "900",
+                              fontSize: "13px",
+                            }}
+                          >
+                            {idx + 1}
+                          </span>
+                          <h3
+                            style={{
+                              color: "#0f172a",
+                              fontSize: "20px",
+                              fontWeight: "bold",
+                              margin: 0,
+                              lineHeight: "1.2",
+                            }}
+                          >
+                            {ann.role}
+                          </h3>
+                        </div>
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "12px",
+                          }}
+                        >
+                          <Globe style={{ width: "12px", height: "12px" }} />
+                          <span style={{ fontFamily: "monospace" }}>{ann.domain}</span>
+                          <span>•</span>
+                          <span>{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(12, 1fr)",
+                          gap: "24px",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div style={{ gridColumn: "span 5" }}>
+                          <div style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                            <img src={ann.thumbnail} alt="" style={{ width: "100%", display: "block" }} />
+                          </div>
+                        </div>
+
+                        <div style={{ gridColumn: "span 7", display: "flex", flexDirection: "column", gap: "16px" }}>
+                          <div
+                            style={{
+                              backgroundColor: "#f8fafc",
+                              border: "1px solid #f1f5f9",
+                              padding: "16px",
+                              borderRadius: "12px",
+                              minHeight: "80px",
+                            }}
+                          >
+                            <MarkdownRenderer
+                              content={ann.description}
+                              style={{ color: "#334155", fontSize: "14px", lineHeight: "1.6" }}
+                              codeStyle={{ backgroundColor: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe" }}
+                            />
+                          </div>
+
+                          {(visibleFields.tag || visibleFields.selector) && (
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                              {visibleFields.tag && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  <span
+                                    style={{
+                                      color: "#94a3b8",
+                                      fontSize: "10px",
+                                      fontWeight: "900",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.1em",
+                                    }}
+                                  >
+                                    {t.tagName}
+                                  </span>
+                                  <span
+                                    style={{
+                                      backgroundColor: "#e2e8f0",
+                                      color: "#475569",
+                                      fontWeight: "bold",
+                                      padding: "6px 12px",
+                                      borderRadius: "8px",
+                                      fontSize: "13px",
+                                      width: "fit-content",
+                                    }}
+                                  >
+                                    {ann.tagName}
+                                  </span>
+                                </div>
+                              )}
+                              {visibleFields.selector && (
+                                <div
+                                  style={{ display: "flex", flexDirection: "column", gap: "4px", overflow: "hidden" }}
+                                >
+                                  <span
+                                    style={{
+                                      color: "#94a3b8",
+                                      fontSize: "10px",
+                                      fontWeight: "900",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.1em",
+                                    }}
+                                  >
+                                    {t.selector}
+                                  </span>
+                                  <code
+                                    style={{
+                                      backgroundColor: "#eef2ff",
+                                      color: "#4f46e5",
+                                      border: "1px solid #e0e7ff",
+                                      fontSize: "10px",
+                                      padding: "6px 8px",
+                                      borderRadius: "6px",
+                                      fontFamily: "monospace",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {ann.selector}
+                                  </code>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {visibleFields.url && ann.url && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                color: "rgba(99, 102, 241, 0.6)",
+                                fontSize: "12px",
+                              }}
+                            >
+                              <ExternalLink style={{ width: "12px", height: "12px" }} />
+                              <span style={{ textDecoration: "underline", opacity: 0.8 }}>{ann.url}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {idx < filteredAnnotations.length - 1 && (
+                        <div style={{ backgroundColor: "#f1f5f9", height: "1px", margin: "8px 0" }} />
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {isEditModalOpen && (
+        <div
+          className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsEditModalOpen(false);
+            }
+          }}
+        >
+          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-2xl w-full max-w-lg max-h-[85%] overflow-y-auto p-5 flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-black">{t.editPolicy}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded-full text-base-content/40 hover:text-base-content hover:bg-base-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
+                {t.roleLabel}
+              </span>
+              <Input
+                id="app-edit-role"
+                value={editForm.role}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
+                {t.descLabel}
+              </span>
+              <textarea
+                id="app-edit-desc"
+                value={editForm.description}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Description (Markdown format supported)..."
+                className="textarea textarea-bordered text-xs min-h-[100px] leading-relaxed"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-primary" /> {t.domainLabel}
+                </span>
+                <Input
+                  value={editForm.domain}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
+                  placeholder="www.modetour.com"
+                  className="h-8 text-xs font-mono"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
+                </span>
+                <Input
+                  value={editForm.hostPattern}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
+                  placeholder={t.hostPatternPlaceholder}
+                  className="h-8 text-xs font-mono"
+                />
+              </label>
+            </div>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                <FolderTree className="w-3 h-3 text-secondary" /> {t.pathPatternLabel}
+              </span>
+              <Input
+                value={editForm.pathPattern}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, pathPattern: e.target.value }))}
+                placeholder={t.pathPatternPlaceholder}
+                className="h-8 text-xs font-mono"
+              />
+            </label>
+
+            <div className="flex items-start gap-2 rounded-xl bg-info/8 border border-info/15 p-3">
+              <Info className="w-3.5 h-3.5 text-info shrink-0 mt-0.5" />
+              <p className="text-[11px] text-base-content/60 leading-relaxed m-0">{t.patternHelp}</p>
+            </div>
+
+            <label className="flex flex-col gap-1.5 opacity-80">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">{t.urlLabel}</span>
+              <Input
+                value={editForm.url}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
+                className="h-8 text-xs font-mono"
+              />
+            </label>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8 text-xs font-bold"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                {t.cancel}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-black"
+                onClick={handleUpdate}
+                disabled={!editForm.role}
+              >
+                <Save className="w-3.5 h-3.5" />
+                {t.save}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {zoomImage && (
+        <div
+          className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-8"
+          onClick={() => setZoomImage(null)}
+        >
+          <button type="button" className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
+            <X className="w-7 h-7" />
+          </button>
+          <img src={zoomImage} alt="" className="max-w-full max-h-full shadow-2xl rounded-lg" />
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        title={t.delete}
+        message={t.deleteConfirm}
+        type="danger"
+      />
+    </div>
+  );
+}

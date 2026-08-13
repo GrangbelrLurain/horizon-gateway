@@ -105,6 +105,67 @@ export async function fetchAnnotationsApi(): Promise<Annotation[]> {
   }
 }
 
+function applyAnnotationPayload(data: unknown, onData: (annotations: Annotation[]) => void) {
+  if (Array.isArray(data)) {
+    onData(data as Annotation[]);
+  }
+}
+
+/** Push updates over SSE. Falls back to a slow poll only if the stream cannot connect. */
+export function subscribeAnnotations(onData: (annotations: Annotation[]) => void): () => void {
+  let closed = false;
+  let pollId: number | null = null;
+  let es: EventSource | null = null;
+  let failCount = 0;
+
+  const startSlowPoll = () => {
+    if (pollId != null || closed) {
+      return;
+    }
+    void fetchAnnotationsApi().then((data) => applyAnnotationPayload(data, onData));
+    pollId = window.setInterval(() => {
+      void fetchAnnotationsApi().then((data) => applyAnnotationPayload(data, onData));
+    }, 30_000);
+  };
+
+  try {
+    es = new EventSource("/.horizon-gateway/api/annotations/stream");
+  } catch {
+    startSlowPoll();
+    return () => {
+      closed = true;
+      if (pollId != null) {
+        window.clearInterval(pollId);
+      }
+    };
+  }
+
+  es.onmessage = (ev) => {
+    failCount = 0;
+    try {
+      applyAnnotationPayload(JSON.parse(ev.data), onData);
+    } catch {
+      /* ignore malformed frames */
+    }
+  };
+  es.onerror = () => {
+    failCount += 1;
+    if (failCount >= 3 && es) {
+      es.close();
+      es = null;
+      startSlowPoll();
+    }
+  };
+
+  return () => {
+    closed = true;
+    es?.close();
+    if (pollId != null) {
+      window.clearInterval(pollId);
+    }
+  };
+}
+
 export async function deleteAnnotationApi(id: string) {
   return fetch("/.horizon-gateway/api/annotation", {
     method: "DELETE",

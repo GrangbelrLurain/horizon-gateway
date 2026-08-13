@@ -5,6 +5,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "open_inspector_window",
     "open_annotation_dialog",
     "open_external_url",
+    "quit_app",
     "plugin:updater|check",
     "plugin:updater|download_and_install",
 ];
@@ -17,4 +18,15 @@ pub fn is_gui_only(command: &str) -> bool {
 /// Returns true if this command should be forwarded to hg-serve.
 pub fn should_forward(command: &str) -> bool {
     !is_gui_only(command)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quit_app_stays_in_gui() {
+        assert!(is_gui_only("quit_app"));
+        assert!(!should_forward("quit_app"));
+    }
 }

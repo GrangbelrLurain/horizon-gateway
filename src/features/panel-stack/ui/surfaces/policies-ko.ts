@@ -1,4 +1,4 @@
-export const ko = {
+export const policiesKo = {
   title: "가이드 관리",
   subtitle: "서비스별로 정의된 UI/UX 가이드를 관리하고 리포트를 생성합니다.",
   filterAll: "전체 도메인",

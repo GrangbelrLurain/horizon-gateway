@@ -1,5 +1,6 @@
 import {
   Activity,
+  BookOpen,
   Code2,
   Download,
   FileCode,
@@ -519,6 +520,25 @@ export function createPaletteCommands(handlers: {
       },
       action: () => {
         handlers.onOpenGlobalSurface("global/monitor");
+      },
+    },
+    {
+      id: "view-guides",
+      group: "tools",
+      icon: <BookOpen className="w-4 h-4 text-primary" />,
+      meta: {
+        label: { ko: "[가이드] 보기: UI/UX 가이드 관리", en: "[Guide] Manage UI/UX Guides" },
+        description: {
+          ko: "주입된 페이지 가이드를 내부 창에서 관리하고 리포트를 생성합니다",
+          en: "Manage injection guides and generate reports in an in-app window",
+        },
+        aliases: {
+          ko: ["가이드", "정책", "어노테이션", "리포트"],
+          en: ["guide", "policy", "annotation", "report", "ux"],
+        },
+      },
+      action: () => {
+        handlers.onOpenGlobalSurface("global/policies");
       },
     },
     {

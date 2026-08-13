@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.9] - 2026-08-13
+
+### Added
+
+- **Close / minimize preferences**: The main window close button can hide to the tray or quit the app (with “remember this choice”). Minimize can stay on the taskbar or hide to the tray. Settings expose the same options, including ask every time.
+- **Annotation SSE**: Injected pages subscribe to `/.horizon-gateway/api/annotations/stream` instead of polling every 2s, with a poll fallback after EventSource errors.
+
+### Changed
+
+- **Policies in the hub overlay**: UI/UX policies moved from a standalone route into a hub surface.
+- **Window-behavior copy**: Tray hide vs taskbar minimize use the same, explicit labels.
+
+### Fixed
+
+- **Inspector toolbar in the GUI shell**: Production Vite no longer bundles `inspector.js` into the app window. Injection is a separate build, and the injector skips Tauri/localhost shell hosts.
+
 ## [v2.7.8] - 2026-08-13
 
 ### Added
