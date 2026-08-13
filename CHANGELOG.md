@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.8] - 2026-08-13
+
+### Added
+
+- **`hgc` console CLI**: New asInvoker client (`hgc init`, `hgc list`, `hgc help <command>`, `hgc <command>` with implied `run`). No UAC. `horizon-gateway cli …` remains a compatibility wrapper that launches `hgc`.
+- **Serve / GUI process split**: Headless `horizon-gateway-serve` owns proxy, storage, and IPC; the Tauri app is a thin shell that spawns serve (UAC on Windows) and forwards invokes over localhost.
+
+### Changed
+
+- **Windows admin manifest scoped to serve**: `requireAdministrator` applies only to `horizon-gateway-serve`, not `hgc` or lib tests.
+- **Agent skill docs** use `hgc` as the primary command form.
+
+### Fixed
+
+- **`--query` on a running backend**: Live serve IPC now applies `--query` the same way headless `run` does.
+- **`tauri dev` rebuild loop on Windows**: Debug builds no longer copy `serve.exe` into watched `resources/`, which previously retriggered rebuilds and could skip the Common Controls v6 manifest.
+
 ## [v2.7.7] - 2026-08-11
 
 ### Added

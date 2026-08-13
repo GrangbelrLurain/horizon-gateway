@@ -4,6 +4,23 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.7.8] - 2026-08-13
+
+### Added (추가 기능)
+
+- **`hgc` 콘솔 CLI**: UAC 없는 asInvoker 클라이언트입니다. `hgc init`, `hgc list`, `hgc help <command>`, `hgc <command>`(`run` 생략 가능). `horizon-gateway cli …`는 호환 래퍼로 `hgc`를 실행합니다.
+- **Serve / GUI 프로세스 분리**: 헤드리스 `horizon-gateway-serve`가 프록시·저장소·IPC를 담당하고, Tauri GUI는 serve를 띄운 뒤 localhost IPC로 invoke를 전달하는 얇은 셸입니다.
+
+### Changed (변경 사항)
+
+- **Windows 관리자 매니페스트를 serve에만 적용**: `requireAdministrator`는 `horizon-gateway-serve`에만 붙고, `hgc`와 라이브러리 테스트에는 붙지 않습니다.
+- **에이전트 스킬 문서**의 기본 명령 형식을 `hgc`로 바꿨습니다.
+
+### Fixed (버그 수정)
+
+- **실행 중인 백엔드에서 `--query` 미적용**: serve IPC 경로에서도 headless `run`과 같이 `--query`가 동작합니다.
+- **Windows `tauri dev` 재빌드 루프**: 디버그 빌드가 watched `resources/`에 `serve.exe`를 복사하지 않도록 바꿔, 재빌드 루프와 Common Controls v6 매니페스트 누락을 막았습니다.
+
 ## [v2.7.7] - 2026-08-11
 
 ### Added (추가 기능)
