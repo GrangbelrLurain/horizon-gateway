@@ -2,7 +2,7 @@ use crate::model::api_response::ApiResponse;
 
 pub const OPEN_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "open_window",
-    description: "GUI 윈도우 열기 (gui_only)",
+    description: "[GUI] 윈도우를 엽니다.",
     payload_example: "{}",
     category: "window",
     gui_only: true,
@@ -10,7 +10,7 @@ pub const OPEN_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComm
 
 pub const OPEN_INSPECTOR_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "open_inspector_window",
-    description: "인스펙터 윈도우 열기 (gui_only)",
+    description: "[GUI] 인스펙터 윈도우를 엽니다.",
     payload_example: "{}",
     category: "window",
     gui_only: true,
@@ -18,7 +18,7 @@ pub const OPEN_INSPECTOR_WINDOW_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
 
 pub const OPEN_ANNOTATION_DIALOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "open_annotation_dialog",
-    description: "주석 다이얼로그 열기 (gui_only)",
+    description: "[GUI] 주석 다이얼로그를 엽니다.",
     payload_example: "{}",
     category: "window",
     gui_only: true,
