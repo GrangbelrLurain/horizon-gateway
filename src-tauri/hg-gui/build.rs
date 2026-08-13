@@ -6,16 +6,14 @@ use std::{
 fn main() {
     embed_inspector_js();
     sync_skill_md_resource();
-    // Dev (`tauri dev`) must not write `resources/horizon-gateway-serve.exe`:
-    // Tauri watches hg-gui, so copying that file retriggers a rebuild loop and
-    // os error 32 / STATUS_ENTRYPOINT_NOT_FOUND on Windows.
-    stage_sidecar_for_release_bundle("horizon-gateway-serve");
-    stage_sidecar_for_release_bundle("hgc");
+    // Dev (`tauri dev`) must not write sidecars into watched `resources/`.
+    remove_debug_resource_sidecars();
     #[cfg(windows)]
     copy_windivert_sidecars();
     copy_sidecar_next_to_exe("horizon-gateway-serve");
     copy_sidecar_next_to_exe("hgc");
-    strip_debug_only_bundle_resources();
+    println!("cargo:rerun-if-changed=binaries");
+    patch_bundle_resources();
     build_tauri();
 }
 
@@ -71,22 +69,31 @@ fn json_merge_keep_nulls(base: &mut serde_json::Value, patch: &serde_json::Value
     }
 }
 
-/// Dev must not ask tauri-build to copy serve.exe / WinDivert: missing serve.exe
-/// used to abort try_build before the Windows app manifest was embedded.
-fn strip_debug_only_bundle_resources() {
-    if is_release_profile() {
+/// Drop bundle entries that would fail tauri-build on this platform/profile.
+/// Sidecars are `externalBin` (`binaries/<name>-<triple>`); WinDivert is Windows-only.
+fn patch_bundle_resources() {
+    let mut bundle = serde_json::Map::new();
+    let mut resources = serde_json::Map::new();
+
+    if !is_release_profile() {
+        bundle.insert("externalBin".into(), serde_json::Value::Null);
+    }
+    if cfg!(not(windows)) || !is_release_profile() {
+        for key in [
+            "resources/windivert/WinDivert.dll",
+            "resources/windivert/WinDivert64.sys",
+        ] {
+            resources.insert(key.to_string(), serde_json::Value::Null);
+        }
+    }
+    if !resources.is_empty() {
+        bundle.insert("resources".into(), serde_json::Value::Object(resources));
+    }
+    if bundle.is_empty() {
         return;
     }
-    let patch = serde_json::json!({
-        "bundle": {
-            "resources": {
-                "resources/horizon-gateway-serve.exe": null,
-                "resources/hgc.exe": null,
-                "resources/windivert/WinDivert.dll": null,
-                "resources/windivert/WinDivert64.sys": null
-            }
-        }
-    });
+
+    let patch = serde_json::json!({ "bundle": bundle });
     let mut merged = env::var("TAURI_CONFIG")
         .ok()
         .filter(|s| !s.trim().is_empty())
@@ -94,6 +101,30 @@ fn strip_debug_only_bundle_resources() {
         .unwrap_or_else(|| serde_json::json!({}));
     json_merge_keep_nulls(&mut merged, &patch);
     env::set_var("TAURI_CONFIG", merged.to_string());
+}
+
+fn sidecar_resource_names(bin_name: &str) -> [String; 2] {
+    [
+        format!("{bin_name}.exe"),
+        bin_name.to_string(),
+    ]
+}
+
+/// Leftover copies in watched `resources/` retrigger `tauri dev` rebuilds on Windows.
+fn remove_debug_resource_sidecars() {
+    if is_release_profile() {
+        return;
+    }
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let resources = manifest_dir.join("resources");
+    for bin_name in ["horizon-gateway-serve", "hgc"] {
+        for name in sidecar_resource_names(bin_name) {
+            let path = resources.join(name);
+            if path.is_file() {
+                let _ = fs::remove_file(&path);
+            }
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -111,10 +142,16 @@ fn is_release_profile() -> bool {
 
 fn profile_target_dir(manifest_dir: &Path) -> PathBuf {
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
-    if let Ok(dir) = env::var("CARGO_TARGET_DIR") {
-        return PathBuf::from(dir).join(&profile);
+    let target_root = env::var("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| manifest_dir.join("..").join("target"));
+    if let Ok(triple) = env::var("TARGET") {
+        let triple_dir = target_root.join(&triple).join(&profile);
+        if triple_dir.is_dir() {
+            return triple_dir;
+        }
     }
-    manifest_dir.join("..").join("target").join(profile)
+    target_root.join(profile)
 }
 
 fn same_path(a: &Path, b: &Path) -> bool {
@@ -153,60 +190,12 @@ fn copy_skipping_lock(src: &Path, dest: &Path, label: &str) {
     }
 }
 
-fn sidecar_resource_path(manifest_dir: &Path, bin_name: &str) -> PathBuf {
-    let ext = if cfg!(windows) { ".exe" } else { "" };
-    manifest_dir
-        .join("resources")
-        .join(format!("{bin_name}{ext}"))
-}
-
-/// Release only: stage sidecars under `resources/` for the NSIS bundle (`tauri.conf.json`).
-/// Never do this in debug — Tauri's hg-gui watcher treats that write as a source change.
-fn stage_sidecar_for_release_bundle(bin_name: &str) {
-    println!("cargo:rerun-if-changed=binaries");
-
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let resource_dest = sidecar_resource_path(&manifest_dir, bin_name);
-
-    if !is_release_profile() {
-        // Leftover copies would be watched and copied over target/debug binaries.
-        if resource_dest.is_file() {
-            let _ = fs::remove_file(&resource_dest);
-        }
-        return;
-    }
-
-    if let Some(src) = find_sidecar_binary(&manifest_dir, bin_name) {
-        copy_skipping_lock(
-            &src,
-            &resource_dest,
-            &format!("{bin_name} (bundle resource)"),
-        );
-        return;
-    }
-
-    if !resource_dest.is_file()
-        || resource_dest
-            .metadata()
-            .map(|m| m.len() == 0)
-            .unwrap_or(true)
-    {
-        panic!(
-            "{bin_name} missing for release bundle.\n\
-             Run `node scripts/build-serve-sidecar.mjs` before `tauri build`."
-        );
-    }
-}
-
-/// Copy sidecar next to the GUI executable (`src-tauri/target/{profile}/`), not into watched sources.
 fn copy_sidecar_next_to_exe(bin_name: &str) {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let Some(src) = find_sidecar_binary(&manifest_dir, bin_name) else {
-        if !is_release_profile() {
-            println!(
-                "cargo:warning={bin_name} not found; run `cargo build -p {bin_name}` (GUI will look in target/debug)"
-            );
-        }
+        println!(
+            "cargo:warning={bin_name} not found; run `node scripts/build-serve-sidecar.mjs` or `cargo build -p {bin_name}`"
+        );
         return;
     };
 
@@ -220,10 +209,6 @@ fn find_sidecar_binary(manifest_dir: &Path, bin_name: &str) -> Option<PathBuf> {
     let file_name = format!("{bin_name}{ext}");
     let mut candidates = Vec::new();
 
-    // Prefer this profile's workspace binary so debug does not overwrite it
-    // with a leftover release sidecar from binaries/.
-    candidates.push(profile_target_dir(manifest_dir).join(&file_name));
-
     if let Ok(target) = env::var("TARGET") {
         candidates.push(
             manifest_dir
@@ -232,18 +217,7 @@ fn find_sidecar_binary(manifest_dir: &Path, bin_name: &str) -> Option<PathBuf> {
         );
     }
 
-    if let Ok(entries) = fs::read_dir(manifest_dir.join("binaries")) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|n| n.starts_with(bin_name))
-            {
-                candidates.push(path);
-            }
-        }
-    }
+    candidates.push(profile_target_dir(manifest_dir).join(&file_name));
 
     candidates.into_iter().find(|path| {
         path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)

@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`--query` on a running backend**: Live serve IPC now applies `--query` the same way headless `run` does.
 - **`tauri dev` rebuild loop on Windows**: Debug builds no longer copy `serve.exe` into watched `resources/`, which previously retriggered rebuilds and could skip the Common Controls v6 manifest.
+- **macOS / Linux release bundle**: Sidecars (`horizon-gateway-serve`, `hgc`) are packaged as `externalBin` instead of Windows `.exe` resources, so Unix `tauri build` no longer looks for `horizon-gateway-serve.exe`.
 
 ## [v2.7.7] - 2026-08-11
 

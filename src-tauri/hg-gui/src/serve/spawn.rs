@@ -25,6 +25,12 @@ fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
                     push_sidecar_candidates(&mut candidates, debug, bin_name);
                 }
             }
+            // macOS app bundle: Contents/MacOS/../Resources
+            if dir.ends_with("MacOS") {
+                if let Some(contents) = dir.parent() {
+                    push_sidecar_candidates(&mut candidates, &contents.join("Resources"), bin_name);
+                }
+            }
         }
     }
 

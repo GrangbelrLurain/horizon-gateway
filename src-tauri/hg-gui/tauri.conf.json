@@ -45,10 +45,12 @@
     "resources": {
       "resources/inspector.js": "inspector.js",
       "resources/windivert/WinDivert.dll": "WinDivert.dll",
-      "resources/windivert/WinDivert64.sys": "WinDivert64.sys",
-      "resources/horizon-gateway-serve.exe": "horizon-gateway-serve.exe",
-      "resources/hgc.exe": "hgc.exe"
+      "resources/windivert/WinDivert64.sys": "WinDivert64.sys"
     },
+    "externalBin": [
+      "binaries/horizon-gateway-serve",
+      "binaries/hgc"
+    ],
     "windows": {
       "nsis": {
         "installerHooks": "./hooks.nsh"

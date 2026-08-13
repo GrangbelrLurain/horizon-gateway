@@ -20,6 +20,7 @@
 
 - **실행 중인 백엔드에서 `--query` 미적용**: serve IPC 경로에서도 headless `run`과 같이 `--query`가 동작합니다.
 - **Windows `tauri dev` 재빌드 루프**: 디버그 빌드가 watched `resources/`에 `serve.exe`를 복사하지 않도록 바꿔, 재빌드 루프와 Common Controls v6 매니페스트 누락을 막았습니다.
+- **macOS / Linux 릴리스 번들**: sidecar를 Windows `.exe` 리소스가 아니라 `externalBin`으로 넣어, Unix `tauri build`가 `horizon-gateway-serve.exe`를 찾지 않게 했습니다.
 
 ## [v2.7.7] - 2026-08-11
 
