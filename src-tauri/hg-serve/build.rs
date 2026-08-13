@@ -35,10 +35,14 @@ fn embed_inspector_js() {
 
 #[cfg(windows)]
 fn embed_admin_manifest() {
-    let manifest = include_str!("windows-app-manifest.xml");
-    let mut res = winres::WindowsResource::new();
-    res.set_manifest(manifest);
-    if let Err(e) = res.compile() {
-        eprintln!("winres compile failed: {e}");
-    }
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    println!("cargo:rerun-if-changed=windows-app-manifest.rc");
+    // Apply requireAdministrator only to the serve daemon, never to lib tests or other bins.
+    embed_resource::compile_for(
+        "windows-app-manifest.rc",
+        &["horizon-gateway-serve"],
+        embed_resource::NONE,
+    )
+    .manifest_required()
+    .expect("failed to embed Windows admin manifest for horizon-gateway-serve");
 }

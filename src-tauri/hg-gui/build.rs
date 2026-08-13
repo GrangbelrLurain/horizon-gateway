@@ -9,10 +9,12 @@ fn main() {
     // Dev (`tauri dev`) must not write `resources/horizon-gateway-serve.exe`:
     // Tauri watches hg-gui, so copying that file retriggers a rebuild loop and
     // os error 32 / STATUS_ENTRYPOINT_NOT_FOUND on Windows.
-    stage_serve_for_release_bundle();
+    stage_sidecar_for_release_bundle("horizon-gateway-serve");
+    stage_sidecar_for_release_bundle("hgc");
     #[cfg(windows)]
     copy_windivert_sidecars();
-    copy_serve_next_to_exe();
+    copy_sidecar_next_to_exe("horizon-gateway-serve");
+    copy_sidecar_next_to_exe("hgc");
     strip_debug_only_bundle_resources();
     build_tauri();
 }
@@ -79,6 +81,7 @@ fn strip_debug_only_bundle_resources() {
         "bundle": {
             "resources": {
                 "resources/horizon-gateway-serve.exe": null,
+                "resources/hgc.exe": null,
                 "resources/windivert/WinDivert.dll": null,
                 "resources/windivert/WinDivert64.sys": null
             }
@@ -150,33 +153,34 @@ fn copy_skipping_lock(src: &Path, dest: &Path, label: &str) {
     }
 }
 
-fn serve_resource_path(manifest_dir: &Path) -> PathBuf {
+fn sidecar_resource_path(manifest_dir: &Path, bin_name: &str) -> PathBuf {
+    let ext = if cfg!(windows) { ".exe" } else { "" };
     manifest_dir
         .join("resources")
-        .join("horizon-gateway-serve.exe")
+        .join(format!("{bin_name}{ext}"))
 }
 
-/// Release only: stage serve.exe under `resources/` for NSIS (`tauri.conf.json` bundle.resources).
+/// Release only: stage sidecars under `resources/` for the NSIS bundle (`tauri.conf.json`).
 /// Never do this in debug — Tauri's hg-gui watcher treats that write as a source change.
-fn stage_serve_for_release_bundle() {
+fn stage_sidecar_for_release_bundle(bin_name: &str) {
     println!("cargo:rerun-if-changed=binaries");
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let resource_dest = serve_resource_path(&manifest_dir);
+    let resource_dest = sidecar_resource_path(&manifest_dir, bin_name);
 
     if !is_release_profile() {
-        // Leftover copies would be watched and copied over target/debug/serve.exe.
+        // Leftover copies would be watched and copied over target/debug binaries.
         if resource_dest.is_file() {
             let _ = fs::remove_file(&resource_dest);
         }
         return;
     }
 
-    if let Some(src) = find_serve_binary(&manifest_dir) {
+    if let Some(src) = find_sidecar_binary(&manifest_dir, bin_name) {
         copy_skipping_lock(
             &src,
             &resource_dest,
-            "horizon-gateway-serve.exe (bundle resource)",
+            &format!("{bin_name} (bundle resource)"),
         );
         return;
     }
@@ -188,42 +192,43 @@ fn stage_serve_for_release_bundle() {
             .unwrap_or(true)
     {
         panic!(
-            "horizon-gateway-serve.exe missing for release bundle.\n\
+            "{bin_name} missing for release bundle.\n\
              Run `node scripts/build-serve-sidecar.mjs` before `tauri build`."
         );
     }
 }
 
-/// Copy serve next to the GUI exe (`src-tauri/target/{profile}/`), not into watched sources.
-fn copy_serve_next_to_exe() {
+/// Copy sidecar next to the GUI executable (`src-tauri/target/{profile}/`), not into watched sources.
+fn copy_sidecar_next_to_exe(bin_name: &str) {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let Some(src) = find_serve_binary(&manifest_dir) else {
+    let Some(src) = find_sidecar_binary(&manifest_dir, bin_name) else {
         if !is_release_profile() {
             println!(
-                "cargo:warning=horizon-gateway-serve not found; run `cargo build -p horizon-gateway-serve` (GUI will spawn it from target/debug)"
+                "cargo:warning={bin_name} not found; run `cargo build -p {bin_name}` (GUI will look in target/debug)"
             );
         }
         return;
     };
 
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    let dest = profile_target_dir(&manifest_dir).join(format!("horizon-gateway-serve{ext}"));
-    copy_skipping_lock(&src, &dest, "horizon-gateway-serve next to GUI exe");
+    let dest = profile_target_dir(&manifest_dir).join(format!("{bin_name}{ext}"));
+    copy_skipping_lock(&src, &dest, &format!("{bin_name} next to GUI exe"));
 }
 
-fn find_serve_binary(manifest_dir: &Path) -> Option<PathBuf> {
+fn find_sidecar_binary(manifest_dir: &Path, bin_name: &str) -> Option<PathBuf> {
     let ext = if cfg!(windows) { ".exe" } else { "" };
+    let file_name = format!("{bin_name}{ext}");
     let mut candidates = Vec::new();
 
     // Prefer this profile's workspace binary so debug does not overwrite it
     // with a leftover release sidecar from binaries/.
-    candidates.push(profile_target_dir(manifest_dir).join(format!("horizon-gateway-serve{ext}")));
+    candidates.push(profile_target_dir(manifest_dir).join(&file_name));
 
     if let Ok(target) = env::var("TARGET") {
         candidates.push(
             manifest_dir
                 .join("binaries")
-                .join(format!("horizon-gateway-serve-{target}{ext}")),
+                .join(format!("{bin_name}-{target}{ext}")),
         );
     }
 
@@ -233,19 +238,16 @@ fn find_serve_binary(manifest_dir: &Path) -> Option<PathBuf> {
             if path
                 .file_name()
                 .and_then(|n| n.to_str())
-                .is_some_and(|n| n.starts_with("horizon-gateway-serve"))
+                .is_some_and(|n| n.starts_with(bin_name))
             {
                 candidates.push(path);
             }
         }
     }
 
-    for path in candidates {
-        if path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
-            return Some(path);
-        }
-    }
-    None
+    candidates.into_iter().find(|path| {
+        path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)
+    })
 }
 
 /// Automatically sync project master SKILL.md (`.agents/skills/horizon-gateway/SKILL.md`)

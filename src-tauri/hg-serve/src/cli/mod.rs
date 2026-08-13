@@ -3,26 +3,8 @@ pub mod query;
 pub mod dispatch_headless;
 
 use crate::runtime::CommandEnv;
-use crate::service::api_log_service::ApiLogService;
-use crate::service::mocking_service::MockingService;
-use crate::service::domain_service::DomainService;
-use crate::service::domain_group_link_service::DomainGroupLinkService;
-use crate::service::domain_group_service::DomainGroupService;
-use crate::service::domain_monitor_service::DomainMonitorService;
-use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
-use crate::service::local_route_service::LocalRouteService;
-use crate::service::inspector_service::InspectorService;
-use crate::service::proxy_settings_service::ProxySettingsService;
-use crate::service::ca_service::CaService;
-use crate::service::tunnel_service::TunnelService;
-use crate::service::usb_service::UsbService;
-use crate::service::pipeline_library_service::PipelineLibraryService;
-use crate::service::json_schema_registry_service::JsonSchemaRegistryService;
-use crate::service::crypto_preset_service::CryptoPresetService;
-use crate::command;
 use serde::Serialize;
 use serde_json::Value;
-use std::sync::Arc;
 
 #[derive(Serialize)]
 pub struct CliCommandInfo {
@@ -181,15 +163,62 @@ pub fn print_cli_error(msg: &str) {
     print_error(msg);
 }
 
-pub fn execute_cli_entry(args: &[String]) -> i32 {
+const META_COMMANDS: &[&str] = &["init", "list", "help", "run"];
+
+/// Strip an optional `cli` prefix and treat a bare command name as `run`.
+///
+/// `hgc init` / `hgc get_proxy_status '{}'` / `hgc cli run …` all work.
+pub fn normalize_args(args: &[String]) -> Vec<String> {
+    let mut args = args.to_vec();
+    if args.first().is_some_and(|a| a == "cli") {
+        args.remove(0);
+    }
     if args.is_empty() {
-        print_error("명령어가 지정되지 않았습니다. (사용 가능한 명령: init, list, help, run)");
+        return args;
+    }
+    let first = args[0].as_str();
+    if matches!(first, "-h" | "--help" | "/?") {
+        return vec!["--help".to_string()];
+    }
+    if !META_COMMANDS.contains(&first) && !first.starts_with('-') {
+        args.insert(0, "run".to_string());
+    }
+    args
+}
+
+fn print_usage() {
+    let output = serde_json::json!({
+        "success": true,
+        "data": {
+            "usage": "hgc init | list | help <command> | [run] <command> [payload]",
+            "examples": [
+                "hgc init",
+                "hgc list",
+                "hgc help get_proxy_status",
+                "hgc get_proxy_status '{}'",
+                "hgc get_domains '{}' --query data.[].url"
+            ]
+        }
+    });
+    cli_println(&serde_json::to_string_pretty(&output).unwrap());
+}
+
+pub fn execute_cli_entry(args: &[String]) -> i32 {
+    let args = normalize_args(args);
+    if args.is_empty() {
+        print_error(
+            "명령어가 지정되지 않았습니다. (예: hgc init, hgc list, hgc get_proxy_status '{}')",
+        );
         return 1;
+    }
+    if args[0] == "--help" {
+        print_usage();
+        return 0;
     }
 
     if args[0] == "run" {
         if crate::serve::client::is_port_open(std::time::Duration::from_millis(50)) {
-            return execute_run_via_serve(args);
+            return execute_run_via_serve(&args);
         }
         let ctx = match crate::runtime::bootstrap_app_context() {
             Ok(c) => c,
@@ -210,10 +239,10 @@ pub fn execute_cli_entry(args: &[String]) -> i32 {
             ctx: Some(&ctx),
             runtime,
         };
-        return execute_cli(args, CliExecutionMode::Headless { env });
+        return execute_cli(&args, CliExecutionMode::Headless { env });
     }
 
-    execute_cli(args, CliExecutionMode::StandaloneMeta)
+    execute_cli(&args, CliExecutionMode::StandaloneMeta)
 }
 
 /// Returns process exit code for `run` (0 success, 1 error). Other subcommands always return 0.
@@ -230,13 +259,15 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
     }
 
     if args.is_empty() {
-        print_error("명령어가 지정되지 않았습니다. (사용 가능한 명령: init, list, help, run)");
+        print_error(
+            "명령어가 지정되지 않았습니다. (예: hgc init, hgc list, hgc get_proxy_status '{}')",
+        );
         return 1;
     }
 
     let command = &args[0];
     if command != "init" && init::is_any_skill_outdated() {
-        cli_eprintln("[horizon-gateway] Notice: Installed agent skill is outdated. Run `horizon-gateway cli init` to update.");
+        cli_eprintln("[horizon-gateway] Notice: Installed agent skill is outdated. Run `hgc init` to update.");
     }
 
     match command.as_str() {
@@ -254,7 +285,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
         }
         "help" => {
             if args.len() < 2 {
-                print_error("help 명령어 뒤에 조회할 명령어 이름을 입력해주세요. (예: cli help get_api_logs)");
+                print_error("help 명령어 뒤에 조회할 명령어 이름을 입력해주세요. (예: hgc help get_api_logs)");
                 return 1;
             }
             let cmd_name = &args[1];
@@ -272,7 +303,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
         }
         "run" => {
             if args.len() < 2 {
-                print_error("실행할 명령어 이름을 입력해주세요. (예: cli run get_api_logs '{}')");
+                print_error("실행할 명령어 이름을 입력해주세요. (예: hgc get_api_logs '{}')");
                 return 1;
             }
             let cmd_name = &args[1];
@@ -303,7 +334,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
                 }
                 CliExecutionMode::StandaloneMeta => {
                     print_error(
-                        "cli run requires a running context. Use `horizon-gateway cli run` from the shell.",
+                        "run requires a running context. Use `hgc <command>` from the shell.",
                     );
                     return 1;
                 }
@@ -327,7 +358,7 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
         }
         _ => {
             print_error(&format!(
-                "알 수 없는 명령어입니다: {}. (사용 가능한 명령: init, list, help, run)",
+                "알 수 없는 명령어입니다: {}. (예: hgc init, hgc list, hgc get_proxy_status '{{}}')",
                 command
             ));
             1
@@ -354,7 +385,7 @@ pub fn execute_run_via_serve(args: &[String]) -> i32 {
     let cmd_name = match args.get(1) {
         Some(name) => name.as_str(),
         None => {
-            print_error("실행할 명령어 이름을 입력해주세요. (예: cli run get_api_logs '{}')");
+            print_error("실행할 명령어 이름을 입력해주세요. (예: hgc get_api_logs '{}')");
             return 1;
         }
     };
@@ -376,7 +407,12 @@ pub fn execute_run_via_serve(args: &[String]) -> i32 {
             return 1;
         }
     };
-    cli_println(&serde_json::to_string_pretty(&response).unwrap());
+    let final_response = if let Some(ref q) = query {
+        query::apply_query(&response, q)
+    } else {
+        response
+    };
+    cli_println(&serde_json::to_string_pretty(&final_response).unwrap());
     0
 }
 
@@ -729,6 +765,43 @@ mod parity_tests {
             diff.is_empty(),
             "CLI_COMMANDS and collect_commands! must stay in sync. Diff: {diff:?}"
         );
+    }
+
+    fn s(args: &[&str]) -> Vec<String> {
+        args.iter().map(|a| (*a).to_string()).collect()
+    }
+
+    #[test]
+    fn normalize_strips_cli_prefix() {
+        assert_eq!(normalize_args(&s(&["cli", "init"])), s(&["init"]));
+        assert_eq!(
+            normalize_args(&s(&["cli", "run", "get_domains", "{}"])),
+            s(&["run", "get_domains", "{}"])
+        );
+    }
+
+    #[test]
+    fn normalize_implies_run() {
+        assert_eq!(
+            normalize_args(&s(&["get_proxy_status", "{}"])),
+            s(&["run", "get_proxy_status", "{}"])
+        );
+    }
+
+    #[test]
+    fn normalize_keeps_meta_commands() {
+        assert_eq!(normalize_args(&s(&["list"])), s(&["list"]));
+        assert_eq!(normalize_args(&s(&["help", "get_api_logs"])), s(&["help", "get_api_logs"]));
+        assert_eq!(
+            normalize_args(&s(&["run", "get_domains", "{}"])),
+            s(&["run", "get_domains", "{}"])
+        );
+    }
+
+    #[test]
+    fn normalize_help_flags() {
+        assert_eq!(normalize_args(&s(&["-h"])), s(&["--help"]));
+        assert_eq!(normalize_args(&s(&["--help"])), s(&["--help"]));
     }
 
     #[test]

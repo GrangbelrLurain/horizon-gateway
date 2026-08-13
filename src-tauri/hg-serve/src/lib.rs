@@ -8,7 +8,5 @@ pub mod service;
 pub mod storage;
 
 pub fn install_rustls_provider() {
-    let () = rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("rustls default crypto provider");
+    let _ = rustls::crypto::ring::default_provider().install_default();
 }

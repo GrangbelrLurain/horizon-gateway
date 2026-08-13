@@ -1,8 +1,10 @@
 /**
- * Build horizon-gateway-serve and copy to Tauri bundle staging.
+ * Build horizon-gateway-serve + hgc and copy to Tauri bundle staging.
  *
- * Output: src-tauri/hg-gui/binaries/horizon-gateway-serve-{target-triple}[.exe]
- * build.rs copies this into resources/ for NSIS bundling.
+ * Output:
+ *   src-tauri/hg-gui/binaries/horizon-gateway-serve-{target-triple}[.exe]
+ *   src-tauri/hg-gui/binaries/hgc-{target-triple}[.exe]
+ * build.rs copies these into resources/ for NSIS bundling.
  *
  * Usage: node scripts/build-serve-sidecar.mjs [--debug]
  */
@@ -17,6 +19,7 @@ const binariesDir = path.join(tauriDir, "hg-gui", "binaries");
 const debug = process.argv.includes("--debug");
 const profile = debug ? "dev" : "release";
 const targetSubdir = debug ? "debug" : "release";
+const SIDECARS = ["horizon-gateway-serve", "hgc"];
 
 function hostTriple() {
 	const result = spawnSync("rustc", ["--print", "host-tuple"], { encoding: "utf8" });
@@ -30,10 +33,10 @@ function run() {
 	const triple = hostTriple();
 	const ext = process.platform === "win32" ? ".exe" : "";
 
-	console.log(`[build-serve-sidecar] cargo build -p horizon-gateway-serve (${profile})…`);
+	console.log(`[build-serve-sidecar] cargo build -p horizon-gateway-serve -p hgc (${profile})…`);
 	const build = spawnSync(
 		"cargo",
-		["build", "-p", "horizon-gateway-serve", "--profile", profile],
+		["build", "-p", "horizon-gateway-serve", "-p", "hgc", "--profile", profile],
 		{
 			cwd: tauriDir,
 			stdio: "inherit",
@@ -44,17 +47,17 @@ function run() {
 		process.exit(build.status ?? 1);
 	}
 
-	const src = path.join(tauriDir, "target", targetSubdir, `horizon-gateway-serve${ext}`);
-	const dest = path.join(binariesDir, `horizon-gateway-serve-${triple}${ext}`);
-
-	if (!fs.existsSync(src)) {
-		console.error(`[build-serve-sidecar] missing built binary: ${src}`);
-		process.exit(1);
-	}
-
 	fs.mkdirSync(binariesDir, { recursive: true });
-	fs.copyFileSync(src, dest);
-	console.log(`[build-serve-sidecar] → ${dest}`);
+	for (const bin of SIDECARS) {
+		const src = path.join(tauriDir, "target", targetSubdir, `${bin}${ext}`);
+		const dest = path.join(binariesDir, `${bin}-${triple}${ext}`);
+		if (!fs.existsSync(src)) {
+			console.error(`[build-serve-sidecar] missing built binary: ${src}`);
+			process.exit(1);
+		}
+		fs.copyFileSync(src, dest);
+		console.log(`[build-serve-sidecar] → ${dest}`);
+	}
 }
 
 run();

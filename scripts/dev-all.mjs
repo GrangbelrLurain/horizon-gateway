@@ -200,7 +200,7 @@ async function main() {
 	await stopStaleServe();
 
 	console.log("[dev:all] building workspace (before serve — avoids WinDivert file locks)…");
-	await runCommand("cargo", ["build", "-p", "horizon-gateway-serve"], { cwd: tauriDir });
+	await runCommand("cargo", ["build", "-p", "horizon-gateway-serve", "-p", "hgc"], { cwd: tauriDir });
 	await runCommand("cargo", ["build", "-p", "horizon-gateway"], { cwd: tauriDir });
 
 	const onExit = () => {

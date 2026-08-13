@@ -1,0 +1,15 @@
+[lints]
+workspace = true
+
+[package]
+name = "hgc"
+version = "2.7.7"
+edition = "2021"
+description = "Horizon Gateway CLI (asInvoker console client)"
+
+[[bin]]
+name = "hgc"
+path = "src/main.rs"
+
+[dependencies]
+horizon-gateway-serve = { path = "../hg-serve" }

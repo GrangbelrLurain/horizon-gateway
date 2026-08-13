@@ -145,33 +145,15 @@ pub fn run() {
         });
 }
 
-pub fn execute_cli_standalone(args: &[String]) {
-    if let Ok(exe) = crate::serve::serve_exe_path() {
-        let mut cmd = std::process::Command::new(exe);
-        cmd.arg("cli").args(args);
-        let status = cmd.status();
-        let code = status.map(|s| s.code().unwrap_or(1)).unwrap_or(1);
-        std::process::exit(code);
+pub fn execute_cli(args: &[String]) -> i32 {
+    match crate::serve::hgc_exe_path() {
+        Ok(exe) => {
+            let status = std::process::Command::new(exe).args(args).status();
+            status.map(|s| s.code().unwrap_or(1)).unwrap_or(1)
+        }
+        Err(e) => {
+            eprintln!("Error: {e}");
+            1
+        }
     }
-    eprintln!("Error: serve binary not found");
-    std::process::exit(1);
-}
-
-pub fn install_rustls_provider() {
-    let () = rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("rustls default crypto provider");
-}
-
-pub fn execute_cli_headless(args: &[String]) -> i32 {
-    install_rustls_provider();
-
-    if let Ok(exe) = crate::serve::serve_exe_path() {
-        let mut cmd = std::process::Command::new(exe);
-        cmd.arg("cli").args(args);
-        let status = cmd.status();
-        return status.map(|s| s.code().unwrap_or(1)).unwrap_or(1);
-    }
-    eprintln!("Error: serve binary not found");
-    1
 }

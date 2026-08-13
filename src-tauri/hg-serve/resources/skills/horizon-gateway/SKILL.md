@@ -10,18 +10,18 @@ Horizon Gateway is a local HTTP proxy/debugging app. Agents interact with it in 
 | Tool | Use when |
 |------|----------|
 | `scripts/logs.mjs` | Read API logs **directly from disk** (fast, no app startup) |
-| `horizon-gateway cli` | Call **any Horizon Gateway command** (domains, proxy, mocking, sandbox, settings, …) |
+| `hgc` | Call **any Horizon Gateway command** (domains, proxy, mocking, sandbox, settings, …) |
 
 ## Install this skill
 
 Run once so your agent discovers Horizon Gateway automatically:
 
 ```bash
-horizon-gateway cli init                  # global install (auto-detect agent)
-horizon-gateway cli init --target cursor  # specific agent
-horizon-gateway cli init --target all     # all supported agents
-horizon-gateway cli init --project        # current repo: .agents/skills/horizon-gateway/
-horizon-gateway cli init --print          # print SKILL.md without installing
+hgc init                  # global install (auto-detect agent)
+hgc init --target cursor  # specific agent
+hgc init --target all     # all supported agents
+hgc init --project        # current repo: .agents/skills/horizon-gateway/
+hgc init --print          # print SKILL.md without installing
 ```
 
 Supported `--target` values: `auto`, `all`, `cursor`, `claude`, `codex`, `gemini`, `copilot`, `windsurf`.
@@ -29,9 +29,11 @@ Supported `--target` values: `auto`, `all`, `cursor`, `claude`, `codex`, `gemini
 Without this skill, bootstrap from the binary:
 
 ```bash
-horizon-gateway cli list
-horizon-gateway cli help <command>
+hgc list
+hgc help <command>
 ```
+
+`horizon-gateway cli …` still works as a compatibility wrapper for `hgc`.
 
 ---
 
@@ -43,7 +45,7 @@ Best for searching and inspecting captured API traffic. Does **not** start the H
 node <skill-dir>/scripts/logs.mjs [options]
 ```
 
-After `cli init`, `<skill-dir>` is typically `~/.cursor/skills/horizon-gateway` or `.agents/skills/horizon-gateway`.
+After `hgc init`, `<skill-dir>` is typically `~/.cursor/skills/horizon-gateway` or `.agents/skills/horizon-gateway`.
 
 ### Options
 
@@ -75,10 +77,11 @@ node .agents/skills/horizon-gateway/scripts/logs.mjs --id <uuid> --fields respon
 ## 2. Horizon Gateway CLI (full app commands)
 
 ```bash
-horizon-gateway cli <subcommand> [args]
+hgc <subcommand> [args]
+hgc <command> [payload]          # implied run
 ```
 
-On Windows use `horizon-gateway.exe`.
+`hgc` is an asInvoker console binary (no UAC). On Windows it is installed next to the app as `hgc.exe`.
 
 ### Subcommands
 
@@ -87,51 +90,49 @@ On Windows use `horizon-gateway.exe`.
 | `init` | Install this skill for coding agents |
 | `list` | List all available commands (`category`, `guiOnly`, `payloadExample`) |
 | `help <command>` | Show payload schema for one command |
-| `run <command> [payload] [--query <path>]` | Execute a command (headless — no GUI required) |
+| `[run] <command> [payload] [--query <path>]` | Execute a command (headless — no GUI required). `run` is optional. |
 
-`cli run` works **without** starting the Horizon Gateway GUI. It bootstraps app services, prints JSON to stdout, and exits.
+`hgc` works **without** starting the Horizon Gateway GUI. If the backend is already running it talks over IPC; otherwise it bootstraps app services, prints JSON to stdout, and exits.
 
 Payload forms:
 
 ```bash
-horizon-gateway cli run get_domains '{}'
-horizon-gateway cli run regist_domains @domains.json
-horizon-gateway cli run create_scenario -   # JSON from stdin
-horizon-gateway cli run get_domains '{}' --payload @body.json
+hgc get_domains '{}'
+hgc regist_domains @domains.json
+hgc create_scenario -   # JSON from stdin
+hgc get_domains '{}' --payload @body.json
 ```
 
 ### Windows PowerShell
 
-Release builds use the **windows subsystem** (no console on GUI launch). CLI mode attaches to the parent console only when stdout/stderr are not already pipes/files, so `spawn` and redirection still capture JSON reliably.
-
 **JSON escaping** — wrap the payload in single quotes and escape inner double quotes:
 
 ```powershell
-horizon-gateway cli run set_local_route_enabled '{\"id\": 24, \"enabled\": true}'
+hgc set_local_route_enabled '{\"id\": 24, \"enabled\": true}'
 ```
 
 **Prefer file payloads** for complex JSON (avoids escaping issues):
 
 ```powershell
-horizon-gateway cli run regist_domains @domains.json
-horizon-gateway cli run create_scenario - --payload @body.json   # stdin
+hgc regist_domains @domains.json
+hgc create_scenario - --payload @body.json   # stdin
 ```
 
 If a terminal still drops output, `| Out-String` remains a safe fallback:
 
 ```powershell
-horizon-gateway cli run get_proxy_status '{}' | Out-String
+hgc get_proxy_status '{}' | Out-String
 ```
 
 ### Examples
 
 ```bash
-horizon-gateway cli list
-horizon-gateway cli help get_api_logs
-horizon-gateway cli run get_domains '{}'
-horizon-gateway cli run get_domains '{}' --query data.[].url
-horizon-gateway cli run get_api_logs '{"date":"2026-07-06"}' --query data.logs[statusCode>=500].path
-horizon-gateway cli run get_saved_pipelines '{}' --query data.[].{id,name}
+hgc list
+hgc help get_api_logs
+hgc get_domains '{}'
+hgc get_domains '{}' --query data.[].url
+hgc get_api_logs '{"date":"2026-07-06"}' --query data.logs[statusCode>=500].path
+hgc get_saved_pipelines '{}' --query data.[].{id,name}
 ```
 
 ### Recommended commands by task
@@ -147,7 +148,7 @@ horizon-gateway cli run get_saved_pipelines '{}' --query data.[].{id,name}
 | Crypto presets | `get_crypto_presets`, `create_crypto_preset`, `process_crypto` |
 | Inspector / UI/UX guides | `get_annotations`, `add_annotation`, `update_annotation`, `delete_annotation`, `import_annotations` |
 
-Skip entries where `guiOnly: true` in `cli list` (window/dialog commands).
+Skip entries where `guiOnly: true` in `hgc list` (window/dialog commands).
 
 ### UI/UX Guides (Annotations)
 
@@ -157,23 +158,23 @@ Each guide may include **`locators`** (priority list: `testid` → `role` → `l
 
 `--query` filters are **exact string equality** (not glob matching).
 
-Always run `horizon-gateway cli help <command>` first if unsure — use `payloadExample` as the template. Prefer `@file.json` payloads on Windows PowerShell.
+Always run `hgc help <command>` first if unsure — use `payloadExample` as the template. Prefer `@file.json` payloads on Windows PowerShell.
 
 #### 1. Read / Search Guides
 
 ```bash
 # Get single guide by ID
-horizon-gateway cli run get_annotation '{"id":"g-101"}'
+hgc get_annotation '{"id":"g-101"}'
 
 # Compact fields including locators + validation
-horizon-gateway cli run get_annotations '{}' --query "data.[].{id,selector,role,description,domain,locators,lastValidation}"
+hgc get_annotations '{}' --query "data.[].{id,selector,role,description,domain,locators,lastValidation}"
 
 # Broken / weak guides for repair
-horizon-gateway cli run get_annotations '{}' --query "data[lastValidation.status==broken].{id,role,locators}"
-horizon-gateway cli run get_annotations '{}' --query "data[lastValidation.status==weak].{id,role,locators}"
+hgc get_annotations '{}' --query "data[lastValidation.status==broken].{id,role,locators}"
+hgc get_annotations '{}' --query "data[lastValidation.status==weak].{id,role,locators}"
 
 # Filter by exact domain
-horizon-gateway cli run get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,description,pathPattern}"
+hgc get_annotations '{}' --query "data[domain==modetour.dev].{id,selector,role,description,pathPattern}"
 ```
 
 #### 2. Add / Upsert Guide
@@ -184,7 +185,7 @@ horizon-gateway cli run get_annotations '{}' --query "data[domain==modetour.dev]
 - `selector` is synced automatically from `locators` (e.g. `[data-testid="submit"]`).
 
 ```bash
-horizon-gateway cli run add_annotation '{"role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","url":"https://modetour.dev/checkout","locators":[{"strategy":"testid","value":"submit"}]}'
+hgc add_annotation '{"role":"Submit Button","description":"Prevent duplicate clicks with 3s lock","url":"https://modetour.dev/checkout","locators":[{"strategy":"testid","value":"submit"}]}'
 ```
 
 #### 3. Update Guide
@@ -193,10 +194,10 @@ horizon-gateway cli run add_annotation '{"role":"Submit Button","description":"P
 
 ```bash
 # Update description only
-horizon-gateway cli run update_annotation '{"id":"g-101","description":"Lock 5s and show success toast"}'
+hgc update_annotation '{"id":"g-101","description":"Lock 5s and show success toast"}'
 
 # Update role & url (pathPattern auto-filled to /checkout)
-horizon-gateway cli run update_annotation '{"id":"g-101","role":"Submit Button","url":"https://modetour.dev/checkout"}'
+hgc update_annotation '{"id":"g-101","role":"Submit Button","url":"https://modetour.dev/checkout"}'
 ```
 
 Running GUI watches `inspector_annotations.json` and emits `annotations-updated` within ~1s after CLI writes, so the Policies UI refreshes without restart.
@@ -206,13 +207,13 @@ To promote a weak fallback to primary, reorder `locators` so the working strateg
 #### 4. Delete Guide
 
 ```bash
-horizon-gateway cli run delete_annotation '{"id":"g-101"}'
+hgc delete_annotation '{"id":"g-101"}'
 ```
 
 #### 5. Bulk Import
 
 ```bash
-horizon-gateway cli run import_annotations @annotations.json
+hgc import_annotations @annotations.json
 ```
 
 `annotations.json` shape: `{"annotations":[ /* Annotation objects */ ]}`.
@@ -223,13 +224,13 @@ Manage domain list for script injection:
 
 ```bash
 # Add domain to injection list
-horizon-gateway cli run add_injection_domain '{"domain":"modetour.dev"}'
+hgc add_injection_domain '{"domain":"modetour.dev"}'
 
 # Remove domain from injection list
-horizon-gateway cli run remove_injection_domain '{"domain":"modetour.dev"}'
+hgc remove_injection_domain '{"domain":"modetour.dev"}'
 
 # Get full injection domain list
-horizon-gateway cli run get_injection_domains '{}'
+hgc get_injection_domains '{}'
 ```
 
 ### Query syntax (`--query`)
@@ -246,18 +247,18 @@ horizon-gateway cli run get_injection_domains '{}'
 | Task | Prefer |
 |------|--------|
 | Search/filter API logs | `logs.mjs` |
-| Get domains, proxy status, mocking rules, sandbox libraries, UI/UX guides | `horizon-gateway cli` |
-| Mutate settings / guides | `horizon-gateway cli` |
+| Get domains, proxy status, mocking rules, sandbox libraries, UI/UX guides | `hgc` |
+| Mutate settings / guides | `hgc` |
 
 ### CLI limits
 
-- **`cli init` / `list` / `help` / `run`**: Run without the GUI (preferred for agents).
-- **`guiOnly` commands** (`open_window`, `save_root_ca`, …): Fail in headless `cli run` with a clear error — use the desktop app.
+- **`hgc init` / `list` / `help` / `<command>`**: Run without the GUI (preferred for agents). No UAC.
+- **`guiOnly` commands** (`open_window`, `save_root_ca`, …): Fail in headless `hgc` with a clear error — use the desktop app.
 - **`start_local_proxy`**: Headless not supported yet (needs GUI `AppHandle` for proxy runtime).
 - **Reading API logs**: Prefer `logs.mjs` (streaming, token-efficient).
 - **GUI open + CLI write**: Annotation file changes are picked up by the running GUI (~1s). Still avoid racing GUI and CLI saves on the same annotation at the exact same moment.
 - **`execute_pipeline`**: Rust runner only; FE-only `script` nodes are not supported via CLI.
-- Always call `cli help <command>` before `run` if unsure — use the returned `payloadExample` as the template.
+- Always call `hgc help <command>` first if unsure — use the returned `payloadExample` as the template.
 
 ---
 

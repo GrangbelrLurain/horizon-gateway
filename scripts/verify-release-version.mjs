@@ -38,6 +38,7 @@ function readCargoVersions() {
     "src-tauri/hg-gui/Cargo.toml",
     "src-tauri/hg-core/Cargo.toml",
     "src-tauri/hg-serve/Cargo.toml",
+    "src-tauri/hgc/Cargo.toml",
   ];
   return crates.map((relPath) => {
     const cargo = readFileSync(join(ROOT, relPath), "utf8");

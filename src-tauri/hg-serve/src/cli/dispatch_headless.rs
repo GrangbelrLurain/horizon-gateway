@@ -629,6 +629,6 @@ pub fn dispatch_headless(
             let result = command::crypto_preset_commands::import_crypto_presets_svc(parsed, &ctx.crypto_preset_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
-        _ => Err(format!("Unknown command: {cmd_name}. Run `horizon-gateway cli list`.")),
+        _ => Err(format!("Unknown command: {cmd_name}. Run `hgc list`.")),
     }
 }

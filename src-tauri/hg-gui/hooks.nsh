@@ -15,8 +15,13 @@
     CopyFiles /SILENT "$INSTDIR\resources\horizon-gateway-serve.exe" "$INSTDIR\horizon-gateway-serve.exe"
   skip_serve:
 
+  IfFileExists "$INSTDIR\hgc.exe" skip_hgc
+  IfFileExists "$INSTDIR\resources\hgc.exe" 0 skip_hgc
+    CopyFiles /SILENT "$INSTDIR\resources\hgc.exe" "$INSTDIR\hgc.exe"
+  skip_hgc:
+
   IfSilent skip_path
-  MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to add Horizon Gateway to your environment variables (PATH)?$\r$\nThis allows you to run 'horizon-gateway' from any terminal." IDNO skip_path
+  MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to add Horizon Gateway to your environment variables (PATH)?$\r$\nThis allows you to run 'hgc' and 'horizon-gateway' from any terminal." IDNO skip_path
   nsExec::Exec `powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "$path = [System.Environment]::GetEnvironmentVariable('Path', 'User'); if ($path -split ';' -notcontains '$INSTDIR') { [System.Environment]::SetEnvironmentVariable('Path', ($path + ';$INSTDIR').Trim(';'), 'User') }"`
   skip_path:
 !macroend

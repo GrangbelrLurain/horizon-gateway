@@ -2,4 +2,5 @@
 /gen/schemas
 resources/inspector.js
 resources/horizon-gateway-serve.exe
+resources/hgc.exe
 /binaries/

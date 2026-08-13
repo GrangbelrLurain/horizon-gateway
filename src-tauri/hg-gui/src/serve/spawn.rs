@@ -2,15 +2,27 @@ use std::path::{Path, PathBuf};
 
 /// Resolve `horizon-gateway-serve.exe` next to the running binary (dev + release layouts).
 pub fn serve_exe_path() -> Result<PathBuf, String> {
+    sidecar_exe_path(
+        "horizon-gateway-serve",
+        "horizon-gateway-serve not found (build with `cargo build -p horizon-gateway-serve`)",
+    )
+}
+
+/// Resolve `hgc` (asInvoker console CLI). Never the elevated serve binary.
+pub fn hgc_exe_path() -> Result<PathBuf, String> {
+    sidecar_exe_path("hgc", "hgc not found (build with `cargo build -p hgc`)")
+}
+
+fn sidecar_exe_path(bin_name: &str, missing: &str) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
     if let Ok(current) = std::env::current_exe() {
         if let Some(dir) = current.parent() {
-            push_serve_candidates(&mut candidates, dir);
+            push_sidecar_candidates(&mut candidates, dir, bin_name);
             // `cargo run` / test binaries live under target/debug/deps/
             if dir.ends_with("deps") {
                 if let Some(debug) = dir.parent() {
-                    push_serve_candidates(&mut candidates, debug);
+                    push_sidecar_candidates(&mut candidates, debug, bin_name);
                 }
             }
         }
@@ -20,8 +32,8 @@ pub fn serve_exe_path() -> Result<PathBuf, String> {
     let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("target");
-    push_serve_candidates(&mut candidates, &workspace_root.join("debug"));
-    push_serve_candidates(&mut candidates, &workspace_root.join("release"));
+    push_sidecar_candidates(&mut candidates, &workspace_root.join("debug"), bin_name);
+    push_sidecar_candidates(&mut candidates, &workspace_root.join("release"), bin_name);
 
     // Tauri externalBin staging (local `tauri build` / CI).
     let sidecar_staging = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
@@ -33,7 +45,7 @@ pub fn serve_exe_path() -> Result<PathBuf, String> {
                     && path
                         .file_name()
                         .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.starts_with("horizon-gateway-serve"))
+                        .is_some_and(|n| n.starts_with(bin_name))
                 {
                     candidates.push(path);
                 }
@@ -47,15 +59,12 @@ pub fn serve_exe_path() -> Result<PathBuf, String> {
         }
     }
 
-    Err(
-        "horizon-gateway-serve not found (build with `cargo build -p horizon-gateway-serve`)"
-            .to_string(),
-    )
+    Err(missing.to_string())
 }
 
-fn push_serve_candidates(out: &mut Vec<PathBuf>, dir: &Path) {
-    out.push(dir.join("horizon-gateway-serve.exe"));
-    out.push(dir.join("horizon-gateway-serve"));
+fn push_sidecar_candidates(out: &mut Vec<PathBuf>, dir: &Path, bin_name: &str) {
+    out.push(dir.join(format!("{bin_name}.exe")));
+    out.push(dir.join(bin_name));
 }
 
 /// Spawn the serve backend detached. On Windows uses `runas` so UAC is shown.

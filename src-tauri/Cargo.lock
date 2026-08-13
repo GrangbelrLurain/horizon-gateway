@@ -1972,6 +1972,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hgc"
+version = "2.7.7"
+dependencies = [
+ "horizon-gateway-serve",
+]
+
+[[package]]
 name = "hickory-proto"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2068,6 +2075,7 @@ dependencies = [
  "base64 0.21.7",
  "chrono",
  "dirs",
+ "embed-resource",
  "etherparse",
  "futures",
  "get_if_addrs",
@@ -2104,7 +2112,6 @@ dependencies = [
  "windows 0.48.0",
  "windows-sys 0.59.0",
  "winreg 0.55.0",
- "winres",
 ]
 
 [[package]]

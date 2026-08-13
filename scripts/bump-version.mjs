@@ -55,6 +55,7 @@ function main() {
 		"src-tauri/hg-gui/Cargo.toml",
 		"src-tauri/hg-core/Cargo.toml",
 		"src-tauri/hg-serve/Cargo.toml",
+		"src-tauri/hgc/Cargo.toml",
 	]) {
 		const cargoPath = join(ROOT, crateRel);
 		let cargo = readFileSync(cargoPath, "utf8");
