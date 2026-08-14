@@ -1,9 +1,8 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef } from "react";
 import { domainsAtom } from "@/entities/domain";
-import { inspectorEnabledAtom } from "@/entities/inspector";
-import { mockingEnabledAtom } from "@/entities/mocking";
 import { proxyStatusAtom } from "@/entities/proxy";
+import { commands, unwrap } from "@/shared/api";
 import { bucketize, trackEvent } from "./client";
 import { telemetryEnabledAtom } from "./store";
 
@@ -14,8 +13,6 @@ import { telemetryEnabledAtom } from "./store";
 export function TelemetryProvider() {
   const enabled = useAtomValue(telemetryEnabledAtom);
   const proxyStatus = useAtomValue(proxyStatusAtom);
-  const mockingEnabled = useAtomValue(mockingEnabledAtom);
-  const inspectorEnabled = useAtomValue(inspectorEnabledAtom);
   const domains = useAtomValue(domainsAtom);
   const heartbeatSentRef = useRef(false);
 
@@ -24,13 +21,27 @@ export function TelemetryProvider() {
       return;
     }
     heartbeatSentRef.current = true;
-    void trackEvent("heartbeat", {
-      proxy_on: Boolean(proxyStatus?.running),
-      mocking_on: Boolean(mockingEnabled),
-      inspector_on: Boolean(inspectorEnabled),
-      domains_bucket: bucketize(domains.length),
-    });
-  }, [enabled, proxyStatus, mockingEnabled, inspectorEnabled, domains]);
+    void (async () => {
+      let mockingOn = false;
+      let inspectorOn = false;
+      try {
+        const [rulesRes, injectionRes] = await Promise.all([
+          commands.getMockRules().then(unwrap),
+          commands.getInjectionDomains().then(unwrap),
+        ]);
+        mockingOn = Boolean(rulesRes.success && rulesRes.data?.some((rule) => rule.enabled));
+        inspectorOn = Boolean(injectionRes.success && (injectionRes.data?.length ?? 0) > 0);
+      } catch {
+        // keep false
+      }
+      void trackEvent("heartbeat", {
+        proxy_on: Boolean(proxyStatus?.running),
+        mocking_on: mockingOn,
+        inspector_on: inspectorOn,
+        domains_bucket: bucketize(domains.length),
+      });
+    })();
+  }, [domains, enabled, proxyStatus]);
 
   return null;
 }

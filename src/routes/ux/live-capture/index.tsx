@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
@@ -18,10 +18,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/entities/app";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import type { Annotation, CapturedElement } from "@/entities/inspector";
+import { hubLiveCaptureUrlAtom } from "@/features/panel-stack";
 import type { ApiLogEntry, MockRule } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { annotationMatchesPage } from "@/shared/lib/guideMatch";
+import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { createMockModalAtom } from "@/shared/store/modals";
 import { Button } from "@/shared/ui/button/Button";
@@ -34,19 +37,27 @@ export const Route = createFileRoute("/ux/live-capture/")({
   validateSearch: (search: Record<string, unknown>) => ({
     url: (search.url as string) || undefined,
   }),
-  component: LiveCapturePage,
+  component: LiveCaptureRoutePage,
 });
 
 type WorkspaceTab = "policy" | "traffic" | "scenario";
 
-function LiveCapturePage() {
-  const lang = useAtomValue(languageAtom);
+function LiveCaptureRoutePage() {
   const { url } = Route.useSearch();
-  const isProxyRunning = useAtomValue(proxyRunningAtom);
-  const isMockingEnabled = useAtomValue(proxyMockingEnabledAtom);
-  const isEmbedded = useIsEmbeddedPage();
+  return <LiveCaptureWorkspace urlFromRoute={url} />;
+}
 
-  const initialUrl = url || "https://www.google.com";
+export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string } = {}) {
+  const lang = useAtomValue(languageAtom);
+  const seedUrl = useAtomValue(hubLiveCaptureUrlAtom);
+  const routeSearch = useSearch({ strict: false }) as { url?: string };
+  const isProxyRunning = useAtomValue(proxyRunningAtom);
+  const [hasEnabledMockRule, setHasEnabledMockRule] = useState(false);
+  const isHubEmbed = useIsHubSurfaceEmbed();
+  const isPageEmbed = useIsEmbeddedPage();
+  const isEmbedded = isHubEmbed || isPageEmbed;
+
+  const initialUrl = seedUrl || urlFromRoute || routeSearch.url || "https://www.google.com";
   const [urlInput, setUrlInput] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("policy");
@@ -75,6 +86,16 @@ function LiveCapturePage() {
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  useEffect(() => {
+    void commands
+      .getMockRules()
+      .then(unwrap)
+      .then((res) => {
+        setHasEnabledMockRule(Boolean(res.success && res.data?.some((rule) => rule.enabled)));
+      })
+      .catch(() => setHasEnabledMockRule(false));
+  }, []);
+
   // Sync Status to Iframe
   useEffect(() => {
     if (iframeRef.current?.contentWindow) {
@@ -83,14 +104,14 @@ function LiveCapturePage() {
           type: "WT_UPDATE_STATUS",
           payload: {
             proxy: isProxyRunning,
-            mocking: isMockingEnabled,
+            mocking: hasEnabledMockRule,
             logging: true,
           },
         },
         "*",
       );
     }
-  }, [isProxyRunning, isMockingEnabled]);
+  }, [isProxyRunning, hasEnabledMockRule]);
 
   const t = {
     ko: {
@@ -225,14 +246,7 @@ function LiveCapturePage() {
     }
     try {
       const urlObj = new URL(currentUrl);
-      const host = urlObj.host.toLowerCase();
-      return annotations.filter((ann) => {
-        if (!ann.domain) {
-          return false;
-        }
-        const targetDomain = ann.domain.toLowerCase();
-        return host.includes(targetDomain) || targetDomain.includes(host);
-      });
+      return annotations.filter((ann) => annotationMatchesPage(ann, urlObj.host, urlObj.pathname));
     } catch (_e) {
       return [];
     }

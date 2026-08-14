@@ -11,8 +11,35 @@ const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }
   ambiguous: { bg: "#a855f7", border: "#d8b4fe", label: "ambiguous" },
 };
 
-const persistThrottleMs = 30_000;
-const lastPersistedAt = new Map<string, number>();
+function isSameValidation(a: LocatorValidation | null, b: LocatorValidation | null): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  if (a.status !== b.status) {
+    return false;
+  }
+  if (a.primaryMatches !== b.primaryMatches) {
+    return false;
+  }
+  if (a.resolvedBy !== b.resolvedBy) {
+    return false;
+  }
+  if (a.suggestPromoteTo !== b.suggestPromoteTo) {
+    return false;
+  }
+  if (a.fallbackMatches.length !== b.fallbackMatches.length) {
+    return false;
+  }
+  for (let i = 0; i < a.fallbackMatches.length; i++) {
+    if (a.fallbackMatches[i] !== b.fallbackMatches[i]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export interface PolicyBadgeGroupItem {
   annotation: Annotation;
@@ -60,20 +87,18 @@ export function PolicyBadge({
 
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [validation, setValidation] = useState<LocatorValidation | null>(targetAnnotation?.lastValidation ?? null);
-  const lastStatusRef = useRef<string | null>(null);
+  const lastValidationRef = useRef<LocatorValidation | null>(targetAnnotation?.lastValidation ?? null);
 
   const updatePosition = useCallback(() => {
     if (!primaryAnnotation) {
       return;
     }
     const { el, validation: nextValidation } = resolveAnnotation(primaryAnnotation);
-    setValidation(nextValidation);
 
-    if (onValidation && lastStatusRef.current !== nextValidation.status) {
-      lastStatusRef.current = nextValidation.status;
-      const prev = lastPersistedAt.get(primaryAnnotation.id) ?? 0;
-      if (Date.now() - prev > persistThrottleMs) {
-        lastPersistedAt.set(primaryAnnotation.id, Date.now());
+    if (!isSameValidation(lastValidationRef.current, nextValidation)) {
+      lastValidationRef.current = nextValidation;
+      setValidation(nextValidation);
+      if (onValidation) {
         onValidation(primaryAnnotation, nextValidation);
       }
     }

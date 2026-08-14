@@ -1,18 +1,19 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
-import { useAtomValue } from "jotai";
-import { Activity, ExternalLink, RefreshCw, Search } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Activity, FileText, RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import type { Domain, DomainStatusLog } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
+import { usePanelNavigation } from "../../hooks/usePanelNavigation";
 import { en } from "../../i18n/en";
 import { ko } from "../../i18n/ko";
+import { hubMonitorLogsHostAtom } from "../../store";
 
 function hostFromUrl(url: string) {
   try {
@@ -27,6 +28,8 @@ export function MonitorManagementView() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const { domains, fetchAll, getGroupName, getDomainHost, getFeatureState } = useDomainHubData();
+  const nav = usePanelNavigation();
+  const setMonitorLogsHost = useSetAtom(hubMonitorLogsHostAtom);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusByHost, setStatusByHost] = useState<Map<string, DomainStatusLog>>(new Map());
@@ -159,16 +162,12 @@ export function MonitorManagementView() {
             type="button"
             className="p-1.5 rounded-lg hover:bg-base-300 text-base-content/50 hover:text-primary transition-colors"
             title={t.monitorOpenLogs}
-            onClick={() =>
-              void openDetachedWindow(
-                `/monitor/logs?host=${encodeURIComponent(host)}`,
-                `${host} — ${t.monitorOpenLogs}`,
-                1100,
-                760,
-              )
-            }
+            onClick={() => {
+              setMonitorLogsHost(host);
+              nav.openGlobalSurface("global/monitor-logs");
+            }}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5" />
           </button>
           {toggling ? (
             <RefreshCw className="w-4 h-4 animate-spin text-primary" />

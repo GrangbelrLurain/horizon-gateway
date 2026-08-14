@@ -34,7 +34,6 @@ fn current_proxy_status() -> ProxyStatusPayload {
             port,
             reverse_http_port: if rh != 0 { Some(rh) } else { None },
             reverse_https_port: if rht != 0 { Some(rht) } else { None },
-            local_routing_enabled: local_proxy::is_local_routing_enabled(),
         };
     }
 
@@ -44,7 +43,6 @@ fn current_proxy_status() -> ProxyStatusPayload {
             port: active.port,
             reverse_http_port: active.reverse_http_port,
             reverse_https_port: active.reverse_https_port,
-            local_routing_enabled: local_proxy::is_local_routing_enabled(),
         };
     }
 
@@ -53,7 +51,6 @@ fn current_proxy_status() -> ProxyStatusPayload {
         port: 0,
         reverse_http_port: None,
         reverse_https_port: None,
-        local_routing_enabled: local_proxy::is_local_routing_enabled(),
     }
 }
 
@@ -327,8 +324,6 @@ pub struct ProxyStatusPayload {
     pub reverse_http_port: Option<u16>,
     /// Reverse HTTPS listener port (TLS by Host).
     pub reverse_https_port: Option<u16>,
-    /// When true, local routes are applied; when false, all traffic passes through.
-    pub local_routing_enabled: bool,
 }
 
 pub const PROXY_STATUS_CHANGED: &str = "proxy-status-changed";
@@ -419,7 +414,7 @@ pub async fn start_local_proxy_svc(
     app: Option<()>,
     payload: Option<StartLocalProxyPayload>,
     route_service: &std::sync::Arc<LocalRouteService>,
-    proxy_settings_service: &ProxySettingsService,
+    proxy_settings_service: &std::sync::Arc<ProxySettingsService>,
     api_logging_service: &ApiLoggingSettingsService,
     api_log_service: &ApiLogService,
     ca_service: &std::sync::Arc<CaService>,
@@ -480,6 +475,7 @@ pub async fn start_local_proxy_svc(
         mocking_service_arc.clone(),
         std::sync::Arc::new(inspector_service_arc.clone()),
         domain_service_arc.clone(),
+        std::sync::Arc::clone(proxy_settings_service),
     )
     .await
     {
@@ -500,6 +496,7 @@ pub async fn start_local_proxy_svc(
             mocking_service_arc.clone(),
             std::sync::Arc::new(inspector_service_arc.clone()),
             domain_service_arc.clone(),
+            std::sync::Arc::clone(proxy_settings_service),
         )
         .await
         {
@@ -526,6 +523,7 @@ pub async fn start_local_proxy_svc(
             mocking_service_arc.clone(),
             std::sync::Arc::new(inspector_service_arc.clone()),
             domain_service_arc.clone(),
+            std::sync::Arc::clone(proxy_settings_service),
         )
         .await
         {
@@ -557,7 +555,6 @@ pub async fn start_local_proxy_svc(
         port,
         reverse_http_port: reverse_http,
         reverse_https_port: reverse_https,
-        local_routing_enabled: local_proxy::is_local_routing_enabled(),
     };
     let _ = emit_proxy_status(app.as_ref(), &payload);
     let mut msg = format!("Proxy started on 127.0.0.1:{port}");
@@ -662,7 +659,6 @@ pub fn stop_local_proxy_svc(app: Option<()>) -> Result<ApiResponse<ProxyStatusPa
         port: 0,
         reverse_http_port: None,
         reverse_https_port: None,
-        local_routing_enabled: local_proxy::is_local_routing_enabled(),
     };
     emit_proxy_status(app.as_ref(), &payload);
     Ok(ApiResponse {
@@ -672,42 +668,134 @@ pub fn stop_local_proxy_svc(app: Option<()>) -> Result<ApiResponse<ProxyStatusPa
     })
 }
 
-// ── Local routing toggle ───────────────────────────────────────────────
+// ── Engine options (CORS, DNS zone, TLS bypass, timeouts) ──────────────
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
-pub struct SetLocalRoutingEnabledPayload {
-    pub enabled: bool,
+pub struct UpdateProxySettingsPayload {
+    pub cors_rewrite_enabled: Option<bool>,
+    pub dns_capture_enabled: Option<bool>,
+    pub dns_records: Option<Vec<crate::model::proxy_settings::DnsZoneRecord>>,
+    pub tls_bypass_hosts: Option<Vec<String>>,
+    pub https_decrypt_hosts: Option<Vec<String>>,
+    pub connect_timeout_secs: Option<u64>,
+    pub upstream_timeout_secs: Option<u64>,
 }
 
-pub const SET_LOCAL_ROUTING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_local_routing_enabled",
-    description: "로컬 라우팅 적용 여부를 토글합니다.",
-    payload_example: r#"{"enabled": true}"#,
+pub const UPDATE_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "update_proxy_settings",
+    description: "프록시 엔진 옵션(CORS, DNS 존, TLS 우회, 타임아웃)을 부분 업데이트합니다.",
+    payload_example: r#"{"corsRewriteEnabled": true, "dnsCaptureEnabled": true}"#,
     category: "proxy",
     gui_only: false,
 };
 
+pub fn update_proxy_settings_svc(
+    payload: UpdateProxySettingsPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
+    let settings = proxy_settings_service.patch(
+        payload.cors_rewrite_enabled,
+        payload.dns_capture_enabled,
+        payload.dns_records,
+        payload.tls_bypass_hosts,
+        payload.https_decrypt_hosts,
+        payload.connect_timeout_secs,
+        payload.upstream_timeout_secs,
+    );
+    Ok(ApiResponse {
+        message: "Proxy settings updated".to_string(),
+        success: true,
+        data: settings,
+    })
+}
 
-pub fn set_local_routing_enabled_svc(app: Option<()>, payload: SetLocalRoutingEnabledPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxyStatusPayload>, String> {
-    // Update runtime flag
-    local_proxy::set_local_routing_enabled(payload.enabled);
-    // Persist
-    proxy_settings_service.set_local_routing_enabled(payload.enabled);
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SetHttpsDecryptHostPayload {
+    pub host: String,
+    pub enabled: bool,
+}
 
-    let status = current_proxy_status();
-    emit_proxy_status(app.as_ref(), &status);
+pub const SET_HTTPS_DECRYPT_HOST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_https_decrypt_host",
+    description: "호스트 HTTPS 복호화 여부를 설정합니다.",
+    payload_example: r#"{"host": "api.example.com", "enabled": true}"#,
+    category: "proxy",
+    gui_only: false,
+};
+
+pub fn set_https_decrypt_host_svc(
+    payload: SetHttpsDecryptHostPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
+    let settings = proxy_settings_service.set_https_decrypt_host(&payload.host, payload.enabled);
     Ok(ApiResponse {
         message: format!(
-            "Local routing {}",
-            if payload.enabled {
-                "enabled"
-            } else {
-                "disabled"
-            }
+            "HTTPS decrypt {} for {}",
+            if payload.enabled { "enabled" } else { "disabled" },
+            payload.host
         ),
         success: true,
-        data: status,
+        data: settings,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDnsZoneRecordPayload {
+    pub host: String,
+    pub record_type: String,
+    pub value: String,
+}
+
+pub const SET_DNS_ZONE_RECORD_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "set_dns_zone_record",
+    description: "DNS 존 A/CNAME 레코드를 추가하거나 수정합니다.",
+    payload_example: r#"{"host": "dev.local", "recordType": "A", "value": "127.0.0.1"}"#,
+    category: "proxy",
+    gui_only: false,
+};
+
+pub fn set_dns_zone_record_svc(
+    payload: SetDnsZoneRecordPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
+    let settings = proxy_settings_service.set_dns_zone_record(crate::model::proxy_settings::DnsZoneRecord {
+        host: payload.host,
+        record_type: payload.record_type,
+        value: payload.value,
+    });
+    Ok(ApiResponse {
+        message: "DNS zone record saved".to_string(),
+        success: true,
+        data: settings,
+    })
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveDnsZoneRecordPayload {
+    pub host: String,
+}
+
+pub const REMOVE_DNS_ZONE_RECORD_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
+    name: "remove_dns_zone_record",
+    description: "DNS 존 레코드를 삭제합니다.",
+    payload_example: r#"{"host": "dev.local"}"#,
+    category: "proxy",
+    gui_only: false,
+};
+
+pub fn remove_dns_zone_record_svc(
+    payload: RemoveDnsZoneRecordPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
+    let settings = proxy_settings_service.remove_dns_zone_record(&payload.host);
+    Ok(ApiResponse {
+        message: "DNS zone record removed".to_string(),
+        success: true,
+        data: settings,
     })
 }
 
@@ -727,10 +815,8 @@ pub async fn auto_start_proxy(
     mocking_service: std::sync::Arc<crate::service::mocking_service::MockingService>,
     inspector_service: crate::service::inspector_service::InspectorService,
     domain_service: std::sync::Arc<crate::service::domain_service::DomainService>,
+    proxy_settings_service: std::sync::Arc<ProxySettingsService>,
 ) -> Result<(), String> {
-    // Restore persisted local_routing_enabled flag
-    local_proxy::set_local_routing_enabled(settings.local_routing_enabled);
-
     if PROXY_PORT.load(Ordering::Relaxed) != 0 {
         return Ok(()); // already running
     }
@@ -766,6 +852,7 @@ pub async fn auto_start_proxy(
         mocking_service.clone(),
         std::sync::Arc::new(inspector_service.clone()),
         domain_service.clone(),
+        std::sync::Arc::clone(&proxy_settings_service),
     )
     .await
     {
@@ -786,6 +873,7 @@ pub async fn auto_start_proxy(
             mocking_service.clone(),
             std::sync::Arc::new(inspector_service.clone()),
             domain_service.clone(),
+            std::sync::Arc::clone(&proxy_settings_service),
         )
         .await
         {
@@ -812,6 +900,7 @@ pub async fn auto_start_proxy(
             mocking_service.clone(),
             std::sync::Arc::new(inspector_service.clone()),
             domain_service,
+            std::sync::Arc::clone(&proxy_settings_service),
         )
         .await
         {

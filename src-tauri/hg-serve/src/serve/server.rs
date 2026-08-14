@@ -38,7 +38,8 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
     crate::service::transparent_proxy_service::TransparentProxyService::ensure_runtime_sidecars();
 
     let route_svc = Arc::clone(&ctx.local_route_service);
-    let proxy_settings_snapshot = ctx.proxy_settings_service.get();
+    let proxy_settings_service = Arc::clone(&ctx.proxy_settings_service);
+    let proxy_settings_snapshot = proxy_settings_service.get();
     let api_logging_map = ctx.api_logging_service.settings_map_arc();
     let api_log_service = Arc::new(ctx.api_log_service.clone());
     let ca_service = Arc::clone(&ctx.ca_service);
@@ -66,6 +67,7 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
             mocking_service,
             inspector_service,
             domain_service,
+            proxy_settings_service,
         )
         .await
         {
@@ -117,8 +119,36 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
         });
     }
 
+    #[cfg(not(windows))]
+    {
+        let ctx_ipc = Arc::clone(&ctx);
+        let rt_ipc = Arc::clone(&rt);
+        std::thread::Builder::new()
+            .name("serve-ipc".into())
+            .spawn(move || accept_loop(listener, ctx_ipc, rt_ipc))
+            .map_err(|e| format!("failed to start serve IPC thread: {e}"))?;
+        // macOS requires the tray event loop on the main thread.
+        super::tray::start();
+        return Ok(());
+    }
+
+    #[cfg(windows)]
+    {
+        super::tray::start();
+        accept_loop(listener, ctx, rt);
+        return Ok(());
+    }
+}
+
+fn accept_loop(listener: TcpListener, ctx: Arc<AppContext>, rt: Arc<tokio::runtime::Runtime>) {
     for stream in listener.incoming() {
-        let stream = stream.map_err(|e| format!("accept failed: {e}"))?;
+        let stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("[serve] accept failed: {e}");
+                continue;
+            }
+        };
         let ctx = Arc::clone(&ctx);
         let rt = Arc::clone(&rt);
         std::thread::spawn(move || {
@@ -127,8 +157,6 @@ fn serve_loop(rt: tokio::runtime::Runtime) -> Result<(), String> {
             }
         });
     }
-
-    Ok(())
 }
 
 fn handle_client(
@@ -180,7 +208,11 @@ fn dispatch_serve_request(
     if request.command == "ping" {
         return ServeResponse::success(
             request.id.clone(),
-            serde_json::json!({ "mode": "serve", "ok": true }),
+            serde_json::json!({
+                "mode": "serve",
+                "ok": true,
+                "version": env!("CARGO_PKG_VERSION"),
+            }),
         );
     }
 

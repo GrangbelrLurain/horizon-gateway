@@ -1,7 +1,7 @@
 mod paths;
 
 pub(crate) use paths::{
-    serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX,
+    is_horizon_gateway_internal, normalize_horizon_gateway_path, serve_horizon_gateway_reserved_path,
 };
 
 #[cfg(test)]

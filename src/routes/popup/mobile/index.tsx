@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useAtomValue } from "jotai";
 import { Smartphone } from "lucide-react";
 import { languageAtom } from "@/entities/app";
+import { MobileConnectionContent } from "@/features/mobile-connection";
 import { PopupShell, popupEn, popupKo } from "@/features/popup-window";
-import { MobileConnectionContent } from "@/routes/proxy/mobile/index";
 
 function PopupMobilePage() {
   const lang = useAtomValue(languageAtom);

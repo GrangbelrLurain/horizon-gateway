@@ -1,3 +1,5 @@
+import { canonicalizeHubSurfaceId } from "@/shared/lib/hub/canonicalizeHubSurfaceId";
+
 export type PanelId =
   | "overview"
   | "monitor"
@@ -30,7 +32,9 @@ export type HubSurfaceId =
   | "global/schema-explorer"
   | "global/proxy-graph"
   | "global/monitor"
-  | "global/policies";
+  | "global/policies"
+  | "global/live-capture"
+  | "global/monitor-logs";
 
 const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "chrome/infrastructure",
@@ -52,13 +56,16 @@ const VALID_SURFACE_IDS: HubSurfaceId[] = [
   "global/proxy-graph",
   "global/monitor",
   "global/policies",
+  "global/live-capture",
+  "global/monitor-logs",
 ];
 
 export function parseHubSurfaceId(value: string | undefined): HubSurfaceId | null {
   if (!value) {
     return null;
   }
-  return VALID_SURFACE_IDS.includes(value as HubSurfaceId) ? (value as HubSurfaceId) : null;
+  const canonical = canonicalizeHubSurfaceId(value);
+  return VALID_SURFACE_IDS.includes(canonical as HubSurfaceId) ? (canonical as HubSurfaceId) : null;
 }
 
 export function isChromeSurface(id: HubSurfaceId): boolean {
@@ -75,6 +82,8 @@ export interface HubSearchParams {
   p?: string;
   logId?: string;
   g?: string;
+  host?: string;
+  url?: string;
 }
 
 export const TOP_LEVEL_PANELS: PanelId[] = ["overview", "monitor", "proxy", "api", "debug"];

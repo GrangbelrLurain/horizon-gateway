@@ -12,6 +12,8 @@ export const Route = createFileRoute("/")({
     p: typeof search.p === "string" ? search.p : undefined,
     logId: typeof search.logId === "string" ? search.logId : undefined,
     g: typeof search.g === "string" ? search.g : undefined,
+    host: typeof search.host === "string" ? search.host : undefined,
+    url: typeof search.url === "string" ? search.url : undefined,
   }),
   component: DomainHubPage,
 });

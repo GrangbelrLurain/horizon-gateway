@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAtomValue } from "jotai";
-import { Server } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { languageAtom } from "@/entities/app";
-import { InfrastructureContent, PopupShell, popupEn, popupKo } from "@/features/popup-window";
+import { PopupShell, popupEn, popupKo, SettingsContent } from "@/features/popup-window";
 
 function PopupInfrastructurePage() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? popupKo : popupEn;
 
   return (
-    <PopupShell title={t.infraTitle} icon={<Server className="w-4 h-4" />} accent="indigo">
-      <InfrastructureContent />
+    <PopupShell title={t.settingsTitle} icon={<SettingsIcon className="w-4 h-4" />} accent="indigo" fullWidth>
+      <SettingsContent />
     </PopupShell>
   );
 }

@@ -1,39 +1,10 @@
-pub(crate) fn is_system_connectivity_domain(host: &str) -> bool {
-    let h = host.to_lowercase();
-    h.contains("connectivitycheck")
-        || h.contains("captiveportal")
-        || h.contains("captive.apple.com")
-        || h == "clients3.google.com"
-        || h == "detectportal.firefox.com"
-        || h == "msftconnecttest.com"
-        || h == "msftncsi.com"
-}
-
-pub(crate) fn is_auth_sso_domain(host: &str) -> bool {
-    let h = host.to_lowercase();
-    h.contains("login.microsoftonline.com")
-        || h.contains("login.live.com")
-        || h.contains("aadcdn.msauth.net")
-        || h.contains("auth.dev.azure.com")
-        || h.contains("identity.azure.com")
-        || h.contains("accounts.google.com")
-        || h.contains("appleid.apple.com")
-        || h.contains("auth0.com")
-        || h.contains("okta.com")
-        || h.contains("keycloak")
-}
-
-
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
-use crate::service::local_proxy::flags::is_local_routing_enabled;
-
 use super::decrypt::handle_connect_tunnel_decrypted;
-use super::super::handler::inject::should_inject_for_host;
 use super::local::handle_connect_tunnel_local;
 use super::passthrough::handle_connect_passthrough;
-use super::super::routing::{get_logging_config_for_host, host_key_for_logging_map, resolve_connect_target};
+use super::super::routing::{host_in_list, resolve_connect_target};
 use super::super::state::ProxyState;
 
 pub(crate) async fn handle_connect_tunnel(
@@ -45,39 +16,28 @@ pub(crate) async fn handle_connect_tunnel(
 ) {
     crate::proxy_log!("CONNECT {}:{}", host, port);
 
-    // 1. API Logging check FIRST
-    let key = host_key_for_logging_map(&host);
-    let use_api_logging = {
-        let map_read = state.api_logging_map.read().ok();
-        let config = map_read
-            .as_ref()
-            .and_then(|map| get_logging_config_for_host(map, &key));
-        crate::proxy_log!(
-            "[matching] host: {}, key: {}, found_in_map: {}",
-            host,
-            key,
-            config.is_some()
-        );
-        config.is_some_and(|(logging_enabled, _)| logging_enabled)
-    };
+    let settings = state.proxy_settings.get();
+    if host_in_list(&host, &settings.tls_bypass_hosts) {
+        crate::proxy_log!("-> CONNECT TLS bypass for {}", host);
+        handle_connect_passthrough(
+            client,
+            &host,
+            port,
+            state.resolver.as_ref(),
+            header_buf,
+            &state,
+        )
+        .await;
+        return;
+    }
 
-    // 2. Selective Decryption for Inspector/Injection/Mocking/Logging
-    let is_connectivity = is_system_connectivity_domain(&host);
-    let is_auth_sso = is_auth_sso_domain(&host);
-    let should_decrypt = !is_connectivity && !is_auth_sso && (use_api_logging || should_inject_for_host(&state, &host));
-
-    if should_decrypt {
-        // Decrypt for API Logging or Inspector
+    if host_in_list(&host, &settings.https_decrypt_hosts) {
         crate::proxy_log!("-> CONNECT decryption enabled for {}", host);
         handle_connect_tunnel_decrypted(client, host, state).await;
         return;
     }
 
-    let routes = if is_local_routing_enabled() {
-        state.route_service.get_enabled()
-    } else {
-        vec![]
-    };
+    let routes = state.route_service.get_enabled();
     if let Some((target_host, target_port)) = resolve_connect_target(&host, &routes) {
         crate::proxy_log!("-> CONNECT local route -> {}:{}", target_host, target_port);
         handle_connect_tunnel_local(client, target_host, target_port, host, state, header_buf)
@@ -86,5 +46,13 @@ pub(crate) async fn handle_connect_tunnel(
     }
 
     crate::proxy_log!("-> CONNECT pass-through (upstream)");
-    handle_connect_passthrough(client, &host, port, state.resolver.as_ref(), header_buf).await;
+    handle_connect_passthrough(
+        client,
+        &host,
+        port,
+        state.resolver.as_ref(),
+        header_buf,
+        &state,
+    )
+    .await;
 }

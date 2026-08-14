@@ -8,8 +8,6 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 
 use crate::model::api_log::ApiLogEntry;
-use crate::service::local_proxy::flags::is_mocking_enabled;
-
 use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
 
@@ -83,10 +81,6 @@ pub(crate) fn try_mock_response(
     path: &str,
     host_h: &str,
 ) -> Option<Response> {
-    if !is_mocking_enabled() {
-        return None;
-    }
-
     // Scenario layer is hidden for now: match on global + rule.enabled only.
     // Scenario.enabled gating can be restored when scenarios return to the UI.
     let rules = state.mocking_service.get_mock_rules();

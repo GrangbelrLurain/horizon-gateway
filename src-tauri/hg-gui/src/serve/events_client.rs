@@ -4,7 +4,7 @@ use std::thread;
 use std::time::Duration;
 
 use hg_core::{ServeEvent, SERVE_EVENT_ADDR};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use super::ensure;
 
@@ -52,7 +52,28 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
         }
         let evt: ServeEvent =
             serde_json::from_str(&line).map_err(|e| format!("parse event: {e}"))?;
-        let _ = app.emit(&evt.event, evt.payload);
+        match evt.event.as_str() {
+            "show-main-window" => {
+                let handle = app.clone();
+                let _ = handle.clone().run_on_main_thread(move || {
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.unminimize();
+                        let _ = window.set_focus();
+                    }
+                });
+            }
+            "serve-stopping" => {
+                let handle = app.clone();
+                let _ = handle.clone().run_on_main_thread(move || {
+                    handle.exit(0);
+                });
+                break;
+            }
+            _ => {
+                let _ = app.emit(&evt.event, evt.payload);
+            }
+        }
     }
     Ok(())
 }

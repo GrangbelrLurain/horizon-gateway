@@ -3,7 +3,7 @@ import type { DomainApiLoggingLink_Serialize } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 
-export type BulkFeatureKey = "monitor" | "proxy" | "api" | "scriptInjection";
+export type BulkFeatureKey = "monitor" | "proxy" | "api" | "scriptInjection" | "httpsDecrypt";
 
 export async function setBulkScriptInjection(domainUrls: string[], enabled: boolean): Promise<void> {
   if (domainUrls.length === 0) {
@@ -30,6 +30,24 @@ export async function setBulkScriptInjection(domainUrls: string[], enabled: bool
     );
   }
   await commands.setInjectionDomains({ domains: updated }).then(unwrap);
+  await notifyHubDataChanged("features");
+}
+
+export async function setBulkHttpsDecrypt(domainUrls: string[], enabled: boolean): Promise<void> {
+  if (domainUrls.length === 0) {
+    return;
+  }
+  const extractHost = (url: string) => {
+    try {
+      const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+      return u.hostname.toLowerCase();
+    } catch {
+      return url.toLowerCase();
+    }
+  };
+  for (const url of domainUrls) {
+    await commands.setHttpsDecryptHost({ host: extractHost(url), enabled }).then(unwrap);
+  }
   await notifyHubDataChanged("features");
 }
 

@@ -1,7 +1,10 @@
-use super::super::tunnel::is_system_connectivity_domain;
+use crate::model::proxy_settings::default_tls_bypass_hosts;
+use crate::service::local_proxy::routing::host_in_list;
 
 #[test]
-fn system_connectivity_domains() {
-    assert!(is_system_connectivity_domain("clients3.google.com"));
-    assert!(!is_system_connectivity_domain("example.com"));
+fn default_bypass_covers_captive_and_sso() {
+    let list = default_tls_bypass_hosts();
+    assert!(host_in_list("clients3.google.com", &list));
+    assert!(host_in_list("login.microsoftonline.com", &list));
+    assert!(!host_in_list("example.com", &list));
 }

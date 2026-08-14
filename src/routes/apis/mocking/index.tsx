@@ -1,18 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { Edit2, FlaskConical, Pause, Play, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom } from "@/entities/app";
+import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import type { MockRule } from "@/entities/mocking";
 import * as mockingApi from "@/entities/mocking";
 import { ProxyServerWarning } from "@/entities/proxy";
-import { commands, unwrap } from "@/shared/api";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { Modal } from "@/shared/ui/modal/Modal";
-import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { toastError } from "@/shared/ui/toast";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -25,7 +23,6 @@ function MockingDashboard() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
 
-  const [mockingEnabled, setMockingEnabled] = useAtom(proxyMockingEnabledAtom);
   const isProxyRunning = useAtomValue(proxyRunningAtom);
   const isEmbedded = useIsEmbeddedPage();
 
@@ -43,7 +40,6 @@ function MockingDashboard() {
     enabled: true,
   });
   const [ruleToDelete, setRuleToDelete] = useState<string | null>(null);
-  const [mockingLoading, setMockingLoading] = useState(false);
 
   const loadRules = useCallback(async () => {
     try {
@@ -57,23 +53,6 @@ function MockingDashboard() {
   useEffect(() => {
     void loadRules();
   }, [loadRules]);
-
-  const toggleMocking = async (enabled: boolean) => {
-    if (mockingEnabled === null) {
-      return;
-    }
-    setMockingLoading(true);
-    try {
-      const res = await commands.setMockingEnabled({ enabled }).then(unwrap);
-      if (res.success) {
-        setMockingEnabled(enabled);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setMockingLoading(false);
-    }
-  };
 
   const handleSaveRule = async () => {
     try {
@@ -190,13 +169,6 @@ function MockingDashboard() {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-3 tablet:gap-4">
-              <StatusToggle
-                label={lang === "ko" ? "모킹" : "Mocking"}
-                checked={mockingEnabled ?? false}
-                onChange={toggleMocking}
-                loading={mockingLoading}
-                icon={<FlaskConical className="w-3.5 h-3.5" />}
-              />
               <Button
                 variant="primary"
                 onClick={() => openRuleModal()}

@@ -43,7 +43,6 @@ function ProxySetupPage() {
     port: 0,
     reverse_http_port: null,
     reverse_https_port: null,
-    local_routing_enabled: true,
   });
   const [saving, setSaving] = useState(false);
   const [starting, setStarting] = useState(false);

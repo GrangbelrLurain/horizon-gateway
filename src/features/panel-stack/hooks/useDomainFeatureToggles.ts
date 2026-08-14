@@ -2,9 +2,9 @@ import { useAtomValue } from "jotai";
 import { useRef, useState } from "react";
 import type { DomainFeatureState } from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
-import { openPopupWindow } from "@/features/popup-window";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
+import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 
 interface UseDomainFeatureTogglesOptions {
   domainId: number;
@@ -28,6 +28,7 @@ export function useDomainFeatureToggles({
   const [showProxyModal, setShowProxyModal] = useState(false);
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
   const preservedApiRef = useRef<{ schemaUrl: string | null; bodyEnabled: boolean } | null>(null);
+  const openHubSurface = useOpenHubSurface();
 
   const toggleMonitor = async (enabled: boolean) => {
     setMonitorLoading(true);
@@ -98,7 +99,7 @@ export function useDomainFeatureToggles({
 
   const toggleProxy = async (enabled: boolean) => {
     if (!proxyActive) {
-      void openPopupWindow("infrastructure");
+      openHubSurface("chrome/settings");
       return;
     }
 
@@ -129,20 +130,22 @@ export function useDomainFeatureToggles({
   };
 
   const [scriptInjectionLoading, setScriptInjectionLoading] = useState(false);
+  const [decryptLoading, setDecryptLoading] = useState(false);
+
+  const extractHost = (url: string) => {
+    try {
+      const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+      return u.hostname.toLowerCase();
+    } catch {
+      return url.toLowerCase();
+    }
+  };
 
   const toggleScriptInjection = async (enabled: boolean) => {
     setScriptInjectionLoading(true);
     try {
       const currentRes = await commands.getInjectionDomains().then(unwrap);
       const currentList = currentRes.success && currentRes.data ? currentRes.data : [];
-      const extractHost = (url: string) => {
-        try {
-          const u = new URL(url.startsWith("http") ? url : `https://${url}`);
-          return u.hostname.toLowerCase();
-        } catch {
-          return url.toLowerCase();
-        }
-      };
       const host = extractHost(domainUrl);
       let updated: string[];
       if (enabled) {
@@ -164,6 +167,19 @@ export function useDomainFeatureToggles({
     }
   };
 
+  const toggleHttpsDecrypt = async (enabled: boolean) => {
+    setDecryptLoading(true);
+    try {
+      await commands.setHttpsDecryptHost({ host: extractHost(domainUrl), enabled }).then(unwrap);
+      onRefresh();
+      await notifyHubDataChanged("features");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDecryptLoading(false);
+    }
+  };
+
   const proxyChecked = proxyActive && state.proxyEnabled === true;
 
   return {
@@ -179,6 +195,7 @@ export function useDomainFeatureToggles({
       needsRoute: state.proxyRouteId === undefined,
       showModal: showProxyModal,
       setShowModal: setShowProxyModal,
+      processOff: !proxyActive,
       domainUrl,
     },
     api: {
@@ -193,6 +210,11 @@ export function useDomainFeatureToggles({
       checked: state.scriptInjectionEnabled === true,
       loading: scriptInjectionLoading,
       toggle: toggleScriptInjection,
+    },
+    httpsDecrypt: {
+      checked: state.httpsDecryptEnabled === true,
+      loading: decryptLoading,
+      toggle: toggleHttpsDecrypt,
     },
   };
 }

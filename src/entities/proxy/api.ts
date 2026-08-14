@@ -14,7 +14,6 @@ export async function fetchProxyStatus(): Promise<ProxyStatus> {
   const data = res.data;
   return {
     running: data.running ?? false,
-    local_routing_enabled: data.local_routing_enabled ?? false,
     port: data.port ?? null,
     reverse_http_port: data.reverse_http_port ?? null,
     reverse_https_port: data.reverse_https_port ?? null,

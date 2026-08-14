@@ -8,7 +8,7 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight } from "lucide-react";
-import { openPopupWindow } from "@/shared/lib/tauri/openPopupWindow";
+import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import { Button } from "@/shared/ui/button/Button";
 
 export interface EmptyStateTier1Props {
@@ -48,6 +48,7 @@ const EN_T1 = {
 };
 
 export function EmptyState(props: EmptyStateProps) {
+  const openHubSurface = useOpenHubSurface();
   if (props.tier === 1) {
     const t = props.lang === "ko" ? KO_T1 : EN_T1;
     return (
@@ -80,7 +81,7 @@ export function EmptyState(props: EmptyStateProps) {
         <Button
           variant="primary"
           className="gap-2 flex items-center shadow-lg shadow-indigo-500/20"
-          onClick={() => void openPopupWindow("add-domain")}
+          onClick={() => openHubSurface("chrome/add-domain")}
         >
           {t.action}
           <ArrowRight className="w-4 h-4" />

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import { AnimatePresence } from "framer-motion";
@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
+import { hubMonitorLogsHostAtom } from "@/features/panel-stack";
 import type { DomainStatusLog } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
+import { useIsHubSurfaceEmbed } from "@/shared/lib/hub/HubSurfaceEmbedContext";
 import { useIsEmbeddedPage } from "@/shared/lib/tauri/useEmbedMode";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
@@ -34,14 +36,23 @@ export const Route = createFileRoute("/monitor/logs/")({
   validateSearch: (search: Record<string, unknown>) => ({
     host: typeof search.host === "string" ? search.host : undefined,
   }),
-  component: MonitorLogs,
+  component: MonitorLogsRoutePage,
 });
 
-function MonitorLogs() {
-  const { host: hostFilter } = Route.useSearch();
+function MonitorLogsRoutePage() {
+  const { host } = Route.useSearch();
+  return <MonitorLogsView hostFromRoute={host} />;
+}
+
+export function MonitorLogsView({ hostFromRoute }: { hostFromRoute?: string } = {}) {
+  const seedHost = useAtomValue(hubMonitorLogsHostAtom);
+  const routeSearch = useSearch({ strict: false }) as { host?: string };
+  const hostFilter = seedHost ?? hostFromRoute ?? routeSearch.host;
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const isEmbedded = useIsEmbeddedPage();
+  const isHubEmbed = useIsHubSurfaceEmbed();
+  const isPageEmbed = useIsEmbeddedPage();
+  const isEmbedded = isHubEmbed || isPageEmbed;
   const [date, setDate] = useAtom(monitorLogsDateAtom);
   const [logs, setLogs] = useState<DomainStatusLog[]>([]);
   const [loading, setLoading] = useState(false);

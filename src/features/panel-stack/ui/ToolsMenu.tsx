@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { Activity, BookOpen, FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
+import { Activity, BookOpen, Camera, FileCode, GitBranch, History, Lock, Play, Tv, Workflow } from "lucide-react";
 import { useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
@@ -30,6 +30,10 @@ function surfaceLabel(id: HubSurfaceId, t: typeof ko): string {
       return t.toolsMonitor;
     case "global/policies":
       return t.toolsPolicies;
+    case "global/live-capture":
+      return t.toolsLiveCapture;
+    case "global/monitor-logs":
+      return t.toolsMonitorLogs;
     default:
       return id;
   }
@@ -57,6 +61,8 @@ function surfaceIcon(id: HubSurfaceId) {
       return Activity;
     case "global/policies":
       return BookOpen;
+    case "global/live-capture":
+      return Camera;
     default:
       return GitBranch;
   }

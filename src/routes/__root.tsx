@@ -202,6 +202,19 @@ const RootLayout = () => {
     );
   }
 
+  if (isDetachedWindow && pathname === "/") {
+    return (
+      <ErrorBoundary fallbackTitle="Detached window error">
+        <div className="flex flex-col h-screen w-full overflow-hidden bg-base-200 text-base-content font-sans transition-colors duration-300">
+          <AnimatePresence>{isLoading && <LoadingScreen key="global-loader" />}</AnimatePresence>
+          {content}
+          {globalOverlays}
+          {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
   if (isDetachedWindow) {
     return (
       <ErrorBoundary fallbackTitle="Detached window error">

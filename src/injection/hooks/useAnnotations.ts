@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
-import { matchHostPattern, matchPathPattern } from "@/shared/lib/pattern";
+import { annotationMatchesPage } from "@/shared/lib/guideMatch";
 import { deleteAnnotationApi, fetchAnnotationsApi, saveAnnotationApi, subscribeAnnotations } from "../api/gateway";
 import { denormalizedSelector, ensureLocators, promoteLocator } from "../lib/locator";
 
@@ -32,12 +32,7 @@ export function useAnnotations() {
   const currentPagePolicies = useMemo(() => {
     const currentHost = window.location.host;
     const currentPath = window.location.pathname;
-
-    return allAnnotations.filter((ann) => {
-      const matchesHost = matchHostPattern(ann.hostPattern, ann.domain, currentHost);
-      const matchesPath = matchPathPattern(ann.pathPattern, ann.url, currentPath);
-      return matchesHost && matchesPath;
-    });
+    return allAnnotations.filter((ann) => annotationMatchesPage(ann, currentHost, currentPath));
   }, [allAnnotations]);
 
   const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(null);
@@ -114,14 +109,9 @@ export function useAnnotations() {
     }
   };
 
-  const persistValidation = useCallback(async (ann: Annotation, validation: LocatorValidation) => {
+  const persistValidation = useCallback((ann: Annotation, validation: LocatorValidation) => {
     const updated: Annotation = { ...ann, lastValidation: validation };
     setAnnotations((prev) => prev.map((a) => (a.id === ann.id ? updated : a)));
-    try {
-      await saveAnnotationApi(updated as unknown as Record<string, unknown>);
-    } catch {
-      /* ignore */
-    }
   }, []);
 
   const promoteAnnotation = useCallback(

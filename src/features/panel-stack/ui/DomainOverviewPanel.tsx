@@ -9,6 +9,7 @@ import {
   FileText,
   FlaskConical,
   Loader2,
+  Lock,
   Server,
   Wifi,
 } from "lucide-react";
@@ -18,7 +19,10 @@ import { ProxyRouteModal } from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
+import { annotationMatchesHost } from "@/shared/lib/guideMatch";
+import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
+import { Button } from "@/shared/ui/button/Button";
+import { Input } from "@/shared/ui/input/Input";
 import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
@@ -43,6 +47,7 @@ interface MenuItemDef {
     checked: boolean;
     loading: boolean;
     onToggle: (checked: boolean) => void;
+    disabled?: boolean;
   };
   onClick: () => void;
   isActive: boolean;
@@ -58,7 +63,7 @@ export function DomainOverviewPanel({
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
   const setPoliciesDomainSeed = useSetAtom(hubPoliciesDomainSeedAtom);
-  const { getFeatureState, getGroupName, proxyActive, fetchAll } = useDomainHubData();
+  const { getFeatureState, getGroupName, proxyActive, fetchAll, hubProxySettings } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
@@ -73,6 +78,8 @@ export function DomainOverviewPanel({
   const [recentLogs, setRecentLogs] = useState<{ id: string; method: string; path: string; status: number }[]>([]);
   const [hasMockRules, setHasMockRules] = useState(false);
   const [hasAnnotations, setHasAnnotations] = useState(false);
+  const [dnsValue, setDnsValue] = useState("");
+  const [dnsSaving, setDnsSaving] = useState(false);
 
   let displayHost = domain.url;
   try {
@@ -81,6 +88,23 @@ export function DomainOverviewPanel({
   } catch {
     // keep
   }
+
+  const hostInList = (list: string[] | undefined, host: string) =>
+    Boolean(
+      list?.some((item) => {
+        const p = item.toLowerCase();
+        return host === p || host.endsWith(`.${p}`) || host.includes(p);
+      }),
+    );
+
+  const tlsBypassed = hostInList(hubProxySettings?.tls_bypass_hosts, displayHost.toLowerCase());
+  const dnsRecord = hubProxySettings?.dns_records?.find(
+    (r) => r.host.toLowerCase() === displayHost.toLowerCase() && (r.type ?? "A").toUpperCase() === "A",
+  );
+
+  useEffect(() => {
+    setDnsValue(dnsRecord?.value ?? "");
+  }, [dnsRecord?.value]);
 
   const apiLink = useMemo(() => apiLoggingLinks.find((l) => l.domainId === domain.id), [apiLoggingLinks, domain.id]);
   const hasSchema = Boolean(apiLink?.schemaUrl?.trim());
@@ -129,7 +153,7 @@ export function DomainOverviewPanel({
       .then(unwrap)
       .then((res) => {
         if (res.success && res.data) {
-          const match = res.data.some((a) => Boolean(a.url?.toLowerCase().includes(cleanHost)));
+          const match = res.data.some((a) => annotationMatchesHost(a, cleanHost));
           setHasAnnotations(match);
         }
       })
@@ -140,6 +164,18 @@ export function DomainOverviewPanel({
   const menuItems: MenuItemDef[] = useMemo(
     () => [
       {
+        id: "tls/decrypt",
+        label: t.httpsDecrypt,
+        icon: <Lock className="w-4 h-4" />,
+        toggle: {
+          checked: toggles.httpsDecrypt.checked,
+          loading: toggles.httpsDecrypt.loading,
+          onToggle: (checked) => toggles.httpsDecrypt.toggle(checked),
+        },
+        onClick: () => {},
+        isActive: toggles.httpsDecrypt.checked,
+      },
+      {
         id: "global/inspector",
         label: lang === "ko" ? "스크립트 인젝션 (Inspector)" : "Script Injection (Inspector)",
         icon: <Code className="w-4 h-4" />,
@@ -148,7 +184,7 @@ export function DomainOverviewPanel({
           loading: toggles.scriptInjection.loading,
           onToggle: (checked) => toggles.scriptInjection.toggle(checked),
         },
-        onClick: () => void openDetachedWindow("/ux/live-capture", "Script Injection", 1100, 760),
+        onClick: () => nav.openGlobalSurface("global/live-capture"),
         isActive: toggles.scriptInjection.checked,
       },
       {
@@ -201,25 +237,31 @@ export function DomainOverviewPanel({
       },
       {
         id: "global/proxy-graph",
-        label: t.openProxyPanel,
+        label: toggles.proxy.processOff ? t.pipelineProcessOff : t.openProxyPanel,
         icon: <Server className="w-4 h-4" />,
         toggle: {
           checked: toggles.proxy.checked,
           loading: toggles.proxy.loading,
           onToggle: (checked) => toggles.proxy.toggle(checked),
         },
-        onClick: () => nav.openGlobalSurface("global/proxy-graph"),
+        onClick: () =>
+          toggles.proxy.processOff
+            ? nav.openGlobalSurface("chrome/settings")
+            : nav.openGlobalSurface("global/proxy-graph"),
         isActive: toggles.proxy.checked,
       },
     ],
     [
       lang,
+      t.httpsDecrypt,
       t.openApiPanel,
       t.apiSchema,
       t.apiMocking,
       t.debugPolicies,
       t.openMonitorPanel,
       t.openProxyPanel,
+      t.pipelineProcessOff,
+      toggles.httpsDecrypt,
       toggles.scriptInjection,
       toggles.api,
       toggles.monitor,
@@ -237,6 +279,45 @@ export function DomainOverviewPanel({
 
   const activeItems = useMemo(() => menuItems.filter((item) => item.isActive), [menuItems]);
   const inactiveItems = useMemo(() => menuItems.filter((item) => !item.isActive), [menuItems]);
+
+  const tlsChip = tlsBypassed
+    ? t.pipelineBypass
+    : toggles.httpsDecrypt.checked
+      ? t.pipelineDecryptOn
+      : t.pipelineTunnel;
+  const tlsOn = !tlsBypassed && toggles.httpsDecrypt.checked;
+
+  const saveDnsZone = async () => {
+    setDnsSaving(true);
+    try {
+      const trimmed = dnsValue.trim();
+      if (!trimmed) {
+        await commands.removeDnsZoneRecord({ host: displayHost }).then(unwrap);
+      } else {
+        await commands.setDnsZoneRecord({ host: displayHost, recordType: "A", value: trimmed }).then(unwrap);
+      }
+      await fetchAll();
+      await notifyHubDataChanged("features");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDnsSaving(false);
+    }
+  };
+
+  const clearDnsZone = async () => {
+    setDnsSaving(true);
+    try {
+      await commands.removeDnsZoneRecord({ host: displayHost }).then(unwrap);
+      setDnsValue("");
+      await fetchAll();
+      await notifyHubDataChanged("features");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDnsSaving(false);
+    }
+  };
 
   const renderMenuItemRow = (item: MenuItemDef) => (
     <div
@@ -276,6 +357,7 @@ export function DomainOverviewPanel({
               type="checkbox"
               className="toggle toggle-success toggle-xs shrink-0"
               checked={item.toggle.checked}
+              disabled={item.toggle.disabled}
               onChange={(e) => item.toggle?.onToggle(e.target.checked)}
             />
           ))}
@@ -299,6 +381,99 @@ export function DomainOverviewPanel({
       width="md"
     >
       <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-1.5">
+          <div
+            className={clsx(
+              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
+              proxyActive ? "bg-success/10" : "bg-base-200/80",
+            )}
+          >
+            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
+              {t.pipelineIngress}
+            </span>
+            <span className={clsx("text-[10px] font-bold truncate", proxyActive ? "text-success" : "text-warning")}>
+              {proxyActive ? t.pipelineProcessOn : t.pipelineProcessOff}
+            </span>
+          </div>
+          <div
+            className={clsx(
+              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
+              tlsOn ? "bg-success/10" : "bg-base-200/80",
+            )}
+          >
+            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
+              {t.pipelineTls}
+            </span>
+            <span
+              className={clsx(
+                "text-[10px] font-bold truncate",
+                tlsBypassed ? "text-warning" : tlsOn ? "text-success" : "text-base-content/50",
+              )}
+            >
+              {tlsChip}
+            </span>
+          </div>
+          <div
+            className={clsx(
+              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
+              toggles.proxy.checked ? "bg-success/10" : "bg-base-200/80",
+            )}
+          >
+            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
+              {t.pipelineHttp}
+            </span>
+            <span
+              className={clsx(
+                "text-[10px] font-bold truncate",
+                toggles.proxy.checked ? "text-success" : "text-base-content/50",
+              )}
+            >
+              {toggles.proxy.checked ? t.pipelineRouteOn : t.pipelineRouteOff}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 px-1">
+          <span
+            className={clsx("text-[10px] font-bold", toggles.api.checked ? "text-success" : "text-base-content/35")}
+          >
+            {t.featureBadgeApi}
+          </span>
+          <span
+            className={clsx(
+              "text-[10px] font-bold",
+              toggles.scriptInjection.checked ? "text-success" : "text-base-content/35",
+            )}
+          >
+            {lang === "ko" ? "주입" : "Inject"}
+          </span>
+          <span className={clsx("text-[10px] font-bold", hasMockRules ? "text-success" : "text-base-content/35")}>
+            {t.apiMocking}
+          </span>
+        </div>
+
+        {tlsBypassed && <p className="text-[10px] text-warning font-bold px-1">{t.httpsDecryptHint}</p>}
+
+        <div className="space-y-1.5 px-1">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-base-content/40">{t.dnsZoneLabel}</p>
+            <p className="text-[10px] text-base-content/40 mt-0.5 leading-relaxed">{t.dnsZoneHint}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Input
+              className="h-8 text-xs font-mono flex-1"
+              placeholder={t.dnsZonePlaceholder}
+              value={dnsValue}
+              onChange={(e) => setDnsValue(e.target.value)}
+            />
+            <Button variant="secondary" size="sm" disabled={dnsSaving} onClick={() => void saveDnsZone()}>
+              {t.dnsZoneSave}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={dnsSaving || !dnsRecord} onClick={() => void clearDnsZone()}>
+              {t.dnsZoneClear}
+            </Button>
+          </div>
+        </div>
+
         {activeItems.length > 0 && <div className="space-y-0.5">{activeItems.map(renderMenuItemRow)}</div>}
 
         {recentLogs.length > 0 && (

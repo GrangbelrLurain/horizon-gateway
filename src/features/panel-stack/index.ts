@@ -5,7 +5,13 @@ export { useHubNavigation } from "./hooks/useHubNavigation";
 export { usePanelNavigation } from "./hooks/usePanelNavigation";
 export { pickHandoffPayload } from "./lib/inferSchemaFromJson";
 export type { JsonSchemaHandoffSeed, SchemaExplorerHandoffSeed } from "./store";
-export { hubApiLogsHostSeedAtom, hubJsonSchemaSeedAtom, hubSchemaExplorerSeedAtom } from "./store";
+export {
+  hubApiLogsHostSeedAtom,
+  hubJsonSchemaSeedAtom,
+  hubLiveCaptureUrlAtom,
+  hubMonitorLogsHostAtom,
+  hubSchemaExplorerSeedAtom,
+} from "./store";
 export type { HubSearchParams, HubSurfaceId, PanelEntry, PanelId } from "./types";
 export { DomainHubPage } from "./ui/DomainHubPage";
 export { HandoffBanner } from "./ui/HandoffBanner";

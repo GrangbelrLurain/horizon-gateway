@@ -185,6 +185,7 @@ export function DomainListPanel({
       monitor: t.featureBadgeMonitor,
       proxy: t.featureBadgeProxy,
       api: t.featureBadgeApi,
+      decrypt: t.featureBadgeDecrypt,
     }),
     [t],
   );

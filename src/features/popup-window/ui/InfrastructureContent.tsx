@@ -1,6 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Download, Route, Smartphone } from "lucide-react";
+import { Download, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { ProxyServerWarning, proxyStatusAtom } from "@/entities/proxy";
@@ -9,7 +9,6 @@ import type { ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
-import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { popupEn } from "../i18n/en";
 import { popupKo } from "../i18n/ko";
 
@@ -22,17 +21,14 @@ export function InfrastructureContent() {
     port: 0,
     reverse_http_port: null,
     reverse_https_port: null,
-    local_routing_enabled: true,
   });
   const [loading, setLoading] = useState(false);
-  const [routingLoading, setRoutingLoading] = useState(false);
 
   const applyStatus = useCallback(
     (data: ProxyStatusPayload) => {
       setProxyStatus(data);
       setGlobalProxyStatus({
         running: data.running ?? false,
-        local_routing_enabled: data.local_routing_enabled ?? false,
         port: data.port ?? null,
         reverse_http_port: data.reverse_http_port ?? null,
         reverse_https_port: data.reverse_https_port ?? null,
@@ -79,22 +75,6 @@ export function InfrastructureContent() {
     }
   };
 
-  const toggleLocalRouting = async (enabled: boolean) => {
-    setRoutingLoading(true);
-    try {
-      const res = await commands.setLocalRoutingEnabled({ enabled }).then(unwrap);
-      if (res.success && res.data) {
-        applyStatus(res.data);
-      }
-      await notifyHubDataChanged("features");
-      await notifyHubDataChanged("routes");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setRoutingLoading(false);
-    }
-  };
-
   const handleSaveCA = async () => {
     try {
       await commands.saveRootCa().then(unwrap);
@@ -129,22 +109,6 @@ export function InfrastructureContent() {
           >
             {proxyStatus.running ? t.infraStop : t.infraStart}
           </Button>
-        </div>
-      </div>
-
-      <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-black text-base-content">{t.infraLocalRouting}</p>
-            <p className="text-xs text-base-content/60 mt-1 leading-relaxed">{t.infraLocalRoutingDesc}</p>
-          </div>
-          <StatusToggle
-            label={proxyStatus.local_routing_enabled ? t.infraLocalRoutingOn : t.infraLocalRoutingOff}
-            checked={proxyStatus.local_routing_enabled}
-            onChange={toggleLocalRouting}
-            loading={routingLoading}
-            icon={<Route className="w-3.5 h-3.5" />}
-          />
         </div>
       </div>
 

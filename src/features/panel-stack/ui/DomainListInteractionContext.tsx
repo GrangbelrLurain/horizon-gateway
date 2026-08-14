@@ -5,6 +5,7 @@ export type DomainListBadgeLabels = {
   monitor: string;
   proxy: string;
   api: string;
+  decrypt: string;
 };
 
 export type DomainListInteractionHandlers = {

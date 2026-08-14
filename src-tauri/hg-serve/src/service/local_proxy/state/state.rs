@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use serde::Serialize;
 
 use crate::service::api_log_service::ApiLogService;
 use crate::service::ca_service::CaService;
 use crate::service::local_route_service::LocalRouteService;
+use crate::service::proxy_settings_service::ProxySettingsService;
 
 use crate::service::local_proxy::dns::{build_resolver, TokioResolver};
 use crate::service::local_proxy::tls::HostCertCache;
@@ -26,6 +28,7 @@ pub struct ProxyState {
     pub mocking_service: Arc<crate::service::mocking_service::MockingService>,
     pub inspector_service: Arc<crate::service::inspector_service::InspectorService>,
     pub domain_service: Arc<crate::service::domain_service::DomainService>,
+    pub proxy_settings: Arc<ProxySettingsService>,
 }
 
 impl ProxyState {
@@ -41,8 +44,15 @@ impl ProxyState {
         mocking_service: Arc<crate::service::mocking_service::MockingService>,
         inspector_service: Arc<crate::service::inspector_service::InspectorService>,
         domain_service: Arc<crate::service::domain_service::DomainService>,
+        proxy_settings: Arc<ProxySettingsService>,
     ) -> Self {
         let resolver = dns_server.as_deref().and_then(build_resolver);
+        let upstream_timeout = Duration::from_secs(
+            proxy_settings
+                .get()
+                .upstream_timeout_secs
+                .clamp(1, 600),
+        );
         Self {
             app_handle,
             route_service,
@@ -55,6 +65,7 @@ impl ProxyState {
             reqwest_client: reqwest::Client::builder()
                 .no_proxy()
                 .redirect(reqwest::redirect::Policy::none())
+                .timeout(upstream_timeout)
                 .gzip(true)
                 .brotli(true)
                 .build()
@@ -62,6 +73,7 @@ impl ProxyState {
             reqwest_client_direct: reqwest::Client::builder()
                 .no_proxy()
                 .redirect(reqwest::redirect::Policy::none())
+                .timeout(upstream_timeout)
                 .gzip(true)
                 .brotli(true)
                 .build()
@@ -69,6 +81,7 @@ impl ProxyState {
             mocking_service,
             inspector_service,
             domain_service,
+            proxy_settings,
         }
     }
 

@@ -8,17 +8,14 @@ import { defineConfig } from "vite";
 const host = process.env.TAURI_DEV_HOST;
 
 /**
- * Custom plugin to copy injection script to tauri resources
+ * Copy the injection bundle into hg-serve resources. Serve injects and hosts it.
  */
 const copyInjectionPlugin = () => {
   return {
     name: "copy-injection",
     closeBundle() {
       const src = path.resolve(__dirname, "dist/inspector.js");
-      const dests = [
-        path.resolve(__dirname, "src-tauri/hg-gui/resources/inspector.js"),
-        path.resolve(__dirname, "src-tauri/hg-serve/resources/inspector.js"),
-      ];
+      const dests = [path.resolve(__dirname, "src-tauri/hg-serve/resources/inspector.js")];
       if (fs.existsSync(src)) {
         for (const dest of dests) {
           fs.mkdirSync(path.dirname(dest), { recursive: true });

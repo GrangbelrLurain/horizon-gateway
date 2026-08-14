@@ -2,7 +2,7 @@ import { useAtomValue } from "jotai";
 import { useCallback, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
-import { openPopupWindow } from "@/features/popup-window";
+import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import {
@@ -11,6 +11,7 @@ import {
   bulkRemoveDomains,
   setBulkApiBodyLogging,
   setBulkApiLogging,
+  setBulkHttpsDecrypt,
   setBulkMonitor,
   setBulkProxy,
   setBulkScriptInjection,
@@ -24,6 +25,7 @@ export function useDomainBulkActions() {
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
   const { proxyActive, getFeatureState, fetchAll, domains } = useDomainHubData();
   const [bulkLoading, setBulkLoading] = useState(false);
+  const openHubSurface = useOpenHubSurface();
 
   const applyFeatureToDomains = useCallback(
     async (domainIds: number[], key: BulkFeatureKey, enabled: boolean) => {
@@ -37,6 +39,13 @@ export function useDomainBulkActions() {
         await setBulkScriptInjection(urls, enabled);
         return;
       }
+      if (key === "httpsDecrypt") {
+        const urls = domainIds
+          .map((id) => domains.find((d) => d.id === id)?.url)
+          .filter((u): u is string => Boolean(u));
+        await setBulkHttpsDecrypt(urls, enabled);
+        return;
+      }
       if (key === "monitor") {
         await setBulkMonitor(domainIds, enabled);
         return;
@@ -46,7 +55,7 @@ export function useDomainBulkActions() {
         return;
       }
       if (!proxyActive) {
-        void openPopupWindow("infrastructure");
+        openHubSurface("chrome/settings");
         return;
       }
       const states = domainIds.map((domainId) => ({ domainId, state: getFeatureState(domainId) }));
@@ -55,7 +64,7 @@ export function useDomainBulkActions() {
         await showAlert(t.bulkModeEnter, t.bulkProxySkipped(skipped), "warning");
       }
     },
-    [apiLinks, domains, getFeatureState, proxyActive, showAlert, t],
+    [apiLinks, domains, getFeatureState, openHubSurface, proxyActive, showAlert, t],
   );
 
   const bulkFeatureToggle = useCallback(

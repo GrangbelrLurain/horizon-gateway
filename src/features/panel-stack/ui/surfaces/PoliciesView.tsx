@@ -7,6 +7,7 @@ import html2canvas from "html2canvas";
 import { useAtom, useAtomValue } from "jotai";
 import { jsPDF } from "jspdf";
 import {
+  AlertTriangle,
   BookOpen,
   Download,
   Edit2,
@@ -29,16 +30,19 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { languageAtom } from "@/entities/app";
 import type { Annotation } from "@/entities/inspector";
 import { commands, unwrap } from "@/shared/api";
+import { type GuideHostCoverage, resolveGuideHostCoverage } from "@/shared/lib/guideMatch";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { useDomainHubData } from "../../hooks/useDomainHubData";
 import { hubPoliciesDomainSeedAtom } from "../../store";
 import { policiesEn } from "./policies-en";
 import { policiesKo } from "./policies-ko";
 
 type ViewMode = "manage" | "report";
+const FILTER_UNMATCHED = "UNMATCHED";
 
 function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
@@ -55,9 +59,32 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
+function CoverageBanner({ coverage, t }: { coverage: GuideHostCoverage | undefined; t: typeof policiesKo }) {
+  if (coverage?.status === "none") {
+    return (
+      <div className="flex items-start gap-1.5 rounded-lg bg-error/10 text-error px-2 py-1.5">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+        <p className="text-[10px] font-bold leading-snug m-0">{t.coverageNone}</p>
+      </div>
+    );
+  }
+  if (coverage?.status === "gap") {
+    return (
+      <div className="flex items-start gap-1.5 rounded-lg bg-warning/10 text-warning px-2 py-1.5">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+        <p className="text-[10px] font-bold leading-snug m-0">
+          {t.coverageGap} {coverage.unmatchedGroupHosts.join(", ")}
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function PoliciesView() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? policiesKo : policiesEn;
+  const { domains: registeredDomains, fetchAll, getDomainHost, getGroupId } = useDomainHubData();
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [search, setSearch] = useState("");
@@ -98,48 +125,78 @@ export function PoliciesView() {
 
   useEffect(() => {
     fetchAnnotations();
+    void fetchAll();
     const unlisten = listen("annotations-updated", fetchAnnotations);
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [fetchAnnotations]);
+  }, [fetchAnnotations, fetchAll]);
 
-  const domains = useMemo(() => {
-    const set = new Set<string>();
+  const registeredHosts = useMemo(
+    () =>
+      registeredDomains.map((domain) => ({
+        host: getDomainHost(domain),
+        groupId: getGroupId(domain.id),
+      })),
+    [registeredDomains, getDomainHost, getGroupId],
+  );
+
+  const coverageById = useMemo(() => {
+    const map = new Map<string, GuideHostCoverage>();
     for (const ann of annotations) {
-      if (ann.domain) {
-        set.add(ann.domain);
+      map.set(ann.id, resolveGuideHostCoverage(ann, registeredHosts));
+    }
+    return map;
+  }, [annotations, registeredHosts]);
+
+  const unmatchedCount = useMemo(
+    () => annotations.filter((ann) => coverageById.get(ann.id)?.status === "none").length,
+    [annotations, coverageById],
+  );
+
+  const filterHosts = useMemo(() => {
+    const set = new Set<string>();
+    for (const coverage of coverageById.values()) {
+      for (const host of coverage.matchedHosts) {
+        set.add(host);
       }
     }
+    if (selectedDomain !== "ALL" && selectedDomain !== FILTER_UNMATCHED) {
+      set.add(selectedDomain);
+    }
     return Array.from(set).sort();
-  }, [annotations]);
+  }, [coverageById, selectedDomain]);
 
   useEffect(() => {
     if (!domainSeed || !ready) {
       return;
     }
     const seed = domainSeed.toLowerCase();
-    const match = domains.find(
-      (d) => d.toLowerCase() === seed || d.toLowerCase().includes(seed) || seed.includes(d.toLowerCase()),
+    const match = registeredHosts.find(
+      (item) => item.host === seed || item.host.includes(seed) || seed.includes(item.host),
     );
-    if (match) {
-      setSelectedDomain(match);
-    }
+    setSelectedDomain(match?.host ?? seed);
     setDomainSeed(null);
-  }, [domainSeed, domains, ready, setDomainSeed]);
+  }, [domainSeed, ready, registeredHosts, setDomainSeed]);
 
   const filteredAnnotations = useMemo(() => {
     const q = search.toLowerCase();
     return annotations.filter((ann) => {
-      const matchesDomain = selectedDomain === "ALL" || ann.domain === selectedDomain;
+      const coverage = coverageById.get(ann.id);
+      const matchesDomain =
+        selectedDomain === "ALL" ||
+        (selectedDomain === FILTER_UNMATCHED
+          ? coverage?.status === "none"
+          : Boolean(coverage?.matchedHosts.includes(selectedDomain)));
       const matchesSearch =
         q === "" ||
         ann.role.toLowerCase().includes(q) ||
         ann.description.toLowerCase().includes(q) ||
-        ann.selector.toLowerCase().includes(q);
+        ann.selector.toLowerCase().includes(q) ||
+        (ann.hostPattern ?? "").toLowerCase().includes(q);
       return matchesDomain && matchesSearch;
     });
-  }, [annotations, selectedDomain, search]);
+  }, [annotations, selectedDomain, search, coverageById]);
 
   const handleDelete = async (id: string) => {
     const res = unwrap(await commands.deleteAnnotation({ id }));
@@ -335,6 +392,11 @@ export function PoliciesView() {
     }
   };
 
+  const editCoverage = resolveGuideHostCoverage(
+    { hostPattern: editForm.hostPattern, domain: editForm.domain },
+    registeredHosts,
+  );
+
   return (
     <div className="relative flex flex-col h-full min-h-0 bg-base-100 text-base-content">
       <div className="flex flex-col gap-3 p-4 border-b border-base-300 bg-base-200/50 shrink-0">
@@ -417,9 +479,24 @@ export function PoliciesView() {
               <FilterChip active={selectedDomain === "ALL"} onClick={() => setSelectedDomain("ALL")}>
                 {t.filterAll}
               </FilterChip>
-              {domains.map((d) => (
-                <FilterChip key={d} active={selectedDomain === d} onClick={() => setSelectedDomain(d)}>
-                  {d}
+              {unmatchedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDomain(FILTER_UNMATCHED)}
+                  className={clsx(
+                    "px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors whitespace-nowrap shrink-0 inline-flex items-center gap-1",
+                    selectedDomain === FILTER_UNMATCHED
+                      ? "bg-error text-error-content"
+                      : "bg-error/10 text-error hover:bg-error/20",
+                  )}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {t.filterUnmatched} ({unmatchedCount})
+                </button>
+              )}
+              {filterHosts.map((host) => (
+                <FilterChip key={host} active={selectedDomain === host} onClick={() => setSelectedDomain(host)}>
+                  {host}
                 </FilterChip>
               ))}
             </div>
@@ -512,18 +589,15 @@ export function PoliciesView() {
                     </div>
 
                     <div className="flex flex-col gap-2 pt-2 border-t border-base-200 mt-auto">
+                      <CoverageBanner coverage={coverageById.get(ann.id)} t={t} />
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-base-content/50">
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <div className="flex items-center gap-1 bg-base-200 px-2 py-0.5 rounded font-bold text-base-content/70">
-                            <Globe className="w-3 h-3 text-primary" />
-                            <span className="truncate max-w-[140px]">{ann.domain || "Global"}</span>
-                          </div>
                           {ann.hostPattern && (
                             <span
-                              className="bg-primary/10 text-primary font-mono px-1.5 py-0.5 rounded border border-primary/20 truncate max-w-[120px]"
-                              title="Host Pattern"
+                              className="bg-primary/10 text-primary font-mono px-1.5 py-0.5 rounded border border-primary/20 truncate max-w-[180px]"
+                              title={ann.hostPattern}
                             >
-                              H: {ann.hostPattern}
+                              {ann.hostPattern}
                             </span>
                           )}
                           {ann.pathPattern && (
@@ -531,12 +605,22 @@ export function PoliciesView() {
                               className="bg-secondary/10 text-secondary font-mono px-1.5 py-0.5 rounded border border-secondary/20 truncate max-w-[120px]"
                               title="Path Pattern"
                             >
-                              P: {ann.pathPattern}
+                              {ann.pathPattern}
                             </span>
                           )}
                         </div>
                         <span className="whitespace-nowrap">{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                       </div>
+                      {(coverageById.get(ann.id)?.matchedHosts.length ?? 0) > 0 && (
+                        <p className="text-[10px] text-base-content/45 m-0 truncate">
+                          {t.appliedHosts}: {coverageById.get(ann.id)?.matchedHosts.join(", ")}
+                        </p>
+                      )}
+                      {ann.domain && (
+                        <p className="text-[10px] text-base-content/35 m-0 truncate">
+                          {t.capturedOn}: {ann.domain}
+                        </p>
+                      )}
 
                       <div className="flex items-center gap-2">
                         <Button
@@ -672,7 +756,15 @@ export function PoliciesView() {
                           }}
                         >
                           <Globe style={{ width: "12px", height: "12px" }} />
-                          <span style={{ fontFamily: "monospace" }}>{ann.domain}</span>
+                          <span style={{ fontFamily: "monospace" }}>{ann.hostPattern || ann.domain}</span>
+                          {ann.domain && ann.hostPattern && ann.hostPattern !== ann.domain && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {t.capturedOn} {ann.domain}
+                              </span>
+                            </>
+                          )}
                           <span>•</span>
                           <span>{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                         </div>
@@ -852,30 +944,23 @@ export function PoliciesView() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
-                  <Globe className="w-3 h-3 text-primary" /> {t.domainLabel}
-                </span>
-                <Input
-                  value={editForm.domain}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
-                  placeholder="www.modetour.com"
-                  className="h-8 text-xs font-mono"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
-                  <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
-                </span>
-                <Input
-                  value={editForm.hostPattern}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
-                  placeholder={t.hostPatternPlaceholder}
-                  className="h-8 text-xs font-mono"
-                />
-              </label>
-            </div>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
+              </span>
+              <Input
+                value={editForm.hostPattern}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
+                placeholder={t.hostPatternPlaceholder}
+                className="h-8 text-xs font-mono"
+              />
+              <CoverageBanner coverage={editCoverage} t={t} />
+              {editCoverage.matchedHosts.length > 0 && (
+                <p className="text-[10px] text-base-content/45 m-0">
+                  {t.appliedHosts}: {editCoverage.matchedHosts.join(", ")}
+                </p>
+              )}
+            </label>
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
@@ -894,14 +979,29 @@ export function PoliciesView() {
               <p className="text-[11px] text-base-content/60 leading-relaxed m-0">{t.patternHelp}</p>
             </div>
 
-            <label className="flex flex-col gap-1.5 opacity-80">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">{t.urlLabel}</span>
-              <Input
-                value={editForm.url}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
-                className="h-8 text-xs font-mono"
-              />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-base-content/40" /> {t.domainLabel}
+                </span>
+                <Input
+                  value={editForm.domain}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
+                  placeholder="www.modetour.com"
+                  className="h-8 text-xs font-mono"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
+                  {t.urlLabel}
+                </span>
+                <Input
+                  value={editForm.url}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
+                  className="h-8 text-xs font-mono"
+                />
+              </label>
+            </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <Button

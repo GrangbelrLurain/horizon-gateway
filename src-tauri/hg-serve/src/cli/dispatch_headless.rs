@@ -243,10 +243,28 @@ pub fn dispatch_headless(
             let result = command::local_route_commands::stop_local_proxy_svc(None)?;
             Ok(serde_json::to_value(result).unwrap())
         }
-        "set_local_routing_enabled" => {
-                        let parsed: command::local_route_commands::SetLocalRoutingEnabledPayload = serde_json::from_value(payload)
+        "update_proxy_settings" => {
+            let parsed: command::local_route_commands::UpdateProxySettingsPayload = serde_json::from_value(payload)
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::local_route_commands::set_local_routing_enabled_svc(None, parsed, &ctx.proxy_settings_service)?;
+            let result = command::local_route_commands::update_proxy_settings_svc(parsed, &ctx.proxy_settings_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "set_https_decrypt_host" => {
+            let parsed: command::local_route_commands::SetHttpsDecryptHostPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::local_route_commands::set_https_decrypt_host_svc(parsed, &ctx.proxy_settings_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "set_dns_zone_record" => {
+            let parsed: command::local_route_commands::SetDnsZoneRecordPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::local_route_commands::set_dns_zone_record_svc(parsed, &ctx.proxy_settings_service)?;
+            Ok(serde_json::to_value(result).unwrap())
+        }
+        "remove_dns_zone_record" => {
+            let parsed: command::local_route_commands::RemoveDnsZoneRecordPayload = serde_json::from_value(payload)
+                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let result = command::local_route_commands::remove_dns_zone_record_svc(parsed, &ctx.proxy_settings_service)?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "start_transparent_proxy" => {
@@ -279,14 +297,6 @@ pub fn dispatch_headless(
         }
         "get_mocking_status" => {
                         let result = command::mocking_commands::get_mocking_status_svc(&ctx.mocking_service)?;
-            Ok(serde_json::to_value(result).unwrap())
-        }
-        "set_mocking_enabled" => {
-                        let parsed_payload: command::mocking_commands::SetMockingEnabledPayload = serde_json::from_value(payload)
-                .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
-            let result = command::mocking_commands::set_mocking_enabled_svc(
-                None, parsed_payload, &ctx.mocking_service,
-            )?;
             Ok(serde_json::to_value(result).unwrap())
         }
         "get_scenarios" => {
@@ -395,16 +405,6 @@ pub fn dispatch_headless(
                 .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::inspector_commands::import_annotations_svc(&ctx.inspector_service, parsed)?;
             Ok(serde_json::to_value(result).unwrap())
-        }
-        "get_global_inspector_enabled" => {
-            let result = command::inspector_commands::get_global_inspector_enabled_svc()?;
-            Ok(serde_json::to_value(result).unwrap())
-        }
-        "set_global_inspector_enabled" => {
-            let enabled: bool = serde_json::from_value(payload)
-                .map_err(|e| format!("인자 역직렬화 실패: (true/false 필요) {}", e))?;
-            command::inspector_commands::set_global_inspector_enabled_svc(&ctx.inspector_service, enabled)?;
-            Ok(serde_json::json!({"success": true, "data": null}))
         }
         "get_injection_domains" => {
             let result = command::inspector_commands::get_injection_domains_svc(&ctx.inspector_service)?;

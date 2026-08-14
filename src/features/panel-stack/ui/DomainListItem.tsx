@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { useAtomValue } from "jotai";
 import { Globe, Pencil, Trash2 } from "lucide-react";
 import { memo } from "react";
+import { proxyActiveAtom } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
 import {
   domainBulkAnchorAtomFamily,
@@ -39,9 +40,11 @@ function FeatureBadge({
 function FeatureBadges({
   state,
   labels,
+  proxyActive,
 }: {
   state: DomainFeatureState;
-  labels: { monitor: string; proxy: string; api: string };
+  labels: { monitor: string; proxy: string; api: string; decrypt: string };
+  proxyActive: boolean;
 }) {
   return (
     <div className="flex items-center gap-0.5 shrink-0">
@@ -52,6 +55,12 @@ function FeatureBadges({
         title={`Script Injection: ${state.scriptInjectionEnabled === true ? "ON" : "OFF"}`}
       />
       <FeatureBadge
+        shortLabel="D"
+        label={labels.decrypt}
+        active={state.httpsDecryptEnabled === true}
+        title={`${labels.decrypt}: ${state.httpsDecryptEnabled === true ? "ON" : "OFF"}`}
+      />
+      <FeatureBadge
         shortLabel="M"
         label={labels.monitor}
         active={state.monitorEnabled === true}
@@ -60,8 +69,8 @@ function FeatureBadges({
       <FeatureBadge
         shortLabel="P"
         label={labels.proxy}
-        active={state.proxyEnabled === true}
-        title={`${labels.proxy}: ${state.proxyEnabled === true ? "ON" : "OFF"}`}
+        active={proxyActive && state.proxyEnabled === true}
+        title={`${labels.proxy}: ${proxyActive && state.proxyEnabled === true ? "ON" : "OFF"}`}
       />
       <FeatureBadge
         shortLabel="A"
@@ -87,6 +96,7 @@ function DomainListItem({
   const bulkChecked = useAtomValue(domainBulkCheckedAtomFamily(domainId));
   const isAnchor = useAtomValue(domainBulkAnchorAtomFamily(domainId));
   const { onPointer, onEditDomain, onDeleteDomain, badgeLabels } = useDomainListInteraction();
+  const proxyActive = useAtomValue(proxyActiveAtom);
   const highlighted = bulkMode ? bulkChecked : navSelected;
 
   return (
@@ -127,7 +137,7 @@ function DomainListItem({
         )}
         <Globe className={clsx("w-3.5 h-3.5 shrink-0", highlighted ? "text-primary" : "text-base-content/30")} />
         <span className="text-xs font-bold truncate flex-1 min-w-0">{displayUrl}</span>
-        {!bulkMode && <FeatureBadges state={featureState} labels={badgeLabels} />}
+        {!bulkMode && <FeatureBadges state={featureState} labels={badgeLabels} proxyActive={proxyActive} />}
       </button>
       {!bulkMode && (
         <div className="absolute right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -166,6 +176,7 @@ export const MemoDomainListItem = memo(DomainListItem, (prev, next) => {
     prev.featureState.monitorEnabled === next.featureState.monitorEnabled &&
     prev.featureState.proxyEnabled === next.featureState.proxyEnabled &&
     prev.featureState.apiLoggingEnabled === next.featureState.apiLoggingEnabled &&
-    prev.featureState.scriptInjectionEnabled === next.featureState.scriptInjectionEnabled
+    prev.featureState.scriptInjectionEnabled === next.featureState.scriptInjectionEnabled &&
+    prev.featureState.httpsDecryptEnabled === next.featureState.httpsDecryptEnabled
   );
 });

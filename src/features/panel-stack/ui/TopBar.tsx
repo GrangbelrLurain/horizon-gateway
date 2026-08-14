@@ -25,7 +25,6 @@ import { ToolsMenu } from "./ToolsMenu";
 const appWindow = getCurrentWindow();
 
 interface TopBarProps {
-  onOpenInfrastructure: () => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
   onOpenTeam: () => void;
@@ -33,14 +32,7 @@ interface TopBarProps {
   teamOpen?: boolean;
 }
 
-export function TopBar({
-  onOpenInfrastructure,
-  onOpenProfile,
-  onOpenSettings,
-  onOpenTeam,
-  onOpenGlobalTool,
-  teamOpen = false,
-}: TopBarProps) {
+export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobalTool, teamOpen = false }: TopBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const proxyRunning = useAtomValue(proxyRunningAtom);
@@ -91,7 +83,7 @@ export function TopBar({
         <button
           type="button"
           data-tauri-drag-region={false}
-          onClick={onOpenInfrastructure}
+          onClick={onOpenSettings}
           className={clsx(
             "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors",
             proxyRunning
@@ -174,17 +166,6 @@ export function TopBar({
                 onClick={() => setSettingsMenuOpen(false)}
               />
               <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenInfrastructure();
-                    setSettingsMenuOpen(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <Server className="w-3.5 h-3.5 text-primary" />
-                  {t.infrastructure}
-                </button>
                 <button
                   type="button"
                   onClick={() => {

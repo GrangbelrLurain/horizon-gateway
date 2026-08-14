@@ -2,7 +2,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useAtom, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { notifyHubHandoff } from "@/shared/lib/tauri/hubEvents";
-import { openDetachedWindow } from "@/shared/lib/tauri/openDetachedWindow";
+import { canonicalizeHubSurfaceId, openDetachedHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import type { HandoffTarget, HubHandoff } from "../lib/hubHandoff";
 import { canOpenPanel } from "../lib/panelGates";
 import { getSurfaceEntry } from "../lib/surfaceRegistry";
@@ -144,12 +144,13 @@ export function usePanelNavigation() {
 
   const openGlobalSurface = useCallback(
     (id: HubSurfaceId, opts?: { detach?: boolean }) => {
-      const entry = getSurfaceEntry(id);
+      const resolved = canonicalizeHubSurfaceId(id) as HubSurfaceId;
+      const entry = getSurfaceEntry(resolved);
       if (opts?.detach) {
-        void openDetachedWindow(entry.route, id, entry.detachWidth, entry.detachHeight);
+        void openDetachedHubSurface(resolved, resolved, entry.detachWidth, entry.detachHeight);
         return;
       }
-      syncUrl(domainIdRef.current, panelsRef.current, id);
+      syncUrl(domainIdRef.current, panelsRef.current, resolved);
     },
     [syncUrl],
   );

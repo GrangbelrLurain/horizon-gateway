@@ -1,16 +1,13 @@
 import { useAtomValue } from "jotai";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { languageAtom, proxyMockingEnabledAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
+import { languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
 import type { MockRule } from "@/entities/mocking";
 import * as mockingApi from "@/entities/mocking";
-import { openPopupWindow } from "@/features/popup-window";
 import type { Domain } from "@/shared/api";
-import { commands, unwrap } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
 import { Modal } from "@/shared/ui/modal/Modal";
-import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { useApiExchangeHandoffEffect } from "../hooks/useHubHandoff";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
@@ -55,10 +52,8 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
   const { alert: showAlert } = usePromiseModal();
   const { getDomainHost } = useDomainHubData();
   const host = getDomainHost(domain);
-  const mockingEnabled = useAtomValue(proxyMockingEnabledAtom);
   const proxyRunning = useAtomValue(proxyRunningAtom);
   const [rules, setRules] = useState<MockRule[]>([]);
-  const [loading, setLoading] = useState(false);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<MockRule | null>(null);
   const [ruleForm, setRuleForm] = useState<RuleForm>(DEFAULT_RULE_FORM);
@@ -100,21 +95,6 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
       setIsRuleModalOpen(true);
     }, []),
   );
-
-  const toggleMocking = async (enabled: boolean) => {
-    if (mockingEnabled === null) {
-      return;
-    }
-    setLoading(true);
-    try {
-      await commands.setMockingEnabled({ enabled }).then(unwrap);
-    } catch (e) {
-      console.error(e);
-      await showAlert(t.errorGeneric, t.saveFailed, "danger");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleRuleEnabled = async (rule: MockRule, enabled: boolean) => {
     try {
@@ -219,12 +199,11 @@ export function DomainApiMockingPanel({ domain, onClose }: DomainApiMockingPanel
     <Panel id="api/mocking" title={t.apiMocking} subtitle={host} onClose={onClose} width="lg">
       <div className="space-y-4">
         <HandoffBanner />
-        <StatusToggle label={t.mockingGlobal} checked={!!mockingEnabled} onChange={toggleMocking} loading={loading} />
 
         {!proxyRunning ? (
           <div className="space-y-3">
             <p className="text-xs text-base-content/50">{t.mockingProxyOff}</p>
-            <Button variant="primary" size="sm" onClick={() => void openPopupWindow("infrastructure")}>
+            <Button variant="primary" size="sm" onClick={() => nav.openGlobalSurface("chrome/settings")}>
               {t.mockingOpenInfra}
             </Button>
           </div>

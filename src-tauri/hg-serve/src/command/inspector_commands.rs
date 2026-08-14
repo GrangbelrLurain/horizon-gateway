@@ -1,7 +1,6 @@
 use crate::model::api_response::ApiResponse;
 use crate::model::inspector::Annotation;
 use crate::service::inspector_service::InspectorService;
-use crate::service::local_proxy;
 
 pub const GET_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_annotations",
@@ -171,38 +170,6 @@ pub fn import_annotations_svc(service: &InspectorService, payload: ImportAnnotat
         message: "정책들을 성공적으로 가져왔습니다.".to_string(),
         success: true,
         data: list,
-    })
-}
-
-pub const SET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_global_inspector_enabled",
-    description: "UI 인스펙터 전역 활성화 여부를 설정합니다.",
-    payload_example: "true",
-    category: "inspector",
-    gui_only: false,
-};
-
-
-pub fn set_global_inspector_enabled_svc(service: &InspectorService, payload: bool) -> Result<(), String> {
-    service.set_enabled(payload);
-    local_proxy::set_inspector_enabled(payload);
-    Ok(())
-}
-
-pub const GET_GLOBAL_INSPECTOR_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_global_inspector_enabled",
-    description: "UI 인스펙터 전역 활성화 상태를 조회합니다.",
-    payload_example: "{}",
-    category: "inspector",
-    gui_only: false,
-};
-
-
-pub fn get_global_inspector_enabled_svc() -> Result<ApiResponse<bool>, String> {
-    Ok(ApiResponse {
-        message: "인스펙터 상태 조회 완료".to_string(),
-        success: true,
-        data: local_proxy::is_inspector_enabled(),
     })
 }
 

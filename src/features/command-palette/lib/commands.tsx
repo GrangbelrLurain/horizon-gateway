@@ -22,7 +22,6 @@ import {
   User,
   Users,
   Wand2,
-  Zap,
 } from "lucide-react";
 import type { PaletteCommandDef } from "../types";
 
@@ -35,7 +34,6 @@ export function createPaletteCommands(handlers: {
   onEditMockRule: (ruleId: string) => void;
   onActivateScenario: (scenarioId: string) => Promise<void>;
   onToggleProxy: () => Promise<void>;
-  onToggleMocking: () => Promise<void>;
   onClearApiLogs: () => Promise<void>;
   onExportRootCa: () => Promise<void>;
   onOpenTeamSync: () => void;
@@ -100,7 +98,7 @@ export function createPaletteCommands(handlers: {
       icon: <PlusCircle className="w-4 h-4 text-primary" />,
       meta: {
         label: { ko: "[도메인] 등록: 신규 도메인 추가", en: "[Domain] Add New Domain" },
-        description: { ko: "새 API 도메인 등록 폼 팝업을 만듭니다", en: "Open new domain creation dialog" },
+        description: { ko: "새 API 도메인 등록 화면을 엽니다", en: "Open the add-domain form" },
         aliases: {
           ko: ["도메인", "등록", "추가", "신규"],
           en: ["domain", "add", "new", "create"],
@@ -306,22 +304,6 @@ export function createPaletteCommands(handlers: {
     },
 
     // --- [모킹] 영역 ---
-    {
-      id: "toggle-mocking",
-      group: "mocking",
-      icon: <Zap className="w-4 h-4 text-warning" />,
-      meta: {
-        label: { ko: "[모킹] 토글: 전역 API 모킹 (ON/OFF)", en: "[Mocking] Toggle Global Mocking" },
-        description: { ko: "전체 API 응답 변조(모킹)를 켜거나 끕니다", en: "Enable or disable global API mocking" },
-        aliases: {
-          ko: ["모킹", "가짜", "토글", "전역", "응답", "켜기", "끄기"],
-          en: ["mocking", "toggle", "enable", "disable"],
-        },
-      },
-      action: () => {
-        handlers.onToggleMocking();
-      },
-    },
     {
       id: "find-mock-rule",
       group: "mocking",

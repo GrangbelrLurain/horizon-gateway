@@ -11,6 +11,7 @@ use tokio_rustls::TlsAcceptor;
 use crate::service::api_log_service::ApiLogService;
 use crate::service::ca_service::CaService;
 use crate::service::local_route_service::LocalRouteService;
+use crate::service::proxy_settings_service::ProxySettingsService;
 
 use super::super::connect::handle_connect_tunnel;
 use super::super::handler::proxy_handler;
@@ -41,6 +42,7 @@ pub async fn run_proxy(
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
     domain_service: Arc<crate::service::domain_service::DomainService>,
+    proxy_settings: Arc<ProxySettingsService>,
 ) -> std::io::Result<JoinHandle<()>> {
     // Bind to 0.0.0.0 so the proxy is reachable via Tailscale IP (100.x.x.x)
     // from mobile devices on the same VPN network for cert downloads and PAC access.
@@ -57,6 +59,7 @@ pub async fn run_proxy(
         mocking_service,
         inspector_service,
         domain_service,
+        proxy_settings,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -109,6 +112,7 @@ pub async fn run_reverse_proxy_http(
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
     domain_service: Arc<crate::service::domain_service::DomainService>,
+    proxy_settings: Arc<ProxySettingsService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -123,6 +127,7 @@ pub async fn run_reverse_proxy_http(
         mocking_service,
         inspector_service,
         domain_service,
+        proxy_settings,
     ));
     let app = proxy_app(Arc::clone(&state), "http");
     let handle = tokio::spawn(async move {
@@ -158,6 +163,7 @@ pub async fn run_reverse_proxy_https(
     mocking_service: Arc<crate::service::mocking_service::MockingService>,
     inspector_service: Arc<crate::service::inspector_service::InspectorService>,
     domain_service: Arc<crate::service::domain_service::DomainService>,
+    proxy_settings: Arc<ProxySettingsService>,
 ) -> std::io::Result<JoinHandle<()>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -172,6 +178,7 @@ pub async fn run_reverse_proxy_https(
         mocking_service,
         inspector_service,
         domain_service,
+        proxy_settings,
     ));
     let app = proxy_app(Arc::clone(&state), "https");
     let config = rustls::ServerConfig::builder()

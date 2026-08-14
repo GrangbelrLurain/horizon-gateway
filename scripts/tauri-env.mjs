@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,6 +27,20 @@ if (fs.existsSync(envPath)) {
 
 const cliPath = path.join(__dirname, '../node_modules/@tauri-apps/cli/tauri.js');
 const args = process.argv.slice(2);
+const tauriDir = path.join(__dirname, '../src-tauri');
+
+if (args[0] === 'dev') {
+  const cargo = spawnSync(
+    'cargo',
+    ['build', '-p', 'horizon-gateway-serve', '-p', 'hgc'],
+    { cwd: tauriDir, stdio: 'inherit', shell: process.platform === 'win32' },
+  );
+  if (cargo.status !== 0) {
+    console.warn(
+      '[tauri] cargo build -p horizon-gateway-serve failed. If the exe is locked, stop horizon-gateway-serve and retry.',
+    );
+  }
+}
 const defaultConfig = path.join(__dirname, '../src-tauri/hg-gui/tauri.conf.json');
 const configFlag = ['--config', '-c'];
 const hasConfig = args.some((a, i) => configFlag.includes(a) || (i > 0 && configFlag.includes(args[i - 1])));

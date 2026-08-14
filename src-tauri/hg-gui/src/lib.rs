@@ -65,8 +65,9 @@ pub fn run() {
             tracing::info!("Single Instance triggered with args: {:?}", argv);
             use tauri::{Emitter, Manager};
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_focus();
+                let _ = window.show();
                 let _ = window.unminimize();
+                let _ = window.set_focus();
             }
             for arg in argv {
                 if arg.starts_with("horizon-gateway://") {
@@ -114,7 +115,6 @@ pub fn run() {
             });
 
             if !is_cli_mode {
-                crate::serve::setup_tray(app)?;
                 crate::serve::start_event_forwarder(app.handle().clone());
             }
 

@@ -29,7 +29,7 @@ pub struct AppContext {
     pub link_service: DomainGroupLinkService,
     pub monitor_service: DomainMonitorService,
     pub local_route_service: Arc<LocalRouteService>,
-    pub proxy_settings_service: ProxySettingsService,
+    pub proxy_settings_service: Arc<ProxySettingsService>,
     pub api_logging_service: ApiLoggingSettingsService,
     pub api_log_service: ApiLogService,
     pub mocking_service: Arc<MockingService>,
@@ -99,7 +99,7 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     let link_service = DomainGroupLinkService::new(links_storage_path);
     let monitor_service = DomainMonitorService::new(logs_dir, monitor_links_path);
     let local_route_service = Arc::new(LocalRouteService::new(local_routes_path));
-    let proxy_settings_service = ProxySettingsService::new(proxy_settings_path);
+    let proxy_settings_service = Arc::new(ProxySettingsService::new(proxy_settings_path));
     let api_logging_service = ApiLoggingSettingsService::new(api_logging_path);
     let api_log_service = ApiLogService::new(app_data_dir.clone());
     let mocking_service = Arc::new(MockingService::new(
@@ -119,12 +119,17 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
         Arc::new(JsonSchemaRegistryService::new(json_schemas_path));
     let crypto_preset_service = Arc::new(CryptoPresetService::new(crypto_presets_path));
 
-    crate::service::local_proxy::set_mocking_enabled(mocking_service.get_settings().enabled);
-    crate::service::local_proxy::set_inspector_enabled(inspector_service.get_settings().enabled);
-
     monitor_service.sync_with_domains(&domain_service.get_all());
     api_logging_service.refresh_map(&domain_service.get_all());
     local_route_service.sync_with_domains(&domain_service.get_all());
+    migrate_removed_global_toggles(
+        &proxy_settings_service,
+        &local_route_service,
+        &mocking_service,
+        &inspector_service,
+        &api_logging_service,
+        &domain_service,
+    );
 
     Ok(AppContext {
         app_data_dir,
@@ -145,6 +150,36 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
         json_schema_registry_service,
         crypto_preset_service,
     })
+}
+
+fn migrate_removed_global_toggles(
+    proxy_settings: &ProxySettingsService,
+    routes: &LocalRouteService,
+    mocking: &MockingService,
+    inspector: &InspectorService,
+    api_logging: &ApiLoggingSettingsService,
+    domains: &DomainService,
+) {
+    if proxy_settings.consume_legacy_local_routing_disabled() {
+        routes.disable_all();
+    }
+    if !mocking.get_settings().enabled {
+        mocking.disable_all_rules();
+        mocking.set_enabled(true);
+    }
+
+    let mut decrypt_hosts = inspector.get_injection_domains();
+    let domain_list = domains.get_all();
+    for link in api_logging.get_links() {
+        if link.logging_enabled {
+            if let Some(domain) = domain_list.iter().find(|d| d.id == link.domain_id) {
+                decrypt_hosts.push(crate::service::domain_hostname::domain_url_to_hostname(
+                    &domain.url,
+                ));
+            }
+        }
+    }
+    proxy_settings.seed_tls_defaults_if_needed(decrypt_hosts);
 }
 
 

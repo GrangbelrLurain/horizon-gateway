@@ -58,7 +58,7 @@ export function HubContextBar({ domain }: HubContextBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
-  const { getFeatureState, getDomainHost } = useDomainHubData();
+  const { getFeatureState, getDomainHost, proxyActive } = useDomainHubData();
   const setDomainListOverlay = useSetAtom(domainListOverlayOpenAtom);
   const setApiLogsHostSeed = useSetAtom(hubApiLogsHostSeedAtom);
   const featureState = getFeatureState(domain.id);
@@ -96,6 +96,12 @@ export function HubContextBar({ domain }: HubContextBarProps) {
 
       <div className="flex items-center gap-1">
         <FeatureChip
+          short="D"
+          label={t.featureBadgeDecrypt}
+          active={featureState.httpsDecryptEnabled === true}
+          onClick={() => nav.openPanel("overview")}
+        />
+        <FeatureChip
           short="M"
           label={t.featureBadgeMonitor}
           active={featureState.monitorEnabled === true}
@@ -104,8 +110,10 @@ export function HubContextBar({ domain }: HubContextBarProps) {
         <FeatureChip
           short="P"
           label={t.featureBadgeProxy}
-          active={featureState.proxyEnabled === true}
-          onClick={() => openFeatureSurface("global/proxy-graph")}
+          active={proxyActive && featureState.proxyEnabled === true}
+          onClick={() =>
+            proxyActive ? openFeatureSurface("global/proxy-graph") : openFeatureSurface("chrome/settings")
+          }
         />
         <FeatureChip
           short="A"

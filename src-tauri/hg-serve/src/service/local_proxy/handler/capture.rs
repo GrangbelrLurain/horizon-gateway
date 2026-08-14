@@ -13,6 +13,7 @@ use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
     is_html_response, should_inject_for_host,
 };
+use super::super::reserved::is_horizon_gateway_internal;
 use super::super::state::ProxyState;
 
 const HOP_BY_HOP_HEADERS: &[&str] = &[
@@ -182,8 +183,10 @@ pub(crate) async fn handle_with_logging(
         has_bodies: body_enabled,
         is_mocked: false,
     };
-    state.api_log_service.save_log(&entry);
-    let _ = state.emit("api-log-captured", entry);
+    if !is_horizon_gateway_internal(path, target_uri_str) {
+        state.api_log_service.save_log(&entry);
+        let _ = state.emit("api-log-captured", entry);
+    }
 
     let mut builder = Response::builder().status(status);
     if let Some(headers) = builder.headers_mut() {

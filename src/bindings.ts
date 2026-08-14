@@ -74,7 +74,10 @@ export const commands = {
 	 *  네트워크 에러도 `ApiResponse로` 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
 	 */
 	sendApiRequest: (payload: SendApiRequestPayload) => typedError<ApiResponse<ApiRequestResult>, string>(__TAURI_INVOKE("send_api_request", { payload })),
-	setLocalRoutingEnabled: (payload: SetLocalRoutingEnabledPayload) => typedError<ApiResponse<ProxyStatusPayload>, string>(__TAURI_INVOKE("set_local_routing_enabled", { payload })),
+	updateProxySettings: (payload: UpdateProxySettingsPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("update_proxy_settings", { payload })),
+	setHttpsDecryptHost: (payload: SetHttpsDecryptHostPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("set_https_decrypt_host", { payload })),
+	setDnsZoneRecord: (payload: SetDnsZoneRecordPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("set_dns_zone_record", { payload })),
+	removeDnsZoneRecord: (payload: RemoveDnsZoneRecordPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("remove_dns_zone_record", { payload })),
 	/**  Returns the auto-start error if proxy failed to start on launch, or null if OK. */
 	getProxyAutoStartError: () => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_proxy_auto_start_error")),
 	/**  API 로그 날짜 목록 조회. (YYYY-MM-DD) */
@@ -96,8 +99,6 @@ export const commands = {
 	updateAnnotation: (payload: UpdateAnnotationPayload_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("update_annotation", { payload })),
 	deleteAnnotation: (payload: DeleteAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("delete_annotation", { payload })),
 	importAnnotations: (payload: ImportAnnotationsPayload_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("import_annotations", { payload })),
-	setGlobalInspectorEnabled: (payload: boolean) => typedError<null, string>(__TAURI_INVOKE("set_global_inspector_enabled", { payload })),
-	getGlobalInspectorEnabled: () => typedError<ApiResponse<boolean>, string>(__TAURI_INVOKE("get_global_inspector_enabled")),
 	getInjectionDomains: () => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("get_injection_domains")),
 	setInjectionDomains: (payload: SetInjectionDomainsPayload) => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("set_injection_domains", { payload })),
 	addInjectionDomain: (payload: SingleDomainPayload) => typedError<ApiResponse<string[]>, string>(__TAURI_INVOKE("add_injection_domain", { payload })),
@@ -113,7 +114,6 @@ export const commands = {
 	deleteMockRule: (id: string) => typedError<boolean, string>(__TAURI_INVOKE("delete_mock_rule", { id })),
 	createMockRuleFromLog: (payload: CreateMockFromLogPayload) => typedError<ApiResponse<MockRule>, string>(__TAURI_INVOKE("create_mock_rule_from_log", { payload })),
 	getMockingStatus: () => typedError<ApiResponse<MockingSettings>, string>(__TAURI_INVOKE("get_mocking_status")),
-	setMockingEnabled: (payload: SetMockingEnabledPayload) => typedError<ApiResponse<MockingSettings>, string>(__TAURI_INVOKE("set_mocking_enabled", { payload })),
 	setScenarioEnabled: (id: string, enabled: boolean) => typedError<Scenario[], string>(__TAURI_INVOKE("set_scenario_enabled", { id, enabled })),
 	getTailscaleIp: () => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_tailscale_ip")),
 	startCloudflareTunnel: () => typedError<ApiResponse<string>, string>(__TAURI_INVOKE("start_cloudflare_tunnel")),
@@ -634,6 +634,12 @@ export type ProcessCryptoPayload = {
 	iv: string | null,
 };
 
+export type DnsZoneRecord = {
+	host: string,
+	type?: string,
+	value: string,
+};
+
 export type ProxySettings = {
 	/**
 	 *  Optional DNS server for pass-through resolution (e.g. "8.8.8.8" or "1.1.1.1:53").
@@ -649,8 +655,13 @@ export type ProxySettings = {
 	reverse_http_port?: number | null,
 	/**  Optional reverse HTTPS port (e.g. 8443). When set, proxy does TLS and forwards by Host. */
 	reverse_https_port?: number | null,
-	/**  When true, matching local routes are applied; when false, all traffic passes through. */
-	local_routing_enabled?: boolean,
+	cors_rewrite_enabled?: boolean,
+	dns_capture_enabled?: boolean,
+	dns_records?: DnsZoneRecord[],
+	tls_bypass_hosts?: string[],
+	https_decrypt_hosts?: string[],
+	connect_timeout_secs?: number,
+	upstream_timeout_secs?: number,
 };
 
 export type ProxyStatusPayload = {
@@ -660,8 +671,6 @@ export type ProxyStatusPayload = {
 	reverse_http_port: number | null,
 	/**  Reverse HTTPS listener port (TLS by Host). */
 	reverse_https_port: number | null,
-	/**  When true, local routes are applied; when false, all traffic passes through. */
-	local_routing_enabled: boolean,
 };
 
 export type RegistDomainsPayload = {
@@ -878,12 +887,29 @@ export type SetLocalRouteEnabledPayload = {
 	enabled: boolean,
 };
 
-export type SetLocalRoutingEnabledPayload = {
+export type SetHttpsDecryptHostPayload = {
+	host: string,
 	enabled: boolean,
 };
 
-export type SetMockingEnabledPayload = {
-	enabled: boolean,
+export type SetDnsZoneRecordPayload = {
+	host: string,
+	recordType: string,
+	value: string,
+};
+
+export type RemoveDnsZoneRecordPayload = {
+	host: string,
+};
+
+export type UpdateProxySettingsPayload = {
+	corsRewriteEnabled?: boolean | null,
+	dnsCaptureEnabled?: boolean | null,
+	dnsRecords?: DnsZoneRecord[] | null,
+	tlsBypassHosts?: string[] | null,
+	httpsDecryptHosts?: string[] | null,
+	connectTimeoutSecs?: number | null,
+	upstreamTimeoutSecs?: number | null,
 };
 
 export type SetProxyDnsServerPayload = {

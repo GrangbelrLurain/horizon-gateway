@@ -43,7 +43,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "resources/inspector.js": "inspector.js",
+      "icons/icon.ico": "icon.ico",
       "resources/windivert/WinDivert.dll": "WinDivert.dll",
       "resources/windivert/WinDivert64.sys": "WinDivert64.sys"
     },

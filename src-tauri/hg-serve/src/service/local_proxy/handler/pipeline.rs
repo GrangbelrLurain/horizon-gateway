@@ -5,12 +5,11 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::service::local_proxy::flags::is_local_routing_enabled;
-
 use super::api::try_handle_api;
 use super::capture::handle_with_logging;
 use super::forward::handle_pass_through;
 use super::mocking::try_mock_response;
+use super::super::reserved::is_horizon_gateway_internal;
 use super::super::routing::{get_logging_config_for_host, host_key_for_logging_map, resolve_target};
 use super::super::state::ProxyState;
 use super::websocket::{handle_websocket_upgrade, is_websocket_upgrade};
@@ -46,11 +45,7 @@ pub(crate) async fn proxy_handler_inner(
         .get("host")
         .and_then(|v| v.to_str().ok())
         .map(std::string::ToString::to_string);
-    let routes = if is_local_routing_enabled() {
-        state.route_service.get_enabled()
-    } else {
-        vec![]
-    };
+    let routes = state.route_service.get_enabled();
     let (target_uri_str, _pass_through_host, _target_host_value, local_origin) =
         resolve_target(&uri, host_header.as_deref(), &routes, scheme);
 
@@ -76,6 +71,8 @@ pub(crate) async fn proxy_handler_inner(
         .and_then(|map| get_logging_config_for_host(&map, &host_key));
 
     let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
+    let logging_enabled =
+        logging_enabled && !is_horizon_gateway_internal(path, &target_uri_str);
 
     if is_websocket_upgrade(&req) {
         return handle_websocket_upgrade(

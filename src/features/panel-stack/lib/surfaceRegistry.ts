@@ -19,7 +19,9 @@ export type SurfaceTitleKey =
   | "apiSchema"
   | "toolsProxyGraph"
   | "toolsMonitor"
-  | "toolsPolicies";
+  | "toolsPolicies"
+  | "toolsLiveCapture"
+  | "toolsMonitorLogs";
 
 export interface SurfaceRegistryEntry {
   id: HubSurfaceId;
@@ -31,9 +33,6 @@ export interface SurfaceRegistryEntry {
   Component: LazyExoticComponent<ComponentType> | ComponentType;
 }
 
-const ChromeInfrastructure = lazy(() =>
-  import("../ui/surfaces/ChromeInfrastructureSurface").then((m) => ({ default: m.ChromeInfrastructureSurface })),
-);
 const ChromeSettings = lazy(() =>
   import("../ui/surfaces/ChromeSettingsSurface").then((m) => ({ default: m.ChromeSettingsSurface })),
 );
@@ -80,18 +79,18 @@ const GlobalPolicies = lazy(() =>
 export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
   "chrome/infrastructure": {
     id: "chrome/infrastructure",
-    titleKey: "infrastructure",
-    route: "/popup/infrastructure",
-    detachWidth: 520,
-    detachHeight: 680,
+    titleKey: "settings",
+    route: "/popup/settings",
+    detachWidth: 860,
+    detachHeight: 820,
     kind: "chrome",
-    Component: ChromeInfrastructure,
+    Component: ChromeSettings,
   },
   "chrome/settings": {
     id: "chrome/settings",
     titleKey: "settings",
     route: "/popup/settings",
-    detachWidth: 720,
+    detachWidth: 860,
     detachHeight: 820,
     kind: "chrome",
     Component: ChromeSettings,
@@ -249,6 +248,24 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
     kind: "global",
     Component: GlobalPolicies,
   },
+  "global/live-capture": {
+    id: "global/live-capture",
+    titleKey: "toolsLiveCapture",
+    route: "/ux/live-capture",
+    detachWidth: 1100,
+    detachHeight: 760,
+    kind: "global",
+    Component: GlobalRoutePage,
+  },
+  "global/monitor-logs": {
+    id: "global/monitor-logs",
+    titleKey: "toolsMonitorLogs",
+    route: "/monitor/logs",
+    detachWidth: 1100,
+    detachHeight: 760,
+    kind: "global",
+    Component: GlobalRoutePage,
+  },
 };
 
 export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
@@ -262,6 +279,7 @@ export const GLOBAL_TOOL_SURFACES: HubSurfaceId[] = [
   "global/proxy-graph",
   "global/monitor",
   "global/policies",
+  "global/live-capture",
 ];
 
 export function getSurfaceEntry(id: HubSurfaceId): SurfaceRegistryEntry {

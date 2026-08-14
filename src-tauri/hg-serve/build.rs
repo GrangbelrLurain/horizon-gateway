@@ -2,8 +2,32 @@ use std::{env, fs, path::PathBuf};
 
 fn main() {
     embed_inspector_js();
+    copy_tray_icon();
     #[cfg(windows)]
     embed_admin_manifest();
+}
+
+fn copy_tray_icon() {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let src = manifest_dir.join("..").join("hg-gui").join("icons").join("icon.ico");
+    println!("cargo:rerun-if-changed=../hg-gui/icons/icon.ico");
+    if !src.is_file() {
+        return;
+    }
+    let Ok(out_dir) = env::var("OUT_DIR") else {
+        return;
+    };
+    let mut dir = PathBuf::from(out_dir);
+    for _ in 0..6 {
+        let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name == "debug" || name == "release" {
+            let _ = fs::copy(&src, dir.join("icon.ico"));
+            return;
+        }
+        if !dir.pop() {
+            return;
+        }
+    }
 }
 
 fn embed_inspector_js() {

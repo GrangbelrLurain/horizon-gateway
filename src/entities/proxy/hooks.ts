@@ -11,8 +11,7 @@ export function useProxy() {
     status,
     setStatus,
     running: status?.running ?? false,
-    localRoutingEnabled: status?.local_routing_enabled ?? false,
-    isActive: !!(status?.running && status?.local_routing_enabled),
+    isActive: !!status?.running,
     refreshStatus: async () => {
       const data = await fetchProxyStatus();
       setStatus(data);
@@ -33,5 +32,5 @@ export function useProxyRunning() {
 
 export function useProxyActive() {
   const status = useAtomValue(proxyStatusAtom);
-  return !!(status?.running && status?.local_routing_enabled);
+  return !!status?.running;
 }

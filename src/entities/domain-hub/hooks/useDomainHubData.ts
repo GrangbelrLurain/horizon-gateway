@@ -7,7 +7,7 @@ import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import { groupsAtom, linksAtom } from "@/entities/domain-group";
 import { monitorLinksAtom } from "@/entities/domain-monitor";
 import { localRoutesAtom } from "@/entities/proxy";
-import type { Domain } from "@/shared/api";
+import type { Domain, ProxySettings } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import type { HubDataChangedReason } from "@/shared/lib/tauri/hubEvents";
 import { useHubDataSubscription } from "../lib/hubDataSubscription";
@@ -15,6 +15,8 @@ import { useHubDataSubscription } from "../lib/hubDataSubscription";
 /** Shared across all useDomainHubData() callers in the same window. */
 const hubDataLoadingAtom = atom(false);
 export const injectionDomainsAtom = atom<string[]>([]);
+export const httpsDecryptHostsAtom = atom<string[]>([]);
+export const hubProxySettingsAtom = atom<ProxySettings | null>(null);
 
 export function useDomainHubData() {
   const [domains, setDomains] = useAtom(domainsAtom);
@@ -23,6 +25,8 @@ export function useDomainHubData() {
   const [monitorLinks, setMonitorLinks] = useAtom(monitorLinksAtom);
   const [apiLoggingLinks, setApiLoggingLinks] = useAtom(apiLoggingLinksAtom);
   const [injectionDomains, setInjectionDomains] = useAtom(injectionDomainsAtom);
+  const [httpsDecryptHosts, setHttpsDecryptHosts] = useAtom(httpsDecryptHostsAtom);
+  const [hubProxySettings, setHubProxySettings] = useAtom(hubProxySettingsAtom);
   const [localRoutes, setLocalRoutes] = useAtom(localRoutesAtom);
   const proxyActive = useAtomValue(proxyActiveAtom);
   const [loading, setLoading] = useAtom(hubDataLoadingAtom);
@@ -93,10 +97,11 @@ export function useDomainHubData() {
         }
 
         if (needsAll || reason === "features") {
-          const [monitorRes, apiRes, injectionRes] = await Promise.all([
+          const [monitorRes, apiRes, injectionRes, settingsRes] = await Promise.all([
             commands.getDomainMonitorList().then(unwrap),
             commands.getDomainApiLoggingLinks().then(unwrap),
             commands.getInjectionDomains().then(unwrap),
+            commands.getProxySettings().then(unwrap),
           ]);
           if (monitorRes.success) {
             setMonitorLinks(monitorRes.data ?? []);
@@ -106,6 +111,10 @@ export function useDomainHubData() {
           }
           if (injectionRes.success) {
             setInjectionDomains(injectionRes.data ?? []);
+          }
+          if (settingsRes.success && settingsRes.data) {
+            setHubProxySettings(settingsRes.data);
+            setHttpsDecryptHosts(settingsRes.data.https_decrypt_hosts ?? []);
           }
         }
 
@@ -119,7 +128,17 @@ export function useDomainHubData() {
         console.error("useDomainHubData:", err);
       }
     },
-    [setApiLoggingLinks, setDomains, setGroups, setInjectionDomains, setLinks, setLocalRoutes, setMonitorLinks],
+    [
+      setApiLoggingLinks,
+      setDomains,
+      setGroups,
+      setHttpsDecryptHosts,
+      setHubProxySettings,
+      setInjectionDomains,
+      setLinks,
+      setLocalRoutes,
+      setMonitorLinks,
+    ],
   );
 
   const fetchAll = useCallback(async () => {
@@ -161,6 +180,10 @@ export function useDomainHubData() {
       const scriptInjectionEnabled = Boolean(
         host && injectionDomains.some((item) => item.toLowerCase() === host || host.endsWith(`.${item.toLowerCase()}`)),
       );
+      const httpsDecryptEnabled = Boolean(
+        host &&
+          httpsDecryptHosts.some((item) => item.toLowerCase() === host || host.endsWith(`.${item.toLowerCase()}`)),
+      );
 
       return {
         monitorEnabled: monitorMap.has(domainId) ? monitorMap.get(domainId) : undefined,
@@ -168,9 +191,10 @@ export function useDomainHubData() {
         proxyRouteId: proxyRoute?.id,
         apiLoggingEnabled: apiLoggingMap.has(domainId) ? apiLoggingMap.get(domainId) : undefined,
         scriptInjectionEnabled,
+        httpsDecryptEnabled,
       };
     },
-    [apiLoggingMap, domains, getDomainHost, injectionDomains, monitorMap, proxyRouteMap],
+    [apiLoggingMap, domains, getDomainHost, httpsDecryptHosts, injectionDomains, monitorMap, proxyRouteMap],
   );
 
   const getGroupName = useCallback(
@@ -214,5 +238,7 @@ export function useDomainHubData() {
     getGroupId,
     getDomainHost,
     getProxyRoute,
+    hubProxySettings,
+    httpsDecryptHosts,
   };
 }

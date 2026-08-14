@@ -111,57 +111,54 @@ function applyAnnotationPayload(data: unknown, onData: (annotations: Annotation[
   }
 }
 
-/** Push updates over SSE. Falls back to a slow poll only if the stream cannot connect. */
+/** Push updates over SSE. Reconnects on drop; does not poll GET /api/annotations. */
 export function subscribeAnnotations(onData: (annotations: Annotation[]) => void): () => void {
   let closed = false;
-  let pollId: number | null = null;
   let es: EventSource | null = null;
-  let failCount = 0;
+  let retryId: number | null = null;
 
-  const startSlowPoll = () => {
-    if (pollId != null || closed) {
+  const connect = () => {
+    if (closed) {
       return;
     }
-    void fetchAnnotationsApi().then((data) => applyAnnotationPayload(data, onData));
-    pollId = window.setInterval(() => {
-      void fetchAnnotationsApi().then((data) => applyAnnotationPayload(data, onData));
-    }, 30_000);
-  };
-
-  try {
-    es = new EventSource("/.horizon-gateway/api/annotations/stream");
-  } catch {
-    startSlowPoll();
-    return () => {
-      closed = true;
-      if (pollId != null) {
-        window.clearInterval(pollId);
+    es?.close();
+    try {
+      es = new EventSource("/.horizon-gateway/api/annotations/stream");
+    } catch {
+      scheduleRetry();
+      return;
+    }
+    es.onmessage = (ev) => {
+      try {
+        applyAnnotationPayload(JSON.parse(ev.data), onData);
+      } catch {
+        /* ignore malformed frames */
       }
     };
-  }
-
-  es.onmessage = (ev) => {
-    failCount = 0;
-    try {
-      applyAnnotationPayload(JSON.parse(ev.data), onData);
-    } catch {
-      /* ignore malformed frames */
-    }
-  };
-  es.onerror = () => {
-    failCount += 1;
-    if (failCount >= 3 && es) {
-      es.close();
+    es.onerror = () => {
+      es?.close();
       es = null;
-      startSlowPoll();
-    }
+      scheduleRetry();
+    };
   };
+
+  const scheduleRetry = () => {
+    if (closed || retryId != null) {
+      return;
+    }
+    retryId = window.setTimeout(() => {
+      retryId = null;
+      connect();
+    }, 5_000);
+  };
+
+  connect();
 
   return () => {
     closed = true;
     es?.close();
-    if (pollId != null) {
-      window.clearInterval(pollId);
+    if (retryId != null) {
+      window.clearTimeout(retryId);
     }
   };
 }

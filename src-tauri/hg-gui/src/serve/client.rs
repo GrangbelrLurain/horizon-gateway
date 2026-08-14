@@ -10,9 +10,20 @@ const IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Ping the serve backend (cheap health check).
 pub fn ping() -> Result<(), String> {
-    call_command("ping", Value::Null)
-        .map(|_| ())
-        .map_err(|e| format!("serve ping failed: {e}"))
+    ping_info().map(|_| ())
+}
+
+/// Ping and return the serve JSON payload (`mode`, `ok`, `version`).
+pub fn ping_info() -> Result<Value, String> {
+    call_command("ping", Value::Null).map_err(|e| format!("serve ping failed: {e}"))
+}
+
+/// True when the running serve binary reports the same crate version as this GUI.
+pub fn serve_matches_gui_version() -> bool {
+    ping_info()
+        .ok()
+        .and_then(|v| v.get("version")?.as_str().map(str::to_string))
+        .is_some_and(|version| version == env!("CARGO_PKG_VERSION"))
 }
 
 /// Dispatch a backend command through the serve IPC channel.

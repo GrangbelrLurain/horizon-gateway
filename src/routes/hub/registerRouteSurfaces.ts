@@ -73,3 +73,15 @@ registerRouteSurface("/ux/policies", () =>
     default: asComponent(m.Route.options.component),
   })),
 );
+
+registerRouteSurface("/ux/live-capture", () =>
+  import("../ux/live-capture/index").then((m) => ({
+    default: asComponent(m.LiveCaptureWorkspace),
+  })),
+);
+
+registerRouteSurface("/monitor/logs", () =>
+  import("../monitor/logs/index").then((m) => ({
+    default: asComponent(m.MonitorLogsView),
+  })),
+);

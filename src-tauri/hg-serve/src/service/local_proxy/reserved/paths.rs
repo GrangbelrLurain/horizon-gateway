@@ -17,6 +17,35 @@ const INSPECTOR_JS_FALLBACK: &str =
 /// Reserved path prefix: proxy serves setup page and assets (no forward to local route).
 pub(crate) const HORIZON_GATEWAY_PATH_PREFIX: &str = "/.horizon-gateway/";
 
+/// Inspector/setup requests that must never appear in domain API logs.
+pub(crate) fn is_horizon_gateway_internal(path: &str, url: &str) -> bool {
+    contains_horizon_gateway_prefix(path) || contains_horizon_gateway_prefix(url)
+}
+
+/// Canonical `/.horizon-gateway/...` path, ignoring query strings and a missing leading slash.
+pub(crate) fn normalize_horizon_gateway_path(path: &str, uri: &str) -> String {
+    let raw = first_horizon_gateway_slice(uri).or_else(|| first_horizon_gateway_slice(path)).unwrap_or(path);
+    let without_query = raw.split('?').next().unwrap_or(raw);
+    if without_query.starts_with(HORIZON_GATEWAY_PATH_PREFIX) {
+        without_query.to_string()
+    } else if let Some(rest) = without_query.strip_prefix(".horizon-gateway/") {
+        format!("{HORIZON_GATEWAY_PATH_PREFIX}{rest}")
+    } else {
+        without_query.to_string()
+    }
+}
+
+fn contains_horizon_gateway_prefix(value: &str) -> bool {
+    value.contains(HORIZON_GATEWAY_PATH_PREFIX) || value.contains(".horizon-gateway/")
+}
+
+fn first_horizon_gateway_slice(value: &str) -> Option<&str> {
+    if let Some(idx) = value.find(HORIZON_GATEWAY_PATH_PREFIX) {
+        return Some(&value[idx..]);
+    }
+    value.find(".horizon-gateway/").map(|idx| &value[idx..])
+}
+
 /// PAC (Proxy Auto-Config). Returns PROXY for ALL traffic; filtering logic is handled in the proxy itself.
 pub(crate) fn build_pac_js(proxy_host: &str, forward_port: u16) -> String {
 format!(

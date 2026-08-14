@@ -78,6 +78,21 @@ impl MockingService {
         out
     }
 
+    /// One-shot migration: turn every rule off when the legacy master switch was off.
+    pub fn disable_all_rules(&self) {
+        let mut list = self.mock_rules.lock().unwrap();
+        let mut changed = false;
+        for rule in list.iter_mut() {
+            if rule.enabled {
+                rule.enabled = false;
+                changed = true;
+            }
+        }
+        if changed {
+            self.save_mock_rules(&list);
+        }
+    }
+
     pub fn get_scenarios(&self) -> Vec<Scenario> {
         self.scenarios.lock().unwrap().clone()
     }

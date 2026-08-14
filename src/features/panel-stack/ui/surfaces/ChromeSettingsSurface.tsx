@@ -4,7 +4,7 @@ import { HubSurfaceEmbedProvider } from "@/shared/lib/hub/HubSurfaceEmbedContext
 export function ChromeSettingsSurface() {
   return (
     <HubSurfaceEmbedProvider>
-      <div className="p-4 overflow-y-auto h-full">
+      <div className="h-full min-h-0 overflow-hidden">
         <SettingsContent />
       </div>
     </HubSurfaceEmbedProvider>

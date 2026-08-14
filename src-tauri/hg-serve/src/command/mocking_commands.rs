@@ -25,40 +25,6 @@ pub fn get_mocking_status_svc(service: &std::sync::Arc<MockingService>) -> Resul
     })
 }
 
-#[derive(serde::Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct SetMockingEnabledPayload {
-    pub enabled: bool,
-}
-
-pub const SET_MOCKING_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_mocking_enabled",
-    description: "모킹 활성화 여부를 변경합니다.",
-    payload_example: r#"{"enabled": true}"#,
-    category: "mocking",
-    gui_only: false,
-};
-
-
-pub fn set_mocking_enabled_svc(app: Option<()>, payload: SetMockingEnabledPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockingSettings>, String> {
-    let settings = service.set_enabled(payload.enabled);
-    crate::service::local_proxy::set_mocking_enabled(payload.enabled);
-
-    crate::serve::emit_to_gui(app.as_ref(), MOCKING_STATUS_CHANGED, &settings);
-    Ok(ApiResponse {
-        message: format!(
-            "Mocking {}",
-            if payload.enabled {
-                "enabled"
-            } else {
-                "disabled"
-            }
-        ),
-        success: true,
-        data: settings,
-    })
-}
-
 pub const GET_SCENARIOS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "get_scenarios",
     description: "모킹 시나리오 목록을 조회합니다.",

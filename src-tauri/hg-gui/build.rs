@@ -4,7 +4,6 @@ use std::{
 };
 
 fn main() {
-    embed_inspector_js();
     sync_skill_md_resource();
     // Dev (`tauri dev`) must not write sidecars into watched `resources/`.
     remove_debug_resource_sidecars();
@@ -258,38 +257,6 @@ fn sync_skill_md_resource() {
     }
 }
 
-/// Copy `resources/inspector.js` into OUT_DIR so the crate can `include_str!` it
-/// as a last-resort fallback when runtime filesystem lookups fail.
-fn embed_inspector_js() {
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let inspector = manifest_dir.join("resources").join("inspector.js");
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let embed_rs = out_dir.join("inspector_js_embed.rs");
-
-    println!("cargo:rerun-if-changed=resources/inspector.js");
-
-    if inspector.is_file() {
-        let dest_js = out_dir.join("inspector.js");
-        fs::copy(&inspector, &dest_js).expect("failed to copy inspector.js into OUT_DIR");
-        fs::write(
-            &embed_rs,
-            r#"pub const EMBEDDED_INSPECTOR_JS: Option<&str> = Some(include_str!(concat!(env!("OUT_DIR"), "/inspector.js")));
-"#,
-        )
-        .expect("failed to write inspector_js_embed.rs");
-    } else {
-        fs::write(
-            &embed_rs,
-            r#"pub const EMBEDDED_INSPECTOR_JS: Option<&str> = None;
-"#,
-        )
-        .expect("failed to write inspector_js_embed.rs");
-        println!(
-            "cargo:warning=resources/inspector.js missing — run `pnpm build:injection` before release builds"
-        );
-    }
-}
-
 /// Place WinDivert sidecar files next to the built exe so `cargo run` / local builds work.
 /// Installers also bundle these via `tauri.conf.json` resources + NSIS post-install copy.
 #[cfg(windows)]
@@ -300,6 +267,12 @@ fn copy_windivert_sidecars() {
     println!("cargo:rerun-if-changed=resources/windivert/WinDivert64.sys");
 
     let target_dir = profile_target_dir(&manifest_dir);
+
+    let icon = manifest_dir.join("icons").join("icon.ico");
+    println!("cargo:rerun-if-changed=icons/icon.ico");
+    if icon.is_file() {
+        copy_skipping_lock(&icon, &target_dir.join("icon.ico"), "icon.ico");
+    }
 
     for name in ["WinDivert.dll", "WinDivert64.sys"] {
         let src = windivert_dir.join(name);

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Activity, Code, ListChecks, Loader2, Server, Trash2, Wifi } from "lucide-react";
+import { Activity, Code, ListChecks, Loader2, Lock, Server, Trash2, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
@@ -21,7 +21,7 @@ interface DomainBulkManagePanelProps {
 function summarizeFeatureStates(
   selectedIds: ReadonlySet<number>,
   getFeatureState: ReturnType<typeof useDomainHubData>["getFeatureState"],
-  key: "scriptInjection" | "monitor" | "proxy" | "api",
+  key: "scriptInjection" | "monitor" | "proxy" | "api" | "httpsDecrypt",
 ) {
   if (selectedIds.size === 0) {
     return { allEnabled: false, noneEnabled: true, isMixed: false };
@@ -32,11 +32,13 @@ function summarizeFeatureStates(
     const enabled =
       key === "scriptInjection"
         ? !!state.scriptInjectionEnabled
-        : key === "monitor"
-          ? !!state.monitorEnabled
-          : key === "proxy"
-            ? !!state.proxyEnabled
-            : !!state.apiLoggingEnabled;
+        : key === "httpsDecrypt"
+          ? !!state.httpsDecryptEnabled
+          : key === "monitor"
+            ? !!state.monitorEnabled
+            : key === "proxy"
+              ? !!state.proxyEnabled
+              : !!state.apiLoggingEnabled;
     if (enabled) {
       enabledCount++;
     }
@@ -82,6 +84,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
   const featureSummary = useMemo(
     () => ({
       scriptInjection: summarizeFeatureStates(selectedIds, getFeatureState, "scriptInjection"),
+      httpsDecrypt: summarizeFeatureStates(selectedIds, getFeatureState, "httpsDecrypt"),
       monitor: summarizeFeatureStates(selectedIds, getFeatureState, "monitor"),
       proxy: summarizeFeatureStates(selectedIds, getFeatureState, "proxy"),
       api: summarizeFeatureStates(selectedIds, getFeatureState, "api"),
@@ -133,7 +136,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                 {t.filterFeatureLabel}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {(["scriptInjection", "monitor", "proxy", "api"] as const).map((key) => {
+                {(["scriptInjection", "httpsDecrypt", "monitor", "proxy", "api"] as const).map((key) => {
                   const { allEnabled, noneEnabled, isMixed } = featureSummary[key];
                   const anyEnabled = !noneEnabled;
                   const isLoading = localLoading[key];
@@ -159,6 +162,8 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                           >
                             {key === "scriptInjection" ? (
                               <Code className="w-4 h-4" />
+                            ) : key === "httpsDecrypt" ? (
+                              <Lock className="w-4 h-4" />
                             ) : key === "monitor" ? (
                               <Activity className="w-4 h-4" />
                             ) : key === "proxy" ? (
@@ -174,11 +179,13 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                   ? lang === "ko"
                                     ? "스크립트 인젝션"
                                     : "Script Injection"
-                                  : key === "monitor"
-                                    ? t.monitor
-                                    : key === "proxy"
-                                      ? t.proxy
-                                      : t.api}
+                                  : key === "httpsDecrypt"
+                                    ? t.httpsDecrypt
+                                    : key === "monitor"
+                                      ? t.monitor
+                                      : key === "proxy"
+                                        ? t.proxy
+                                        : t.api}
                               </span>
                               {allEnabled ? (
                                 <span className="text-[8px] font-bold text-success bg-success/15 px-1 py-0.5 rounded">
@@ -199,11 +206,13 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                 ? lang === "ko"
                                   ? "선택한 도메인의 스크립트 주입을 켜고 끕니다."
                                   : "Toggle script injection for selected domains"
-                                : key === "monitor"
-                                  ? t.monitorEnableHint
-                                  : key === "proxy"
-                                    ? t.proxyRouteToggleHint
-                                    : t.apiEnableHint}
+                                : key === "httpsDecrypt"
+                                  ? t.httpsDecryptHint
+                                  : key === "monitor"
+                                    ? t.monitorEnableHint
+                                    : key === "proxy"
+                                      ? t.proxyRouteToggleHint
+                                      : t.apiEnableHint}
                             </p>
                           </div>
                         </div>

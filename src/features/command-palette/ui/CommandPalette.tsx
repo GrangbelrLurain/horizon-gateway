@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom, proxyRunningAtom, themeAtom } from "@/entities/app";
 import { fetchDomains } from "@/entities/domain";
-import { getMockRules, getScenarios, setScenarioEnabled, useMocking } from "@/entities/mocking";
+import { getMockRules, getScenarios, setScenarioEnabled } from "@/entities/mocking";
 import { usePanelNavigation } from "@/features/panel-stack";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
@@ -34,7 +34,6 @@ export function CommandPalette() {
 
   const lang = useAtomValue(languageAtom);
   const setTheme = useSetAtom(themeAtom);
-  const { setEnabled: setMockingEnabled } = useMocking();
   const proxyRunning = useAtomValue(proxyRunningAtom);
   const nav = usePanelNavigation();
 
@@ -78,10 +77,6 @@ export function CommandPalette() {
           await commands.startLocalProxy(null).then(unwrap);
           toastInfo("Proxy Started");
         }
-      },
-      onToggleMocking: async () => {
-        await setMockingEnabled(true);
-        toastInfo("Mocking Toggled");
       },
       onClearApiLogs: async () => {
         const today = new Date().toISOString().split("T")[0];
@@ -133,7 +128,7 @@ export function CommandPalette() {
         toastInfo(`Language set to ${newLang}`);
       },
     }),
-    [nav, proxyRunning, setMockingEnabled, setTheme, lang],
+    [nav, proxyRunning, setTheme, lang],
   );
 
   const commandsList = useMemo(() => createPaletteCommands(handlers), [handlers]);

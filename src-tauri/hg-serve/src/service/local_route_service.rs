@@ -195,6 +195,21 @@ impl LocalRouteService {
         }
     }
 
+    /// One-shot migration: turn every route off when the legacy master switch was off.
+    pub fn disable_all(&self) {
+        let mut list = self.routes.lock().unwrap();
+        let mut changed = false;
+        for route in list.iter_mut() {
+            if route.enabled {
+                route.enabled = false;
+                changed = true;
+            }
+        }
+        if changed {
+            self.save(&list);
+        }
+    }
+
     /// Replace all routes (for import). Invalid/orphan routes are dropped.
     pub fn replace_all(&self, routes: Vec<LocalRoute>, domains: &[Domain]) -> Vec<LocalRoute> {
         {

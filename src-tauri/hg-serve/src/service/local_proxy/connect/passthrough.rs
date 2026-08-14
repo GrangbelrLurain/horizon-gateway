@@ -1,7 +1,10 @@
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 use super::super::dns::connect_for_connect;
+use super::super::state::ProxyState;
 
 /// Pass-through CONNECT tunnel: 200 Established + bidirectional copy.
 pub(crate) async fn handle_connect_passthrough(
@@ -10,8 +13,20 @@ pub(crate) async fn handle_connect_passthrough(
     port: u16,
     resolver: Option<&std::sync::Arc<super::super::dns::TokioResolver>>,
     header_buf: Vec<u8>,
+    state: &Arc<ProxyState>,
 ) {
-    let mut upstream = match connect_for_connect(host, port, resolver).await {
+    let settings = state.proxy_settings.get();
+    let timeout = Duration::from_secs(settings.connect_timeout_secs.clamp(1, 300));
+    let mut upstream = match connect_for_connect(
+        host,
+        port,
+        resolver,
+        &settings.dns_records,
+        settings.dns_capture_enabled,
+        timeout,
+    )
+    .await
+    {
         Ok(s) => s,
         Err(_e) => {
             let _ = client

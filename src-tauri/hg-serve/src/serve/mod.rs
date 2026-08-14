@@ -4,6 +4,7 @@ pub mod client;
 pub mod events;
 pub mod logging;
 pub mod server;
+mod tray;
 
 pub use client::call_command;
 pub use events::{emit_to_gui, publish_event};

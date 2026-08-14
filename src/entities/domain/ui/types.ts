@@ -4,6 +4,7 @@ export interface DomainFeatureState {
   proxyRouteId: number | undefined;
   apiLoggingEnabled: boolean | undefined;
   scriptInjectionEnabled?: boolean;
+  httpsDecryptEnabled?: boolean;
 }
 
 export interface ProxyRouteModalT {

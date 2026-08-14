@@ -13,9 +13,10 @@ use std::time::Duration;
 
 use crate::model::inspector::Annotation;
 use crate::service::inspector_service::InspectorService;
-use crate::service::local_proxy::flags::{is_inspector_enabled, is_local_routing_enabled, is_mocking_enabled};
 
-use super::super::reserved::{serve_horizon_gateway_reserved_path, HORIZON_GATEWAY_PATH_PREFIX};
+use super::super::reserved::{
+    is_horizon_gateway_internal, normalize_horizon_gateway_path, serve_horizon_gateway_reserved_path,
+};
 use super::super::state::ProxyState;
 
 /// Handled API / reserved-path requests. `Err(req)` means the caller should continue the pipeline.
@@ -42,19 +43,11 @@ pub(crate) async fn try_handle_api(
     }
 
     let uri_str = uri.to_string();
-    let is_horizon_gateway_path =
-        path.starts_with(HORIZON_GATEWAY_PATH_PREFIX) || uri_str.contains(HORIZON_GATEWAY_PATH_PREFIX);
-
-    if !is_horizon_gateway_path {
+    if !is_horizon_gateway_internal(path, &uri_str) {
         return Err(req);
     }
 
-    let normalized_path = if let Some(idx) = uri_str.find(HORIZON_GATEWAY_PATH_PREFIX) {
-        &uri_str[idx..]
-    } else {
-        path
-    };
-    let clean_path = normalized_path.split('?').next().unwrap_or(normalized_path);
+    let clean_path = normalize_horizon_gateway_path(path, &uri_str);
 
     let host_h = req
         .headers()
@@ -86,19 +79,16 @@ pub(crate) async fn try_handle_api(
     }
 
     if clean_path == "/.horizon-gateway/api/status" {
-        let mocking_settings_enabled = state.mocking_service.get_settings().enabled;
-        let mocking_enabled = mocking_settings_enabled && is_mocking_enabled();
         let mock_rules = state.mocking_service.get_mock_rules();
-        let active_mock_count = if mocking_enabled {
-            mock_rules.iter().filter(|r| r.enabled).count()
-        } else {
-            0
-        };
+        let active_mock_count = mock_rules.iter().filter(|r| r.enabled).count();
+        let mocking_enabled = active_mock_count > 0;
 
         let active_routes = state.route_service.get_enabled();
-        let proxy_active = is_local_routing_enabled() && !active_routes.is_empty();
-        let logging_enabled = is_local_routing_enabled();
-        let inspector_enabled = is_inspector_enabled();
+        let proxy_active = !active_routes.is_empty();
+        let logging_enabled = state.api_logging_map.read().ok().is_some_and(|map| {
+            map.values().any(|(logging, _)| *logging)
+        });
+        let inspector_enabled = !state.inspector_service.get_injection_domains().is_empty();
 
         let json = serde_json::json!({
             "proxy": proxy_active,
@@ -345,7 +335,7 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    Ok(serve_horizon_gateway_reserved_path(state.clone(), clean_path, &host_h).await)
+    Ok(serve_horizon_gateway_reserved_path(state.clone(), &clean_path, &host_h).await)
 }
 
 fn annotations_json(inspector: &InspectorService) -> String {

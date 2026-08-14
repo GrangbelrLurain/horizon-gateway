@@ -18,10 +18,19 @@ pub fn mark_inactive() {
 
 /// Ensure the serve backend is reachable, spawning and waiting if needed.
 /// Called once at GUI startup. On success, events_client will keep connectivity.
+/// Restarts serve when a leftover process reports a different version than this GUI.
 pub fn ensure_running() -> Result<(), String> {
     if client::ping().is_ok() {
-        SERVE_ENSURED.store(true, Ordering::Relaxed);
-        return Ok(());
+        if client::serve_matches_gui_version() {
+            SERVE_ENSURED.store(true, Ordering::Relaxed);
+            return Ok(());
+        }
+        tracing::warn!(
+            "[gui] serve is running but version != {}; restarting backend",
+            env!("CARGO_PKG_VERSION")
+        );
+        super::tray::kill_serve_process();
+        thread::sleep(Duration::from_secs(1));
     }
 
     SERVE_ENSURED.store(false, Ordering::Relaxed);

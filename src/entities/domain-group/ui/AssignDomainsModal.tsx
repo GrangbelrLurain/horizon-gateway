@@ -2,7 +2,7 @@ import { Check, Globe, Loader2Icon, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Domain } from "@/entities/domain";
 import type { DomainGroup } from "@/entities/domain-group";
-import { openPopupWindow } from "@/shared/lib/tauri/openPopupWindow";
+import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { Modal } from "@/shared/ui/modal/Modal";
@@ -60,6 +60,7 @@ export function AssignDomainsModal({
 }: AssignDomainsModalProps) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | "unassigned">("all");
+  const openHubSurface = useOpenHubSurface();
 
   const filteredDomains = useMemo(() => {
     return domains.filter((d) => {
@@ -79,7 +80,10 @@ export function AssignDomainsModal({
             {translations.noDomainsText}{" "}
             <button
               type="button"
-              onClick={() => void openPopupWindow("add-domain")}
+              onClick={() => {
+                onClose();
+                openHubSurface("chrome/add-domain");
+              }}
               className="text-primary hover:underline font-bold"
             >
               {translations.addLink}

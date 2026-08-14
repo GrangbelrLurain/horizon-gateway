@@ -2088,6 +2088,7 @@ dependencies = [
  "hyper-util",
  "jsonschema",
  "jsonwebtoken",
+ "png",
  "rcgen",
  "reqwest 0.12.28",
  "rusqlite",
@@ -2097,6 +2098,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "specta",
+ "tao",
  "tempfile",
  "time",
  "tokio",
@@ -2105,6 +2107,7 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-subscriber",
+ "tray-icon",
  "urlencoding",
  "uuid",
  "windivert",
@@ -2719,6 +2722,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "libxdo"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00333b8756a3d28e78def82067a377de7fa61b24909000aeaa2b446a948d14db"
+dependencies = [
+ "libxdo-sys",
+]
+
+[[package]]
+name = "libxdo-sys"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db23b9e7e2b7831bbd8aac0bbeeeb7b68cbebc162b227e7052e8e55829a09212"
+dependencies = [
+ "libc",
+ "x11",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2878,6 +2900,7 @@ dependencies = [
  "dpi",
  "gtk",
  "keyboard-types",
+ "libxdo",
  "objc2",
  "objc2-app-kit",
  "objc2-core-foundation",

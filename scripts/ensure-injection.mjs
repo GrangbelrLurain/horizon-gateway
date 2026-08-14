@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const inspectorPath = path.join(root, "src-tauri/hg-gui/resources/inspector.js");
+const inspectorPath = path.join(root, "src-tauri/hg-serve/resources/inspector.js");
 
 if (!fs.existsSync(inspectorPath)) {
   console.log("inspector.js not found — running pnpm build:injection");

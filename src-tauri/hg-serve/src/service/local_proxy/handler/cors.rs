@@ -14,6 +14,10 @@ pub(crate) async fn proxy_handler(
     ext: axum::Extension<&'static str>,
     req: Request,
 ) -> Response {
+    if !state.proxy_settings.get().cors_rewrite_enabled {
+        return proxy_handler_inner(state, ext, req).await;
+    }
+
     let req_headers = req.headers().clone();
     let origin = req_headers
         .get(header::ORIGIN)

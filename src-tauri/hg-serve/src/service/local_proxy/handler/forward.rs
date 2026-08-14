@@ -11,6 +11,7 @@ use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
     is_html_response, should_inject_for_host,
 };
+use super::super::reserved::is_horizon_gateway_internal;
 use super::super::state::ProxyState;
 
 const HOP_BY_HOP_HEADERS: &[&str] = &[
@@ -148,8 +149,10 @@ pub(crate) async fn handle_pass_through(
                 has_bodies: false,
                 is_mocked: false,
             };
-            // Logging disabled for this host: skip disk I/O, still notify live-capture UI.
-            let _ = state.emit("api-log-captured", entry);
+            // Live UI still sees pass-through traffic, except inspector internals.
+            if !is_horizon_gateway_internal(path, &url_str) {
+                let _ = state.emit("api-log-captured", entry);
+            }
 
             let content_type = res_headers
                 .get(header::CONTENT_TYPE)

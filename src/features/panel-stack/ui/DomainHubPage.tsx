@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
@@ -7,6 +8,7 @@ import { languageAtom, usePromiseModal } from "@/entities/app";
 import type { DomainFeatureState } from "@/entities/domain";
 import { TeamWorkspaceShell } from "@/entities/team";
 import type { Domain } from "@/shared/api";
+import { useIsDetachedWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { ErrorBoundary } from "@/shared/ui/error-boundary";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
@@ -143,6 +145,7 @@ function HubPanelWrapper({ panel, domain, features, panelIndex, panels, nav, hos
 
 export function DomainHubPage() {
   const nav = usePanelNavigation();
+  const isDetachedSurface = useIsDetachedWindow();
   const [remoteHandoffTarget, setRemoteHandoffTarget] = useAtom(hubHandoffRemoteTargetAtom);
   const [teamWorkspaceOpen, setTeamWorkspaceOpen] = useState(false);
   const teamEscapeRef = useRef<(() => boolean) | null>(null);
@@ -540,6 +543,10 @@ export function DomainHubPage() {
 
       if (overlayStateRef.current.global) {
         e.preventDefault();
+        if (isDetachedSurface) {
+          void getCurrentWindow().close();
+          return;
+        }
         navRef.current.closeGlobalSurface();
         return;
       }
@@ -572,15 +579,24 @@ export function DomainHubPage() {
         clearTimeout(tipTimerRef.current);
       }
     };
-  }, [triggerShortcutTip, setDomainListOverlayOpen, setPanelOverlayOpen, store]);
+  }, [triggerShortcutTip, setDomainListOverlayOpen, setPanelOverlayOpen, store, isDetachedSurface]);
 
   const showDomainPanels = domain && !bulkMode && !teamWorkspaceOpen;
   const showEmptyState = !domain && !bulkMode && !nav.globalSurface && !teamWorkspaceOpen;
 
+  if (isDetachedSurface) {
+    return (
+      <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
+        {nav.globalSurface ? (
+          <HubSurfaceOverlay surfaceId={nav.globalSurface} onClose={() => void getCurrentWindow().close()} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
       <TopBar
-        onOpenInfrastructure={() => openSurface("chrome/infrastructure")}
         onOpenProfile={() => openSurface("chrome/profile")}
         onOpenSettings={() => openSurface("chrome/settings")}
         onOpenTeam={openTeamWorkspace}

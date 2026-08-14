@@ -4,8 +4,51 @@ fn default_proxy_port() -> u16 {
     8888
 }
 
-fn default_local_routing_enabled() -> bool {
+fn default_true() -> bool {
     true
+}
+
+fn default_connect_timeout_secs() -> u64 {
+    15
+}
+
+fn default_upstream_timeout_secs() -> u64 {
+    30
+}
+
+fn default_a_record() -> String {
+    "A".to_string()
+}
+
+/// Built-in TLS bypass seed (SSO / captive-portal). Copied into `tls_bypass_hosts` once.
+pub fn default_tls_bypass_hosts() -> Vec<String> {
+    vec![
+        "connectivitycheck".to_string(),
+        "captiveportal".to_string(),
+        "captive.apple.com".to_string(),
+        "clients3.google.com".to_string(),
+        "detectportal.firefox.com".to_string(),
+        "msftconnecttest.com".to_string(),
+        "msftncsi.com".to_string(),
+        "login.microsoftonline.com".to_string(),
+        "login.live.com".to_string(),
+        "aadcdn.msauth.net".to_string(),
+        "auth.dev.azure.com".to_string(),
+        "identity.azure.com".to_string(),
+        "accounts.google.com".to_string(),
+        "appleid.apple.com".to_string(),
+        "auth0.com".to_string(),
+        "okta.com".to_string(),
+        "keycloak".to_string(),
+    ]
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, specta::Type, PartialEq, Eq)]
+pub struct DnsZoneRecord {
+    pub host: String,
+    #[serde(rename = "type", default = "default_a_record")]
+    pub record_type: String,
+    pub value: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
@@ -17,15 +60,40 @@ pub struct ProxySettings {
     #[serde(default = "default_proxy_port")]
     pub proxy_port: u16,
     /// Optional reverse HTTP port (e.g. 8080). When set, proxy listens here for direct HTTP.
-    /// No system proxy or hosts file: open <http://127.0.0.1:8080> and traffic is routed by Host (127.0.0.1 → first local route).
     #[serde(default)]
     pub reverse_http_port: Option<u16>,
     /// Optional reverse HTTPS port (e.g. 8443). When set, proxy does TLS and forwards by Host.
     #[serde(default)]
     pub reverse_https_port: Option<u16>,
-    /// When true, matching local routes are applied; when false, all traffic passes through.
-    #[serde(default = "default_local_routing_enabled")]
+    /// Rewrite CORS on proxied responses (including unregistered hosts).
+    #[serde(default = "default_true")]
+    pub cors_rewrite_enabled: bool,
+    /// When true, zone records are applied before upstream DNS (CONNECT / pass-through).
+    #[serde(default = "default_true")]
+    pub dns_capture_enabled: bool,
+    /// Authoritative A/CNAME rows. Applied to unregistered CONNECT as well.
+    #[serde(default)]
+    pub dns_records: Vec<DnsZoneRecord>,
+    /// Hosts that always tunnel (no decrypt). Seeded from SSO/captive defaults once.
+    #[serde(default)]
+    pub tls_bypass_hosts: Vec<String>,
+    /// Hosts that terminate TLS (MITM). Independent of logging/injection.
+    #[serde(default)]
+    pub https_decrypt_hosts: Vec<String>,
+    #[serde(default = "default_connect_timeout_secs")]
+    pub connect_timeout_secs: u64,
+    #[serde(default = "default_upstream_timeout_secs")]
+    pub upstream_timeout_secs: u64,
+    /// Legacy master switch. Read for one-shot migration, never written back.
+    #[serde(default = "default_true", skip_serializing)]
+    #[specta(skip)]
     pub local_routing_enabled: bool,
+    #[serde(default)]
+    #[specta(skip)]
+    pub tls_bypass_seeded: bool,
+    #[serde(default)]
+    #[specta(skip)]
+    pub https_decrypt_seeded: bool,
 }
 
 impl Default for ProxySettings {
@@ -35,7 +103,16 @@ impl Default for ProxySettings {
             proxy_port: default_proxy_port(),
             reverse_http_port: None,
             reverse_https_port: None,
+            cors_rewrite_enabled: true,
+            dns_capture_enabled: true,
+            dns_records: Vec::new(),
+            tls_bypass_hosts: Vec::new(),
+            https_decrypt_hosts: Vec::new(),
+            connect_timeout_secs: default_connect_timeout_secs(),
+            upstream_timeout_secs: default_upstream_timeout_secs(),
             local_routing_enabled: true,
+            tls_bypass_seeded: false,
+            https_decrypt_seeded: false,
         }
     }
 }
@@ -44,10 +121,8 @@ impl Default for ProxySettings {
 mod tests {
     use super::*;
 
-    /// Existing JSON from v1 (before local_routing_enabled was added) should
-    /// deserialize successfully with the default value (true).
     #[test]
-    fn test_backward_compat_missing_local_routing_enabled() {
+    fn test_backward_compat_missing_new_fields() {
         let old_json = r#"{
             "dns_server": null,
             "proxy_port": 9999,
@@ -57,12 +132,14 @@ mod tests {
         let settings: ProxySettings = serde_json::from_str(old_json).unwrap();
         assert_eq!(settings.proxy_port, 9999);
         assert_eq!(settings.reverse_http_port, Some(8080));
-        assert!(settings.local_routing_enabled, "missing field should default to true");
+        assert!(settings.cors_rewrite_enabled);
+        assert!(settings.dns_capture_enabled);
+        assert!(settings.local_routing_enabled);
+        assert!(!settings.https_decrypt_seeded);
     }
 
-    /// JSON with local_routing_enabled = false should deserialize correctly.
     #[test]
-    fn test_deserialize_with_local_routing_disabled() {
+    fn test_legacy_local_routing_disabled_deserializes() {
         let json = r#"{
             "dns_server": "8.8.8.8",
             "proxy_port": 8888,
@@ -73,27 +150,44 @@ mod tests {
         assert_eq!(settings.dns_server, Some("8.8.8.8".to_string()));
     }
 
-    /// Serialization round-trip preserves local_routing_enabled.
     #[test]
-    fn test_roundtrip_serialization() {
+    fn test_roundtrip_drops_local_routing_enabled() {
         let settings = ProxySettings {
             dns_server: None,
             proxy_port: 8888,
             reverse_http_port: None,
             reverse_https_port: None,
+            cors_rewrite_enabled: false,
+            dns_capture_enabled: true,
+            dns_records: vec![DnsZoneRecord {
+                host: "dev.local".to_string(),
+                record_type: "A".to_string(),
+                value: "127.0.0.1".to_string(),
+            }],
+            tls_bypass_hosts: vec!["okta.com".to_string()],
+            https_decrypt_hosts: vec!["api.example.com".to_string()],
+            connect_timeout_secs: 10,
+            upstream_timeout_secs: 20,
             local_routing_enabled: false,
+            tls_bypass_seeded: true,
+            https_decrypt_seeded: true,
         };
         let json = serde_json::to_string(&settings).unwrap();
+        assert!(!json.contains("local_routing_enabled"));
         let deserialized: ProxySettings = serde_json::from_str(&json).unwrap();
-        assert!(!deserialized.local_routing_enabled);
-        assert_eq!(deserialized.proxy_port, 8888);
+        assert!(deserialized.local_routing_enabled, "dropped field defaults to true");
+        assert!(!deserialized.cors_rewrite_enabled);
+        assert_eq!(deserialized.dns_records.len(), 1);
+        assert_eq!(deserialized.https_decrypt_hosts, vec!["api.example.com"]);
     }
 
-    /// Default should have local_routing_enabled = true.
     #[test]
     fn test_default_settings() {
         let settings = ProxySettings::default();
-        assert!(settings.local_routing_enabled);
         assert_eq!(settings.proxy_port, 8888);
+        assert!(settings.cors_rewrite_enabled);
+        assert!(settings.dns_capture_enabled);
+        assert_eq!(settings.connect_timeout_secs, 15);
+        assert_eq!(settings.upstream_timeout_secs, 30);
     }
 }
