@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use hyper::server::conn::http1::Builder as Http1Builder;
 use hyper_util::rt::TokioIo;
 use hyper_util::service::TowerToHyperService;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio_rustls::TlsAcceptor;
@@ -42,5 +42,9 @@ pub(crate) async fn handle_connect_tunnel_decrypted(
     let io = TokioIo::new(tls_stream);
     let app = proxy_app(Arc::clone(&state), "https");
     let svc = TowerToHyperService::new(app);
-    let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
+    let _ = Http1Builder::new()
+        .serve_connection(io, svc)
+        .with_upgrades()
+        .await
+        .ok();
 }

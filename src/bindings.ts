@@ -76,8 +76,6 @@ export const commands = {
 	sendApiRequest: (payload: SendApiRequestPayload) => typedError<ApiResponse<ApiRequestResult>, string>(__TAURI_INVOKE("send_api_request", { payload })),
 	updateProxySettings: (payload: UpdateProxySettingsPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("update_proxy_settings", { payload })),
 	setHttpsDecryptHost: (payload: SetHttpsDecryptHostPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("set_https_decrypt_host", { payload })),
-	setDnsZoneRecord: (payload: SetDnsZoneRecordPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("set_dns_zone_record", { payload })),
-	removeDnsZoneRecord: (payload: RemoveDnsZoneRecordPayload) => typedError<ApiResponse<ProxySettings>, string>(__TAURI_INVOKE("remove_dns_zone_record", { payload })),
 	/**  Returns the auto-start error if proxy failed to start on launch, or null if OK. */
 	getProxyAutoStartError: () => typedError<ApiResponse<string | null>, string>(__TAURI_INVOKE("get_proxy_auto_start_error")),
 	/**  API 로그 날짜 목록 조회. (YYYY-MM-DD) */
@@ -634,12 +632,6 @@ export type ProcessCryptoPayload = {
 	iv: string | null,
 };
 
-export type DnsZoneRecord = {
-	host: string,
-	type?: string,
-	value: string,
-};
-
 export type ProxySettings = {
 	/**
 	 *  Optional DNS server for pass-through resolution (e.g. "8.8.8.8" or "1.1.1.1:53").
@@ -656,8 +648,6 @@ export type ProxySettings = {
 	/**  Optional reverse HTTPS port (e.g. 8443). When set, proxy does TLS and forwards by Host. */
 	reverse_https_port?: number | null,
 	cors_rewrite_enabled?: boolean,
-	dns_capture_enabled?: boolean,
-	dns_records?: DnsZoneRecord[],
 	tls_bypass_hosts?: string[],
 	https_decrypt_hosts?: string[],
 	connect_timeout_secs?: number,
@@ -892,20 +882,8 @@ export type SetHttpsDecryptHostPayload = {
 	enabled: boolean,
 };
 
-export type SetDnsZoneRecordPayload = {
-	host: string,
-	recordType: string,
-	value: string,
-};
-
-export type RemoveDnsZoneRecordPayload = {
-	host: string,
-};
-
 export type UpdateProxySettingsPayload = {
 	corsRewriteEnabled?: boolean | null,
-	dnsCaptureEnabled?: boolean | null,
-	dnsRecords?: DnsZoneRecord[] | null,
 	tlsBypassHosts?: string[] | null,
 	httpsDecryptHosts?: string[] | null,
 	connectTimeoutSecs?: number | null,

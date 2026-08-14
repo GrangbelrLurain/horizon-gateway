@@ -1,8 +1,8 @@
+use axum::{extract::State, response::Html, response::IntoResponse, routing::get, Router};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::process::Child;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use axum::{Router, routing::get, response::Html, response::IntoResponse, extract::State};
+use tokio::process::Child;
+use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
 pub struct TunnelService {
@@ -46,11 +46,11 @@ impl TunnelService {
         // from mobile devices on the same VPN network.
         let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 13030));
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        
+
         let handle = tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;
         });
-        
+
         *axum_guard = Some(handle);
         Ok(())
     }
@@ -131,7 +131,10 @@ impl TunnelService {
             Ok(u)
         } else {
             let _ = child.kill().await;
-            Err("Failed to parse trycloudflare URL from cloudflared logs within 15 seconds.".to_string())
+            Err(
+                "Failed to parse trycloudflare URL from cloudflared logs within 15 seconds."
+                    .to_string(),
+            )
         }
     }
 
@@ -181,7 +184,8 @@ fn find_cloudflared_binary() -> String {
             candidates.push(Path::new(&local_app_data).join("cloudflared\\cloudflared.exe"));
 
             // LOCALAPPDATA\Programs\cloudflared
-            candidates.push(Path::new(&local_app_data).join("Programs\\cloudflared\\cloudflared.exe"));
+            candidates
+                .push(Path::new(&local_app_data).join("Programs\\cloudflared\\cloudflared.exe"));
         }
 
         // Program Files
@@ -198,7 +202,8 @@ fn find_cloudflared_binary() -> String {
         // Scoop
         if let Ok(home) = std::env::var("USERPROFILE") {
             candidates.push(Path::new(&home).join("scoop\\shims\\cloudflared.exe"));
-            candidates.push(Path::new(&home).join("scoop\\apps\\cloudflared\\current\\cloudflared.exe"));
+            candidates
+                .push(Path::new(&home).join("scoop\\apps\\cloudflared\\current\\cloudflared.exe"));
             // .cloudflared directory
             candidates.push(Path::new(&home).join(".cloudflared\\cloudflared.exe"));
         }
@@ -207,7 +212,9 @@ fn find_cloudflared_binary() -> String {
         if let Ok(choco) = std::env::var("ChocolateyInstall") {
             candidates.push(Path::new(&choco).join("bin\\cloudflared.exe"));
         } else {
-            candidates.push(PathBuf::from("C:\\ProgramData\\chocolatey\\bin\\cloudflared.exe"));
+            candidates.push(PathBuf::from(
+                "C:\\ProgramData\\chocolatey\\bin\\cloudflared.exe",
+            ));
         }
 
         for candidate in &candidates {
@@ -266,9 +273,7 @@ async fn ping_handler() -> impl IntoResponse {
     }))
 }
 
-async fn connect_handler(
-    State(state): State<AxumState>,
-) -> impl IntoResponse {
+async fn connect_handler(State(state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
     let proxy_port = 17345;
@@ -283,9 +288,7 @@ async fn connect_handler(
 
 /// Setup guide page: served over HTTP on the Tailscale IP (100.x.x.x:13030/setup).
 /// If the mobile device can load this page, it proves VPN connectivity.
-async fn setup_handler(
-    State(state): State<AxumState>,
-) -> impl IntoResponse {
+async fn setup_handler(State(state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
     let proxy_port = 17345;

@@ -1,6 +1,6 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg(windows)]
 use tauri::webview::ScrollBarStyle;
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 #[tauri::command]
 #[specta::specta]
@@ -27,9 +27,7 @@ pub async fn open_window(
         builder = builder.scroll_bar_style(ScrollBarStyle::FluentOverlay);
     }
 
-    let _window = builder
-        .build()
-        .map_err(|e: tauri::Error| e.to_string())?;
+    let _window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
 
     Ok(())
 }

@@ -24,7 +24,9 @@ pub(crate) fn is_horizon_gateway_internal(path: &str, url: &str) -> bool {
 
 /// Canonical `/.horizon-gateway/...` path, ignoring query strings and a missing leading slash.
 pub(crate) fn normalize_horizon_gateway_path(path: &str, uri: &str) -> String {
-    let raw = first_horizon_gateway_slice(uri).or_else(|| first_horizon_gateway_slice(path)).unwrap_or(path);
+    let raw = first_horizon_gateway_slice(uri)
+        .or_else(|| first_horizon_gateway_slice(path))
+        .unwrap_or(path);
     let without_query = raw.split('?').next().unwrap_or(raw);
     if without_query.starts_with(HORIZON_GATEWAY_PATH_PREFIX) {
         without_query.to_string()
@@ -48,7 +50,7 @@ fn first_horizon_gateway_slice(value: &str) -> Option<&str> {
 
 /// PAC (Proxy Auto-Config). Returns PROXY for ALL traffic; filtering logic is handled in the proxy itself.
 pub(crate) fn build_pac_js(proxy_host: &str, forward_port: u16) -> String {
-format!(
+    format!(
         "function FindProxyForURL(url, host) {{ \
             if (host === 'localhost' || \
                 host === '127.0.0.1' || \
@@ -61,7 +63,6 @@ format!(
     )
 }
 
-
 pub(crate) async fn serve_horizon_gateway_reserved_path(
     state: Arc<ProxyState>,
     path: &str,
@@ -73,13 +74,15 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
         };
 
         let parsed_host = host_h.split(':').next().unwrap_or("");
-        let is_loopback = parsed_host == "localhost"
-            || parsed_host == "127.0.0.1"
-            || parsed_host == "[::1]";
+        let is_loopback =
+            parsed_host == "localhost" || parsed_host == "127.0.0.1" || parsed_host == "[::1]";
 
         let proxy_host = if is_loopback {
             "127.0.0.1".to_string()
-        } else if parsed_host.ends_with(".trycloudflare.com") || parsed_host == "0.0.0.0" || parsed_host.is_empty() {
+        } else if parsed_host.ends_with(".trycloudflare.com")
+            || parsed_host == "0.0.0.0"
+            || parsed_host.is_empty()
+        {
             crate::service::tunnel_service::get_tailscale_ip()
                 .unwrap_or_else(|| "127.0.0.1".to_string())
         } else {
@@ -127,7 +130,9 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
                 ),
                 (
                     header::CONTENT_DISPOSITION,
-                    HeaderValue::from_static("attachment; filename=\"horizon-gateway-root-ca.crt\""),
+                    HeaderValue::from_static(
+                        "attachment; filename=\"horizon-gateway-root-ca.crt\"",
+                    ),
                 ),
             ],
             ca_pem,

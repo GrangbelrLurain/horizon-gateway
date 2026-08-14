@@ -1,7 +1,7 @@
-import html2canvas from "html2canvas";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation } from "@/entities/inspector";
 import { saveAnnotationApi } from "../api/gateway";
+import { captureElementThumbnail, capturePageMeta } from "../lib/capture";
 import { buildLocatorsFromElement, denormalizedSelector } from "../lib/locator";
 import { generateRobustSelector } from "../lib/selector";
 import type { EditingElement } from "../types";
@@ -12,9 +12,20 @@ export function useInspectMode(fetchAnnotations: () => void, allAnnotations: Ann
   const [editingElement, setEditingElement] = useState<EditingElement | null>(null);
   const [role, setRole] = useState("");
   const [description, setDescription] = useState("");
-  const [hostPattern, setHostPattern] = useState("");
-  const [pathPattern, setPathPattern] = useState("");
+  const [hostPattern, setHostPatternState] = useState("");
+  const [pathPattern, setPathPatternState] = useState("");
+  const hostPatternRef = useRef("");
+  const pathPatternRef = useRef("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const setHostPattern = (value: string) => {
+    hostPatternRef.current = value;
+    setHostPatternState(value);
+  };
+  const setPathPattern = (value: string) => {
+    pathPatternRef.current = value;
+    setPathPatternState(value);
+  };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -94,8 +105,12 @@ export function useInspectMode(fetchAnnotations: () => void, allAnnotations: Ann
       });
       setRole("");
       setDescription("");
-      setHostPattern(existingHostAnn?.hostPattern || currentHost);
-      setPathPattern(existingPathAnn?.pathPattern || currentPath);
+      const nextHost = existingHostAnn?.hostPattern || currentHost;
+      const nextPath = existingPathAnn?.pathPattern || currentPath;
+      hostPatternRef.current = nextHost;
+      pathPatternRef.current = nextPath;
+      setHostPatternState(nextHost);
+      setPathPatternState(nextPath);
     },
     [isInspectMode, editingElement, allAnnotations],
   );
@@ -114,32 +129,30 @@ export function useInspectMode(fetchAnnotations: () => void, allAnnotations: Ann
     };
   }, [isInspectMode, handleMouseMove, handleClick]);
 
-  const saveAnnotation = async () => {
+  const saveAnnotation = async (live?: { hostPattern?: string; pathPattern?: string; description?: string }) => {
     if (!editingElement || !role) {
       return;
     }
+    const liveHostPattern = (live?.hostPattern ?? hostPatternRef.current).trim() || window.location.host;
+    const livePathPattern = (live?.pathPattern ?? pathPatternRef.current).trim() || window.location.pathname;
+    const liveDescription = (live?.description ?? description).trim();
     setIsSaving(true);
-    let thumbnail = "";
-    try {
-      const canvas = await html2canvas(editingElement.target, { useCORS: true, scale: 1, logging: false });
-      thumbnail = canvas.toDataURL("image/webp", 0.3);
-    } catch (_err) {}
-
-    const cleanUrl = window.location.href.split("/.horizon-gateway")[0];
+    const thumbnail = await captureElementThumbnail(editingElement.target);
+    const pageMeta = capturePageMeta();
     const cssSelector = editingElement.selector;
     const locators = buildLocatorsFromElement(editingElement.target, cssSelector);
 
     const payload = {
       id: crypto.randomUUID(),
       role: role.trim(),
-      description: description.trim(),
+      description: liveDescription,
       tagName: editingElement.tagName,
       selector: denormalizedSelector(locators) || cssSelector,
       content: (editingElement.target.innerText || "").substring(0, 100),
-      url: cleanUrl,
-      domain: window.location.host,
-      hostPattern: hostPattern.trim() || window.location.host,
-      pathPattern: pathPattern.trim() || window.location.pathname,
+      url: pageMeta.url,
+      domain: pageMeta.domain,
+      hostPattern: liveHostPattern,
+      pathPattern: livePathPattern,
       timestamp: Date.now(),
       thumbnail,
       locators,

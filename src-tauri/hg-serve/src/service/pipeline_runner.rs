@@ -1,7 +1,7 @@
+use crate::service::crypto_service::{CryptoAction, CryptoService};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
-use crate::service::crypto_service::{CryptoService, CryptoAction};
 
 pub use hg_core::model::pipeline::*;
 
@@ -60,7 +60,9 @@ impl PipelineRunner {
         }
 
         if order.len() != flow.nodes.len() {
-            return Err("Cycle detected in pipeline graph. Cannot execute cyclic flows.".to_string());
+            return Err(
+                "Cycle detected in pipeline graph. Cannot execute cyclic flows.".to_string(),
+            );
         }
 
         Ok(order)
@@ -85,7 +87,8 @@ impl PipelineRunner {
         };
 
         // Create a map of node_id -> PipelineNode for quick lookup
-        let node_map: HashMap<String, &PipelineNode> = flow.nodes.iter().map(|n| (n.id.clone(), n)).collect();
+        let node_map: HashMap<String, &PipelineNode> =
+            flow.nodes.iter().map(|n| (n.id.clone(), n)).collect();
 
         for node_id in order {
             let node = match node_map.get(&node_id) {
@@ -99,20 +102,30 @@ impl PipelineRunner {
             interpolate_value(&mut interpolated_config, &context);
 
             // 2. Parse Error Policy
-            let error_policy = match interpolated_config.get("errorPolicy").and_then(|v| v.as_str()) {
+            let error_policy = match interpolated_config
+                .get("errorPolicy")
+                .and_then(|v| v.as_str())
+            {
                 Some("continueOnError") => ErrorPolicy::ContinueOnError,
                 Some("retry") => ErrorPolicy::Retry,
                 _ => ErrorPolicy::FastFail,
             };
 
             let node_start = Instant::now();
-            let mut attempts = if matches!(error_policy, ErrorPolicy::Retry) { 3 } else { 1 };
+            let mut attempts = if matches!(error_policy, ErrorPolicy::Retry) {
+                3
+            } else {
+                1
+            };
             let mut last_error = None;
             let mut output = serde_json::Value::Null;
             let mut node_success = false;
 
             while attempts > 0 {
-                match self.execute_node(node.node_type.as_str(), &interpolated_config).await {
+                match self
+                    .execute_node(node.node_type.as_str(), &interpolated_config)
+                    .await
+                {
                     Ok(out) => {
                         output = out;
                         node_success = true;
@@ -133,7 +146,9 @@ impl PipelineRunner {
 
             // 3. Handle result based on error policy
             if !node_success {
-                let err_msg = last_error.clone().unwrap_or_else(|| "Unknown execution error".to_string());
+                let err_msg = last_error
+                    .clone()
+                    .unwrap_or_else(|| "Unknown execution error".to_string());
                 results.push(NodeExecutionResult {
                     node_id: node_id.clone(),
                     success: false,
@@ -148,7 +163,10 @@ impl PipelineRunner {
                             success: false,
                             elapsed_ms: start_time.elapsed().as_millis() as u64,
                             results,
-                            error: Some(format!("Pipeline aborted at node '{}': {}", node.label, err_msg)),
+                            error: Some(format!(
+                                "Pipeline aborted at node '{}': {}",
+                                node.label, err_msg
+                            )),
                         };
                     }
                     ErrorPolicy::ContinueOnError => {
@@ -177,12 +195,22 @@ impl PipelineRunner {
     }
 
     /// Execute individual node type logic
-    pub async fn execute_node(&self, node_type: &str, config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    pub async fn execute_node(
+        &self,
+        node_type: &str,
+        config: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         match node_type {
             "api" => {
-                let method_str = config.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
-                let url = config.get("url").and_then(|v| v.as_str()).ok_or_else(|| "URL is required".to_string())?;
-                
+                let method_str = config
+                    .get("method")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("GET");
+                let url = config
+                    .get("url")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| "URL is required".to_string())?;
+
                 let headers_val = config.get("headers");
                 let mut headers = HashMap::new();
                 if let Some(h_obj) = headers_val.and_then(|v| v.as_object()) {
@@ -193,15 +221,15 @@ impl PipelineRunner {
                     }
                 }
 
-                let body = config.get("body").and_then(|v| {
-                    match v {
-                        serde_json::Value::String(s) => Some(s.clone()),
-                        serde_json::Value::Null => None,
-                        other => Some(other.to_string()),
-                    }
+                let body = config.get("body").and_then(|v| match v {
+                    serde_json::Value::String(s) => Some(s.clone()),
+                    serde_json::Value::Null => None,
+                    other => Some(other.to_string()),
                 });
 
-                let method: reqwest::Method = method_str.to_uppercase().parse()
+                let method: reqwest::Method = method_str
+                    .to_uppercase()
+                    .parse()
                     .map_err(|e| format!("Invalid HTTP method: {}", e))?;
 
                 let proxy_port = crate::command::local_route_commands::get_proxy_port();
@@ -210,7 +238,8 @@ impl PipelineRunner {
                     .timeout(std::time::Duration::from_secs(30));
 
                 if proxy_port > 0 {
-                    if let Ok(proxy) = reqwest::Proxy::all(format!("http://127.0.0.1:{proxy_port}")) {
+                    if let Ok(proxy) = reqwest::Proxy::all(format!("http://127.0.0.1:{proxy_port}"))
+                    {
                         client_builder = client_builder.proxy(proxy);
                     }
                 }
@@ -226,16 +255,21 @@ impl PipelineRunner {
 
                 if let Some(b) = body {
                     builder = builder.body(b);
-                    if !headers.keys().any(|k| k.eq_ignore_ascii_case("content-type")) {
+                    if !headers
+                        .keys()
+                        .any(|k| k.eq_ignore_ascii_case("content-type"))
+                    {
                         builder = builder.header("content-type", "application/json");
                     }
                 }
 
-                let resp = builder.send().await
+                let resp = builder
+                    .send()
+                    .await
                     .map_err(|e| format!("API request failed: {}", e))?;
 
                 let status = resp.status().as_u16();
-                
+
                 // Parse headers
                 let mut resp_headers = HashMap::new();
                 for (k, v) in resp.headers() {
@@ -244,12 +278,14 @@ impl PipelineRunner {
                     }
                 }
 
-                let text = resp.text().await
+                let text = resp
+                    .text()
+                    .await
                     .map_err(|e| format!("Failed to read response body: {}", e))?;
 
                 // Try parsing body as JSON, if fail keep as string
-                let parsed_body: serde_json::Value = serde_json::from_str(&text)
-                    .unwrap_or_else(|_| serde_json::Value::String(text));
+                let parsed_body: serde_json::Value =
+                    serde_json::from_str(&text).unwrap_or_else(|_| serde_json::Value::String(text));
 
                 Ok(serde_json::json!({
                     "statusCode": status,
@@ -258,14 +294,20 @@ impl PipelineRunner {
                 }))
             }
             "crypto" => {
-                let action_str = config.get("action").and_then(|v| v.as_str()).ok_or_else(|| "Action is required".to_string())?;
-                let payload = config.get("payload").and_then(|v| {
-                    match v {
-                        serde_json::Value::String(s) => Some(s.as_str()),
-                        serde_json::Value::Null => None,
-                        other => Some(other.as_str().unwrap_or("")), // Fallback
-                    }
-                }).unwrap_or("");
+                let action_str = config
+                    .get("action")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| "Action is required".to_string())?;
+                let payload = config
+                    .get("payload")
+                    .and_then(|v| {
+                        match v {
+                            serde_json::Value::String(s) => Some(s.as_str()),
+                            serde_json::Value::Null => None,
+                            other => Some(other.as_str().unwrap_or("")), // Fallback
+                        }
+                    })
+                    .unwrap_or("");
 
                 let key = config.get("key").and_then(|v| v.as_str());
                 let iv = config.get("iv").and_then(|v| v.as_str());
@@ -273,8 +315,10 @@ impl PipelineRunner {
                 let action: CryptoAction = serde_json::from_value(serde_json::json!(action_str))
                     .map_err(|_| format!("Unsupported crypto action: {}", action_str))?;
 
-                let result = self.crypto_service.process_crypto(action, payload, key, iv)?;
-                
+                let result = self
+                    .crypto_service
+                    .process_crypto(action, payload, key, iv)?;
+
                 // Try parsing result as JSON if action is JwtDecode, otherwise return as String
                 let result_val = if matches!(action, CryptoAction::JwtDecode) {
                     serde_json::from_str(&result).unwrap_or(serde_json::Value::String(result))
@@ -287,43 +331,42 @@ impl PipelineRunner {
                 }))
             }
             "schema" => {
-                let payload = config.get("payload").and_then(|v| {
-                    match v {
+                let payload = config
+                    .get("payload")
+                    .and_then(|v| match v {
                         serde_json::Value::String(s) => Some(s.clone()),
                         other => Some(other.to_string()),
-                    }
-                }).ok_or_else(|| "Payload is required".to_string())?;
+                    })
+                    .ok_or_else(|| "Payload is required".to_string())?;
 
-                let schema = config.get("schema").and_then(|v| {
-                    match v {
+                let schema = config
+                    .get("schema")
+                    .and_then(|v| match v {
                         serde_json::Value::String(s) => Some(s.clone()),
                         other => Some(other.to_string()),
-                    }
-                }).ok_or_else(|| "Schema is required".to_string())?;
+                    })
+                    .ok_or_else(|| "Schema is required".to_string())?;
 
                 match self.crypto_service.validate_json_schema(&payload, &schema) {
-                    Ok(()) => {
-                        Ok(serde_json::json!({
-                            "valid": true,
-                            "errors": null
-                        }))
-                    }
-                    Err(e) => {
-                        Ok(serde_json::json!({
-                            "valid": false,
-                            "errors": e
-                        }))
-                    }
+                    Ok(()) => Ok(serde_json::json!({
+                        "valid": true,
+                        "errors": null
+                    })),
+                    Err(e) => Ok(serde_json::json!({
+                        "valid": false,
+                        "errors": e
+                    })),
                 }
             }
-            "preview" => {
-                Ok(config.clone())
-            }
+            "preview" => Ok(config.clone()),
             "mapper" => {
                 let mut out_obj = serde_json::Map::new();
                 if let Some(mappings) = config.get("mappings").and_then(|v| v.as_array()) {
                     for m in mappings {
-                        if let (Some(k), Some(v)) = (m.get("targetKey").and_then(|v| v.as_str()), m.get("sourceValue")) {
+                        if let (Some(k), Some(v)) = (
+                            m.get("targetKey").and_then(|v| v.as_str()),
+                            m.get("sourceValue"),
+                        ) {
                             if !k.trim().is_empty() {
                                 out_obj.insert(k.trim().to_string(), v.clone());
                             }
@@ -456,7 +499,10 @@ mod tests {
         };
 
         let sorted = runner.sort_dag(&flow).unwrap();
-        assert_eq!(sorted, vec!["A".to_string(), "B".to_string(), "C".to_string()]);
+        assert_eq!(
+            sorted,
+            vec!["A".to_string(), "B".to_string(), "C".to_string()]
+        );
     }
 
     #[test]
@@ -493,7 +539,10 @@ mod tests {
 
         let result = runner.sort_dag(&flow);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Cycle detected in pipeline graph. Cannot execute cyclic flows.");
+        assert_eq!(
+            result.unwrap_err(),
+            "Cycle detected in pipeline graph. Cannot execute cyclic flows."
+        );
     }
 
     #[test]
@@ -508,7 +557,7 @@ mod tests {
                         "name": "Jane"
                     }
                 }
-            })
+            }),
         );
 
         let res1 = resolve_path("node_1.body.token", &context).unwrap();
@@ -528,7 +577,7 @@ mod tests {
             "crypto_node".to_string(),
             serde_json::json!({
                 "output": "processed_payload"
-            })
+            }),
         );
 
         let mut test_val = serde_json::json!("{{crypto_node.output}}");
@@ -537,6 +586,9 @@ mod tests {
 
         let mut test_mixed_val = serde_json::json!("Prefix {{crypto_node.output}} Suffix");
         interpolate_value(&mut test_mixed_val, &context);
-        assert_eq!(test_mixed_val.as_str().unwrap(), "Prefix processed_payload Suffix");
+        assert_eq!(
+            test_mixed_val.as_str().unwrap(),
+            "Prefix processed_payload Suffix"
+        );
     }
 }

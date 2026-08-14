@@ -2,7 +2,6 @@ import { useAtomValue } from "jotai";
 import { useCallback, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
-import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import {
@@ -23,9 +22,8 @@ export function useDomainBulkActions() {
   const t = lang === "ko" ? ko : en;
   const { alert: showAlert } = usePromiseModal();
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
-  const { proxyActive, getFeatureState, fetchAll, domains } = useDomainHubData();
+  const { getFeatureState, fetchAll, domains } = useDomainHubData();
   const [bulkLoading, setBulkLoading] = useState(false);
-  const openHubSurface = useOpenHubSurface();
 
   const applyFeatureToDomains = useCallback(
     async (domainIds: number[], key: BulkFeatureKey, enabled: boolean) => {
@@ -54,17 +52,13 @@ export function useDomainBulkActions() {
         await setBulkApiLogging(domainIds, enabled, apiLinks);
         return;
       }
-      if (!proxyActive) {
-        openHubSurface("chrome/settings");
-        return;
-      }
       const states = domainIds.map((domainId) => ({ domainId, state: getFeatureState(domainId) }));
-      const { skipped } = await setBulkProxy(states, enabled, proxyActive);
+      const { skipped } = await setBulkProxy(states, enabled);
       if (skipped > 0) {
         await showAlert(t.bulkModeEnter, t.bulkProxySkipped(skipped), "warning");
       }
     },
-    [apiLinks, domains, getFeatureState, openHubSurface, proxyActive, showAlert, t],
+    [apiLinks, domains, getFeatureState, showAlert, t],
   );
 
   const bulkFeatureToggle = useCallback(

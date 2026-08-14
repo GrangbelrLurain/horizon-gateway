@@ -1,6 +1,6 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
 
 pub use hg_core::model::usb::AdbStatus;
 
@@ -29,7 +29,7 @@ impl UsbService {
     pub fn check_status(&self) -> AdbStatus {
         // Refresh the path on check just to be safe (e.g. if SDK was installed recently)
         let path_opt = self.refresh_adb_path();
-        
+
         let Some(path) = path_opt else {
             return AdbStatus {
                 found: false,
@@ -79,18 +79,35 @@ impl UsbService {
 
             if !output.status.success() {
                 let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-                return Err(format!("adb reverse failed for {}: {}", serial, err_msg.trim()));
+                return Err(format!(
+                    "adb reverse failed for {}: {}",
+                    serial,
+                    err_msg.trim()
+                ));
             }
 
             // 2. inject global proxy: adb -s <serial> shell settings put global http_proxy 127.0.0.1:PORT
             let output_proxy = Command::new(&path)
-                .args(["-s", serial, "shell", "settings", "put", "global", "http_proxy", &proxy_target])
+                .args([
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "put",
+                    "global",
+                    "http_proxy",
+                    &proxy_target,
+                ])
                 .output()
                 .map_err(|e| format!("Failed to set proxy for {serial}: {e}"))?;
 
             if !output_proxy.status.success() {
                 let err_msg = String::from_utf8_lossy(&output_proxy.stderr).to_string();
-                return Err(format!("Failed to set global http_proxy via adb for {}: {}", serial, err_msg.trim()));
+                return Err(format!(
+                    "Failed to set global http_proxy via adb for {}: {}",
+                    serial,
+                    err_msg.trim()
+                ));
             }
         }
 
@@ -116,23 +133,60 @@ impl UsbService {
 
             if !output.status.success() {
                 let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-                tracing::warn!("adb reverse remove failed for {} (might be already removed): {}", serial, err_msg.trim());
+                tracing::warn!(
+                    "adb reverse remove failed for {} (might be already removed): {}",
+                    serial,
+                    err_msg.trim()
+                );
             }
 
             // 2. clear global proxy: adb -s <serial> shell settings put global http_proxy :0
             let _ = Command::new(&path)
-                .args(["-s", serial, "shell", "settings", "put", "global", "http_proxy", ":0"])
+                .args([
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "put",
+                    "global",
+                    "http_proxy",
+                    ":0",
+                ])
                 .status();
 
             // 3. delete proxy keys completely
             let _ = Command::new(&path)
-                .args(["-s", serial, "shell", "settings", "delete", "global", "http_proxy"])
+                .args([
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "delete",
+                    "global",
+                    "http_proxy",
+                ])
                 .status();
             let _ = Command::new(&path)
-                .args(["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_host"])
+                .args([
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "delete",
+                    "global",
+                    "global_http_proxy_host",
+                ])
                 .status();
             let _ = Command::new(&path)
-                .args(["-s", serial, "shell", "settings", "delete", "global", "global_http_proxy_port"])
+                .args([
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "delete",
+                    "global",
+                    "global_http_proxy_port",
+                ])
                 .status();
         }
 
@@ -193,13 +247,13 @@ fn find_adb_binary() -> Option<PathBuf> {
                 return Some(path);
             }
         }
-        
+
         // Check Homebrew paths on macOS
         let opt_homebrew = PathBuf::from("/opt/homebrew/bin/adb");
         if opt_homebrew.exists() {
             return Some(opt_homebrew);
         }
-        
+
         let usr_local = PathBuf::from("/usr/local/bin/adb");
         if usr_local.exists() {
             return Some(usr_local);
@@ -221,7 +275,7 @@ fn list_devices(adb_path: &PathBuf) -> Result<Vec<String>, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut devices = Vec::new();
-    
+
     // Parse lines. Format:
     // List of devices attached
     // <device_serial>	device
@@ -235,6 +289,6 @@ fn list_devices(adb_path: &PathBuf) -> Result<Vec<String>, String> {
             devices.push(parts[0].to_string());
         }
     }
-    
+
     Ok(devices)
 }

@@ -216,6 +216,18 @@ fn dispatch_serve_request(
         );
     }
 
+    if request.command == "shutdown_serve" {
+        // Reply first so the GUI can observe success, then exit this elevated process.
+        std::thread::spawn(|| {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            super::tray::quit_serve();
+        });
+        return ServeResponse::success(
+            request.id.clone(),
+            serde_json::json!({ "ok": true, "stopping": true }),
+        );
+    }
+
     let runtime = CliRuntime::Tokio(rt);
     match cli::dispatch_headless::dispatch_headless(
         &request.command,

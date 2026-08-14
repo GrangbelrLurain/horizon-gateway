@@ -11,8 +11,9 @@ pub const GET_JSON_SCHEMAS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn get_json_schemas_svc(service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
+pub fn get_json_schemas_svc(
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{} schemas", list.len()),
@@ -35,8 +36,10 @@ pub const GET_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn get_json_schema_svc(payload: GetJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
+pub fn get_json_schema_svc(
+    payload: GetJsonSchemaPayload,
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
     let item = service.get_by_id(&payload.id);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -69,8 +72,10 @@ pub const CREATE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn create_json_schema_svc(payload: CreateJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<SavedJsonSchema>, String> {
+pub fn create_json_schema_svc(
+    payload: CreateJsonSchemaPayload,
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<SavedJsonSchema>, String> {
     let item = service.create(
         payload.name,
         payload.description,
@@ -102,8 +107,10 @@ pub const UPDATE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn update_json_schema_svc(payload: UpdateJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
+pub fn update_json_schema_svc(
+    payload: UpdateJsonSchemaPayload,
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<Option<SavedJsonSchema>>, String> {
     let item = service.update(
         payload.id,
         payload.name,
@@ -136,8 +143,10 @@ pub const DELETE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn delete_json_schema_svc(payload: DeleteJsonSchemaPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<bool>, String> {
+pub fn delete_json_schema_svc(
+    payload: DeleteJsonSchemaPayload,
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<bool>, String> {
     let ok = service.delete(&payload.id);
     Ok(ApiResponse {
         message: if ok {
@@ -164,8 +173,10 @@ pub const IMPORT_JSON_SCHEMAS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     gui_only: false,
 };
 
-
-pub fn import_json_schemas_svc(payload: ImportJsonSchemasPayload, service: &Arc<JsonSchemaRegistryService>) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
+pub fn import_json_schemas_svc(
+    payload: ImportJsonSchemasPayload,
+    service: &Arc<JsonSchemaRegistryService>,
+) -> Result<ApiResponse<Vec<SavedJsonSchema>>, String> {
     service.replace_all(payload.schemas);
     let list = service.get_all();
     Ok(ApiResponse {

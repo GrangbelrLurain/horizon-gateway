@@ -21,6 +21,7 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
     openSync,
     openBilling,
     syncing,
+    paidCheckoutEnabled,
   } = ctrl;
   const [settingsModal, setSettingsModal] = useState<WorkspaceSettingsModalMode | null>(null);
 
@@ -45,8 +46,8 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
           <div className="flex items-start justify-between gap-2">
             <p className="text-[11px] text-base-content/55 leading-relaxed flex-1">
               {lang === "ko"
-                ? "멤버를 초대하고, 도메인·그룹·mock 설정을 동기화하거나 이 워크스페이스 요금제를 관리하세요."
-                : "Invite members, sync domains/groups/mocks, or manage this workspace plan."}
+                ? "멤버를 초대하고, 도메인·그룹·mock 설정을 동기화하세요."
+                : "Invite members and sync domains/groups/mocks."}
             </p>
             {isWorkspaceOwner && (
               <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
@@ -116,15 +117,19 @@ export function WorkspaceHomePanel({ ctrl, onClose }: WorkspaceHomePanelProps) {
               <CreditCard className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold">{lang === "ko" ? "요금제" : "Billing"}</p>
+              <p className="text-sm font-bold">{lang === "ko" ? "요금제" : "Plan"}</p>
               <p className="text-[10px] text-base-content/45">
                 {activeIsPro
                   ? lang === "ko"
                     ? "Team Pro / Unlimited 이용 중"
                     : "Team Pro / Unlimited active"
-                  : lang === "ko"
-                    ? "이 워크스페이스를 Team Pro로 업그레이드"
-                    : "Upgrade this workspace to Team Pro"}
+                  : paidCheckoutEnabled
+                    ? lang === "ko"
+                      ? "이 워크스페이스를 Team Pro로 업그레이드"
+                      : "Upgrade this workspace to Team Pro"
+                    : lang === "ko"
+                      ? `Free · 좌석 ${guard.memberCount}/${guard.seatLimit}`
+                      : `Free · ${guard.memberCount}/${guard.seatLimit} seats`}
               </p>
             </div>
           </button>

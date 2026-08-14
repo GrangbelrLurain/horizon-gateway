@@ -20,13 +20,12 @@ export function DomainMonitorPanel({ domain, onClose }: DomainMonitorPanelProps)
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
-  const { getFeatureState, getDomainHost, proxyActive, fetchAll } = useDomainHubData();
+  const { getFeatureState, getDomainHost, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
     domainUrl: domain.url,
     state: featureState,
-    proxyActive,
     onRefresh: fetchAll,
   });
   const host = getDomainHost(domain);

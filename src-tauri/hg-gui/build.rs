@@ -103,10 +103,7 @@ fn patch_bundle_resources() {
 }
 
 fn sidecar_resource_names(bin_name: &str) -> [String; 2] {
-    [
-        format!("{bin_name}.exe"),
-        bin_name.to_string(),
-    ]
+    [format!("{bin_name}.exe"), bin_name.to_string()]
 }
 
 /// Leftover copies in watched `resources/` retrigger `tauri dev` rebuilds on Windows.
@@ -218,9 +215,9 @@ fn find_sidecar_binary(manifest_dir: &Path, bin_name: &str) -> Option<PathBuf> {
 
     candidates.push(profile_target_dir(manifest_dir).join(&file_name));
 
-    candidates.into_iter().find(|path| {
-        path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)
-    })
+    candidates
+        .into_iter()
+        .find(|path| path.is_file() && path.metadata().map(|m| m.len() > 0).unwrap_or(false))
 }
 
 /// Automatically sync project master SKILL.md (`.agents/skills/horizon-gateway/SKILL.md`)

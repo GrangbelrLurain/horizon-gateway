@@ -1,6 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   Check,
   ChevronDown,
@@ -22,7 +22,12 @@ import {
   windowBehaviorEn,
   windowBehaviorKo,
 } from "@/entities/app";
-import { proxyPortInputAtom, proxyReverseHttpPortInputAtom, proxyReverseHttpsPortInputAtom } from "@/entities/proxy";
+import {
+  proxyPortInputAtom,
+  proxyReverseHttpPortInputAtom,
+  proxyReverseHttpsPortInputAtom,
+  proxyStatusAtom,
+} from "@/entities/proxy";
 import { MobileConnectionContent } from "@/features/mobile-connection";
 import { UpdateBanner, useUpdateCheck } from "@/features/update";
 import type {
@@ -37,7 +42,7 @@ import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { useIsSecondaryWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
-import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { reportError, toastError, toastSuccess } from "@/shared/ui/toast";
 import { settingsEn } from "../i18n/settings-en";
 import { settingsKo } from "../i18n/settings-ko";
 
@@ -222,13 +227,12 @@ export function SettingsContent() {
   const [proxySettings, setProxySettings] = useState<ProxySettings | null>(null);
   const [dnsServerInput, setDnsServerInput] = useState("");
   const [tlsBypassDraft, setTlsBypassDraft] = useState("");
-  const [zoneHost, setZoneHost] = useState("");
-  const [zoneType, setZoneType] = useState("A");
-  const [zoneValue, setZoneValue] = useState("");
   const [connectTimeoutInput, setConnectTimeoutInput] = useState("15");
   const [upstreamTimeoutInput, setUpstreamTimeoutInput] = useState("30");
   const [engineSaving, setEngineSaving] = useState(false);
   const lang = useAtomValue(languageAtom);
+  const globalProxyStatus = useAtomValue(proxyStatusAtom);
+  const setGlobalProxyStatus = useSetAtom(proxyStatusAtom);
   const [closeBehavior, setCloseBehavior] = useAtom(closeBehaviorAtom);
   const [minimizeBehavior, setMinimizeBehavior] = useAtom(minimizeBehaviorAtom);
   const { update, isChecking, error: updateError, checkForUpdates } = useUpdateCheck({ onMount: false });
@@ -268,16 +272,29 @@ export function SettingsContent() {
       ? `http://127.0.0.1:${proxyStatus.port}/.horizon-gateway/proxy.pac`
       : "";
 
+  const applyProxyStatus = useCallback(
+    (data: ProxyStatusPayload) => {
+      setProxyStatus(data);
+      setGlobalProxyStatus({
+        running: data.running,
+        port: data.port,
+        reverse_http_port: data.reverse_http_port,
+        reverse_https_port: data.reverse_https_port,
+      });
+    },
+    [setGlobalProxyStatus],
+  );
+
   const fetchProxyStatus = useCallback(async () => {
     try {
       const res = await commands.getProxyStatus().then(unwrap);
       if (res.success && res.data) {
-        setProxyStatus(res.data);
+        applyProxyStatus(res.data);
       }
     } catch (e) {
       console.error("get_proxy_status:", e);
     }
-  }, []);
+  }, [applyProxyStatus]);
 
   const fetchTransparentStatus = useCallback(async () => {
     try {
@@ -315,17 +332,31 @@ export function SettingsContent() {
   }, [setProxyPortInput, setReverseHttpInput, setReverseHttpsInput]);
 
   useEffect(() => {
+    if (!globalProxyStatus) {
+      return;
+    }
+    setProxyStatus({
+      running: Boolean(globalProxyStatus.running),
+      port: globalProxyStatus.port ?? 0,
+      reverse_http_port: globalProxyStatus.reverse_http_port ?? null,
+      reverse_https_port: globalProxyStatus.reverse_https_port ?? null,
+    });
+  }, [globalProxyStatus]);
+
+  useEffect(() => {
     fetchSettings();
     void fetchProxyStatus();
     void fetchTransparentStatus();
 
     const unlisten = listen<ProxyStatusPayload>("proxy-status-changed", (ev) => {
-      setProxyStatus(ev.payload);
+      if (ev.payload) {
+        applyProxyStatus(ev.payload);
+      }
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [fetchSettings, fetchProxyStatus, fetchTransparentStatus]);
+  }, [fetchSettings, fetchProxyStatus, fetchTransparentStatus, applyProxyStatus]);
 
   useEffect(() => {
     if (!proxyStatus.running) {
@@ -340,12 +371,12 @@ export function SettingsContent() {
         ? await commands.startLocalProxy(null).then(unwrap)
         : await commands.stopLocalProxy().then(unwrap);
       if (res.success && res.data) {
-        setProxyStatus(res.data);
+        applyProxyStatus(res.data);
       }
       await notifyHubDataChanged("features");
       void fetchTransparentStatus();
     } catch (e) {
-      console.error("toggle proxy:", e);
+      reportError(e);
     } finally {
       setProxyLoading(false);
     }
@@ -483,43 +514,6 @@ export function SettingsContent() {
       }
     } catch (e) {
       console.error("update_proxy_settings:", e);
-    } finally {
-      setEngineSaving(false);
-    }
-  };
-
-  const handleAddZoneRecord = async () => {
-    const host = zoneHost.trim();
-    const value = zoneValue.trim();
-    if (!host || !value) {
-      return;
-    }
-    setEngineSaving(true);
-    try {
-      const res = await commands.setDnsZoneRecord({ host, recordType: zoneType, value }).then(unwrap);
-      if (res.success && res.data) {
-        applyEngineSettings(res.data);
-        setZoneHost("");
-        setZoneValue("");
-        await notifyHubDataChanged("features");
-      }
-    } catch (e) {
-      console.error("set_dns_zone_record:", e);
-    } finally {
-      setEngineSaving(false);
-    }
-  };
-
-  const handleRemoveZoneRecord = async (host: string) => {
-    setEngineSaving(true);
-    try {
-      const res = await commands.removeDnsZoneRecord({ host }).then(unwrap);
-      if (res.success && res.data) {
-        applyEngineSettings(res.data);
-        await notifyHubDataChanged("features");
-      }
-    } catch (e) {
-      console.error("remove_dns_zone_record:", e);
     } finally {
       setEngineSaving(false);
     }
@@ -836,75 +830,6 @@ export function SettingsContent() {
                     {t.dnsCurrent} <code className="bg-base-200 px-1 rounded">{proxySettings.dns_server}</code>
                   </p>
                 )}
-                <div className="pt-2 border-t border-base-300">
-                  <SettingSwitch
-                    title={t.dnsCaptureLabel}
-                    desc={t.dnsCaptureDesc}
-                    checked={proxySettings?.dns_capture_enabled !== false}
-                    onChange={(checked) => void patchEngine({ dnsCaptureEnabled: checked })}
-                    loading={engineSaving}
-                    label={proxySettings?.dns_capture_enabled !== false ? t.dnsCaptureOn : t.dnsCaptureOff}
-                  />
-                </div>
-                <div className="pt-2 border-t border-base-300 space-y-2">
-                  <p className="text-[10px] font-bold text-base-content/40 uppercase">{t.dnsZoneTitle}</p>
-                  <p className="text-[10px] text-base-content/50 leading-relaxed">{t.dnsZoneDesc}</p>
-                  {(proxySettings?.dns_records ?? []).length === 0 ? (
-                    <p className="text-xs text-base-content/40">{t.dnsZoneEmpty}</p>
-                  ) : (
-                    <div className="rounded-xl border border-base-300 divide-y divide-base-300">
-                      {(proxySettings?.dns_records ?? []).map((record) => (
-                        <div key={`${record.host}-${record.type ?? "A"}`} className="flex items-center gap-2 px-3 py-2">
-                          <span className="text-xs font-mono truncate flex-1">{record.host}</span>
-                          <span className="text-[10px] font-black uppercase text-base-content/40">
-                            {record.type ?? "A"}
-                          </span>
-                          <span className="text-xs font-mono text-base-content/70 truncate max-w-[8rem]">
-                            {record.value}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={engineSaving}
-                            onClick={() => void handleRemoveZoneRecord(record.host)}
-                          >
-                            {t.dnsZoneRemove}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 @min-[36rem]:grid-cols-[1fr_5rem_1fr_auto] gap-2">
-                    <Input
-                      className="h-9 text-sm"
-                      placeholder={t.dnsZoneHost}
-                      value={zoneHost}
-                      onChange={(e) => setZoneHost(e.target.value)}
-                    />
-                    <select
-                      className="select select-bordered select-sm h-9"
-                      value={zoneType}
-                      onChange={(e) => setZoneType(e.target.value)}
-                    >
-                      <option value="A">A</option>
-                      <option value="CNAME">CNAME</option>
-                    </select>
-                    <Input
-                      className="h-9 text-sm font-mono"
-                      placeholder={t.dnsZoneValue}
-                      value={zoneValue}
-                      onChange={(e) => setZoneValue(e.target.value)}
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={engineSaving || !zoneHost.trim() || !zoneValue.trim()}
-                      onClick={() => void handleAddZoneRecord()}
-                    >
-                      {t.dnsZoneAdd}
-                    </Button>
-                  </div>
-                </div>
               </Section>
 
               <Section title={t.corsTitle} desc={t.corsDesc}>

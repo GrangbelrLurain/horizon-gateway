@@ -1,8 +1,28 @@
-import { ArrowUpCircle, Copy, Edit3, FileText, Pin, Target, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUpCircle, Camera, Copy, Edit3, FileText, Pin, Target, Trash2, X } from "lucide-react";
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
 import { ensureLocators, resolveAnnotation } from "../lib/locator";
+
+function injectionLang(): "ko" | "en" {
+  const lang = (typeof navigator !== "undefined" ? navigator.language : "ko") || "ko";
+  return lang.toLowerCase().startsWith("en") ? "en" : "ko";
+}
+
+const RECAPTURE_COPY = {
+  ko: {
+    recapture: "캡처 다시 지정",
+    confirm: "덮어쓸까요?",
+    title: "미리보기와 캡처 호스트/URL을 현재 페이지로 바꿉니다",
+    capturing: "캡처 중...",
+  },
+  en: {
+    recapture: "Recapture",
+    confirm: "Overwrite?",
+    title: "Replace preview and capture host/URL from this page",
+    capturing: "Capturing...",
+  },
+} as const;
 
 const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }> = {
   ok: { bg: "#22c55e", border: "#86efac", label: "ok" },
@@ -59,6 +79,7 @@ export function PolicyBadge({
   onDelete,
   onPromote,
   onValidation,
+  onRecapture,
 }: {
   annotation?: Annotation;
   index?: number;
@@ -72,6 +93,7 @@ export function PolicyBadge({
   onDelete?: (id: string) => void;
   onPromote?: (ann: Annotation, promoteIndex: number) => void;
   onValidation?: (ann: Annotation, validation: LocatorValidation) => void;
+  onRecapture?: (ann: Annotation) => void | Promise<void>;
 }) {
   const badgeItems: PolicyBadgeGroupItem[] =
     items && items.length > 0
@@ -81,6 +103,10 @@ export function PolicyBadge({
         : [];
 
   const [activeSubIndex, setActiveSubIndex] = useState(0);
+  const [confirmRecapture, setConfirmRecapture] = useState(false);
+  const [isRecapturing, setIsRecapturing] = useState(false);
+  const confirmRecaptureTimer = useRef<number | null>(null);
+  const recaptureCopy = RECAPTURE_COPY[injectionLang()];
   const currentItem = badgeItems[activeSubIndex] || badgeItems[0];
   const targetAnnotation = currentItem?.annotation;
   const primaryAnnotation = badgeItems[0]?.annotation;
@@ -125,6 +151,21 @@ export function PolicyBadge({
     };
   }, [updatePosition]);
 
+  useEffect(() => {
+    setConfirmRecapture(false);
+    setIsRecapturing(false);
+    if (confirmRecaptureTimer.current != null) {
+      window.clearTimeout(confirmRecaptureTimer.current);
+      confirmRecaptureTimer.current = null;
+    }
+    return () => {
+      if (confirmRecaptureTimer.current != null) {
+        window.clearTimeout(confirmRecaptureTimer.current);
+        confirmRecaptureTimer.current = null;
+      }
+    };
+  }, [targetAnnotation?.id]);
+
   // broken / ambiguous with no unique element: no floating badge
   if (!targetAnnotation || !rect || rect.width === 0 || rect.height === 0) {
     return null;
@@ -156,6 +197,44 @@ export function PolicyBadge({
 
   const dotLeft = Math.max(4, Math.min((rect?.left ?? 16) - 12, window.innerWidth - 32));
   const dotTop = Math.max(4, Math.min((rect?.top ?? 16) - 12, window.innerHeight - 32));
+  const pinSize = isCluster ? 28 : 24;
+  const pinGap = 12;
+  const viewportPad = 16;
+  const placeAbove = Boolean(rect && rect.bottom + 280 > window.innerHeight);
+  const spaceAbove = Math.max(0, dotTop - pinGap - viewportPad);
+  const spaceBelow = Math.max(0, window.innerHeight - (dotTop + pinSize + pinGap) - viewportPad);
+  const maxCardHeight = Math.max(160, Math.min(480, placeAbove ? spaceAbove : spaceBelow));
+  const cardMaxWidth = Math.min(440, window.innerWidth - viewportPad * 2);
+  const cardLeft = Math.max(viewportPad, Math.min(dotLeft, window.innerWidth - viewportPad - cardMaxWidth));
+
+  const handleRecaptureClick = async (e: ReactMouseEvent) => {
+    e.stopPropagation();
+    if (!onRecapture || isRecapturing) {
+      return;
+    }
+    if (!confirmRecapture) {
+      setConfirmRecapture(true);
+      if (confirmRecaptureTimer.current != null) {
+        window.clearTimeout(confirmRecaptureTimer.current);
+      }
+      confirmRecaptureTimer.current = window.setTimeout(() => {
+        setConfirmRecapture(false);
+        confirmRecaptureTimer.current = null;
+      }, 3000);
+      return;
+    }
+    if (confirmRecaptureTimer.current != null) {
+      window.clearTimeout(confirmRecaptureTimer.current);
+      confirmRecaptureTimer.current = null;
+    }
+    setConfirmRecapture(false);
+    setIsRecapturing(true);
+    try {
+      await onRecapture(annotation);
+    } finally {
+      setIsRecapturing(false);
+    }
+  };
 
   return (
     <div
@@ -209,26 +288,19 @@ export function PolicyBadge({
         <div
           style={{
             position: "fixed",
-            top:
-              rect && rect.bottom + 280 > window.innerHeight
-                ? "auto"
-                : `${Math.max(16, Math.min(dotTop + 28, window.innerHeight - 200))}px`,
-            bottom:
-              rect && rect.bottom + 280 > window.innerHeight
-                ? `${Math.max(16, window.innerHeight - dotTop + 4)}px`
-                : "auto",
-            left: `${Math.max(16, Math.min(dotLeft, window.innerWidth - 456))}px`,
+            top: placeAbove ? "auto" : `${dotTop + pinSize + pinGap}px`,
+            bottom: placeAbove ? `${Math.max(viewportPad, window.innerHeight - dotTop + pinGap)}px` : "auto",
+            left: `${cardLeft}px`,
+            boxSizing: "border-box",
             minWidth: "280px",
             width: "max-content",
-            maxWidth: "min(440px, calc(100vw - 32px))",
-            maxHeight:
-              rect && rect.bottom + 280 > window.innerHeight
-                ? `${Math.max(160, Math.min(420, dotTop - 20))}px`
-                : `${Math.max(160, Math.min(420, window.innerHeight - dotTop - 44))}px`,
-            overflowY: "auto",
+            maxWidth: `${cardMaxWidth}px`,
+            maxHeight: `${maxCardHeight}px`,
+            minHeight: 0,
+            overflow: "hidden",
             background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
             color: "white",
-            padding: "16px",
+            padding: "14px 16px 12px",
             borderRadius: "16px",
             boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
             border: "1px solid rgba(59, 130, 246, 0.35)",
@@ -241,195 +313,211 @@ export function PolicyBadge({
             gap: "10px",
           }}
         >
-          {isCluster && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                backgroundColor: "rgba(0, 0, 0, 0.35)",
-                padding: "4px",
-                borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                overflowX: "auto",
-              }}
-            >
-              {badgeItems.map((item, idx) => {
-                const isTabActive = activeSubIndex === idx;
-                return (
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
+            {isCluster && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  backgroundColor: "rgba(0, 0, 0, 0.35)",
+                  padding: "4px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  overflowX: "auto",
+                }}
+              >
+                {badgeItems.map((item, idx) => {
+                  const isTabActive = activeSubIndex === idx;
+                  return (
+                    <button
+                      key={item.annotation.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSubIndex(idx);
+                      }}
+                      style={{
+                        background: isTabActive
+                          ? "linear-gradient(135deg, #ec4899 0%, #3b82f6 100%)"
+                          : "rgba(255, 255, 255, 0.05)",
+                        border: isTabActive ? "1px solid rgba(255, 255, 255, 0.3)" : "none",
+                        borderRadius: "7px",
+                        color: isTabActive ? "white" : "rgba(255, 255, 255, 0.6)",
+                        fontSize: "10px",
+                        fontWeight: "800",
+                        padding: "4px 9px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <span>#{item.index}</span>
+                      <span
+                        style={{ maxWidth: "85px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      >
+                        {item.annotation.role}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+                <Pin style={{ width: "14px", height: "14px", color: "#60a5fa", flexShrink: 0 }} />
+                <h4
+                  style={{
+                    margin: 0,
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    background: "linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    letterSpacing: "-0.01em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {annotation.role}
+                </h4>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: "9px",
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    padding: "2px 6px",
+                    borderRadius: "999px",
+                    background: `${statusMeta.bg}33`,
+                    color: statusMeta.border,
+                    border: `1px solid ${statusMeta.border}55`,
+                  }}
+                >
+                  {statusMeta.label}
+                </span>
+                {onEdit && (
                   <button
-                    key={item.annotation.id}
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveSubIndex(idx);
-                    }}
+                    onClick={() => onEdit(annotation)}
                     style={{
-                      background: isTabActive
-                        ? "linear-gradient(135deg, #ec4899 0%, #3b82f6 100%)"
-                        : "rgba(255, 255, 255, 0.05)",
-                      border: isTabActive ? "1px solid rgba(255, 255, 255, 0.3)" : "none",
-                      borderRadius: "7px",
-                      color: isTabActive ? "white" : "rgba(255, 255, 255, 0.6)",
-                      fontSize: "10px",
-                      fontWeight: "800",
-                      padding: "4px 9px",
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                      borderRadius: "6px",
+                      color: "#f472b6",
                       cursor: "pointer",
+                      padding: "3px 7px",
+                      fontSize: "11px",
+                      fontWeight: "600",
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
-                      whiteSpace: "nowrap",
-                      transition: "all 0.15s ease",
                     }}
+                    title="수정"
                   >
-                    <span>#{item.index}</span>
-                    <span
-                      style={{ maxWidth: "85px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                    >
-                      {item.annotation.role}
-                    </span>
+                    <Edit3 style={{ width: "11px", height: "11px" }} />
+                    <span>수정</span>
                   </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-              <Pin style={{ width: "14px", height: "14px", color: "#60a5fa", flexShrink: 0 }} />
-              <h4
-                style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  fontWeight: "800",
-                  background: "linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  letterSpacing: "-0.01em",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {annotation.role}
-              </h4>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <span
-                style={{
-                  fontSize: "9px",
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  padding: "2px 6px",
-                  borderRadius: "999px",
-                  background: `${statusMeta.bg}33`,
-                  color: statusMeta.border,
-                  border: `1px solid ${statusMeta.border}55`,
-                }}
-              >
-                {statusMeta.label}
-              </span>
-              {onEdit && (
+                )}
                 <button
                   type="button"
-                  onClick={() => onEdit(annotation)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle();
+                  }}
                   style={{
-                    background: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
-                    borderRadius: "6px",
-                    color: "#f472b6",
+                    background: "none",
+                    border: "none",
+                    color: "rgba(255, 255, 255, 0.5)",
                     cursor: "pointer",
-                    padding: "3px 7px",
-                    fontSize: "11px",
-                    fontWeight: "600",
+                    padding: "2px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "4px",
+                    justifyContent: "center",
+                    borderRadius: "4px",
                   }}
-                  title="수정"
+                  title="닫기"
                 >
-                  <Edit3 style={{ width: "11px", height: "11px" }} />
-                  <span>수정</span>
+                  <X style={{ width: "15px", height: "15px" }} />
                 </button>
-              )}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: "1 1 auto",
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            <MarkdownRenderer
+              content={annotation.description}
+              style={{ fontSize: "12px", color: "rgba(241, 245, 249, 0.9)" }}
+              codeStyle={{
+                backgroundColor: "rgba(99, 102, 241, 0.15)",
+                color: "#a5b4fc",
+                border: "1px solid rgba(165, 180, 252, 0.25)",
+              }}
+            />
+
+            {locators.length > 1 && (
+              <div style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
+                primary: {locators[0]?.strategy ?? "—"}
+                {validation?.resolvedBy != null && validation.resolvedBy > 0
+                  ? ` · resolved via #${validation.resolvedBy} (${locators[validation.resolvedBy]?.strategy})`
+                  : ""}
+              </div>
+            )}
+
+            {canPromote && suggestIdx != null && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggle();
+                  onPromote?.(annotation, suggestIdx);
                 }}
                 style={{
-                  background: "none",
+                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                   border: "none",
-                  color: "rgba(255, 255, 255, 0.5)",
+                  borderRadius: "8px",
+                  color: "white",
                   cursor: "pointer",
-                  padding: "2px",
+                  padding: "8px 10px",
+                  fontSize: "11px",
+                  fontWeight: 800,
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "4px",
+                  gap: "6px",
                 }}
-                title="닫기"
               >
-                <X style={{ width: "15px", height: "15px" }} />
+                <ArrowUpCircle style={{ width: "14px", height: "14px" }} />
+                fallback #{suggestIdx} ({locators[suggestIdx]?.strategy})를 primary로 승격
               </button>
-            </div>
+            )}
           </div>
-
-          <MarkdownRenderer
-            content={annotation.description}
-            style={{ fontSize: "12px", color: "rgba(241, 245, 249, 0.9)" }}
-            codeStyle={{
-              backgroundColor: "rgba(99, 102, 241, 0.15)",
-              color: "#a5b4fc",
-              border: "1px solid rgba(165, 180, 252, 0.25)",
-            }}
-          />
-
-          {locators.length > 1 && (
-            <div style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
-              primary: {locators[0]?.strategy ?? "—"}
-              {validation?.resolvedBy != null && validation.resolvedBy > 0
-                ? ` · resolved via #${validation.resolvedBy} (${locators[validation.resolvedBy]?.strategy})`
-                : ""}
-            </div>
-          )}
-
-          {canPromote && suggestIdx != null && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPromote?.(annotation, suggestIdx);
-              }}
-              style={{
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                border: "none",
-                borderRadius: "8px",
-                color: "white",
-                cursor: "pointer",
-                padding: "8px 10px",
-                fontSize: "11px",
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <ArrowUpCircle style={{ width: "14px", height: "14px" }} />
-              fallback #{suggestIdx} ({locators[suggestIdx]?.strategy})를 primary로 승격
-            </button>
-          )}
 
           <div
             style={{
               display: "flex",
               alignItems: "center",
+              flexWrap: "wrap",
               gap: "4px",
               paddingTop: "8px",
+              paddingBottom: "2px",
               borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-              overflowX: "auto",
+              flexShrink: 0,
             }}
           >
             {onCopyDescription && (
@@ -479,6 +567,41 @@ export function PolicyBadge({
               >
                 <Target style={{ width: "11px", height: "11px", color: "#34d399" }} />
                 <span>Selector</span>
+              </button>
+            )}
+
+            {onRecapture && (
+              <button
+                type="button"
+                onClick={(e) => void handleRecaptureClick(e)}
+                disabled={isRecapturing}
+                style={{
+                  background: confirmRecapture ? "rgba(251, 191, 36, 0.18)" : "rgba(255, 255, 255, 0.06)",
+                  border: confirmRecapture
+                    ? "1px solid rgba(251, 191, 36, 0.45)"
+                    : "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "6px",
+                  color: confirmRecapture ? "#fcd34d" : "rgba(255, 255, 255, 0.8)",
+                  cursor: isRecapturing ? "default" : "pointer",
+                  padding: "4px 8px",
+                  fontSize: "10px",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  whiteSpace: "nowrap",
+                  opacity: isRecapturing ? 0.6 : 1,
+                }}
+                title={recaptureCopy.title}
+              >
+                <Camera style={{ width: "11px", height: "11px", color: confirmRecapture ? "#fcd34d" : "#a78bfa" }} />
+                <span>
+                  {isRecapturing
+                    ? recaptureCopy.capturing
+                    : confirmRecapture
+                      ? recaptureCopy.confirm
+                      : recaptureCopy.recapture}
+                </span>
               </button>
             )}
 

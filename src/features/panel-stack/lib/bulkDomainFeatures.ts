@@ -112,10 +112,9 @@ export async function setBulkApiBodyLogging(
 export async function setBulkProxy(
   states: { domainId: number; state: DomainFeatureState }[],
   enabled: boolean,
-  proxyActive: boolean,
 ): Promise<{ applied: number; skipped: number }> {
-  if (!proxyActive || states.length === 0) {
-    return { applied: 0, skipped: states.length };
+  if (states.length === 0) {
+    return { applied: 0, skipped: 0 };
   }
 
   let applied = 0;

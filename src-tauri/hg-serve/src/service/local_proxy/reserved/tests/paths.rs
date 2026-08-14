@@ -1,4 +1,6 @@
-use super::super::paths::{build_pac_js, is_horizon_gateway_internal, normalize_horizon_gateway_path};
+use super::super::paths::{
+    build_pac_js, is_horizon_gateway_internal, normalize_horizon_gateway_path,
+};
 
 #[test]
 fn build_pac_js_contains_proxy() {
@@ -29,7 +31,10 @@ fn origin_apis_are_not_internal() {
         "/User/Me",
         "https://b2c-api.modetour.dev/User/Me",
     ));
-    assert!(!is_horizon_gateway_internal("/api/annotations", "https://www.modetour.dev/api/annotations"));
+    assert!(!is_horizon_gateway_internal(
+        "/api/annotations",
+        "https://www.modetour.dev/api/annotations"
+    ));
 }
 
 #[test]

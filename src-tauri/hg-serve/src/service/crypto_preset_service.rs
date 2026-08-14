@@ -35,7 +35,12 @@ impl CryptoPresetService {
     }
 
     pub fn get_by_id(&self, id: &str) -> Option<SavedCryptoPreset> {
-        self.items.lock().unwrap().iter().find(|p| p.id == id).cloned()
+        self.items
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|p| p.id == id)
+            .cloned()
     }
 
     pub fn create(

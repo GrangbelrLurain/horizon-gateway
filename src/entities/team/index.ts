@@ -1,5 +1,6 @@
 export * from "./api";
 export * from "./lib/entitlement";
+export * from "./lib/paidCheckout";
 export * from "./model/useTeamWorkspace";
 export * from "./model/useWorkspaceGuard";
 export * from "./store";

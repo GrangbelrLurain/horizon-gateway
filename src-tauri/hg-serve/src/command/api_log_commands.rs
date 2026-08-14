@@ -1,23 +1,26 @@
+use crate::model::api_log::ApiLogEntry;
 use crate::model::api_response::ApiResponse;
 use crate::model::domain_api_logging_link::DomainApiLoggingLink;
+use crate::service::api_log_service::ApiLogService;
 use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::domain_service::DomainService;
-use crate::model::api_log::ApiLogEntry;
-use crate::service::api_log_service::ApiLogService;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub const GET_DOMAIN_API_LOGGING_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_domain_api_logging_links",
-    description: "도메인별 API 로깅 설정 링크 목록을 조회합니다.",
-    payload_example: "{}",
-    category: "api",
-    gui_only: false,
-};
+pub const GET_DOMAIN_API_LOGGING_LINKS_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_domain_api_logging_links",
+        description: "도메인별 API 로깅 설정 링크 목록을 조회합니다.",
+        payload_example: "{}",
+        category: "api",
+        gui_only: false,
+    };
 
 /// 모든 도메인 API 로깅 링크 조회.
 
-pub fn get_domain_api_logging_links_svc(api_logging_service: &ApiLoggingSettingsService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+pub fn get_domain_api_logging_links_svc(
+    api_logging_service: &ApiLoggingSettingsService,
+) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     let links = api_logging_service.get_links();
     Ok(ApiResponse {
         message: format!("{}개 로깅 링크 조회", links.len()),
@@ -35,17 +38,22 @@ pub struct SetDomainApiLoggingPayload {
     pub schema_url: Option<String>,
 }
 
-pub const SET_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_domain_api_logging",
-    description: "도메인 API 로깅 설정을 추가하거나 변경합니다.",
-    payload_example: r#"{"domainId": 1, "loggingEnabled": true, "bodyEnabled": false, "schemaUrl": null}"#,
-    category: "api",
-    gui_only: false,
-};
+pub const SET_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "set_domain_api_logging",
+        description: "도메인 API 로깅 설정을 추가하거나 변경합니다.",
+        payload_example: r#"{"domainId": 1, "loggingEnabled": true, "bodyEnabled": false, "schemaUrl": null}"#,
+        category: "api",
+        gui_only: false,
+    };
 
 /// 도메인 API 로깅 설정 추가/변경.
 
-pub fn set_domain_api_logging_svc(payload: SetDomainApiLoggingPayload, api_logging_service: &ApiLoggingSettingsService, domain_service: &DomainService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+pub fn set_domain_api_logging_svc(
+    payload: SetDomainApiLoggingPayload,
+    api_logging_service: &ApiLoggingSettingsService,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     // 도메인 존재 확인
     let domain = domain_service.get_domain_by_id(payload.domain_id);
     if domain.is_none() {
@@ -76,17 +84,22 @@ pub struct RemoveDomainApiLoggingPayload {
     pub domain_id: u32,
 }
 
-pub const REMOVE_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "remove_domain_api_logging",
-    description: "도메인 API 로깅 설정을 제거합니다.",
-    payload_example: r#"{"domainId": 1}"#,
-    category: "api",
-    gui_only: false,
-};
+pub const REMOVE_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "remove_domain_api_logging",
+        description: "도메인 API 로깅 설정을 제거합니다.",
+        payload_example: r#"{"domainId": 1}"#,
+        category: "api",
+        gui_only: false,
+    };
 
 /// 도메인 API 로깅 설정 제거.
 
-pub fn remove_domain_api_logging_svc(payload: RemoveDomainApiLoggingPayload, api_logging_service: &ApiLoggingSettingsService, domain_service: &DomainService) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
+pub fn remove_domain_api_logging_svc(
+    payload: RemoveDomainApiLoggingPayload,
+    api_logging_service: &ApiLoggingSettingsService,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<Vec<DomainApiLoggingLink>>, String> {
     let all_domains = domain_service.get_all();
     api_logging_service.remove_link(payload.domain_id, &all_domains);
     let links = api_logging_service.get_links();
@@ -101,7 +114,7 @@ pub fn remove_domain_api_logging_svc(payload: RemoveDomainApiLoggingPayload, api
 
 /// Schema 파일 저장 경로: `{app_data_dir}/schemas/{domain_id}.json`
 fn schemas_dir_from_app(app: ()) -> PathBuf {
-        let base = crate::runtime::paths::resolve_app_data_dir();
+    let base = crate::runtime::paths::resolve_app_data_dir();
     schemas_dir(&crate::runtime::paths::resolve_app_data_dir().unwrap_or_default())
 }
 
@@ -139,7 +152,10 @@ pub const DOWNLOAD_API_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
 
 /// Schema URL에서 JSON/YAML을 다운로드하여 로컬 저장.
 
-pub async fn download_api_schema_svc(payload: DownloadApiSchemaPayload, schemas_base: &std::path::Path) -> Result<ApiResponse<SchemaDownloadResult>, String> {
+pub async fn download_api_schema_svc(
+    payload: DownloadApiSchemaPayload,
+    schemas_base: &std::path::Path,
+) -> Result<ApiResponse<SchemaDownloadResult>, String> {
     let url = payload.url.trim().to_string();
     if url.is_empty() {
         return Ok(ApiResponse {
@@ -194,21 +210,25 @@ pub async fn download_api_schema_svc(payload: DownloadApiSchemaPayload, schemas_
     })
 }
 
-pub const GET_API_SCHEMA_CONTENT_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_api_schema_content",
-    description: "로컬에 저장된 API Schema 파일의 내용을 조회합니다.",
-    payload_example: r#"{"domainId": 1}"#,
-    category: "api",
-    gui_only: false,
-};
+pub const GET_API_SCHEMA_CONTENT_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_api_schema_content",
+        description: "로컬에 저장된 API Schema 파일의 내용을 조회합니다.",
+        payload_example: r#"{"domainId": 1}"#,
+        category: "api",
+        gui_only: false,
+    };
 
 /// 로컬에 저장된 Schema 내용 조회.
 
-pub fn get_api_schema_content_svc(payload: GetApiSchemaPayload, schemas_base: &std::path::Path) -> Result<ApiResponse<Option<String>>, String> {
+pub fn get_api_schema_content_svc(
+    payload: GetApiSchemaPayload,
+    schemas_base: &std::path::Path,
+) -> Result<ApiResponse<Option<String>>, String> {
     let file_path = schemas_dir(schemas_base).join(format!("{}.json", payload.domain_id));
     if file_path.exists() {
-        let content = std::fs::read_to_string(&file_path)
-            .map_err(|e| format!("파일 읽기 실패: {e}"))?;
+        let content =
+            std::fs::read_to_string(&file_path).map_err(|e| format!("파일 읽기 실패: {e}"))?;
         Ok(ApiResponse {
             message: "Schema 조회 완료".to_string(),
             success: true,
@@ -272,7 +292,9 @@ pub const SEND_API_REQUEST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
 /// 임의의 HTTP 요청을 전송하고 응답을 반환 (Schema Try-it-out).
 /// 네트워크 에러도 `ApiResponse로` 감싸서 반환 (Tauri invoke 예외 대신 FE에서 처리 가능).
 
-pub async fn send_api_request_svc(payload: SendApiRequestPayload) -> Result<ApiResponse<ApiRequestResult>, String> {
+pub async fn send_api_request_svc(
+    payload: SendApiRequestPayload,
+) -> Result<ApiResponse<ApiRequestResult>, String> {
     use std::time::Instant;
 
     let method: reqwest::Method = match payload.method.to_uppercase().parse() {
@@ -298,8 +320,7 @@ pub async fn send_api_request_svc(payload: SendApiRequestPayload) -> Result<ApiR
         }
     }
 
-    let client = match client_builder.build()
-    {
+    let client = match client_builder.build() {
         Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse {
@@ -403,7 +424,9 @@ pub const LIST_API_LOG_DATES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
 
 /// API 로그 날짜 목록 조회. (YYYY-MM-DD)
 
-pub fn list_api_log_dates_svc(api_log_service: &ApiLogService) -> Result<ApiResponse<Vec<String>>, String> {
+pub fn list_api_log_dates_svc(
+    api_log_service: &ApiLogService,
+) -> Result<ApiResponse<Vec<String>>, String> {
     let dates = api_log_service.list_dates();
     Ok(ApiResponse {
         message: format!("{}개 날짜 조회", dates.len()),
@@ -432,7 +455,10 @@ pub const GET_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
 
 /// 특정 날짜의 API 로그 조회.
 
-pub fn get_api_logs_svc(payload: GetApiLogsPayload, api_log_service: &ApiLogService) -> Result<ApiResponse<Vec<ApiLogEntry>>, String> {
+pub fn get_api_logs_svc(
+    payload: GetApiLogsPayload,
+    api_log_service: &ApiLogService,
+) -> Result<ApiResponse<Vec<ApiLogEntry>>, String> {
     let logs = api_log_service.get_logs(
         &payload.date,
         payload.domain_filter,
@@ -461,7 +487,6 @@ pub const GET_API_LOG_DETAIL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     category: "api",
     gui_only: false,
 };
-
 
 pub fn get_api_log_detail_svc(
     payload: GetApiLogDetailPayload,
@@ -495,19 +520,18 @@ pub struct SearchApiLogsPayload {
 
 pub const SEARCH_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "search_api_logs",
-    description: "API 로그 body를 FTS/파라미터 인덱스로 검색합니다. 미학습 파라미터는 스캔 후 학습합니다.",
+    description:
+        "API 로그 body를 FTS/파라미터 인덱스로 검색합니다. 미학습 파라미터는 스캔 후 학습합니다.",
     payload_example: r#"{"date":"2026-07-06","query":"E001","hostFilter":null,"methodFilter":null,"statusFilter":null,"paramKey":null,"paramValue":null,"limit":50}"#,
     category: "api",
     gui_only: false,
 };
-
 
 pub fn search_api_logs_svc(
     payload: SearchApiLogsPayload,
     app: Option<()>,
     api_log_service: &ApiLogService,
 ) -> Result<ApiResponse<Vec<crate::model::api_log::ApiLogSearchHit>>, String> {
-    
     let limit = payload.limit.unwrap_or(50) as usize;
     let query = payload.query.unwrap_or_default();
     let param_key = payload.param_key.filter(|s| !s.trim().is_empty());
@@ -597,7 +621,10 @@ pub const CLEAR_API_LOGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
 
 /// API 로그 삭제 (특정 날짜 또는 전체).
 
-pub fn clear_api_logs_svc(payload: ClearApiLogsPayload, api_log_service: &ApiLogService) -> Result<ApiResponse<()>, String> {
+pub fn clear_api_logs_svc(
+    payload: ClearApiLogsPayload,
+    api_log_service: &ApiLogService,
+) -> Result<ApiResponse<()>, String> {
     if let Err(e) = api_log_service.clear_logs(payload.date) {
         return Ok(ApiResponse {
             message: format!("삭제 실패: {e}"),

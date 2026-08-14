@@ -21,7 +21,7 @@ interface DisabledPanelProps {
 const PANEL_TITLES: Record<PanelId, (t: any) => string> = {
   overview: (t) => t.overview,
   monitor: (t) => t.monitorTitle,
-  proxy: (t) => t.proxyTitle,
+  proxy: (t) => t.localDestination,
   api: (t) => t.apiTitle,
   "api/logs": (t) => t.apiLogs,
   "api/log": (t) => t.apiLogDetail,
@@ -33,13 +33,12 @@ const PANEL_TITLES: Record<PanelId, (t: any) => string> = {
 export function DisabledPanel({ panelId, domain, onClose }: DisabledPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const { getFeatureState, getDomainHost, proxyActive, fetchAll } = useDomainHubData();
+  const { getFeatureState, getDomainHost, fetchAll } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
     domainUrl: domain.url,
     state: featureState,
-    proxyActive,
     onRefresh: fetchAll,
   });
 

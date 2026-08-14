@@ -9,13 +9,14 @@ pub struct StartTransparentProxyPayload {
     pub process_names: Option<Vec<String>>,
 }
 
-pub const START_TRANSPARENT_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "start_transparent_proxy",
-    description: "WinDivert 기반 Transparent Proxy를 시작합니다 (Windows 전용).",
-    payload_example: r#"{"port": 8080}"#,
-    category: "proxy",
-    gui_only: false,
-};
+pub const START_TRANSPARENT_PROXY_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "start_transparent_proxy",
+        description: "WinDivert 기반 Transparent Proxy를 시작합니다 (Windows 전용).",
+        payload_example: r#"{"port": 8080}"#,
+        category: "proxy",
+        gui_only: false,
+    };
 
 pub fn start_transparent_proxy_svc(
     payload: Option<StartTransparentProxyPayload>,
@@ -34,13 +35,14 @@ pub fn start_transparent_proxy_svc(
     }
 }
 
-pub const STOP_TRANSPARENT_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "stop_transparent_proxy",
-    description: "실행 중인 Transparent Proxy를 중지합니다.",
-    payload_example: "{}",
-    category: "proxy",
-    gui_only: false,
-};
+pub const STOP_TRANSPARENT_PROXY_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "stop_transparent_proxy",
+        description: "실행 중인 Transparent Proxy를 중지합니다.",
+        payload_example: "{}",
+        category: "proxy",
+        gui_only: false,
+    };
 
 pub fn stop_transparent_proxy_svc() -> Result<ApiResponse<TransparentProxyStatus>, String> {
     match TransparentProxyService::stop() {
@@ -53,13 +55,14 @@ pub fn stop_transparent_proxy_svc() -> Result<ApiResponse<TransparentProxyStatus
     }
 }
 
-pub const GET_TRANSPARENT_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_transparent_proxy_status",
-    description: "Transparent Proxy의 현재 상태를 조회합니다.",
-    payload_example: "{}",
-    category: "proxy",
-    gui_only: false,
-};
+pub const GET_TRANSPARENT_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_transparent_proxy_status",
+        description: "Transparent Proxy의 현재 상태를 조회합니다.",
+        payload_example: "{}",
+        category: "proxy",
+        gui_only: false,
+    };
 
 pub fn get_transparent_proxy_status_svc() -> Result<ApiResponse<TransparentProxyStatus>, String> {
     Ok(ApiResponse {
@@ -115,7 +118,8 @@ pub fn scan_os_apps_svc() -> Result<ApiResponse<Vec<OsAppEntry>>, String> {
     {
         if let Ok(output) = std::process::Command::new("tasklist").output() {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut detected: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            let mut detected: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
             for line in stdout.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if let Some(exe) = parts.first() {
@@ -125,7 +129,15 @@ pub fn scan_os_apps_svc() -> Result<ApiResponse<Vec<OsAppEntry>>, String> {
                     }
                 }
             }
-            let dev_targets = ["node.exe", "java.exe", "python.exe", "python3.exe", "curl.exe", "git.exe", "go.exe"];
+            let dev_targets = [
+                "node.exe",
+                "java.exe",
+                "python.exe",
+                "python3.exe",
+                "curl.exe",
+                "git.exe",
+                "go.exe",
+            ];
             apps.clear();
             for target in &dev_targets {
                 if let Some(&count) = detected.get(*target) {

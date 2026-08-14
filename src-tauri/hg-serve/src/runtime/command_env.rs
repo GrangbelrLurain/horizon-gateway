@@ -1,5 +1,5 @@
-use std::future::Future;
 use super::AppContext;
+use std::future::Future;
 
 pub enum CliRuntime<'a> {
     Tokio(&'a tokio::runtime::Runtime),

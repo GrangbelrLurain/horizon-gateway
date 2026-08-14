@@ -101,13 +101,21 @@ impl TransparentProxyService {
             "outbound and ip and (tcp.DstPort == 80 or tcp.DstPort == 443) and processId != {pid}{process_clause}"
         );
 
-        let handle = match windivert::WinDivert::network(&filter, 0, windivert::prelude::WinDivertFlags::default()) {
+        let handle = match windivert::WinDivert::network(
+            &filter,
+            0,
+            windivert::prelude::WinDivertFlags::default(),
+        ) {
             Ok(driver) => driver,
             Err(_) => {
                 let fallback_filter = format!(
                     "outbound and ip and (tcp.DstPort == 80 or tcp.DstPort == 443){process_clause}"
                 );
-                match windivert::WinDivert::network(&fallback_filter, 0, windivert::prelude::WinDivertFlags::default()) {
+                match windivert::WinDivert::network(
+                    &fallback_filter,
+                    0,
+                    windivert::prelude::WinDivertFlags::default(),
+                ) {
                     Ok(driver) => driver,
                     Err(e) => {
                         return Err(format!(
@@ -125,7 +133,10 @@ impl TransparentProxyService {
 
         // WinDivert recv/send is blocking — use a std thread so headless CLI works without Tokio.
         let join_handle = std::thread::spawn(move || {
-            tracing::info!("[transparent-proxy] WinDivert NAT worker started for target port {}", target_proxy_port);
+            tracing::info!(
+                "[transparent-proxy] WinDivert NAT worker started for target port {}",
+                target_proxy_port
+            );
             let mut packet_buf = vec![0u8; 65535];
             let target_ip = Ipv4Addr::new(127, 0, 0, 1);
 
@@ -133,8 +144,10 @@ impl TransparentProxyService {
                 match handle.recv(Some(&mut packet_buf)) {
                     Ok(mut packet) => {
                         if let Ok(sliced) = etherparse::SlicedPacket::from_ip(&packet.data) {
-                            if let (Some(etherparse::InternetSlice::Ipv4(ref ip_hdr, _)), Some(etherparse::TransportSlice::Tcp(ref tcp_hdr))) =
-                                (sliced.ip.as_ref(), sliced.transport.as_ref())
+                            if let (
+                                Some(etherparse::InternetSlice::Ipv4(ref ip_hdr, _)),
+                                Some(etherparse::TransportSlice::Tcp(ref tcp_hdr)),
+                            ) = (sliced.ip.as_ref(), sliced.transport.as_ref())
                             {
                                 let src_ip = ip_hdr.source_addr();
                                 let src_port = tcp_hdr.source_port();
@@ -144,11 +157,18 @@ impl TransparentProxyService {
                                 if let Ok(mut table) = nat_table.lock() {
                                     table.insert(
                                         SessionKey { src_ip, src_port },
-                                        SessionVal { orig_dst_ip, orig_dst_port },
+                                        SessionVal {
+                                            orig_dst_ip,
+                                            orig_dst_port,
+                                        },
                                     );
                                 }
 
-                                rewrite_ipv4_tcp_dst(packet.data.to_mut(), target_ip, target_proxy_port);
+                                rewrite_ipv4_tcp_dst(
+                                    packet.data.to_mut(),
+                                    target_ip,
+                                    target_proxy_port,
+                                );
                             }
                         }
 
@@ -221,7 +241,12 @@ fn ensure_windivert_sidecars() -> Result<(), String> {
     search_roots.push(exe_dir.clone());
     if let Ok(cwd) = std::env::current_dir() {
         search_roots.push(cwd.join("resources").join("windivert"));
-        search_roots.push(cwd.join("src-tauri").join("hg-gui").join("resources").join("windivert"));
+        search_roots.push(
+            cwd.join("src-tauri")
+                .join("hg-gui")
+                .join("resources")
+                .join("windivert"),
+        );
         search_roots.push(cwd.join("src-tauri").join("resources").join("windivert"));
     }
 
@@ -232,7 +257,11 @@ fn ensure_windivert_sidecars() -> Result<(), String> {
             let src = root.join(name);
             if src.is_file() {
                 fs::copy(&src, &dest).map_err(|e| {
-                    format!("failed to copy {} -> {}: {e}", src.display(), dest.display())
+                    format!(
+                        "failed to copy {} -> {}: {e}",
+                        src.display(),
+                        dest.display()
+                    )
                 })?;
                 tracing::info!(
                     "[transparent-proxy] installed sidecar {} from {}",
@@ -250,9 +279,7 @@ fn ensure_windivert_sidecars() -> Result<(), String> {
         }
         // DLL may be optional when the crate is statically linked.
         if !copied {
-            tracing::warn!(
-                "[transparent-proxy] optional sidecar not found: {name}"
-            );
+            tracing::warn!("[transparent-proxy] optional sidecar not found: {name}");
         }
     }
 

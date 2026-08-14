@@ -11,8 +11,9 @@ pub const GET_SAVED_PIPELINES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     gui_only: false,
 };
 
-
-pub fn get_saved_pipelines_svc(service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
+pub fn get_saved_pipelines_svc(
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{} pipelines", list.len()),
@@ -35,8 +36,10 @@ pub const GET_SAVED_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn get_saved_pipeline_svc(payload: GetSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
+pub fn get_saved_pipeline_svc(
+    payload: GetSavedPipelinePayload,
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
     let item = service.get_by_id(&payload.id);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -66,8 +69,10 @@ pub const CREATE_SAVED_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn create_saved_pipeline_svc(payload: CreateSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<SavedPipeline>, String> {
+pub fn create_saved_pipeline_svc(
+    payload: CreateSavedPipelinePayload,
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<SavedPipeline>, String> {
     let item = service.create(payload.name, payload.description, payload.flow);
     Ok(ApiResponse {
         message: "Created".to_string(),
@@ -93,8 +98,10 @@ pub const UPDATE_SAVED_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn update_saved_pipeline_svc(payload: UpdateSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
+pub fn update_saved_pipeline_svc(
+    payload: UpdateSavedPipelinePayload,
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<Option<SavedPipeline>>, String> {
     let item = service.update(payload.id, payload.name, payload.description, payload.flow);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -121,8 +128,10 @@ pub const DELETE_SAVED_PIPELINE_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn delete_saved_pipeline_svc(payload: DeleteSavedPipelinePayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<bool>, String> {
+pub fn delete_saved_pipeline_svc(
+    payload: DeleteSavedPipelinePayload,
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<bool>, String> {
     let ok = service.delete(&payload.id);
     Ok(ApiResponse {
         message: if ok {
@@ -141,16 +150,19 @@ pub struct ImportSavedPipelinesPayload {
     pub pipelines: Vec<SavedPipeline>,
 }
 
-pub const IMPORT_SAVED_PIPELINES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "import_saved_pipelines",
-    description: "파이프라인 라이브러리를 일괄 교체 임포트합니다 (마이그레이션용).",
-    payload_example: r#"{"pipelines": []}"#,
-    category: "sandbox",
-    gui_only: false,
-};
+pub const IMPORT_SAVED_PIPELINES_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "import_saved_pipelines",
+        description: "파이프라인 라이브러리를 일괄 교체 임포트합니다 (마이그레이션용).",
+        payload_example: r#"{"pipelines": []}"#,
+        category: "sandbox",
+        gui_only: false,
+    };
 
-
-pub fn import_saved_pipelines_svc(payload: ImportSavedPipelinesPayload, service: &Arc<PipelineLibraryService>) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
+pub fn import_saved_pipelines_svc(
+    payload: ImportSavedPipelinesPayload,
+    service: &Arc<PipelineLibraryService>,
+) -> Result<ApiResponse<Vec<SavedPipeline>>, String> {
     service.replace_all(payload.pipelines);
     let list = service.get_all();
     Ok(ApiResponse {

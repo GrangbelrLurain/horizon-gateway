@@ -27,6 +27,7 @@ export function WorkspaceListPane({ ctrl }: WorkspaceListPaneProps) {
     openBilling,
     activeWorkspace,
     guard,
+    paidCheckoutEnabled,
   } = ctrl;
 
   return (
@@ -55,20 +56,27 @@ export function WorkspaceListPane({ ctrl }: WorkspaceListPaneProps) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
-        {activeWorkspace && guard.isLocked && (
-          <button
-            type="button"
-            onClick={openBilling}
-            className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2 text-left text-amber-600 dark:text-amber-400 text-[11px] font-medium"
-          >
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>
-              {lang === "ko"
-                ? "구독이 만료·비활성입니다. 요금제에서 결제를 확인하세요."
-                : "Subscription expired or inactive. Check billing."}
-            </span>
-          </button>
-        )}
+        {activeWorkspace &&
+          guard.isLocked &&
+          (paidCheckoutEnabled ? (
+            <button
+              type="button"
+              onClick={openBilling}
+              className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2 text-left text-amber-600 dark:text-amber-400 text-[11px] font-medium"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                {lang === "ko"
+                  ? "구독이 만료·비활성입니다. 요금제에서 결제를 확인하세요."
+                  : "Subscription expired or inactive. Check billing."}
+              </span>
+            </button>
+          ) : (
+            <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2 text-amber-600 dark:text-amber-400 text-[11px] font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{lang === "ko" ? "이 워크스페이스는 비활성 상태입니다." : "This workspace is inactive."}</span>
+            </div>
+          ))}
 
         {myInvites.length > 0 && (
           <div className="flex flex-col gap-2 p-2.5 rounded-xl border border-primary/20 bg-primary/5">

@@ -91,10 +91,7 @@ impl DomainService {
             }
         }
         self.save(&list);
-        list.iter()
-            .filter(|d| d.id == id)
-            .cloned()
-            .collect()
+        list.iter().filter(|d| d.id == id).cloned().collect()
     }
 
     pub fn import_from_json(&self, domains: Vec<Domain>) -> Vec<Domain> {

@@ -6,16 +6,18 @@ use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_group_service::DomainGroupService;
 use crate::service::domain_service::DomainService;
 
-pub const GET_DOMAIN_GROUP_LINKS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_domain_group_links",
-    description: "도메인과 그룹 간의 연결 링크 전체 목록을 조회합니다.",
-    payload_example: "{}",
-    category: "domains",
-    gui_only: false,
-};
+pub const GET_DOMAIN_GROUP_LINKS_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_domain_group_links",
+        description: "도메인과 그룹 간의 연결 링크 전체 목록을 조회합니다.",
+        payload_example: "{}",
+        category: "domains",
+        gui_only: false,
+    };
 
-
-pub fn get_domain_group_links_svc(link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroupLink>>, String> {
+pub fn get_domain_group_links_svc(
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<Vec<DomainGroupLink>>, String> {
     let links = link_service.get_all_links();
     Ok(ApiResponse {
         success: true,
@@ -39,8 +41,10 @@ pub const SET_DOMAIN_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn set_domain_groups_svc(payload: SetDomainGroupsPayload, link_service: &DomainGroupLinkService) -> Result<ApiResponse<()>, String> {
+pub fn set_domain_groups_svc(
+    payload: SetDomainGroupsPayload,
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<()>, String> {
     link_service.set_groups_for_domain(payload.domain_id, payload.group_ids);
     Ok(ApiResponse {
         success: true,
@@ -64,8 +68,10 @@ pub const SET_GROUP_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn set_group_domains_svc(payload: SetGroupDomainsPayload, link_service: &DomainGroupLinkService) -> Result<ApiResponse<()>, String> {
+pub fn set_group_domains_svc(
+    payload: SetGroupDomainsPayload,
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<()>, String> {
     link_service.set_domains_for_group(payload.group_id, payload.domain_ids);
     Ok(ApiResponse {
         success: true,
@@ -88,8 +94,11 @@ pub const GET_DOMAINS_BY_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn get_domains_by_group_svc(payload: GetDomainsByGroupPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<Domain>>, String> {
+pub fn get_domains_by_group_svc(
+    payload: GetDomainsByGroupPayload,
+    domain_service: &DomainService,
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<Vec<Domain>>, String> {
     let domain_ids = link_service.get_domain_ids_for_group(payload.group_id);
     let all_domains = domain_service.get_all();
     let domains: Vec<Domain> = domain_ids
@@ -117,8 +126,11 @@ pub const GET_GROUPS_FOR_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn get_groups_for_domain_svc(payload: GetGroupsForDomainPayload, group_service: &DomainGroupService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+pub fn get_groups_for_domain_svc(
+    payload: GetGroupsForDomainPayload,
+    group_service: &DomainGroupService,
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let group_ids = link_service.get_group_ids_for_domain(payload.domain_id);
     let all_groups = group_service.get_all();
     let groups: Vec<DomainGroup> = group_ids
@@ -146,8 +158,10 @@ pub const CREATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     gui_only: false,
 };
 
-
-pub async fn create_group_svc(payload: CreateGroupPayload, service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+pub async fn create_group_svc(
+    payload: CreateGroupPayload,
+    service: &DomainGroupService,
+) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.add_group(payload.name);
     Ok(ApiResponse {
         success: true,
@@ -164,8 +178,9 @@ pub const GET_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComma
     gui_only: false,
 };
 
-
-pub async fn get_groups_svc(service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+pub async fn get_groups_svc(
+    service: &DomainGroupService,
+) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.get_all();
     Ok(ApiResponse {
         success: true,
@@ -188,8 +203,11 @@ pub const DELETE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     gui_only: false,
 };
 
-
-pub async fn delete_group_svc(payload: DeleteGroupPayload, service: &DomainGroupService, link_service: &DomainGroupLinkService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+pub async fn delete_group_svc(
+    payload: DeleteGroupPayload,
+    service: &DomainGroupService,
+    link_service: &DomainGroupLinkService,
+) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     link_service.remove_links_for_group(payload.id);
     let groups = service.delete_group(payload.id);
     Ok(ApiResponse {
@@ -214,8 +232,10 @@ pub const UPDATE_GROUP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     gui_only: false,
 };
 
-
-pub async fn update_group_svc(payload: UpdateGroupPayload, service: &DomainGroupService) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
+pub async fn update_group_svc(
+    payload: UpdateGroupPayload,
+    service: &DomainGroupService,
+) -> Result<ApiResponse<Vec<DomainGroup>>, String> {
     let groups = service.update_group(payload.id, payload.name);
     Ok(ApiResponse {
         success: true,

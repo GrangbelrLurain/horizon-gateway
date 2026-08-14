@@ -10,7 +10,7 @@ import {
   FlaskConical,
   Loader2,
   Lock,
-  Server,
+  MapPin,
   Wifi,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -20,9 +20,7 @@ import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { annotationMatchesHost } from "@/shared/lib/guideMatch";
-import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
-import { Input } from "@/shared/ui/input/Input";
 import { useDomainFeatureToggles } from "../hooks/useDomainFeatureToggles";
 import { useDomainHubData } from "../hooks/useDomainHubData";
 import { usePanelNavigation } from "../hooks/usePanelNavigation";
@@ -30,6 +28,7 @@ import { en } from "../i18n/en";
 import { ko } from "../i18n/ko";
 import { hubPoliciesDomainSeedAtom } from "../store";
 import type { PanelId } from "../types";
+import { OverviewHelpPopover } from "./OverviewHelpPopover";
 import { Panel } from "./Panel";
 
 interface DomainOverviewPanelProps {
@@ -47,7 +46,6 @@ interface MenuItemDef {
     checked: boolean;
     loading: boolean;
     onToggle: (checked: boolean) => void;
-    disabled?: boolean;
   };
   onClick: () => void;
   isActive: boolean;
@@ -63,13 +61,12 @@ export function DomainOverviewPanel({
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
   const setPoliciesDomainSeed = useSetAtom(hubPoliciesDomainSeedAtom);
-  const { getFeatureState, getGroupName, proxyActive, fetchAll, hubProxySettings } = useDomainHubData();
+  const { getFeatureState, getGroupName, getProxyRoute, proxyActive, fetchAll, hubProxySettings } = useDomainHubData();
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
     domainUrl: domain.url,
     state: featureState,
-    proxyActive,
     onRefresh: fetchAll,
   });
 
@@ -78,8 +75,6 @@ export function DomainOverviewPanel({
   const [recentLogs, setRecentLogs] = useState<{ id: string; method: string; path: string; status: number }[]>([]);
   const [hasMockRules, setHasMockRules] = useState(false);
   const [hasAnnotations, setHasAnnotations] = useState(false);
-  const [dnsValue, setDnsValue] = useState("");
-  const [dnsSaving, setDnsSaving] = useState(false);
 
   let displayHost = domain.url;
   try {
@@ -98,13 +93,7 @@ export function DomainOverviewPanel({
     );
 
   const tlsBypassed = hostInList(hubProxySettings?.tls_bypass_hosts, displayHost.toLowerCase());
-  const dnsRecord = hubProxySettings?.dns_records?.find(
-    (r) => r.host.toLowerCase() === displayHost.toLowerCase() && (r.type ?? "A").toUpperCase() === "A",
-  );
-
-  useEffect(() => {
-    setDnsValue(dnsRecord?.value ?? "");
-  }, [dnsRecord?.value]);
+  const localRoute = getProxyRoute(domain);
 
   const apiLink = useMemo(() => apiLoggingLinks.find((l) => l.domainId === domain.id), [apiLoggingLinks, domain.id]);
   const hasSchema = Boolean(apiLink?.schemaUrl?.trim());
@@ -160,33 +149,8 @@ export function DomainOverviewPanel({
       .catch(() => {});
   }, [displayHost]);
 
-  // Canonical ordering of menu items
-  const menuItems: MenuItemDef[] = useMemo(
+  const inspectItems: MenuItemDef[] = useMemo(
     () => [
-      {
-        id: "tls/decrypt",
-        label: t.httpsDecrypt,
-        icon: <Lock className="w-4 h-4" />,
-        toggle: {
-          checked: toggles.httpsDecrypt.checked,
-          loading: toggles.httpsDecrypt.loading,
-          onToggle: (checked) => toggles.httpsDecrypt.toggle(checked),
-        },
-        onClick: () => {},
-        isActive: toggles.httpsDecrypt.checked,
-      },
-      {
-        id: "global/inspector",
-        label: lang === "ko" ? "스크립트 인젝션 (Inspector)" : "Script Injection (Inspector)",
-        icon: <Code className="w-4 h-4" />,
-        toggle: {
-          checked: toggles.scriptInjection.checked,
-          loading: toggles.scriptInjection.loading,
-          onToggle: (checked) => toggles.scriptInjection.toggle(checked),
-        },
-        onClick: () => nav.openGlobalSurface("global/live-capture"),
-        isActive: toggles.scriptInjection.checked,
-      },
       {
         id: "api/logs",
         label: t.openApiPanel,
@@ -235,37 +199,15 @@ export function DomainOverviewPanel({
         onClick: () => nav.openGlobalSurface("global/monitor"),
         isActive: toggles.monitor.checked,
       },
-      {
-        id: "global/proxy-graph",
-        label: toggles.proxy.processOff ? t.pipelineProcessOff : t.openProxyPanel,
-        icon: <Server className="w-4 h-4" />,
-        toggle: {
-          checked: toggles.proxy.checked,
-          loading: toggles.proxy.loading,
-          onToggle: (checked) => toggles.proxy.toggle(checked),
-        },
-        onClick: () =>
-          toggles.proxy.processOff
-            ? nav.openGlobalSurface("chrome/settings")
-            : nav.openGlobalSurface("global/proxy-graph"),
-        isActive: toggles.proxy.checked,
-      },
     ],
     [
-      lang,
-      t.httpsDecrypt,
       t.openApiPanel,
       t.apiSchema,
       t.apiMocking,
       t.debugPolicies,
       t.openMonitorPanel,
-      t.openProxyPanel,
-      t.pipelineProcessOff,
-      toggles.httpsDecrypt,
-      toggles.scriptInjection,
       toggles.api,
       toggles.monitor,
-      toggles.proxy,
       recentLogs.length,
       hasSchema,
       hasMockRules,
@@ -277,47 +219,8 @@ export function DomainOverviewPanel({
     ],
   );
 
-  const activeItems = useMemo(() => menuItems.filter((item) => item.isActive), [menuItems]);
-  const inactiveItems = useMemo(() => menuItems.filter((item) => !item.isActive), [menuItems]);
-
-  const tlsChip = tlsBypassed
-    ? t.pipelineBypass
-    : toggles.httpsDecrypt.checked
-      ? t.pipelineDecryptOn
-      : t.pipelineTunnel;
-  const tlsOn = !tlsBypassed && toggles.httpsDecrypt.checked;
-
-  const saveDnsZone = async () => {
-    setDnsSaving(true);
-    try {
-      const trimmed = dnsValue.trim();
-      if (!trimmed) {
-        await commands.removeDnsZoneRecord({ host: displayHost }).then(unwrap);
-      } else {
-        await commands.setDnsZoneRecord({ host: displayHost, recordType: "A", value: trimmed }).then(unwrap);
-      }
-      await fetchAll();
-      await notifyHubDataChanged("features");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDnsSaving(false);
-    }
-  };
-
-  const clearDnsZone = async () => {
-    setDnsSaving(true);
-    try {
-      await commands.removeDnsZoneRecord({ host: displayHost }).then(unwrap);
-      setDnsValue("");
-      await fetchAll();
-      await notifyHubDataChanged("features");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDnsSaving(false);
-    }
-  };
+  const activeItems = useMemo(() => inspectItems.filter((item) => item.isActive), [inspectItems]);
+  const inactiveItems = useMemo(() => inspectItems.filter((item) => !item.isActive), [inspectItems]);
 
   const renderMenuItemRow = (item: MenuItemDef) => (
     <div
@@ -357,7 +260,6 @@ export function DomainOverviewPanel({
               type="checkbox"
               className="toggle toggle-success toggle-xs shrink-0"
               checked={item.toggle.checked}
-              disabled={item.toggle.disabled}
               onChange={(e) => item.toggle?.onToggle(e.target.checked)}
             />
           ))}
@@ -372,6 +274,8 @@ export function DomainOverviewPanel({
     </div>
   );
 
+  const localTargetLabel = localRoute ? `${localRoute.targetHost}:${localRoute.targetPort}` : t.localDestinationNone;
+
   return (
     <Panel
       id="overview"
@@ -381,98 +285,125 @@ export function DomainOverviewPanel({
       width="md"
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-1.5">
-          <div
-            className={clsx(
-              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
-              proxyActive ? "bg-success/10" : "bg-base-200/80",
-            )}
-          >
-            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
-              {t.pipelineIngress}
-            </span>
-            <span className={clsx("text-[10px] font-bold truncate", proxyActive ? "text-success" : "text-warning")}>
-              {proxyActive ? t.pipelineProcessOn : t.pipelineProcessOff}
-            </span>
-          </div>
-          <div
-            className={clsx(
-              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
-              tlsOn ? "bg-success/10" : "bg-base-200/80",
-            )}
-          >
-            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
-              {t.pipelineTls}
-            </span>
-            <span
-              className={clsx(
-                "text-[10px] font-bold truncate",
-                tlsBypassed ? "text-warning" : tlsOn ? "text-success" : "text-base-content/50",
-              )}
-            >
-              {tlsChip}
-            </span>
-          </div>
-          <div
-            className={clsx(
-              "flex flex-col gap-0.5 px-2 py-1.5 rounded-lg min-w-0",
-              toggles.proxy.checked ? "bg-success/10" : "bg-base-200/80",
-            )}
-          >
-            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">
-              {t.pipelineHttp}
-            </span>
-            <span
-              className={clsx(
-                "text-[10px] font-bold truncate",
-                toggles.proxy.checked ? "text-success" : "text-base-content/50",
-              )}
-            >
-              {toggles.proxy.checked ? t.pipelineRouteOn : t.pipelineRouteOff}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 px-1">
-          <span
-            className={clsx("text-[10px] font-bold", toggles.api.checked ? "text-success" : "text-base-content/35")}
-          >
-            {t.featureBadgeApi}
-          </span>
-          <span
-            className={clsx(
-              "text-[10px] font-bold",
-              toggles.scriptInjection.checked ? "text-success" : "text-base-content/35",
-            )}
-          >
-            {lang === "ko" ? "주입" : "Inject"}
-          </span>
-          <span className={clsx("text-[10px] font-bold", hasMockRules ? "text-success" : "text-base-content/35")}>
-            {t.apiMocking}
-          </span>
-        </div>
-
-        {tlsBypassed && <p className="text-[10px] text-warning font-bold px-1">{t.httpsDecryptHint}</p>}
-
-        <div className="space-y-1.5 px-1">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-base-content/40">{t.dnsZoneLabel}</p>
-            <p className="text-[10px] text-base-content/40 mt-0.5 leading-relaxed">{t.dnsZoneHint}</p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Input
-              className="h-8 text-xs font-mono flex-1"
-              placeholder={t.dnsZonePlaceholder}
-              value={dnsValue}
-              onChange={(e) => setDnsValue(e.target.value)}
-            />
-            <Button variant="secondary" size="sm" disabled={dnsSaving} onClick={() => void saveDnsZone()}>
-              {t.dnsZoneSave}
-            </Button>
-            <Button variant="ghost" size="sm" disabled={dnsSaving || !dnsRecord} onClick={() => void clearDnsZone()}>
-              {t.dnsZoneClear}
+        {!proxyActive && (
+          <div className="flex items-center justify-between gap-2 px-2 py-2 rounded-lg bg-warning/10">
+            <p className="text-[11px] font-bold text-warning leading-snug">{t.listenerOffBanner}</p>
+            <Button variant="secondary" size="sm" onClick={() => nav.openGlobalSurface("chrome/settings")}>
+              {t.listenerOffAction}
             </Button>
           </div>
-        </div>
+        )}
+
+        <section className="space-y-1 px-1">
+          <div className="flex items-center justify-between gap-2 py-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-base-200 text-base-content/70">
+                <Lock className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-bold">{t.httpsDecrypt}</p>
+                  <OverviewHelpPopover
+                    id="overview-https-decrypt-help"
+                    ariaLabel={t.httpsDecryptHelpAria}
+                    whyTitle={t.httpsDecryptHelpWhyTitle}
+                    why={t.httpsDecryptHelpWhy}
+                    onTitle={t.httpsDecryptHelpOnTitle}
+                    on={t.httpsDecryptHelpOn}
+                    offTitle={t.httpsDecryptHelpOffTitle}
+                    off={t.httpsDecryptHelpOff}
+                  />
+                </div>
+                <p className="text-[10px] text-base-content/40 leading-snug">{t.httpsDecryptHint}</p>
+              </div>
+            </div>
+            {toggles.httpsDecrypt.loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+            ) : (
+              <input
+                type="checkbox"
+                className="toggle toggle-success toggle-xs shrink-0"
+                checked={toggles.httpsDecrypt.checked}
+                onChange={(e) => toggles.httpsDecrypt.toggle(e.target.checked)}
+              />
+            )}
+          </div>
+          {tlsBypassed && <p className="text-[10px] text-warning font-bold px-9">{t.httpsDecryptBypass}</p>}
+        </section>
+
+        <section className="space-y-1 px-1">
+          <div className="flex items-center justify-between gap-2 py-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-base-200 text-base-content/70">
+                <Code className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-bold">{t.scriptInjection}</p>
+                  <OverviewHelpPopover
+                    id="overview-script-injection-help"
+                    ariaLabel={t.scriptInjectionHelpAria}
+                    whyTitle={t.httpsDecryptHelpWhyTitle}
+                    why={t.scriptInjectionHelpWhy}
+                    onTitle={t.httpsDecryptHelpOnTitle}
+                    on={t.scriptInjectionHelpOn}
+                    offTitle={t.httpsDecryptHelpOffTitle}
+                    off={t.scriptInjectionHelpOff}
+                  />
+                </div>
+                <p className="text-[10px] text-base-content/40 leading-snug">{t.scriptInjectionHint}</p>
+              </div>
+            </div>
+            {toggles.scriptInjection.loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+            ) : (
+              <input
+                type="checkbox"
+                className="toggle toggle-success toggle-xs shrink-0"
+                checked={toggles.scriptInjection.checked}
+                onChange={(e) => toggles.scriptInjection.toggle(e.target.checked)}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="space-y-1 px-1">
+          <div className="flex items-center justify-between gap-2 py-1">
+            <button
+              type="button"
+              className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+              onClick={() => onOpenPanel("proxy")}
+            >
+              <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-base-200 text-base-content/70">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold">{t.localDestination}</p>
+                <p className="text-[10px] font-mono text-base-content/50 truncate">{localTargetLabel}</p>
+              </div>
+            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {toggles.proxy.loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />
+              ) : (
+                <input
+                  type="checkbox"
+                  className="toggle toggle-success toggle-xs shrink-0"
+                  checked={toggles.proxy.checked}
+                  onChange={(e) => toggles.proxy.toggle(e.target.checked)}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => onOpenPanel("proxy")}
+                className="p-1 hover:text-base-content text-base-content/30 transition-colors"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-base-content/40 px-9 leading-relaxed">{t.localDestinationHint}</p>
+        </section>
 
         {activeItems.length > 0 && <div className="space-y-0.5">{activeItems.map(renderMenuItemRow)}</div>}
 
@@ -505,7 +436,7 @@ export function DomainOverviewPanel({
 
         {inactiveItems.length > 0 && (
           <div className="space-y-1">
-            {activeItems.length > 0 && (
+            {(activeItems.length > 0 || recentLogs.length > 0) && (
               <div className="pt-2 border-t border-base-200/40 my-1">
                 <p className="text-[9px] font-black uppercase tracking-widest text-base-content/30 px-1 mb-1">
                   {t.featureDisabledSection}

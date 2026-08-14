@@ -100,7 +100,9 @@ impl LocalRouteService {
 
         let mut list = self.routes.lock().unwrap();
         if list.iter().any(|r| r.domain_id == domain_id) {
-            return Err(format!("A proxy route already exists for domain {domain_id}"));
+            return Err(format!(
+                "A proxy route already exists for domain {domain_id}"
+            ));
         }
 
         let next_id = list.iter().map(|r| r.id).max().unwrap_or(0) + 1;

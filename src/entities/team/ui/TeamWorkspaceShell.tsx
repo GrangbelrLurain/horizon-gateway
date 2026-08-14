@@ -47,8 +47,8 @@ export function TeamWorkspaceShell({ onCloseToHub, escapeRef }: TeamWorkspaceShe
             </h2>
             <p className="text-sm text-base-content/60 mt-2 leading-relaxed">
               {lang === "ko"
-                ? "GitHub로 로그인한 뒤 팀 워크스페이스를 만들고 결제·초대를 사용할 수 있습니다."
-                : "Sign in with GitHub to create a team workspace, buy seats, and invite members."}
+                ? "GitHub로 로그인한 뒤 팀 워크스페이스를 만들고 초대를 사용할 수 있습니다."
+                : "Sign in with GitHub to create a team workspace and invite members."}
             </p>
           </div>
           {onCloseToHub && (

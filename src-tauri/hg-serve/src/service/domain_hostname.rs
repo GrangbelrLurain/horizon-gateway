@@ -31,9 +31,21 @@ mod tests {
 
     #[test]
     fn treats_scheme_path_and_port_as_same_host() {
-        assert_eq!(domain_url_to_hostname("https://api.example.com"), "api.example.com");
-        assert_eq!(domain_url_to_hostname("http://api.example.com/"), "api.example.com");
-        assert_eq!(domain_url_to_hostname("api.example.com:443"), "api.example.com");
-        assert_eq!(domain_url_to_hostname("HTTPS://API.EXAMPLE.COM"), "api.example.com");
+        assert_eq!(
+            domain_url_to_hostname("https://api.example.com"),
+            "api.example.com"
+        );
+        assert_eq!(
+            domain_url_to_hostname("http://api.example.com/"),
+            "api.example.com"
+        );
+        assert_eq!(
+            domain_url_to_hostname("api.example.com:443"),
+            "api.example.com"
+        );
+        assert_eq!(
+            domain_url_to_hostname("HTTPS://API.EXAMPLE.COM"),
+            "api.example.com"
+        );
     }
 }

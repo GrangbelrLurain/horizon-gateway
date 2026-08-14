@@ -1,7 +1,7 @@
 {
   "name": "horizon-gateway",
   "private": true,
-  "version": "2.7.9",
+  "version": "2.7.10",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
@@ -28,6 +28,10 @@
   },
   "dependencies": {
     "@babel/standalone": "^8.0.2",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.8",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.1.18",

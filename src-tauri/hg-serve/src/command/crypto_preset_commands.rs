@@ -11,8 +11,9 @@ pub const GET_CRYPTO_PRESETS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn get_crypto_presets_svc(service: &Arc<CryptoPresetService>) -> Result<ApiResponse<Vec<SavedCryptoPreset>>, String> {
+pub fn get_crypto_presets_svc(
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<Vec<SavedCryptoPreset>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{} presets", list.len()),
@@ -35,8 +36,10 @@ pub const GET_CRYPTO_PRESET_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn get_crypto_preset_svc(payload: GetCryptoPresetPayload, service: &Arc<CryptoPresetService>) -> Result<ApiResponse<Option<SavedCryptoPreset>>, String> {
+pub fn get_crypto_preset_svc(
+    payload: GetCryptoPresetPayload,
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<Option<SavedCryptoPreset>>, String> {
     let item = service.get_by_id(&payload.id);
     Ok(ApiResponse {
         message: if item.is_some() {
@@ -73,8 +76,10 @@ pub const CREATE_CRYPTO_PRESET_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn create_crypto_preset_svc(payload: CreateCryptoPresetPayload, service: &Arc<CryptoPresetService>) -> Result<ApiResponse<SavedCryptoPreset>, String> {
+pub fn create_crypto_preset_svc(
+    payload: CreateCryptoPresetPayload,
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<SavedCryptoPreset>, String> {
     let item = service.create(
         payload.name,
         payload.description,
@@ -114,8 +119,10 @@ pub const UPDATE_CRYPTO_PRESET_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn update_crypto_preset_svc(payload: UpdateCryptoPresetPayload, service: &Arc<CryptoPresetService>) -> Result<ApiResponse<Option<SavedCryptoPreset>>, String> {
+pub fn update_crypto_preset_svc(
+    payload: UpdateCryptoPresetPayload,
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<Option<SavedCryptoPreset>>, String> {
     let item = service.update(
         payload.id,
         payload.name,
@@ -151,8 +158,10 @@ pub const DELETE_CRYPTO_PRESET_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn delete_crypto_preset_svc(payload: DeleteCryptoPresetPayload, service: &Arc<CryptoPresetService>) -> Result<ApiResponse<bool>, String> {
+pub fn delete_crypto_preset_svc(
+    payload: DeleteCryptoPresetPayload,
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<bool>, String> {
     let ok = service.delete(&payload.id);
     Ok(ApiResponse {
         message: if ok {
@@ -179,8 +188,10 @@ pub const IMPORT_CRYPTO_PRESETS_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn import_crypto_presets_svc(payload: ImportCryptoPresetsPayload, service: &Arc<CryptoPresetService>) -> Result<ApiResponse<Vec<SavedCryptoPreset>>, String> {
+pub fn import_crypto_presets_svc(
+    payload: ImportCryptoPresetsPayload,
+    service: &Arc<CryptoPresetService>,
+) -> Result<ApiResponse<Vec<SavedCryptoPreset>>, String> {
     service.replace_all(payload.presets);
     let list = service.get_all();
     Ok(ApiResponse {

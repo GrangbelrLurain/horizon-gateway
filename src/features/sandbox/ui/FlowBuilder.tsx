@@ -11,7 +11,7 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import * as Babel from "@babel/standalone";
 import CryptoJS from "crypto-js";
@@ -413,15 +413,20 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   const [executing, setExecuting] = useState(false);
   const [report, setReport] = useState<PipelineExecutionReport | null>(null);
   const [resultTab, setResultTab] = useState<"input" | "output">("output");
+  const applyingExternalFlow = useRef(true);
+  const flowRef = useRef(activeFlow.flow);
+  flowRef.current = activeFlow.flow;
 
-  // Reload canvas when a saved pipeline is loaded or a new blank flow is created
+  // Reload canvas only when a saved pipeline is loaded or a new blank flow is created.
+  // Persist writes a new `flow` object every time — that must not reset the canvas.
   useEffect(() => {
-    const { nodes: nextNodes, edges: nextEdges } = flowToReactFlow(activeFlow.flow);
+    applyingExternalFlow.current = true;
+    const { nodes: nextNodes, edges: nextEdges } = flowToReactFlow(flowRef.current);
     setNodes(nextNodes);
     setEdges(nextEdges);
     setSelectedNodeId(null);
     setReport(null);
-  }, [setNodes, setEdges, activeFlow.flow]);
+  }, [activeFlow.revision, setNodes, setEdges]);
 
   // JSON Schema Editor Modal State
   const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
@@ -454,8 +459,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     [setActiveFlow],
   );
 
-  // Save changes to Jotai whenever nodes or edges changes
+  // Save changes to Jotai whenever the user edits the canvas (not when we apply an external load).
   useEffect(() => {
+    if (applyingExternalFlow.current) {
+      applyingExternalFlow.current = false;
+      return;
+    }
     saveFlowToStorage(nodes, edges);
   }, [nodes, edges, saveFlowToStorage]);
 

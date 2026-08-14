@@ -35,10 +35,20 @@ impl PipelineLibraryService {
     }
 
     pub fn get_by_id(&self, id: &str) -> Option<SavedPipeline> {
-        self.items.lock().unwrap().iter().find(|p| p.id == id).cloned()
+        self.items
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|p| p.id == id)
+            .cloned()
     }
 
-    pub fn create(&self, name: String, description: String, flow: SavedPipelineFlow) -> SavedPipeline {
+    pub fn create(
+        &self,
+        name: String,
+        description: String,
+        flow: SavedPipelineFlow,
+    ) -> SavedPipeline {
         let mut list = self.items.lock().unwrap();
         let ts = now_ms();
         let item = SavedPipeline {

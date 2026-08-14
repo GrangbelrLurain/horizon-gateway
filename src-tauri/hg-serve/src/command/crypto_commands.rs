@@ -1,5 +1,5 @@
 use crate::model::api_response::ApiResponse;
-use crate::service::crypto_service::{CryptoService, CryptoAction};
+use crate::service::crypto_service::{CryptoAction, CryptoService};
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +32,6 @@ pub const PROCESS_CRYPTO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
 pub fn process_crypto_svc(payload: ProcessCryptoPayload) -> Result<ApiResponse<String>, String> {
     let service = CryptoService::new();
     match service.process_crypto(
@@ -62,8 +61,9 @@ pub const VALIDATE_JSON_SCHEMA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn validate_json_schema_svc(payload: ValidateSchemaPayload) -> Result<ApiResponse<SchemaValidationResult>, String> {
+pub fn validate_json_schema_svc(
+    payload: ValidateSchemaPayload,
+) -> Result<ApiResponse<SchemaValidationResult>, String> {
     let service = CryptoService::new();
     match service.validate_json_schema(&payload.payload, &payload.schema) {
         Ok(()) => Ok(ApiResponse {

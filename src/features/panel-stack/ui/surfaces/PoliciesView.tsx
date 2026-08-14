@@ -9,6 +9,7 @@ import { jsPDF } from "jspdf";
 import {
   AlertTriangle,
   BookOpen,
+  ChevronDown,
   Download,
   Edit2,
   ExternalLink,
@@ -29,20 +30,58 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import type { Annotation } from "@/entities/inspector";
-import { commands, unwrap } from "@/shared/api";
-import { type GuideHostCoverage, resolveGuideHostCoverage } from "@/shared/lib/guideMatch";
+import { commands, type Domain, unwrap } from "@/shared/api";
+import { GUIDE_FEATURE_PANEL, isGuideFeatureAlias } from "@/shared/lib/guideFeatureLinks";
+import {
+  annotationMatchesHost,
+  type GuideHostCoverage,
+  guideMatchesHostFilter,
+  isAllGuideHostFilter,
+  resolveGuideHostCoverage,
+  resolveGuideHostFilterSeed,
+} from "@/shared/lib/guideMatch";
 import { MarkdownRenderer } from "@/shared/lib/MarkdownRenderer";
+import { useIsDetachedWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
+import type { GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
-import { toastError, toastSuccess } from "@/shared/ui/toast";
+import { reportError, toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
+import { usePanelNavigation } from "../../hooks/usePanelNavigation";
+import { canOpenPanel } from "../../lib/panelGates";
 import { hubPoliciesDomainSeedAtom } from "../../store";
+import { GuideDescriptionField } from "./GuideDescriptionField";
 import { policiesEn } from "./policies-en";
 import { policiesKo } from "./policies-ko";
 
 type ViewMode = "manage" | "report";
+type GuideEditForm = {
+  role: string;
+  description: string;
+  domain: string;
+  hostPattern: string;
+  pathPattern: string;
+  url: string;
+};
+
 const FILTER_UNMATCHED = "UNMATCHED";
+const HOST_PICKER_LIMIT = 40;
+const COVERAGE_LIST_LIMIT = 80;
+const COVERAGE_PREVIEW_DEBOUNCE_MS = 150;
+
+const EMPTY_EDIT_FORM: GuideEditForm = {
+  role: "",
+  description: "",
+  domain: "",
+  hostPattern: "",
+  pathPattern: "",
+  url: "",
+};
+
+function readInputValue(input: HTMLInputElement | null, fallback: string): string {
+  return input?.value ?? fallback;
+}
 
 function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
@@ -60,33 +99,207 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 function CoverageBanner({ coverage, t }: { coverage: GuideHostCoverage | undefined; t: typeof policiesKo }) {
-  if (coverage?.status === "none") {
-    return (
-      <div className="flex items-start gap-1.5 rounded-lg bg-error/10 text-error px-2 py-1.5">
-        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-        <p className="text-[10px] font-bold leading-snug m-0">{t.coverageNone}</p>
-      </div>
-    );
+  if (coverage?.status !== "none") {
+    return null;
   }
-  if (coverage?.status === "gap") {
-    return (
-      <div className="flex items-start gap-1.5 rounded-lg bg-warning/10 text-warning px-2 py-1.5">
-        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-        <p className="text-[10px] font-bold leading-snug m-0">
-          {t.coverageGap} {coverage.unmatchedGroupHosts.join(", ")}
-        </p>
-      </div>
-    );
+  return (
+    <div className="flex items-start gap-1.5 rounded-lg bg-error/10 text-error px-2 py-1.5">
+      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+      <p className="text-[10px] font-bold leading-snug m-0">{t.coverageNone}</p>
+    </div>
+  );
+}
+
+function HostCoveragePanel({ coverage, t }: { coverage: GuideHostCoverage | undefined; t: typeof policiesKo }) {
+  const [expanded, setExpanded] = useState(false);
+  const [tab, setTab] = useState<"in" | "out">(coverage && coverage.matchedHosts.length === 0 ? "out" : "in");
+  const [query, setQuery] = useState("");
+
+  if (!coverage || (coverage.matchedHosts.length === 0 && coverage.unmatchedHosts.length === 0)) {
+    return null;
   }
-  return null;
+
+  const source = tab === "in" ? coverage.matchedHosts : coverage.unmatchedHosts;
+  const needle = query.trim().toLowerCase();
+  const filtered = needle ? source.filter((host) => host.includes(needle)) : source;
+  const visible = filtered.slice(0, COVERAGE_LIST_LIMIT);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="w-full flex items-center justify-between gap-2 rounded-lg border border-base-300 bg-base-200/40 hover:bg-base-200 px-2 py-1.5 text-left"
+      >
+        <span className="text-[10px] font-bold text-base-content/70 truncate">
+          {t.coverageIncluded} {coverage.matchedHosts.length}
+          <span className="text-base-content/30"> · </span>
+          {t.coverageExcluded} {coverage.unmatchedHosts.length}
+        </span>
+        <ChevronDown
+          className={clsx("w-3.5 h-3.5 text-base-content/40 shrink-0 transition-transform", expanded && "rotate-180")}
+        />
+      </button>
+      {expanded && (
+        <div className="mt-1.5 rounded-lg border border-base-300 bg-base-100 p-2">
+          <div className="flex gap-1 mb-1.5">
+            <button
+              type="button"
+              onClick={() => setTab("in")}
+              className={clsx(
+                "flex-1 px-2 py-1 rounded-md text-[10px] font-bold",
+                tab === "in" ? "bg-primary/15 text-primary" : "bg-base-200 text-base-content/50",
+              )}
+            >
+              {t.coverageIncluded} ({coverage.matchedHosts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("out")}
+              className={clsx(
+                "flex-1 px-2 py-1 rounded-md text-[10px] font-bold",
+                tab === "out" ? "bg-base-300 text-base-content" : "bg-base-200 text-base-content/50",
+              )}
+            >
+              {t.coverageExcluded} ({coverage.unmatchedHosts.length})
+            </button>
+          </div>
+          <div className="relative mb-1.5">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-base-content/35" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t.coverageSearchHosts}
+              className="pl-7 h-7 text-[10px] rounded-md"
+            />
+          </div>
+          <div className="max-h-36 overflow-y-auto scrollbar-thin">
+            {filtered.length === 0 ? (
+              <p className="text-[10px] text-base-content/40 px-1 py-2 m-0">{t.coverageEmptyList}</p>
+            ) : (
+              <>
+                {visible.map((host) => (
+                  <p key={host} className="text-[10px] font-mono truncate px-1 py-0.5 m-0 text-base-content/80">
+                    {host}
+                  </p>
+                ))}
+                {filtered.length > COVERAGE_LIST_LIMIT && (
+                  <p className="text-[10px] text-base-content/40 px-1 py-1 m-0">
+                    +{filtered.length - COVERAGE_LIST_LIMIT}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HostFilterPicker({
+  hosts,
+  value,
+  onSelect,
+  placeholder,
+  typeToSearch,
+}: {
+  hosts: string[];
+  value: string;
+  onSelect: (host: string) => void;
+  placeholder: string;
+  typeToSearch: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const hostSelected = !isAllGuideHostFilter(value) && value !== FILTER_UNMATCHED;
+  const needle = query.trim().toLowerCase();
+  const requireQuery = !needle && hosts.length > HOST_PICKER_LIMIT;
+  const filtered = needle ? hosts.filter((host) => host.includes(needle)) : hosts;
+  const visible = requireQuery ? [] : filtered.slice(0, HOST_PICKER_LIMIT);
+
+  return (
+    <div className="relative min-w-0 flex-1 max-w-xs">
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/40 pointer-events-none" />
+      <Input
+        value={pickerOpen || !hostSelected ? query : value}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setPickerOpen(true);
+        }}
+        onFocus={() => {
+          setPickerOpen(true);
+          if (hostSelected) {
+            setQuery("");
+          }
+        }}
+        onBlur={() => {
+          window.setTimeout(() => setPickerOpen(false), 120);
+        }}
+        placeholder={placeholder}
+        className="pl-8 h-8 text-[11px] rounded-lg shadow-sm"
+      />
+      {pickerOpen && (
+        <div className="absolute z-30 left-0 right-0 top-full mt-1 rounded-lg border border-base-300 bg-base-100 shadow-lg max-h-48 overflow-y-auto scrollbar-thin">
+          {requireQuery ? (
+            <p className="text-[10px] text-base-content/40 px-3 py-2 m-0">{typeToSearch}</p>
+          ) : visible.length === 0 ? (
+            <p className="text-[10px] text-base-content/40 px-3 py-2 m-0">—</p>
+          ) : (
+            <>
+              {visible.map((host) => (
+                <button
+                  key={host}
+                  type="button"
+                  className={clsx(
+                    "w-full text-left px-3 py-1.5 text-[11px] font-mono truncate hover:bg-base-200",
+                    host === value && "bg-primary/10 text-primary font-bold",
+                  )}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelect(host);
+                    setQuery("");
+                    setPickerOpen(false);
+                  }}
+                >
+                  {host}
+                </button>
+              ))}
+              {filtered.length > HOST_PICKER_LIMIT && (
+                <p className="text-[10px] text-base-content/40 px-3 py-1.5 m-0 border-t border-base-200">
+                  +{filtered.length - HOST_PICKER_LIMIT}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function resolveGuideLinkDomain(
+  ann: Annotation,
+  hubDomainId: number | null,
+  domains: Domain[],
+  getHost: (domain: Domain) => string,
+): Domain | null {
+  const hubDomain = hubDomainId != null ? (domains.find((d) => d.id === hubDomainId) ?? null) : null;
+  if (hubDomain && annotationMatchesHost(ann, getHost(hubDomain))) {
+    return hubDomain;
+  }
+  return domains.find((d) => annotationMatchesHost(ann, getHost(d))) ?? null;
 }
 
 export function PoliciesView() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? policiesKo : policiesEn;
-  const { domains: registeredDomains, fetchAll, getDomainHost, getGroupId } = useDomainHubData();
+  const { domains: registeredDomains, fetchAll, getDomainHost, getFeatureState } = useDomainHubData();
+  const nav = usePanelNavigation();
+  const isDetached = useIsDetachedWindow();
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("manage");
@@ -94,14 +307,37 @@ export function PoliciesView() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Annotation | null>(null);
-  const [editForm, setEditForm] = useState({
-    role: "",
-    description: "",
-    domain: "",
-    hostPattern: "",
-    pathPattern: "",
-    url: "",
-  });
+  const [editForm, setEditForm] = useState<GuideEditForm>(EMPTY_EDIT_FORM);
+  const editFormRef = useRef(editForm);
+  const hostPatternInputRef = useRef<HTMLInputElement>(null);
+  const pathPatternInputRef = useRef<HTMLInputElement>(null);
+  const roleInputRef = useRef<HTMLInputElement>(null);
+  const domainInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const descEditorRef = useRef<GuideMarkdownEditorHandle>(null);
+  const [previewCoverage, setPreviewCoverage] = useState({ hostPattern: "", domain: "" });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const setEditField = useCallback(<K extends keyof GuideEditForm>(key: K, value: GuideEditForm[K]) => {
+    const next = { ...editFormRef.current, [key]: value };
+    editFormRef.current = next;
+    setEditForm(next);
+  }, []);
+
+  const liveEditForm = useCallback((): GuideEditForm => {
+    const current = editFormRef.current;
+    const next = {
+      ...current,
+      role: readInputValue(roleInputRef.current, current.role),
+      description: descEditorRef.current?.getValue() ?? current.description,
+      hostPattern: readInputValue(hostPatternInputRef.current, current.hostPattern),
+      pathPattern: readInputValue(pathPatternInputRef.current, current.pathPattern),
+      domain: readInputValue(domainInputRef.current, current.domain),
+      url: readInputValue(urlInputRef.current, current.url),
+    };
+    editFormRef.current = next;
+    return next;
+  }, []);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -116,12 +352,23 @@ export function PoliciesView() {
   const [ready, setReady] = useState(false);
 
   const fetchAnnotations = useCallback(async () => {
-    const res = unwrap(await commands.getAnnotations());
-    if (res.success && res.data) {
-      setAnnotations(res.data);
+    try {
+      const res = unwrap(await commands.getAnnotations());
+      if (res.success && Array.isArray(res.data)) {
+        setAnnotations(res.data);
+        setLoadError(null);
+        return;
+      }
+      const message = res.message?.trim() || t.loadFailed;
+      setLoadError(message);
+      reportError(message, { title: t.loadFailed });
+    } catch (err) {
+      setLoadError(t.loadFailed);
+      reportError(err, { title: t.loadFailed });
+    } finally {
+      setReady(true);
     }
-    setReady(true);
-  }, []);
+  }, [t.loadFailed]);
 
   useEffect(() => {
     fetchAnnotations();
@@ -133,12 +380,8 @@ export function PoliciesView() {
   }, [fetchAnnotations, fetchAll]);
 
   const registeredHosts = useMemo(
-    () =>
-      registeredDomains.map((domain) => ({
-        host: getDomainHost(domain),
-        groupId: getGroupId(domain.id),
-      })),
-    [registeredDomains, getDomainHost, getGroupId],
+    () => registeredDomains.map((domain) => ({ host: getDomainHost(domain) })),
+    [registeredDomains, getDomainHost],
   );
 
   const coverageById = useMemo(() => {
@@ -154,89 +397,134 @@ export function PoliciesView() {
     [annotations, coverageById],
   );
 
-  const filterHosts = useMemo(() => {
-    const set = new Set<string>();
-    for (const coverage of coverageById.values()) {
-      for (const host of coverage.matchedHosts) {
-        set.add(host);
-      }
-    }
-    if (selectedDomain !== "ALL" && selectedDomain !== FILTER_UNMATCHED) {
-      set.add(selectedDomain);
-    }
-    return Array.from(set).sort();
-  }, [coverageById, selectedDomain]);
+  const allHostNames = useMemo(
+    () => Array.from(new Set(registeredHosts.map((item) => item.host))).sort(),
+    [registeredHosts],
+  );
 
   useEffect(() => {
     if (!domainSeed || !ready) {
       return;
     }
-    const seed = domainSeed.toLowerCase();
-    const match = registeredHosts.find(
-      (item) => item.host === seed || item.host.includes(seed) || seed.includes(item.host),
-    );
-    setSelectedDomain(match?.host ?? seed);
+    setSelectedDomain(resolveGuideHostFilterSeed(domainSeed, allHostNames));
     setDomainSeed(null);
-  }, [domainSeed, ready, registeredHosts, setDomainSeed]);
+  }, [allHostNames, domainSeed, ready, setDomainSeed]);
 
   const filteredAnnotations = useMemo(() => {
     const q = search.toLowerCase();
     return annotations.filter((ann) => {
       const coverage = coverageById.get(ann.id);
-      const matchesDomain =
-        selectedDomain === "ALL" ||
-        (selectedDomain === FILTER_UNMATCHED
-          ? coverage?.status === "none"
-          : Boolean(coverage?.matchedHosts.includes(selectedDomain)));
+      const matchesDomain = guideMatchesHostFilter(ann, selectedDomain, {
+        unmatched: selectedDomain === FILTER_UNMATCHED,
+        unmatchedStatus: coverage?.status,
+      });
       const matchesSearch =
         q === "" ||
-        ann.role.toLowerCase().includes(q) ||
-        ann.description.toLowerCase().includes(q) ||
-        ann.selector.toLowerCase().includes(q) ||
+        (ann.role ?? "").toLowerCase().includes(q) ||
+        (ann.description ?? "").toLowerCase().includes(q) ||
+        (ann.selector ?? "").toLowerCase().includes(q) ||
         (ann.hostPattern ?? "").toLowerCase().includes(q);
       return matchesDomain && matchesSearch;
     });
   }, [annotations, selectedDomain, search, coverageById]);
 
+  const emptyListCopy = !ready
+    ? t.loading
+    : loadError && annotations.length === 0
+      ? t.loadFailed
+      : annotations.length === 0
+        ? t.noPolicies
+        : t.noFilterResults;
+
+  const openGuideFeature = useCallback(
+    (ann: Annotation, alias: string) => {
+      if (!isGuideFeatureAlias(alias)) {
+        return;
+      }
+      const domain = resolveGuideLinkDomain(ann, nav.domainId, registeredDomains, getDomainHost);
+      if (!domain) {
+        toastInfo(t.featureLinkNoDomain);
+        return;
+      }
+      const panelId = GUIDE_FEATURE_PANEL[alias];
+      if (!canOpenPanel(panelId, getFeatureState(domain.id))) {
+        toastInfo(t.featureLinkUnavailable);
+        return;
+      }
+      if (isDetached) {
+        toastInfo(t.featureLinkUseHub);
+        return;
+      }
+      nav.openPanelForDomain(domain.id, panelId);
+    },
+    [getDomainHost, getFeatureState, isDetached, nav, registeredDomains, t],
+  );
+
   const handleDelete = async (id: string) => {
-    const res = unwrap(await commands.deleteAnnotation({ id }));
-    if (res.success && res.data) {
-      setAnnotations(res.data);
+    try {
+      const res = unwrap(await commands.deleteAnnotation({ id }));
+      if (res.success && res.data) {
+        setAnnotations(res.data);
+        return;
+      }
+      reportError(res.message?.trim() || t.deleteFailed, { title: t.deleteFailed });
+    } catch (err) {
+      reportError(err, { title: t.deleteFailed });
+    } finally {
+      setDeleteId(null);
     }
-    setDeleteId(null);
   };
 
   const openEditModal = (ann: Annotation) => {
-    setEditingPolicy(ann);
-    setEditForm({
+    const next: GuideEditForm = {
       role: ann.role,
       description: ann.description,
       domain: ann.domain || "",
       hostPattern: ann.hostPattern || "",
       pathPattern: ann.pathPattern || "",
       url: ann.url || "",
-    });
+    };
+    editFormRef.current = next;
+    setEditForm(next);
+    setPreviewCoverage({ hostPattern: next.hostPattern, domain: next.domain });
+    setEditingPolicy(ann);
     setIsEditModalOpen(true);
   };
 
   const handleUpdate = async () => {
     if (!editingPolicy) {
+      toastError(t.saveFailed);
       return;
     }
-    const res = unwrap(
-      await commands.updateAnnotation({
-        id: editingPolicy.id,
-        role: editForm.role,
-        description: editForm.description,
-        domain: editForm.domain,
-        url: editForm.url,
-        hostPattern: editForm.hostPattern,
-        pathPattern: editForm.pathPattern,
-      }),
-    );
-    if (res.success && res.data) {
-      setAnnotations(res.data);
-      setIsEditModalOpen(false);
+    const form = liveEditForm();
+    setEditForm(form);
+    if (!form.role.trim()) {
+      toastError(t.saveRoleRequired);
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const res = unwrap(
+        await commands.updateAnnotation({
+          id: editingPolicy.id,
+          role: form.role,
+          description: form.description,
+          domain: form.domain,
+          url: form.url,
+          hostPattern: form.hostPattern,
+          pathPattern: form.pathPattern,
+        }),
+      );
+      if (res.success && res.data) {
+        setAnnotations(res.data);
+        setIsEditModalOpen(false);
+        return;
+      }
+      reportError(res.message?.trim() || t.saveFailed, { title: t.saveFailed });
+    } catch (err) {
+      reportError(err, { title: t.saveFailed });
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -392,9 +680,19 @@ export function PoliciesView() {
     }
   };
 
-  const editCoverage = resolveGuideHostCoverage(
-    { hostPattern: editForm.hostPattern, domain: editForm.domain },
-    registeredHosts,
+  useEffect(() => {
+    if (!isEditModalOpen) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setPreviewCoverage({ hostPattern: editForm.hostPattern, domain: editForm.domain });
+    }, COVERAGE_PREVIEW_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [editForm.domain, editForm.hostPattern, isEditModalOpen]);
+
+  const editCoverage = useMemo(
+    () => resolveGuideHostCoverage(previewCoverage, registeredHosts),
+    [previewCoverage, registeredHosts],
   );
 
   return (
@@ -475,8 +773,8 @@ export function PoliciesView() {
                 className="pl-8 h-8 text-[11px] rounded-lg shadow-sm"
               />
             </div>
-            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-thin min-w-0 flex-1">
-              <FilterChip active={selectedDomain === "ALL"} onClick={() => setSelectedDomain("ALL")}>
+            <div className="flex gap-1 items-center min-w-0 flex-1">
+              <FilterChip active={isAllGuideHostFilter(selectedDomain)} onClick={() => setSelectedDomain("ALL")}>
                 {t.filterAll}
               </FilterChip>
               {unmatchedCount > 0 && (
@@ -494,11 +792,23 @@ export function PoliciesView() {
                   {t.filterUnmatched} ({unmatchedCount})
                 </button>
               )}
-              {filterHosts.map((host) => (
-                <FilterChip key={host} active={selectedDomain === host} onClick={() => setSelectedDomain(host)}>
-                  {host}
-                </FilterChip>
-              ))}
+              <HostFilterPicker
+                hosts={allHostNames}
+                value={selectedDomain}
+                onSelect={setSelectedDomain}
+                placeholder={t.filterHostPlaceholder}
+                typeToSearch={t.filterHostTypeToSearch}
+              />
+              {selectedDomain !== FILTER_UNMATCHED && !isAllGuideHostFilter(selectedDomain) && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDomain("ALL")}
+                  className="shrink-0 p-1 rounded-md text-base-content/40 hover:text-base-content hover:bg-base-200"
+                  title={t.filterHostClear}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -534,7 +844,7 @@ export function PoliciesView() {
             {filteredAnnotations.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center text-base-content/30 rounded-2xl border-2 border-dashed border-base-300">
                 <Info className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm font-bold">{t.noPolicies}</p>
+                <p className="text-sm font-bold">{emptyListCopy}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -585,11 +895,13 @@ export function PoliciesView() {
                       <MarkdownRenderer
                         content={ann.description || "-"}
                         className="text-xs text-base-content/80 leading-relaxed"
+                        onHgLink={(alias) => openGuideFeature(ann, alias)}
                       />
                     </div>
 
                     <div className="flex flex-col gap-2 pt-2 border-t border-base-200 mt-auto">
                       <CoverageBanner coverage={coverageById.get(ann.id)} t={t} />
+                      <HostCoveragePanel coverage={coverageById.get(ann.id)} t={t} />
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-medium text-base-content/50">
                         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                           {ann.hostPattern && (
@@ -611,11 +923,6 @@ export function PoliciesView() {
                         </div>
                         <span className="whitespace-nowrap">{new Date(ann.timestamp ?? 0).toLocaleDateString()}</span>
                       </div>
-                      {(coverageById.get(ann.id)?.matchedHosts.length ?? 0) > 0 && (
-                        <p className="text-[10px] text-base-content/45 m-0 truncate">
-                          {t.appliedHosts}: {coverageById.get(ann.id)?.matchedHosts.join(", ")}
-                        </p>
-                      )}
                       {ann.domain && (
                         <p className="text-[10px] text-base-content/35 m-0 truncate">
                           {t.capturedOn}: {ann.domain}
@@ -666,7 +973,7 @@ export function PoliciesView() {
               {filteredAnnotations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24" style={{ color: "#cbd5e1" }}>
                   <Info className="w-12 h-12 mb-3 opacity-40" />
-                  <p className="text-base font-bold">{t.noPolicies}</p>
+                  <p className="text-base font-bold">{emptyListCopy}</p>
                 </div>
               ) : (
                 <>
@@ -798,6 +1105,7 @@ export function PoliciesView() {
                               content={ann.description}
                               style={{ color: "#334155", fontSize: "14px", lineHeight: "1.6" }}
                               codeStyle={{ backgroundColor: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe" }}
+                              onHgLink={(alias) => openGuideFeature(ann, alias)}
                             />
                           </div>
 
@@ -904,8 +1212,8 @@ export function PoliciesView() {
             }
           }}
         >
-          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-2xl w-full max-w-lg max-h-[85%] overflow-y-auto p-5 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
+          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-2xl w-full max-w-lg h-[90%] max-h-[90vh] overflow-hidden p-5 flex flex-col gap-3 relative isolate">
+            <div className="flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-black">{t.editPolicy}</h3>
@@ -919,91 +1227,101 @@ export function PoliciesView() {
               </button>
             </div>
 
-            <label className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-1.5 shrink-0">
               <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
                 {t.roleLabel}
               </span>
               <Input
                 id="app-edit-role"
+                ref={roleInputRef}
                 value={editForm.role}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
+                onChange={(e) => setEditField("role", e.target.value)}
+                onCompositionEnd={(e) => setEditField("role", e.currentTarget.value)}
                 className="h-9 text-sm"
               />
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
+            <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden relative z-0">
+              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 shrink-0">
                 {t.descLabel}
               </span>
-              <textarea
+              <GuideDescriptionField
                 id="app-edit-desc"
+                editorRef={descEditorRef}
                 value={editForm.description}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                onChange={(description) => setEditField("description", description)}
                 placeholder="Description (Markdown format supported)..."
-                className="textarea textarea-bordered text-xs min-h-[100px] leading-relaxed"
+                t={t}
+                lang={lang}
               />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
-                <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
-              </span>
-              <Input
-                value={editForm.hostPattern}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, hostPattern: e.target.value }))}
-                placeholder={t.hostPatternPlaceholder}
-                className="h-8 text-xs font-mono"
-              />
-              <CoverageBanner coverage={editCoverage} t={t} />
-              {editCoverage.matchedHosts.length > 0 && (
-                <p className="text-[10px] text-base-content/45 m-0">
-                  {t.appliedHosts}: {editCoverage.matchedHosts.join(", ")}
-                </p>
-              )}
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
-                <FolderTree className="w-3 h-3 text-secondary" /> {t.pathPatternLabel}
-              </span>
-              <Input
-                value={editForm.pathPattern}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, pathPattern: e.target.value }))}
-                placeholder={t.pathPatternPlaceholder}
-                className="h-8 text-xs font-mono"
-              />
-            </label>
-
-            <div className="flex items-start gap-2 rounded-xl bg-info/8 border border-info/15 p-3">
-              <Info className="w-3.5 h-3.5 text-info shrink-0 mt-0.5" />
-              <p className="text-[11px] text-base-content/60 leading-relaxed m-0">{t.patternHelp}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
+            <div className="min-h-0 overflow-y-auto flex flex-col gap-3 relative z-0">
+              <label className="flex flex-col gap-1.5 shrink-0">
                 <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
-                  <Globe className="w-3 h-3 text-base-content/40" /> {t.domainLabel}
+                  <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
                 </span>
                 <Input
-                  value={editForm.domain}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, domain: e.target.value }))}
-                  placeholder="www.modetour.com"
+                  ref={hostPatternInputRef}
+                  value={editForm.hostPattern}
+                  onChange={(e) => setEditField("hostPattern", e.target.value)}
+                  onCompositionEnd={(e) => setEditField("hostPattern", e.currentTarget.value)}
+                  placeholder={t.hostPatternPlaceholder}
+                  className="h-8 text-xs font-mono"
+                />
+                <CoverageBanner coverage={editCoverage} t={t} />
+                <HostCoveragePanel coverage={editCoverage} t={t} />
+              </label>
+
+              <label className="flex flex-col gap-1.5 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                  <FolderTree className="w-3 h-3 text-secondary" /> {t.pathPatternLabel}
+                </span>
+                <Input
+                  ref={pathPatternInputRef}
+                  value={editForm.pathPattern}
+                  onChange={(e) => setEditField("pathPattern", e.target.value)}
+                  onCompositionEnd={(e) => setEditField("pathPattern", e.currentTarget.value)}
+                  placeholder={t.pathPatternPlaceholder}
                   className="h-8 text-xs font-mono"
                 />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
-                  {t.urlLabel}
-                </span>
-                <Input
-                  value={editForm.url}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, url: e.target.value }))}
-                  className="h-8 text-xs font-mono"
-                />
-              </label>
+
+              <div className="flex items-start gap-2 rounded-xl bg-info/8 border border-info/15 p-3 shrink-0">
+                <Info className="w-3.5 h-3.5 text-info shrink-0 mt-0.5" />
+                <p className="text-[11px] text-base-content/60 leading-relaxed m-0">{t.patternHelp}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 shrink-0">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-base-content/40" /> {t.domainLabel}
+                  </span>
+                  <Input
+                    ref={domainInputRef}
+                    value={editForm.domain}
+                    onChange={(e) => setEditField("domain", e.target.value)}
+                    onCompositionEnd={(e) => setEditField("domain", e.currentTarget.value)}
+                    placeholder="www.modetour.com"
+                    className="h-8 text-xs font-mono"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
+                    {t.urlLabel}
+                  </span>
+                  <Input
+                    ref={urlInputRef}
+                    value={editForm.url}
+                    onChange={(e) => setEditField("url", e.target.value)}
+                    onCompositionEnd={(e) => setEditField("url", e.currentTarget.value)}
+                    className="h-8 text-xs font-mono"
+                  />
+                </label>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="flex justify-end gap-2 pt-1 shrink-0 relative z-40 bg-base-100 pointer-events-auto">
               <Button
                 variant="secondary"
                 size="sm"
@@ -1016,11 +1334,12 @@ export function PoliciesView() {
                 variant="primary"
                 size="sm"
                 className="h-8 gap-1.5 text-xs font-black"
-                onClick={handleUpdate}
-                disabled={!editForm.role}
+                type="button"
+                onClick={() => void handleUpdate()}
+                disabled={!editForm.role.trim() || isSavingEdit}
               >
                 <Save className="w-3.5 h-3.5" />
-                {t.save}
+                {isSavingEdit ? "..." : t.save}
               </Button>
             </div>
           </div>

@@ -247,10 +247,13 @@ mod tests {
 
         // 1. Basic path
         assert_eq!(apply_query(&val, "success"), json!(true));
-        
+
         // 2. Array projection
-        assert_eq!(apply_query(&val, "data.logs.[].path"), json!(["/a", "/b", "/c"]));
-        
+        assert_eq!(
+            apply_query(&val, "data.logs.[].path"),
+            json!(["/a", "/b", "/c"])
+        );
+
         // 3. Object slicing
         assert_eq!(
             apply_query(&val, "data.logs.[].{path,statusCode}"),

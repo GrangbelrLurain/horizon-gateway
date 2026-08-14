@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.7.10] - 2026-08-14
+
+### Added
+
+- **Hub overview controls**: HTTPS decrypt with inline help, an injection toggle, local destination, and the inspect list on the hub overview.
+- **Guide editor**: CodeMirror with tab indent, auto-pair, `[[` feature links as `hg://`, recapture from injection, and error toasts with details.
+
+### Changed
+
+- **Host-row scoped toggles**: Routing, mocking, and inspector are controlled per host row. Global master switches are removed.
+- **Guide host filter**: Matching is pattern-only; the guide popover layout is tightened.
+- **DNS A/CNAME zone**: Removed from settings and the proxy DNS engine.
+- **Paid checkout**: Gated off in production builds.
+- **`tauri dev` leftover serve**: Development start resets a leftover `horizon-gateway-serve` process. Production still hides to the tray.
+
+### Fixed
+
+- **Proxy bind on port 8888**: Starting the proxy is more robust when the port is already owned by this app.
+
 ## [v2.7.9] - 2026-08-13
 
 ### Added

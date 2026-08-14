@@ -9,16 +9,45 @@ export type GuideMatchFields = {
 
 export type RegisteredHost = {
   host: string;
-  groupId: number | null;
 };
 
-export type GuideHostCoverageStatus = "ok" | "none" | "gap";
+export type GuideHostCoverageStatus = "ok" | "none";
 
 export type GuideHostCoverage = {
   status: GuideHostCoverageStatus;
   matchedHosts: string[];
-  unmatchedGroupHosts: string[];
+  unmatchedHosts: string[];
 };
+
+export const GUIDE_HOST_FILTER_ALL = "ALL";
+
+export function isAllGuideHostFilter(selected: string): boolean {
+  return selected.trim() === "" || selected.trim().toUpperCase() === GUIDE_HOST_FILTER_ALL;
+}
+
+/** Exact hostname only — substring `includes` matches `bp-www.modetour.dev` for seed `www.modetour.dev`. */
+export function resolveGuideHostFilterSeed(seed: string, hosts: readonly string[]): string {
+  const normalized = seed.trim().toLowerCase();
+  if (!normalized) {
+    return GUIDE_HOST_FILTER_ALL;
+  }
+  const exact = hosts.find((host) => host.trim().toLowerCase() === normalized);
+  return exact ?? normalized;
+}
+
+export function guideMatchesHostFilter(
+  ann: GuideMatchFields,
+  selectedHost: string,
+  options?: { unmatched?: boolean; unmatchedStatus?: GuideHostCoverageStatus },
+): boolean {
+  if (options?.unmatched) {
+    return options.unmatchedStatus === "none";
+  }
+  if (isAllGuideHostFilter(selectedHost)) {
+    return true;
+  }
+  return annotationMatchesHost(ann, selectedHost.trim().toLowerCase());
+}
 
 /**
  * Apply a guide by hostPattern. `domain` is capture origin only —
@@ -34,38 +63,22 @@ export function annotationMatchesPage(ann: GuideMatchFields, actualHost: string,
 }
 
 export function resolveGuideHostCoverage(ann: GuideMatchFields, registered: RegisteredHost[]): GuideHostCoverage {
-  const unique = new Map<string, number | null>();
+  const unique = new Set<string>();
   for (const item of registered) {
     const host = item.host.trim().toLowerCase();
-    if (!host) {
-      continue;
-    }
-    if (!unique.has(host)) {
-      unique.set(host, item.groupId);
+    if (host) {
+      unique.add(host);
     }
   }
-  const hosts = [...unique.entries()].map(([host, groupId]) => ({ host, groupId }));
+  const hosts = Array.from(unique).sort();
   if (hosts.length === 0) {
-    return { status: "ok", matchedHosts: [], unmatchedGroupHosts: [] };
+    return { status: "ok", matchedHosts: [], unmatchedHosts: [] };
   }
-  const matchedHosts = hosts.filter((item) => annotationMatchesHost(ann, item.host)).map((item) => item.host);
-
-  if (matchedHosts.length === 0) {
-    return { status: "none", matchedHosts: [], unmatchedGroupHosts: [] };
-  }
-
-  const matchedGroupIds = new Set(
-    hosts
-      .filter((item) => matchedHosts.includes(item.host) && item.groupId != null)
-      .map((item) => item.groupId as number),
-  );
-  const unmatchedGroupHosts = hosts
-    .filter((item) => item.groupId != null && matchedGroupIds.has(item.groupId) && !matchedHosts.includes(item.host))
-    .map((item) => item.host);
-
+  const matchedHosts = hosts.filter((host) => annotationMatchesHost(ann, host));
+  const unmatchedHosts = hosts.filter((host) => !matchedHosts.includes(host));
   return {
-    status: unmatchedGroupHosts.length > 0 ? "gap" : "ok",
+    status: matchedHosts.length === 0 ? "none" : "ok",
     matchedHosts,
-    unmatchedGroupHosts,
+    unmatchedHosts,
   };
 }

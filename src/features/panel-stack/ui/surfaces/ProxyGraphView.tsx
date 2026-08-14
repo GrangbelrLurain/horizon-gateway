@@ -12,6 +12,7 @@ import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
+import { reportError } from "@/shared/ui/toast";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
 import { en } from "../../i18n/en";
 import { ko } from "../../i18n/ko";
@@ -278,7 +279,7 @@ export function ProxyGraphView() {
       await fetchAll();
       await notifyHubDataChanged("routes");
     } catch (e) {
-      console.error("setLocalRouteEnabled error:", e);
+      reportError(e);
     }
   };
 
@@ -292,7 +293,7 @@ export function ProxyGraphView() {
       await fetchAll();
       await notifyHubDataChanged("routes");
     } catch (e) {
-      console.error("removeLocalRoute error:", e);
+      reportError(e);
     } finally {
       setRouteToDelete(null);
     }
@@ -324,7 +325,7 @@ export function ProxyGraphView() {
       await notifyHubDataChanged("routes");
       setEditingRouteId(null);
     } catch (e) {
-      console.error("updateLocalRoute error:", e);
+      reportError(e);
     } finally {
       setSaving(false);
     }

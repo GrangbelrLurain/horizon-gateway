@@ -86,7 +86,11 @@ pub async fn run_proxy(
                 } else {
                     let io = TokioIo::new(PrependIo::new(buf, stream));
                     let svc = TowerToHyperService::new(app);
-                    let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
+                    let _ = Http1Builder::new()
+                        .serve_connection(io, svc)
+                        .with_upgrades()
+                        .await
+                        .ok();
                 }
             });
         }
@@ -94,7 +98,6 @@ pub async fn run_proxy(
 
     Ok(handle)
 }
-
 
 /// Reverse HTTP listener: no system proxy. Client connects directly (e.g. hosts 127.0.0.1 dev.modetour.local, then http://dev.modetour.local:port).
 /// Requests are origin-form (GET /path); routing by Host header.
@@ -139,14 +142,17 @@ pub async fn run_reverse_proxy_http(
             tokio::spawn(async move {
                 let io = TokioIo::new(stream);
                 let svc = TowerToHyperService::new(app);
-                let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
+                let _ = Http1Builder::new()
+                    .serve_connection(io, svc)
+                    .with_upgrades()
+                    .await
+                    .ok();
             });
         }
     });
 
     Ok(handle)
 }
-
 
 /// Reverse HTTPS listener: TLS termination by Host (SNI), then forward by Host. Use https://dev.modetour.local:port with hosts.
 /// `forward_proxy_port`: port of the main (forward) proxy, for PAC generation.
@@ -201,7 +207,11 @@ pub async fn run_reverse_proxy_https(
                 };
                 let io = TokioIo::new(tls_stream);
                 let svc = TowerToHyperService::new(app);
-                let _ = Http1Builder::new().serve_connection(io, svc).with_upgrades().await.ok();
+                let _ = Http1Builder::new()
+                    .serve_connection(io, svc)
+                    .with_upgrades()
+                    .await
+                    .ok();
             });
         }
     });

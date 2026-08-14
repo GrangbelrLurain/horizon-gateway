@@ -21,7 +21,9 @@ impl ProxyRuntimeStateService {
     }
 
     pub fn save_state(port: u16, reverse_http_port: Option<u16>, reverse_https_port: Option<u16>) {
-        let Some(path) = Self::state_file_path() else { return };
+        let Some(path) = Self::state_file_path() else {
+            return;
+        };
         if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
         }
@@ -53,13 +55,55 @@ impl ProxyRuntimeStateService {
 
         let content = fs::read_to_string(path).ok()?;
         let state: ProxyRuntimeState = serde_json::from_str(&content).ok()?;
-
-        // Verify port is actually listening on 127.0.0.1
         let addr = SocketAddr::from(([127, 0, 0, 1], state.port));
-        if TcpStream::connect_timeout(&addr, Duration::from_millis(100)).is_ok() {
-            Some(state)
-        } else {
-            None
+        let listening = TcpStream::connect_timeout(&addr, Duration::from_millis(100)).is_ok();
+        validate_loaded_state(state, std::process::id(), listening)
+    }
+}
+
+/// Active only when this process owns the saved pid and the proxy port still accepts connections.
+pub(crate) fn validate_loaded_state(
+    state: ProxyRuntimeState,
+    current_pid: u32,
+    port_listening: bool,
+) -> Option<ProxyRuntimeState> {
+    if state.pid == current_pid && port_listening {
+        Some(state)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(pid: u32) -> ProxyRuntimeState {
+        ProxyRuntimeState {
+            port: 8888,
+            reverse_http_port: None,
+            reverse_https_port: None,
+            pid,
+            updated_at: "2026-01-01T00:00:00Z".into(),
         }
+    }
+
+    #[test]
+    fn active_when_this_process_still_listens() {
+        let state = sample(42);
+        assert_eq!(
+            validate_loaded_state(state.clone(), 42, true).unwrap().port,
+            8888
+        );
+    }
+
+    #[test]
+    fn ignores_other_process_even_if_port_is_open() {
+        assert!(validate_loaded_state(sample(1), 2, true).is_none());
+    }
+
+    #[test]
+    fn ignores_stale_pid_when_port_is_closed() {
+        assert!(validate_loaded_state(sample(42), 42, false).is_none());
     }
 }

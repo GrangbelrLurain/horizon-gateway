@@ -7,9 +7,9 @@ use axum::{
 use std::sync::Arc;
 use time::OffsetDateTime;
 
-use crate::model::api_log::ApiLogEntry;
 use super::super::routing::host_key_for_logging_map;
 use super::super::state::ProxyState;
+use crate::model::api_log::ApiLogEntry;
 
 fn matches_wildcard(pattern: &str, text: &str) -> bool {
     let pattern = pattern.trim();
@@ -72,7 +72,6 @@ fn matches_host(rule_host: Option<&str>, target_host: &str) -> bool {
         || norm_target_host.ends_with(&format!(".{norm_rule_host}"))
 }
 
-
 pub(crate) fn try_mock_response(
     state: &Arc<ProxyState>,
     req: &Request,
@@ -123,10 +122,7 @@ pub(crate) fn try_mock_response(
             } else {
                 "text/plain; charset=utf-8"
             };
-            headers.insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static(default_ct),
-            );
+            headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(default_ct));
         }
         headers.insert(
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
@@ -141,16 +137,10 @@ pub(crate) fn try_mock_response(
             HeaderValue::from_static("horizon-gateway"),
         );
         if let Ok(hv) = HeaderValue::from_str(&rule.id) {
-            headers.insert(
-                header::HeaderName::from_static("x-mock-rule-id"),
-                hv,
-            );
+            headers.insert(header::HeaderName::from_static("x-mock-rule-id"), hv);
         }
         if let Ok(hv) = HeaderValue::from_str(&rule.name) {
-            headers.insert(
-                header::HeaderName::from_static("x-mock-rule-name"),
-                hv,
-            );
+            headers.insert(header::HeaderName::from_static("x-mock-rule-name"), hv);
         }
     }
     let body = rule.response_body.unwrap_or_default();
@@ -162,7 +152,10 @@ pub(crate) fn try_mock_response(
     logged_headers.insert("x-mock-rule-id".to_string(), rule.id.clone());
     logged_headers.insert("X-Mock-Rule-Name".to_string(), rule.name.clone());
     logged_headers.insert("x-mock-rule-name".to_string(), rule.name.clone());
-    if !logged_headers.keys().any(|k| k.eq_ignore_ascii_case("content-type")) {
+    if !logged_headers
+        .keys()
+        .any(|k| k.eq_ignore_ascii_case("content-type"))
+    {
         let body_str = body.trim();
         let default_ct = if body_str.starts_with('{') || body_str.starts_with('[') {
             "application/json; charset=utf-8"
@@ -198,15 +191,11 @@ pub(crate) fn try_mock_response(
     state.api_log_service.save_log(&entry);
     let _ = state.emit("api-log-captured", entry);
 
-    Some(
-        builder
-            .body(Body::from(body))
-            .unwrap_or_else(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to build mock response: {e}"),
-                )
-                    .into_response()
-            }),
-    )
+    Some(builder.body(Body::from(body)).unwrap_or_else(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to build mock response: {e}"),
+        )
+            .into_response()
+    }))
 }

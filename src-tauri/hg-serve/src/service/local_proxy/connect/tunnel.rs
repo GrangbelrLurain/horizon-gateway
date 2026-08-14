@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use tokio::net::TcpStream;
 
+use super::super::routing::{host_in_list, resolve_connect_target};
+use super::super::state::ProxyState;
 use super::decrypt::handle_connect_tunnel_decrypted;
 use super::local::handle_connect_tunnel_local;
 use super::passthrough::handle_connect_passthrough;
-use super::super::routing::{host_in_list, resolve_connect_target};
-use super::super::state::ProxyState;
 
 pub(crate) async fn handle_connect_tunnel(
     client: TcpStream,

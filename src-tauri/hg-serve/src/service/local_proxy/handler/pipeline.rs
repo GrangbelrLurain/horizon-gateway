@@ -5,13 +5,15 @@ use axum::{
 };
 use std::sync::Arc;
 
+use super::super::reserved::is_horizon_gateway_internal;
+use super::super::routing::{
+    get_logging_config_for_host, host_key_for_logging_map, resolve_target,
+};
+use super::super::state::ProxyState;
 use super::api::try_handle_api;
 use super::capture::handle_with_logging;
 use super::forward::handle_pass_through;
 use super::mocking::try_mock_response;
-use super::super::reserved::is_horizon_gateway_internal;
-use super::super::routing::{get_logging_config_for_host, host_key_for_logging_map, resolve_target};
-use super::super::state::ProxyState;
 use super::websocket::{handle_websocket_upgrade, is_websocket_upgrade};
 
 pub(crate) async fn proxy_handler_inner(
@@ -71,8 +73,7 @@ pub(crate) async fn proxy_handler_inner(
         .and_then(|map| get_logging_config_for_host(&map, &host_key));
 
     let (logging_enabled, body_enabled) = logging_config.unwrap_or((false, false));
-    let logging_enabled =
-        logging_enabled && !is_horizon_gateway_internal(path, &target_uri_str);
+    let logging_enabled = logging_enabled && !is_horizon_gateway_internal(path, &target_uri_str);
 
     if is_websocket_upgrade(&req) {
         return handle_websocket_upgrade(

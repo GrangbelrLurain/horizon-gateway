@@ -1,6 +1,7 @@
 import { Edit3, FolderTree, Globe, Save, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Annotation } from "@/entities/inspector";
+import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import { saveAnnotationApi } from "../api/gateway";
 
 interface EditPolicyModalProps {
@@ -15,7 +16,21 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
   const [description, setDescription] = useState(annotation.description || "");
   const [hostPattern, setHostPattern] = useState(annotation.hostPattern || "");
   const [pathPattern, setPathPattern] = useState(annotation.pathPattern || "");
+  const hostPatternRef = useRef(hostPattern);
+  const pathPatternRef = useRef(pathPattern);
+  const hostPatternInputRef = useRef<HTMLInputElement>(null);
+  const pathPatternInputRef = useRef<HTMLInputElement>(null);
+  const descEditorRef = useRef<GuideMarkdownEditorHandle>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const commitHostPattern = (value: string) => {
+    hostPatternRef.current = value;
+    setHostPattern(value);
+  };
+  const commitPathPattern = (value: string) => {
+    pathPatternRef.current = value;
+    setPathPattern(value);
+  };
 
   const handleSave = async () => {
     if (!role.trim()) {
@@ -23,12 +38,18 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
     }
     setIsSaving(true);
 
+    const liveHost = hostPatternInputRef.current?.value ?? hostPatternRef.current;
+    const livePath = pathPatternInputRef.current?.value ?? pathPatternRef.current;
+    const liveDesc = descEditorRef.current?.getValue() ?? description;
+    hostPatternRef.current = liveHost;
+    pathPatternRef.current = livePath;
+
     const updated: Annotation = {
       ...annotation,
       role: role.trim(),
-      description: description.trim(),
-      hostPattern: hostPattern.trim(),
-      pathPattern: pathPattern.trim(),
+      description: liveDesc.trim(),
+      hostPattern: liveHost.trim(),
+      pathPattern: livePath.trim(),
     };
 
     try {
@@ -38,8 +59,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
         showToast("가이드가 수정되었습니다.");
         window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
         onClose();
+      } else {
+        showToast("저장에 실패했습니다.");
       }
     } catch (_e) {
+      showToast("저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
     }
@@ -64,8 +88,8 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
           background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
           width: "440px",
           maxWidth: "calc(100vw - 32px)",
-          maxHeight: "85vh",
-          overflowY: "auto",
+          maxHeight: "90vh",
+          overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
@@ -73,7 +97,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
           color: "white",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
+          gap: "12px",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -125,35 +149,40 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            flex: "1 1 12rem",
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
           <label
             htmlFor="edit-desc-input"
-            style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
+            style={{
+              fontSize: "10px",
+              fontWeight: "800",
+              color: "rgba(255,255,255,0.5)",
+              textTransform: "uppercase",
+              flexShrink: 0,
+            }}
           >
             설명 (Description - 마크다운 지원)
           </label>
-          <textarea
+          <GuideMarkdownEditor
+            ref={descEditorRef}
             id="edit-desc-input"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록..."
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "10px",
-              padding: "10px 12px",
-              color: "white",
-              fontSize: "12px",
-              lineHeight: "1.5",
-              outline: "none",
-              minHeight: "100px",
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
+            onChange={setDescription}
+            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능 검색"
+            lang="ko"
+            variant="overlay"
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", flexShrink: 0 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label
               htmlFor="edit-host-pattern"
@@ -170,9 +199,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             </label>
             <input
               id="edit-host-pattern"
+              ref={hostPatternInputRef}
               value={hostPattern}
-              onChange={(e) => setHostPattern(e.target.value)}
-              placeholder="예: *.modetour.dev"
+              onChange={(e) => commitHostPattern(e.target.value)}
+              onCompositionEnd={(e) => commitHostPattern(e.currentTarget.value)}
+              placeholder="예: *.modetour.*, !api"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -202,8 +233,10 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             </label>
             <input
               id="edit-path-pattern"
+              ref={pathPatternInputRef}
               value={pathPattern}
-              onChange={(e) => setPathPattern(e.target.value)}
+              onChange={(e) => commitPathPattern(e.target.value)}
+              onCompositionEnd={(e) => commitPathPattern(e.currentTarget.value)}
               placeholder="예: /products/*"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -219,7 +252,17 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "10px",
+            marginTop: "6px",
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 20,
+          }}
+        >
           <button
             type="button"
             onClick={onClose}

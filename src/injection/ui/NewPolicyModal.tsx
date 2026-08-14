@@ -1,4 +1,6 @@
 import { FolderTree, Globe, PlusCircle, Save, X } from "lucide-react";
+import { useRef } from "react";
+import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 
 type State = Pick<
@@ -20,6 +22,9 @@ type State = Pick<
 >;
 
 export function NewPolicyModal({ s }: { s: State }) {
+  const hostPatternInputRef = useRef<HTMLInputElement>(null);
+  const pathPatternInputRef = useRef<HTMLInputElement>(null);
+  const descEditorRef = useRef<GuideMarkdownEditorHandle>(null);
   const editingElement = s.editingElement;
   if (!editingElement) {
     return null;
@@ -43,8 +48,8 @@ export function NewPolicyModal({ s }: { s: State }) {
           background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
           width: "440px",
           maxWidth: "calc(100vw - 32px)",
-          maxHeight: "85vh",
-          overflowY: "auto",
+          maxHeight: "90vh",
+          overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
@@ -52,7 +57,7 @@ export function NewPolicyModal({ s }: { s: State }) {
           color: "white",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
+          gap: "12px",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -121,35 +126,40 @@ export function NewPolicyModal({ s }: { s: State }) {
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            flex: "1 1 12rem",
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
           <label
             htmlFor="wt-desc-input"
-            style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
+            style={{
+              fontSize: "10px",
+              fontWeight: "800",
+              color: "rgba(255,255,255,0.5)",
+              textTransform: "uppercase",
+              flexShrink: 0,
+            }}
           >
             설명 (Description - 마크다운 지원)
           </label>
-          <textarea
+          <GuideMarkdownEditor
+            ref={descEditorRef}
             id="wt-desc-input"
             value={s.description}
-            onChange={(e) => s.setDescription(e.target.value)}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록..."
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              borderRadius: "10px",
-              padding: "10px 12px",
-              color: "white",
-              fontSize: "12px",
-              lineHeight: "1.5",
-              outline: "none",
-              minHeight: "90px",
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
+            onChange={s.setDescription}
+            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능 검색"
+            lang="ko"
+            variant="overlay"
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", flexShrink: 0 }}>
           {/* Host Pattern */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label
@@ -167,9 +177,11 @@ export function NewPolicyModal({ s }: { s: State }) {
             </label>
             <input
               id="wt-host-pattern"
+              ref={hostPatternInputRef}
               value={s.hostPattern}
               onChange={(e) => s.setHostPattern(e.target.value)}
-              placeholder="예: *.modetour.dev"
+              onCompositionEnd={(e) => s.setHostPattern(e.currentTarget.value)}
+              placeholder="예: *.modetour.*, !api"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -226,8 +238,10 @@ export function NewPolicyModal({ s }: { s: State }) {
             </label>
             <input
               id="wt-path-pattern"
+              ref={pathPatternInputRef}
               value={s.pathPattern}
               onChange={(e) => s.setPathPattern(e.target.value)}
+              onCompositionEnd={(e) => s.setPathPattern(e.currentTarget.value)}
               placeholder="예: /products/*"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.06)",
@@ -269,7 +283,17 @@ export function NewPolicyModal({ s }: { s: State }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "10px",
+            marginTop: "6px",
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 20,
+          }}
+        >
           <button
             type="button"
             onClick={() => s.setEditingElement(null)}
@@ -288,7 +312,15 @@ export function NewPolicyModal({ s }: { s: State }) {
           </button>
           <button
             type="button"
-            onClick={s.saveAnnotation}
+            onClick={() => {
+              const liveHost = hostPatternInputRef.current?.value ?? s.hostPattern;
+              const livePath = pathPatternInputRef.current?.value ?? s.pathPattern;
+              const liveDesc = descEditorRef.current?.getValue() ?? s.description;
+              s.setHostPattern(liveHost);
+              s.setPathPattern(livePath);
+              s.setDescription(liveDesc);
+              void s.saveAnnotation({ hostPattern: liveHost, pathPattern: livePath, description: liveDesc });
+            }}
             disabled={!s.role || s.isSaving}
             style={{
               background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",

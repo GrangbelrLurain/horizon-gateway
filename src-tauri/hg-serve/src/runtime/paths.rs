@@ -5,7 +5,8 @@ pub const APP_IDENTIFIER: &str = "com.lurain.horizon-gateway";
 
 /// Resolves the Horizon Gateway app data directory (same layout as Tauri `app_data_dir`).
 pub fn resolve_app_data_dir() -> Result<PathBuf, String> {
-    let base = dirs::data_dir().ok_or_else(|| "failed to resolve platform data directory".to_string())?;
+    let base =
+        dirs::data_dir().ok_or_else(|| "failed to resolve platform data directory".to_string())?;
     Ok(base.join(APP_IDENTIFIER))
 }
 

@@ -37,14 +37,13 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const { show: showModal } = usePromiseModal();
-  const { getDomainHost, getFeatureState, proxyActive, fetchAll: fetchHubData } = useDomainHubData();
+  const { getDomainHost, getFeatureState, fetchAll: fetchHubData } = useDomainHubData();
   const host = getDomainHost(domain);
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
     domainId: domain.id,
     domainUrl: domain.url,
     state: featureState,
-    proxyActive,
     onRefresh: fetchHubData,
   });
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);

@@ -63,6 +63,14 @@ function main() {
 		writeFileSync(cargoPath, cargo);
 	}
 
+	const appMetaPath = join(ROOT, "src", "shared", "lib", "appMeta.ts");
+	let appMeta = readFileSync(appMetaPath, "utf8");
+	appMeta = appMeta.replace(
+		/export const APP_VERSION = ".*";/,
+		`export const APP_VERSION = "${next}";`,
+	);
+	writeFileSync(appMetaPath, appMeta);
+
 	console.log(`Bumped ${current} → ${next}`);
 	console.log("");
 	console.log("Next steps:");

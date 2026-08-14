@@ -1962,7 +1962,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hg-core"
-version = "2.7.9"
+version = "2.7.10"
 dependencies = [
  "chrono",
  "serde",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "hgc"
-version = "2.7.9"
+version = "2.7.10"
 dependencies = [
  "horizon-gateway-serve",
 ]
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "horizon-gateway"
-version = "2.7.9"
+version = "2.7.10"
 dependencies = [
  "chrono",
  "dirs",
@@ -2068,7 +2068,7 @@ dependencies = [
 
 [[package]]
 name = "horizon-gateway-serve"
-version = "2.7.9"
+version = "2.7.10"
 dependencies = [
  "aes-gcm",
  "axum",

@@ -10,8 +10,7 @@ use crate::service::local_proxy::routing::host_key_for_logging_map;
 
 use super::super::state::ProxyState;
 
-pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str =
-    r#"<script id="wt-injection-marker" type="module" src="/.horizon-gateway/inspector.js"></script>"#;
+pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str = r#"<script id="wt-injection-marker" type="module" src="/.horizon-gateway/inspector.js"></script>"#;
 
 pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interceptor">
 (function(){
@@ -319,7 +318,9 @@ mod tests {
 
     #[test]
     fn injects_into_head_with_attributes() {
-        let html = b"<html><head lang=\"ko\" class=\"x\"><title>t</title></head><body></body></html>".to_vec();
+        let html =
+            b"<html><head lang=\"ko\" class=\"x\"><title>t</title></head><body></body></html>"
+                .to_vec();
         let out = String::from_utf8(inject_inspector_script(html)).unwrap();
         assert!(out.contains("wt-early-interceptor"));
         assert!(out.find("wt-early-interceptor").unwrap() < out.find("</head>").unwrap());
@@ -330,7 +331,10 @@ mod tests {
     fn sniffs_html_without_content_type() {
         assert!(is_html_response("", b"<!DOCTYPE html><html></html>"));
         assert!(!is_html_response("application/json", b"{\"a\":1}"));
-        assert!(is_html_response("text/html; charset=utf-8", b"not even html bytes"));
+        assert!(is_html_response(
+            "text/html; charset=utf-8",
+            b"not even html bytes"
+        ));
     }
 
     #[test]
@@ -349,8 +353,10 @@ pub(crate) fn should_inject_for_host(state: &Arc<ProxyState>, host: &str) -> boo
     // 1. Must match at least one registered domain in DomainService
     let registered_domains = state.domain_service.get_all();
     let is_registered = registered_domains.iter().any(|d| {
-        let reg_host = crate::service::inspector_service::InspectorService::extract_host_key(&d.url);
-        !reg_host.is_empty() && (host_key == reg_host || host_key.ends_with(&format!(".{reg_host}")))
+        let reg_host =
+            crate::service::inspector_service::InspectorService::extract_host_key(&d.url);
+        !reg_host.is_empty()
+            && (host_key == reg_host || host_key.ends_with(&format!(".{reg_host}")))
     });
 
     if !is_registered {

@@ -14,7 +14,7 @@ interface PanelBreadcrumbProps {
 const PANEL_LABELS: Record<PanelId, { ko: string; en: string }> = {
   overview: { ko: "개요", en: "Overview" },
   monitor: { ko: "모니터링", en: "Monitor" },
-  proxy: { ko: "프록시", en: "Proxy" },
+  proxy: { ko: "로컬", en: "Local" },
   api: { ko: "API", en: "API" },
   "api/logs": { ko: "로그", en: "Logs" },
   "api/log": { ko: "상세", en: "Detail" },

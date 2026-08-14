@@ -64,4 +64,3 @@ fn stdio_is_redirected(n_std_handle: i32) -> bool {
 
 #[cfg(not(windows))]
 pub fn attach_for_cli() {}
-

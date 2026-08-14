@@ -197,3 +197,24 @@ body {
     height: 6px;
   }
 }
+
+/*
+ * Guide/policy markdown. Namespaced vars so injection shadow (no DaisyUI)
+ * falls back to currentColor mixes instead of inheriting a host page's
+ * --color-primary.
+ */
+.hg-markdown {
+  --hg-md-accent: var(--color-primary);
+  --hg-md-code-fg: var(--color-primary);
+  --hg-md-code-bg: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  --hg-md-code-border: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  --hg-md-ol-bg: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  --hg-md-ol-border: color-mix(in oklab, var(--color-primary) 32%, transparent);
+  --hg-md-pre-bg: var(--color-base-200);
+  --hg-md-pre-border: var(--color-base-300);
+  --hg-md-pre-fg: var(--color-base-content);
+}
+
+.hg-markdown .hg-md-li {
+  color: inherit;
+}

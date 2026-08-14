@@ -47,12 +47,8 @@ impl ProxyState {
         proxy_settings: Arc<ProxySettingsService>,
     ) -> Self {
         let resolver = dns_server.as_deref().and_then(build_resolver);
-        let upstream_timeout = Duration::from_secs(
-            proxy_settings
-                .get()
-                .upstream_timeout_secs
-                .clamp(1, 600),
-        );
+        let upstream_timeout =
+            Duration::from_secs(proxy_settings.get().upstream_timeout_secs.clamp(1, 600));
         Self {
             app_handle,
             route_service,

@@ -25,11 +25,8 @@ impl DomainGroupService {
         let mut list = self.groups.lock().unwrap();
         let next_id = list.iter().map(|g| g.id).max().unwrap_or(0) + 1;
 
-        list.push(DomainGroup {
-            id: next_id,
-            name,
-        });
-        
+        list.push(DomainGroup { id: next_id, name });
+
         self.save(&list);
         list.clone()
     }

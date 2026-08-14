@@ -10,7 +10,17 @@ interface BillingPanelProps {
 }
 
 export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
-  const { lang, activeWorkspace, guard, unlimited, activeIsPro, handleCheckout, syncing, supaProfile } = ctrl;
+  const {
+    lang,
+    activeWorkspace,
+    guard,
+    unlimited,
+    activeIsPro,
+    handleCheckout,
+    syncing,
+    supaProfile,
+    paidCheckoutEnabled,
+  } = ctrl;
 
   if (!activeWorkspace) {
     return null;
@@ -20,7 +30,7 @@ export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
 
   return (
     <TeamPanelFrame
-      title={lang === "ko" ? "요금제" : "Billing"}
+      title={lang === "ko" ? "요금제" : "Plan"}
       subtitle={activeWorkspace.name}
       icon={<CreditCard className="w-3.5 h-3.5" />}
       onClose={onClose}
@@ -46,12 +56,16 @@ export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
         </div>
 
         <p className="text-[11px] text-base-content/55 leading-relaxed">
-          {lang === "ko"
-            ? "결제는 워크스페이스 단위입니다. Free는 소유 워크스페이스 1개·좌석 3명, Pro는 이 워크스페이스의 좌석·한도를 확장합니다."
-            : "Billing is per workspace. Free: 1 owned workspace and 3 seats. Pro expands seats/limits for this workspace."}
+          {paidCheckoutEnabled
+            ? lang === "ko"
+              ? "결제는 워크스페이스 단위입니다. Free는 소유 워크스페이스 1개·좌석 3명, Pro는 이 워크스페이스의 좌석·한도를 확장합니다."
+              : "Billing is per workspace. Free: 1 owned workspace and 3 seats. Pro expands seats/limits for this workspace."
+            : lang === "ko"
+              ? "Free 플랜은 소유 워크스페이스 1개·좌석 3명입니다."
+              : "Free plan: 1 owned workspace and 3 seats."}
         </p>
 
-        {entitlement && (
+        {entitlement && import.meta.env.DEV && (
           <p className="text-[10px] text-base-content/40">
             {lang === "ko"
               ? `계정 바이패스: ${entitlement} (내부/스폰서)`
@@ -59,26 +73,28 @@ export function BillingPanel({ ctrl, onClose }: BillingPanelProps) {
           </p>
         )}
 
-        <Button
-          variant="primary"
-          size="sm"
-          className="gap-1.5 w-full"
-          onClick={() => void handleCheckout()}
-          disabled={activeIsPro || syncing !== null}
-        >
-          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-          {activeIsPro
-            ? unlimited
-              ? lang === "ko"
-                ? "Unlimited 이용 중"
-                : "Unlimited active"
+        {paidCheckoutEnabled ? (
+          <Button
+            variant="primary"
+            size="sm"
+            className="gap-1.5 w-full"
+            onClick={() => void handleCheckout()}
+            disabled={activeIsPro || syncing !== null}
+          >
+            {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+            {activeIsPro
+              ? unlimited
+                ? lang === "ko"
+                  ? "Unlimited 이용 중"
+                  : "Unlimited active"
+                : lang === "ko"
+                  ? "Team Pro 이용 중"
+                  : "Team Pro active"
               : lang === "ko"
-                ? "Team Pro 이용 중"
-                : "Team Pro active"
-            : lang === "ko"
-              ? "이 워크스페이스 Pro 업그레이드"
-              : "Upgrade this workspace to Pro"}
-        </Button>
+                ? "이 워크스페이스 Pro 업그레이드"
+                : "Upgrade this workspace to Pro"}
+          </Button>
+        ) : null}
       </div>
     </TeamPanelFrame>
   );

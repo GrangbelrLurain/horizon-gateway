@@ -72,7 +72,11 @@ async fn handle_local_websocket_upgrade(
                 target_port,
                 e
             );
-            return (StatusCode::BAD_GATEWAY, format!("Proxy WS connect error: {e}")).into_response();
+            return (
+                StatusCode::BAD_GATEWAY,
+                format!("Proxy WS connect error: {e}"),
+            )
+                .into_response();
         }
     };
 
@@ -81,7 +85,10 @@ async fn handle_local_websocket_upgrade(
         Ok(c) => c,
         Err(e) => {
             crate::proxy_log!("❌ [WS] Upstream handshake error: {}", e);
-            return (StatusCode::BAD_GATEWAY, format!("Proxy WS handshake error: {e}"))
+            return (
+                StatusCode::BAD_GATEWAY,
+                format!("Proxy WS handshake error: {e}"),
+            )
                 .into_response();
         }
     };
@@ -186,10 +193,9 @@ async fn handle_local_websocket_upgrade(
                     h.insert(k, v.clone());
                 }
             }
-            let body_bytes =
-                axum::body::to_bytes(Body::new(res.into_body()), usize::MAX)
-                    .await
-                    .unwrap_or_default();
+            let body_bytes = axum::body::to_bytes(Body::new(res.into_body()), usize::MAX)
+                .await
+                .unwrap_or_default();
             res_builder
                 .body(Body::from(body_bytes))
                 .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())

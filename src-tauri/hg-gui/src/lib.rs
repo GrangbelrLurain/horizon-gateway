@@ -12,14 +12,13 @@ use command::window_commands::{
 };
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
-    tauri_specta::Builder::<tauri::Wry>::new()
-        .commands(tauri_specta::collect_commands![
-            open_window,
-            open_external_url,
-            open_inspector_window,
-            open_annotation_dialog,
-            quit_app,
-        ])
+    tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        open_window,
+        open_external_url,
+        open_inspector_window,
+        open_annotation_dialog,
+        quit_app,
+    ])
 }
 
 fn load_dotenv_manually() {
@@ -54,7 +53,6 @@ pub fn run() {
 
     let specta_builder = get_specta_builder();
 
-
     // Required by rustls 0.23: set process-wide crypto provider before any TLS.
     let () = rustls::crypto::ring::default_provider()
         .install_default()
@@ -77,7 +75,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
-            use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
+            use tracing_subscriber::{
+                filter::LevelFilter, layer::SubscriberExt, util::SubscriberInitExt, Layer,
+            };
 
             let is_cli_mode = std::env::args().nth(1).as_deref() == Some("cli");
             let log_level = if is_cli_mode {
@@ -128,19 +128,17 @@ pub fn run() {
         .invoke_handler(serve::wrap_invoke_handler(specta_builder.invoke_handler()))
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            match event {
-                tauri::RunEvent::WindowEvent {
-                    label,
-                    event: tauri::WindowEvent::CloseRequested { api, .. },
-                    ..
-                } if label == "main" => {
-                    api.prevent_close();
-                    use tauri::Emitter;
-                    let _ = app_handle.emit("main-window-close-requested", ());
-                }
-                _ => {}
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } if label == "main" => {
+                api.prevent_close();
+                use tauri::Emitter;
+                let _ = app_handle.emit("main-window-close-requested", ());
             }
+            _ => {}
         });
 }
 

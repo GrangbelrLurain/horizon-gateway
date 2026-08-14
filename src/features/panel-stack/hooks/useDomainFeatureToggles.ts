@@ -4,23 +4,16 @@ import type { DomainFeatureState } from "@/entities/domain";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
-import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
+import { reportError } from "@/shared/ui/toast";
 
 interface UseDomainFeatureTogglesOptions {
   domainId: number;
   domainUrl: string;
   state: DomainFeatureState;
-  proxyActive: boolean;
   onRefresh: () => void;
 }
 
-export function useDomainFeatureToggles({
-  domainId,
-  domainUrl,
-  state,
-  proxyActive,
-  onRefresh,
-}: UseDomainFeatureTogglesOptions) {
+export function useDomainFeatureToggles({ domainId, domainUrl, state, onRefresh }: UseDomainFeatureTogglesOptions) {
   const [monitorLoading, setMonitorLoading] = useState(false);
   const [proxyLoading, setProxyLoading] = useState(false);
   const [apiLoading, setApiLoading] = useState(false);
@@ -28,7 +21,6 @@ export function useDomainFeatureToggles({
   const [showProxyModal, setShowProxyModal] = useState(false);
   const apiLinks = useAtomValue(apiLoggingLinksAtom);
   const preservedApiRef = useRef<{ schemaUrl: string | null; bodyEnabled: boolean } | null>(null);
-  const openHubSurface = useOpenHubSurface();
 
   const toggleMonitor = async (enabled: boolean) => {
     setMonitorLoading(true);
@@ -37,7 +29,7 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("features");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setMonitorLoading(false);
     }
@@ -70,7 +62,7 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("features");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setApiLoading(false);
     }
@@ -91,18 +83,13 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("features");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setBodyLoading(false);
     }
   };
 
   const toggleProxy = async (enabled: boolean) => {
-    if (!proxyActive) {
-      openHubSurface("chrome/settings");
-      return;
-    }
-
     if (state.proxyRouteId === undefined) {
       if (enabled) {
         setShowProxyModal(true);
@@ -123,7 +110,7 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("routes");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setProxyLoading(false);
     }
@@ -161,7 +148,7 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("features");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setScriptInjectionLoading(false);
     }
@@ -174,13 +161,13 @@ export function useDomainFeatureToggles({
       onRefresh();
       await notifyHubDataChanged("features");
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setDecryptLoading(false);
     }
   };
 
-  const proxyChecked = proxyActive && state.proxyEnabled === true;
+  const proxyChecked = state.proxyEnabled === true;
 
   return {
     monitor: {
@@ -195,7 +182,6 @@ export function useDomainFeatureToggles({
       needsRoute: state.proxyRouteId === undefined,
       showModal: showProxyModal,
       setShowModal: setShowProxyModal,
-      processOff: !proxyActive,
       domainUrl,
     },
     api: {

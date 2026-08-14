@@ -1,6 +1,6 @@
-use axum::http::Uri;
-use crate::model::local_route::LocalRoute;
 use super::super::resolver::{resolve_connect_target, resolve_target};
+use crate::model::local_route::LocalRoute;
+use axum::http::Uri;
 
 #[test]
 fn test_resolve_target_empty_routes_passthrough() {

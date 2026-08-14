@@ -560,7 +560,7 @@ export function DomainListPanel({
             onClick={() => toggleFeatureRequire(key)}
             className="min-w-[22px] px-1.5"
           >
-            {key === "monitor" ? "M" : key === "proxy" ? "P" : "A"}
+            {key === "monitor" ? "M" : key === "proxy" ? "L" : "A"}
           </FilterChip>
         ))}
       </FilterRow>

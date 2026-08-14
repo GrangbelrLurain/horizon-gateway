@@ -63,8 +63,9 @@ fn open_gui() {
     unix::launch_gui(&exe);
 }
 
-fn quit_serve() {
+pub(crate) fn quit_serve() {
     let _ = crate::command::local_route_commands::stop_local_proxy_svc(None);
+    let _ = crate::command::transparent_proxy_commands::stop_transparent_proxy_svc();
     crate::serve::publish_event("serve-stopping", ());
     std::thread::sleep(std::time::Duration::from_millis(250));
     std::process::exit(0);

@@ -1,6 +1,6 @@
+pub mod dispatch_headless;
 pub mod init;
 pub mod query;
-pub mod dispatch_headless;
 
 use crate::runtime::CommandEnv;
 use serde::Serialize;
@@ -72,8 +72,6 @@ pub const CLI_COMMANDS: &[CliCommandInfo] = &[
     crate::command::local_route_commands::STOP_LOCAL_PROXY_CLI_INFO,
     crate::command::local_route_commands::UPDATE_PROXY_SETTINGS_CLI_INFO,
     crate::command::local_route_commands::SET_HTTPS_DECRYPT_HOST_CLI_INFO,
-    crate::command::local_route_commands::SET_DNS_ZONE_RECORD_CLI_INFO,
-    crate::command::local_route_commands::REMOVE_DNS_ZONE_RECORD_CLI_INFO,
     crate::command::transparent_proxy_commands::START_TRANSPARENT_PROXY_CLI_INFO,
     crate::command::transparent_proxy_commands::STOP_TRANSPARENT_PROXY_CLI_INFO,
     crate::command::transparent_proxy_commands::GET_TRANSPARENT_PROXY_STATUS_CLI_INFO,
@@ -313,7 +311,10 @@ pub fn execute_cli(args: &[String], mode: CliExecutionMode<'_>) -> i32 {
             let payload: Value = match serde_json::from_str(&raw_payload) {
                 Ok(v) => v,
                 Err(e) => {
-                    print_error(&format!("요청 페이로드가 올바른 JSON 형식이 아닙니다: {}", e));
+                    print_error(&format!(
+                        "요청 페이로드가 올바른 JSON 형식이 아닙니다: {}",
+                        e
+                    ));
                     return 1;
                 }
             };
@@ -395,7 +396,10 @@ pub fn execute_run_via_serve(args: &[String]) -> i32 {
     let payload: Value = match serde_json::from_str(&raw_payload) {
         Ok(v) => v,
         Err(e) => {
-            print_error(&format!("요청 페이로드가 올바른 JSON 형식이 아닙니다: {}", e));
+            print_error(&format!(
+                "요청 페이로드가 올바른 JSON 형식이 아닙니다: {}",
+                e
+            ));
             return 1;
         }
     };
@@ -455,13 +459,13 @@ pub fn cli_eprintln(text: &str) {
 fn print_to_handle(text: &str, n_std_handle: i32) {
     use std::io::Write;
     use std::os::windows::io::FromRawHandle;
-    
+
     extern "system" {
         fn GetStdHandle(n_std_handle: i32) -> *mut std::ffi::c_void;
         fn GetFileType(h_file: *mut std::ffi::c_void) -> u32;
         fn SetConsoleOutputCP(wCodePageID: u32) -> i32;
     }
-    
+
     unsafe {
         SetConsoleOutputCP(65001);
 
@@ -478,9 +482,13 @@ fn print_to_handle(text: &str, n_std_handle: i32) {
                 return;
             }
         }
-        
+
         // Otherwise, if we are attached to a console, print to CONOUT$ / CONERR$
-        let con_path = if n_std_handle == -11 { "CONOUT$" } else { "CONERR$" };
+        let con_path = if n_std_handle == -11 {
+            "CONOUT$"
+        } else {
+            "CONERR$"
+        };
         if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(con_path) {
             let mut text_with_newline = text.to_string();
             text_with_newline.push_str("\r\n");
@@ -555,8 +563,6 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "stop_local_proxy",
     "update_proxy_settings",
     "set_https_decrypt_host",
-    "set_dns_zone_record",
-    "remove_dns_zone_record",
     "start_transparent_proxy",
     "stop_transparent_proxy",
     "get_transparent_proxy_status",
@@ -621,8 +627,6 @@ const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "delete_crypto_preset",
     "import_crypto_presets",
 ];
-
-
 
 #[cfg(test)]
 mod parity_tests {
@@ -692,8 +696,6 @@ mod parity_tests {
         "send_api_request",
         "update_proxy_settings",
         "set_https_decrypt_host",
-        "set_dns_zone_record",
-        "remove_dns_zone_record",
         "get_proxy_auto_start_error",
         "list_api_log_dates",
         "get_api_logs",
@@ -791,7 +793,10 @@ mod parity_tests {
     #[test]
     fn normalize_keeps_meta_commands() {
         assert_eq!(normalize_args(&s(&["list"])), s(&["list"]));
-        assert_eq!(normalize_args(&s(&["help", "get_api_logs"])), s(&["help", "get_api_logs"]));
+        assert_eq!(
+            normalize_args(&s(&["help", "get_api_logs"])),
+            s(&["help", "get_api_logs"])
+        );
         assert_eq!(
             normalize_args(&s(&["run", "get_domains", "{}"])),
             s(&["run", "get_domains", "{}"])

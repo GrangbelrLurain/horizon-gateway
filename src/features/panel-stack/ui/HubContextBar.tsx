@@ -58,7 +58,7 @@ export function HubContextBar({ domain }: HubContextBarProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
   const nav = usePanelNavigation();
-  const { getFeatureState, getDomainHost, proxyActive } = useDomainHubData();
+  const { getFeatureState, getDomainHost } = useDomainHubData();
   const setDomainListOverlay = useSetAtom(domainListOverlayOpenAtom);
   const setApiLogsHostSeed = useSetAtom(hubApiLogsHostSeedAtom);
   const featureState = getFeatureState(domain.id);
@@ -108,12 +108,10 @@ export function HubContextBar({ domain }: HubContextBarProps) {
           onClick={() => openFeatureSurface("global/monitor")}
         />
         <FeatureChip
-          short="P"
+          short="L"
           label={t.featureBadgeProxy}
-          active={proxyActive && featureState.proxyEnabled === true}
-          onClick={() =>
-            proxyActive ? openFeatureSurface("global/proxy-graph") : openFeatureSurface("chrome/settings")
-          }
+          active={featureState.proxyEnabled === true}
+          onClick={() => nav.openPanel("proxy")}
         />
         <FeatureChip
           short="A"

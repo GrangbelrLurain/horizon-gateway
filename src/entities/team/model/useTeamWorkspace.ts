@@ -23,6 +23,7 @@ import {
   updateWorkspace,
 } from "../api";
 import { hasProAccess, isUnlimitedTeam } from "../lib/entitlement";
+import { isPaidCheckoutEnabled } from "../lib/paidCheckout";
 import { activeWorkspaceIdAtom } from "../store";
 import { pullWorkspaceSync, pushWorkspaceSync, type WorkspaceSyncOptions } from "../sync";
 import type { Workspace, WorkspaceInvite, WorkspaceMember } from "../types";
@@ -82,6 +83,7 @@ export function useTeamWorkspace() {
     hasProAccess(supaProfile, activeWorkspace?.plan) ||
     (activeWorkspace?.plan === "pro" && activeWorkspace.status === "active");
   const planBadge = unlimited ? "unlimited" : isProOwner ? "pro" : "free";
+  const paidCheckoutEnabled = isPaidCheckoutEnabled();
 
   const selectWorkspace = useCallback(
     (id: string) => {
@@ -203,6 +205,10 @@ export function useTeamWorkspace() {
   }, [activeWorkspaceId, refreshMembersAndInvites]);
 
   const handleCheckout = useCallback(async () => {
+    if (!paidCheckoutEnabled) {
+      toastInfo(lang === "ko" ? "유료 결제는 아직 제공되지 않습니다." : "Paid checkout is not available yet.");
+      return;
+    }
     if (!activeWorkspaceId) {
       toastError(lang === "ko" ? "먼저 워크스페이스를 선택하세요." : "Select a workspace first.");
       return;
@@ -215,7 +221,7 @@ export function useTeamWorkspace() {
       console.error("openExternalUrl:", e);
       toastError(lang === "ko" ? "결제 페이지를 여는 데 실패했습니다." : "Failed to open checkout page.");
     }
-  }, [activeWorkspaceId, lang]);
+  }, [activeWorkspaceId, lang, paidCheckoutEnabled]);
 
   const openBilling = useCallback(() => {
     if (!activeWorkspaceId) {
@@ -231,16 +237,22 @@ export function useTeamWorkspace() {
     }
     if (hasReachedFreeWorkspaceLimit) {
       toastInfo(
-        lang === "ko"
-          ? "Free 플랜에서는 1개의 워크스페이스만 생성할 수 있습니다. 추가 생성을 위해 Team Pro 플랜으로 업그레이드하세요."
-          : "Free plan allows 1 workspace. Upgrade to Team Pro plan for unlimited workspaces.",
+        paidCheckoutEnabled
+          ? lang === "ko"
+            ? "Free 플랜에서는 1개의 워크스페이스만 생성할 수 있습니다. 추가 생성을 위해 Team Pro 플랜으로 업그레이드하세요."
+            : "Free plan allows 1 workspace. Upgrade to Team Pro plan for unlimited workspaces."
+          : lang === "ko"
+            ? "Free 플랜에서는 워크스페이스를 1개만 만들 수 있습니다."
+            : "Free plan allows 1 owned workspace.",
       );
-      const targetId = activeWorkspaceId ?? ownedWorkspaces[0]?.id;
-      if (targetId) {
-        setActiveWorkspaceId(targetId);
-        setPanels(["home", "billing"]);
-      } else {
-        void handleCheckout();
+      if (paidCheckoutEnabled) {
+        const targetId = activeWorkspaceId ?? ownedWorkspaces[0]?.id;
+        if (targetId) {
+          setActiveWorkspaceId(targetId);
+          setPanels(["home", "billing"]);
+        } else {
+          void handleCheckout();
+        }
       }
       return;
     }
@@ -272,18 +284,22 @@ export function useTeamWorkspace() {
       }
       if (guard.isSeatFull) {
         toastInfo(
-          lang === "ko"
-            ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. 팀 인원을 추가하려면 Team Pro 플랜으로 업그레이드하세요.`
-            : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Upgrade to Team Pro plan to add more members.`,
+          paidCheckoutEnabled
+            ? lang === "ko"
+              ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다. 팀 인원을 추가하려면 Team Pro 플랜으로 업그레이드하세요.`
+              : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}). Upgrade to Team Pro plan to add more members.`
+            : lang === "ko"
+              ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다.`
+              : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}).`,
         );
-        openBilling();
+        if (paidCheckoutEnabled) {
+          openBilling();
+        }
       } else if (guard.isLocked) {
-        toastError(
-          lang === "ko"
-            ? "워크스페이스 결제 상태가 비활성입니다. 결제를 확인하세요."
-            : "Workspace subscription is locked. Check payment status.",
-        );
-        openBilling();
+        toastError(lang === "ko" ? "워크스페이스가 비활성 상태입니다." : "This workspace is inactive.");
+        if (paidCheckoutEnabled) {
+          openBilling();
+        }
       }
       return;
     }
@@ -323,7 +339,9 @@ export function useTeamWorkspace() {
             ? `현재 워크스페이스 정원(${guard.memberCount}/${guard.seatLimit}명)이 가득 찼습니다.`
             : `Seat limit reached (${guard.memberCount}/${guard.seatLimit}).`,
         );
-        openBilling();
+        if (paidCheckoutEnabled) {
+          openBilling();
+        }
       }
       return;
     }
@@ -452,9 +470,11 @@ export function useTeamWorkspace() {
     }
     if (!guard.canSync) {
       toastError(
-        lang === "ko" ? "구독 결제가 만료되어 동기화가 제한되었습니다." : "Sync is locked due to expired subscription.",
+        lang === "ko" ? "이 워크스페이스는 동기화를 사용할 수 없습니다." : "Sync is not available for this workspace.",
       );
-      openBilling();
+      if (paidCheckoutEnabled) {
+        openBilling();
+      }
       return;
     }
     openPanel("sync");
@@ -646,6 +666,7 @@ export function useTeamWorkspace() {
     hasReachedFreeWorkspaceLimit,
     activeIsPro,
     planBadge,
+    paidCheckoutEnabled,
     panels,
     selectWorkspace,
     clearWorkspaceSelection,

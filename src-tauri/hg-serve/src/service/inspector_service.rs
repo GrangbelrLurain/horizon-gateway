@@ -1,4 +1,6 @@
-use crate::model::inspector::{Annotation, AnnotationLocator, InspectorSettings, LocatorValidation};
+use crate::model::inspector::{
+    Annotation, AnnotationLocator, InspectorSettings, LocatorValidation,
+};
 use crate::storage::versioned::{load_versioned, save_versioned};
 use std::fs;
 use std::path::PathBuf;
@@ -30,7 +32,11 @@ pub struct InspectorService {
 }
 
 impl InspectorService {
-    pub fn new(storage_path: PathBuf, domains_storage_path: PathBuf, settings_storage_path: PathBuf) -> Self {
+    pub fn new(
+        storage_path: PathBuf,
+        domains_storage_path: PathBuf,
+        settings_storage_path: PathBuf,
+    ) -> Self {
         let mut initial_annotations: Vec<Annotation> = load_versioned(&storage_path);
         let mut migrated = false;
         for ann in &mut initial_annotations {
@@ -164,7 +170,11 @@ impl InspectorService {
         if ann.domain.trim().is_empty() && !ann.url.trim().is_empty() {
             ann.domain = Self::extract_host_key(&ann.url);
         }
-        if ann.host_pattern.as_ref().map(|p| p.trim().is_empty()).unwrap_or(true)
+        if ann
+            .host_pattern
+            .as_ref()
+            .map(|p| p.trim().is_empty())
+            .unwrap_or(true)
             && !ann.domain.trim().is_empty()
         {
             ann.host_pattern = Some(format!("*.{}", ann.domain));
@@ -243,19 +253,11 @@ impl InspectorService {
             }
             // Omit = leave unchanged; Some("") = clear; Some(value) = set.
             if let Some(hp) = host_pattern {
-                ann.host_pattern = if hp.trim().is_empty() {
-                    None
-                } else {
-                    Some(hp)
-                };
+                ann.host_pattern = if hp.trim().is_empty() { None } else { Some(hp) };
             }
             match (&url, path_pattern) {
                 (_, Some(pp)) => {
-                    ann.path_pattern = if pp.trim().is_empty() {
-                        None
-                    } else {
-                        Some(pp)
-                    };
+                    ann.path_pattern = if pp.trim().is_empty() { None } else { Some(pp) };
                 }
                 (Some(u), None) => {
                     if let Some(derived) = Self::extract_path_from_url(u) {
@@ -275,6 +277,8 @@ impl InspectorService {
             } else if let Some(v) = last_validation {
                 ann.last_validation = Some(v);
             }
+        } else {
+            return;
         }
         self.persist(&list);
     }
@@ -335,7 +339,11 @@ impl InspectorService {
             s
         };
         let host_part = without_scheme.split('/').next().unwrap_or(without_scheme);
-        host_part.split(':').next().unwrap_or(host_part).to_lowercase()
+        host_part
+            .split(':')
+            .next()
+            .unwrap_or(host_part)
+            .to_lowercase()
     }
 
     pub fn sync_registered_domains(&self, registered_domains: &[crate::model::domain::Domain]) {
@@ -343,7 +351,11 @@ impl InspectorService {
         let mut changed = false;
         for d in registered_domains {
             let host_key = Self::extract_host_key(&d.url);
-            if !host_key.is_empty() && !list.iter().any(|existing| existing.to_lowercase() == host_key) {
+            if !host_key.is_empty()
+                && !list
+                    .iter()
+                    .any(|existing| existing.to_lowercase() == host_key)
+            {
                 list.push(host_key);
                 changed = true;
             }
@@ -368,7 +380,10 @@ mod tests {
             InspectorService::extract_path_from_url("https://modetour.dev/products/123"),
             Some("/products/123".to_string())
         );
-        assert_eq!(InspectorService::extract_path_from_url("https://modetour.dev"), None);
+        assert_eq!(
+            InspectorService::extract_path_from_url("https://modetour.dev"),
+            None
+        );
         assert_eq!(
             InspectorService::extract_path_from_url("https://modetour.dev/"),
             Some("/".to_string())
@@ -383,5 +398,45 @@ mod tests {
             .await
             .expect("timed out waiting for annotation update")
             .expect("broadcast closed");
+    }
+
+    #[test]
+    fn update_unknown_id_does_not_clobber_unreadable_store() {
+        let dir = std::env::temp_dir().join(format!("hg-insp-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ann_path = dir.join("inspector_annotations.json");
+        let valid = serde_json::json!({
+            "schema_version": 2,
+            "data": [{
+                "id": "g-keep",
+                "role": "Keep",
+                "hostPattern": "*.modetour.*"
+            }]
+        });
+        std::fs::write(&ann_path, serde_json::to_string(&valid).unwrap()).unwrap();
+        let svc = InspectorService::new(ann_path.clone(), dir.join("d.json"), dir.join("s.json"));
+        assert_eq!(svc.get_all().len(), 1);
+
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        std::fs::write(&ann_path, "{not-json").unwrap();
+
+        svc.update_annotation(
+            "g-keep".into(),
+            Some("x".into()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+        );
+
+        let raw = std::fs::read_to_string(&ann_path).unwrap();
+        assert!(
+            raw.contains("{not-json"),
+            "must not persist an empty list over an unreadable annotations file: {raw}"
+        );
     }
 }

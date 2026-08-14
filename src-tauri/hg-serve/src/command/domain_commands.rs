@@ -22,7 +22,6 @@ pub const REGIST_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
 pub fn regist_domains_svc(
     payload: RegistDomainsPayload,
     domain_service: &DomainService,
@@ -59,7 +58,6 @@ pub const GET_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliComm
     gui_only: false,
 };
 
-
 pub fn get_domains_svc(domain_service: &DomainService) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.get_all();
     Ok(ApiResponse {
@@ -83,8 +81,10 @@ pub const GET_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn get_domain_by_id_svc(payload: GetDomainByIdPayload, domain_service: &DomainService) -> Result<ApiResponse<Option<Domain>>, String> {
+pub fn get_domain_by_id_svc(
+    payload: GetDomainByIdPayload,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<Option<Domain>>, String> {
     let domain = domain_service.get_domain_by_id(payload.id);
     if let Some(domain) = domain {
         Ok(ApiResponse {
@@ -116,8 +116,11 @@ pub const UPDATE_DOMAIN_BY_ID_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     gui_only: false,
 };
 
-
-pub fn update_domain_by_id_svc(payload: UpdateDomainByIdPayload, domain_service: &DomainService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<Domain>>, String> {
+pub fn update_domain_by_id_svc(
+    payload: UpdateDomainByIdPayload,
+    domain_service: &DomainService,
+    route_service: &std::sync::Arc<LocalRouteService>,
+) -> Result<ApiResponse<Option<Domain>>, String> {
     let url = payload.url.filter(|s| !s.is_empty());
     let domain = domain_service.update_domain(payload.id, url);
     if domain.is_empty() {
@@ -150,8 +153,14 @@ pub const REMOVE_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
-pub fn remove_domains_svc(payload: RemoveDomainsPayload, domain_service: &DomainService, link_service: &DomainGroupLinkService, monitor_service: &DomainMonitorService, api_logging_service: &ApiLoggingSettingsService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<Domain>>, String> {
+pub fn remove_domains_svc(
+    payload: RemoveDomainsPayload,
+    domain_service: &DomainService,
+    link_service: &DomainGroupLinkService,
+    monitor_service: &DomainMonitorService,
+    api_logging_service: &ApiLoggingSettingsService,
+    route_service: &std::sync::Arc<LocalRouteService>,
+) -> Result<ApiResponse<Option<Domain>>, String> {
     link_service.remove_links_for_domain(payload.id);
     route_service.remove_for_domain(payload.id);
     let domain = domain_service.delete_domain(payload.id);
@@ -187,7 +196,6 @@ pub const IMPORT_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
 pub fn import_domains_svc(
     payload: ImportDomainsPayload,
     domain_service: &DomainService,
@@ -215,8 +223,11 @@ pub const CLEAR_ALL_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn clear_all_domains_svc(domain_service: &DomainService, monitor_service: &DomainMonitorService, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<Domain>>, String> {
+pub fn clear_all_domains_svc(
+    domain_service: &DomainService,
+    monitor_service: &DomainMonitorService,
+    route_service: &std::sync::Arc<LocalRouteService>,
+) -> Result<ApiResponse<Vec<Domain>>, String> {
     let list = domain_service.import_from_json(vec![]);
     monitor_service.sync_with_domains(&domain_service.get_all());
     route_service.sync_with_domains(&domain_service.get_all());

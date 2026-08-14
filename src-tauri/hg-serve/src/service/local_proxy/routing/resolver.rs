@@ -1,5 +1,5 @@
-use axum::http::Uri;
 use crate::model::local_route::LocalRoute;
+use axum::http::Uri;
 
 use super::host::{route_domain_scheme, route_domain_to_host};
 

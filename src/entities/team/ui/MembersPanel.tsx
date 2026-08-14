@@ -44,6 +44,7 @@ export function MembersPanel({ ctrl, onClose }: MembersPanelProps) {
     handleRemoveMember,
     handleSetMemberRole,
     openBilling,
+    paidCheckoutEnabled,
   } = ctrl;
 
   const [transferTarget, setTransferTarget] = useState<TransferOwnershipTarget | null>(null);
@@ -221,15 +222,18 @@ export function MembersPanel({ ctrl, onClose }: MembersPanelProps) {
                   : "Only Owner and Admin can invite or create shareable tokens."}
               </p>
             )}
-            {guard.isSeatFull && (
-              <button
-                type="button"
-                onClick={openBilling}
-                className="text-[11px] text-amber-600 dark:text-amber-400 text-left font-medium"
-              >
-                {lang === "ko" ? "정원 초과 — 요금제에서 업그레이드" : "Seat full — upgrade in Billing"}
-              </button>
-            )}
+            {guard.isSeatFull &&
+              (paidCheckoutEnabled ? (
+                <button
+                  type="button"
+                  onClick={openBilling}
+                  className="text-[11px] text-amber-600 dark:text-amber-400 text-left font-medium"
+                >
+                  {lang === "ko" ? "정원 초과 — 요금제에서 업그레이드" : "Seat full — upgrade in Billing"}
+                </button>
+              ) : (
+                <p className="text-[11px] text-base-content/50">{lang === "ko" ? "정원 초과" : "Seat limit reached"}</p>
+              ))}
             <div className="flex gap-2">
               <Input
                 type="email"

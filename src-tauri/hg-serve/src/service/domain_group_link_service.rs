@@ -50,7 +50,10 @@ impl DomainGroupLinkService {
         let mut list = self.links.lock().unwrap();
         list.retain(|l| l.group_id != group_id);
         for domain_id in domain_ids {
-            list.push(DomainGroupLink { domain_id, group_id });
+            list.push(DomainGroupLink {
+                domain_id,
+                group_id,
+            });
         }
         self.save(&list);
     }
@@ -60,7 +63,10 @@ impl DomainGroupLinkService {
         let mut list = self.links.lock().unwrap();
         list.retain(|l| l.domain_id != domain_id);
         for group_id in group_ids {
-            list.push(DomainGroupLink { domain_id, group_id });
+            list.push(DomainGroupLink {
+                domain_id,
+                group_id,
+            });
         }
         self.save(&list);
     }
@@ -84,7 +90,10 @@ impl DomainGroupLinkService {
             .iter()
             .any(|l| l.domain_id == domain_id && l.group_id == group_id);
         if !exists {
-            list.push(DomainGroupLink { domain_id, group_id });
+            list.push(DomainGroupLink {
+                domain_id,
+                group_id,
+            });
             self.save(&list);
         }
     }

@@ -1,7 +1,7 @@
+use super::{cli_eprintln, cli_println};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
-use super::{cli_println, cli_eprintln};
 
 const SKILL_MD: &str = include_str!("../../resources/skills/horizon-gateway/SKILL.md");
 const LOGS_MJS: &str = include_str!("../../resources/skills/horizon-gateway/scripts/logs.mjs");
@@ -233,11 +233,7 @@ fn detect_installed_targets(home: &Path) -> Vec<AgentTarget> {
     {
         targets.push(AgentTarget::Claude);
     }
-    if env_path("CODEX_HOME")
-        .map(|p| p.exists())
-        .unwrap_or(false)
-        || home.join(".codex").exists()
-    {
+    if env_path("CODEX_HOME").map(|p| p.exists()).unwrap_or(false) || home.join(".codex").exists() {
         targets.push(AgentTarget::Codex);
     }
     if home.join(".gemini").exists() {
@@ -263,13 +259,9 @@ fn global_skill_dir(home: &Path, target: AgentTarget) -> PathBuf {
             let codex_home = env_path("CODEX_HOME").unwrap_or_else(|| home.join(".codex"));
             codex_home.join("skills").join(SKILL_DIR_NAME)
         }
-        AgentTarget::Gemini => home
-            .join(".gemini/config/skills")
-            .join(SKILL_DIR_NAME),
+        AgentTarget::Gemini => home.join(".gemini/config/skills").join(SKILL_DIR_NAME),
         AgentTarget::Copilot => home.join(".copilot/skills").join(SKILL_DIR_NAME),
-        AgentTarget::Windsurf => home
-            .join(".codeium/windsurf/skills")
-            .join(SKILL_DIR_NAME),
+        AgentTarget::Windsurf => home.join(".codeium/windsurf/skills").join(SKILL_DIR_NAME),
     }
 }
 
@@ -305,7 +297,11 @@ fn write_skill_bundle(dest: &Path, force: bool, check: bool) -> Result<String, S
     fs::write(&skill_file, SKILL_MD).map_err(|e| format!("write SKILL.md failed: {e}"))?;
     fs::write(&logs_file, LOGS_MJS).map_err(|e| format!("write logs.mjs failed: {e}"))?;
 
-    Ok(if existed { "updated".to_string() } else { "installed".to_string() })
+    Ok(if existed {
+        "updated".to_string()
+    } else {
+        "installed".to_string()
+    })
 }
 
 pub fn is_any_skill_outdated() -> bool {
@@ -391,21 +387,20 @@ mod tests {
     fn parse_agent_targets() {
         assert_eq!(AgentTarget::parse("cursor"), Some(AgentTarget::Cursor));
         assert_eq!(AgentTarget::parse("claude-code"), Some(AgentTarget::Claude));
-        assert_eq!(AgentTarget::parse("github-copilot"), Some(AgentTarget::Copilot));
+        assert_eq!(
+            AgentTarget::parse("github-copilot"),
+            Some(AgentTarget::Copilot)
+        );
         assert_eq!(AgentTarget::parse("unknown"), None);
     }
 
     #[test]
     fn global_paths_use_expected_suffix() {
         let home = PathBuf::from("/home/user");
-        assert!(
-            global_skill_dir(&home, AgentTarget::Cursor)
-                .ends_with(".cursor/skills/horizon-gateway")
-        );
-        assert!(
-            global_skill_dir(&home, AgentTarget::Gemini)
-                .ends_with(".gemini/config/skills/horizon-gateway")
-        );
+        assert!(global_skill_dir(&home, AgentTarget::Cursor)
+            .ends_with(".cursor/skills/horizon-gateway"));
+        assert!(global_skill_dir(&home, AgentTarget::Gemini)
+            .ends_with(".gemini/config/skills/horizon-gateway"));
     }
 
     #[test]

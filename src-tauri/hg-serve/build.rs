@@ -9,7 +9,11 @@ fn main() {
 
 fn copy_tray_icon() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let src = manifest_dir.join("..").join("hg-gui").join("icons").join("icon.ico");
+    let src = manifest_dir
+        .join("..")
+        .join("hg-gui")
+        .join("icons")
+        .join("icon.ico");
     println!("cargo:rerun-if-changed=../hg-gui/icons/icon.ico");
     if !src.is_file() {
         return;
@@ -61,12 +65,17 @@ fn embed_inspector_js() {
 fn embed_admin_manifest() {
     println!("cargo:rerun-if-changed=windows-app-manifest.xml");
     println!("cargo:rerun-if-changed=windows-app-manifest.rc");
-    // Apply requireAdministrator only to the serve daemon, never to lib tests or other bins.
-    embed_resource::compile_for(
-        "windows-app-manifest.rc",
-        &["horizon-gateway-serve"],
-        embed_resource::NONE,
-    )
-    .manifest_required()
-    .expect("failed to embed Windows admin manifest for horizon-gateway-serve");
+    println!("cargo:rerun-if-changed=windows-app-manifest-debug.xml");
+    println!("cargo:rerun-if-changed=windows-app-manifest-debug.rc");
+    // Release: requireAdministrator. Debug / `tauri dev`: asInvoker so leftovers
+    // can be killed without UAC and cannot pin 8888 at a higher integrity level.
+    let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
+    let rc = if profile == "release" {
+        "windows-app-manifest.rc"
+    } else {
+        "windows-app-manifest-debug.rc"
+    };
+    embed_resource::compile_for(rc, &["horizon-gateway-serve"], embed_resource::NONE)
+        .manifest_required()
+        .expect("failed to embed Windows admin manifest for horizon-gateway-serve");
 }

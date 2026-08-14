@@ -4,8 +4,8 @@ use crate::service::ca_service::CaService;
 use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_group_service::DomainGroupService;
 use crate::service::domain_hostname::domain_url_to_hostname;
-use crate::service::domain_service::DomainService;
 use crate::service::domain_monitor_service::DomainMonitorService;
+use crate::service::domain_service::DomainService;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::mocking_service::MockingService;
 use crate::service::proxy_settings_service::ProxySettingsService;
@@ -19,8 +19,10 @@ pub const SAVE_ROOT_CA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCom
     gui_only: true,
 };
 
-
-pub async fn save_root_ca_svc(_app: Option<()>, ca_service: &std::sync::Arc<CaService>) -> Result<ApiResponse<String>, String> {
+pub async fn save_root_ca_svc(
+    _app: Option<()>,
+    ca_service: &std::sync::Arc<CaService>,
+) -> Result<ApiResponse<String>, String> {
     let pem = ca_service.ca_cert_pem();
     Ok(ApiResponse {
         message: "CA certificate exported".into(),
@@ -36,7 +38,6 @@ pub const EXPORT_ALL_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     category: "settings",
     gui_only: false,
 };
-
 
 pub fn export_all_settings_svc(
     domain_service: &DomainService,
@@ -76,7 +77,6 @@ pub const IMPORT_ALL_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli:
     category: "settings",
     gui_only: false,
 };
-
 
 pub fn import_all_settings_svc(
     payload: SettingsExport,
@@ -128,7 +128,10 @@ pub fn import_all_settings_svc(
 
         let mut groups = group_service.get_all();
         for incoming in payload.groups {
-            if !groups.iter().any(|g| g.id == incoming.id || g.name == incoming.name) {
+            if !groups
+                .iter()
+                .any(|g| g.id == incoming.id || g.name == incoming.name)
+            {
                 groups.push(incoming);
             }
         }

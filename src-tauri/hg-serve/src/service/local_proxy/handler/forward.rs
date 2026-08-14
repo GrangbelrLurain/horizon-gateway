@@ -7,12 +7,12 @@ use axum::{
 use futures::TryStreamExt;
 use std::sync::Arc;
 
+use super::super::reserved::is_horizon_gateway_internal;
+use super::super::state::ProxyState;
 use super::inject::{
     apply_html_injection_cache_headers, build_proxy_error_response, inject_inspector_script,
     is_html_response, should_inject_for_host,
 };
-use super::super::reserved::is_horizon_gateway_internal;
-use super::super::state::ProxyState;
 
 const HOP_BY_HOP_HEADERS: &[&str] = &[
     "connection",

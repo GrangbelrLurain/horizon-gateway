@@ -6,12 +6,54 @@ function cleanHost(h: string): string {
   return h.trim().toLowerCase().split(":")[0];
 }
 
+function globToRegExp(pattern: string): RegExp {
+  const regexStr = `^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
+  return new RegExp(regexStr);
+}
+
+/** `*.modetour.*` / exact host / `*` */
+function matchSingleHostGlob(pattern: string, actualHost: string): boolean {
+  const host = cleanHost(actualHost);
+  const patt = cleanHost(pattern);
+  if (!host) {
+    return false;
+  }
+  if (!patt || patt === "*") {
+    return true;
+  }
+  if (patt.includes("*")) {
+    try {
+      return globToRegExp(patt).test(host);
+    } catch {
+      return host === patt;
+    }
+  }
+  return patt === host;
+}
+
+/**
+ * `!api` → exclude `api`, `api.foo.com`, and any host whose DNS label is `api`.
+ * `!api*` / `!*.api.*` → glob exclude.
+ */
+function matchHostExclusion(pattern: string, actualHost: string): boolean {
+  const host = cleanHost(actualHost);
+  const patt = cleanHost(pattern);
+  if (!host || !patt) {
+    return false;
+  }
+  if (patt.includes("*")) {
+    return matchSingleHostGlob(patt, host);
+  }
+  return host === patt || host.startsWith(`${patt}.`) || host.split(".").includes(patt);
+}
+
 /**
  * Matches actualHost against hostPattern (or domain as fallback).
  * Supports:
  * - Empty/undefined/'*' => matches any host
- * - Wildcards like `*.modetour.dev` => matches `www.modetour.dev`, `sub.modetour.dev`
- * - Multiple patterns separated by comma `,` (e.g. `*.modetour.dev, localhost`)
+ * - Wildcards like `*.modetour.dev`, `*.modetour.*`
+ * - Exclusions: `!api`, `!api*`, `!*.api.*`
+ * - Multiple patterns separated by comma `,` (e.g. `*.modetour.*, !api`)
  * - Fallback to domain exact/contains check if no pattern is specified
  */
 export function matchHostPattern(
@@ -26,30 +68,32 @@ export function matchHostPattern(
 
   const rawPattern = (hostPattern || "").trim();
   if (rawPattern) {
-    const patterns = rawPattern
-      .split(",")
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean);
-    return patterns.some((pattern) => {
-      if (pattern === "*" || pattern === "") {
-        return true;
+    const positives: string[] = [];
+    const negatives: string[] = [];
+    for (const token of rawPattern.split(",")) {
+      const pattern = token.trim().toLowerCase();
+      if (!pattern) {
+        continue;
       }
-      const cleanPatt = cleanHost(pattern);
-      if (cleanPatt.includes("*")) {
-        const regexStr = `^${cleanPatt.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
-        return new RegExp(regexStr).test(currentHost);
+      if (pattern.startsWith("!")) {
+        const body = pattern.slice(1).trim();
+        if (body) {
+          negatives.push(body);
+        }
+        continue;
       }
-      return cleanPatt === currentHost;
-    });
+      positives.push(pattern);
+    }
+    const included =
+      positives.length === 0 ? true : positives.some((pattern) => matchSingleHostGlob(pattern, currentHost));
+    if (!included) {
+      return false;
+    }
+    return !negatives.some((pattern) => matchHostExclusion(pattern, currentHost));
   }
 
   if (domain?.trim()) {
-    const cleanDom = cleanHost(domain);
-    if (cleanDom.includes("*")) {
-      const regexStr = `^${cleanDom.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
-      return new RegExp(regexStr).test(currentHost);
-    }
-    return cleanDom === currentHost || currentHost.endsWith(`.${cleanDom}`);
+    return matchSingleHostGlob(domain, currentHost) || currentHost.endsWith(`.${cleanHost(domain)}`);
   }
 
   return true;

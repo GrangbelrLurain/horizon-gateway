@@ -147,6 +147,7 @@ export function InjectionApp() {
               onDelete={(id) => s.deleteAnnotation(id)}
               onPromote={(target, idx) => void s.promoteAnnotation(target, idx)}
               onValidation={(target, validation) => void s.persistValidation(target, validation)}
+              onRecapture={(target) => s.recaptureAnnotation(target)}
             />
           );
         })}

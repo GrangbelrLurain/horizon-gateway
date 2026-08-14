@@ -15,7 +15,8 @@ use crate::model::inspector::Annotation;
 use crate::service::inspector_service::InspectorService;
 
 use super::super::reserved::{
-    is_horizon_gateway_internal, normalize_horizon_gateway_path, serve_horizon_gateway_reserved_path,
+    is_horizon_gateway_internal, normalize_horizon_gateway_path,
+    serve_horizon_gateway_reserved_path,
 };
 use super::super::state::ProxyState;
 
@@ -62,7 +63,9 @@ pub(crate) async fn try_handle_api(
         path
     );
 
-    if clean_path == "/.horizon-gateway/api/annotations/stream" && req.method() == hyper::Method::GET {
+    if clean_path == "/.horizon-gateway/api/annotations/stream"
+        && req.method() == hyper::Method::GET
+    {
         return Ok(annotations_stream_response(state));
     }
 
@@ -85,9 +88,11 @@ pub(crate) async fn try_handle_api(
 
         let active_routes = state.route_service.get_enabled();
         let proxy_active = !active_routes.is_empty();
-        let logging_enabled = state.api_logging_map.read().ok().is_some_and(|map| {
-            map.values().any(|(logging, _)| *logging)
-        });
+        let logging_enabled = state
+            .api_logging_map
+            .read()
+            .ok()
+            .is_some_and(|map| map.values().any(|(logging, _)| *logging));
         let inspector_enabled = !state.inspector_service.get_injection_domains().is_empty();
 
         let json = serde_json::json!({
@@ -176,7 +181,10 @@ pub(crate) async fn try_handle_api(
                         let _ = state.emit("annotations-updated", ());
                     }
                     Err(e) => {
-                        crate::proxy_log!("❌ [Horizon Gateway] Failed to parse annotation JSON: {}", e);
+                        crate::proxy_log!(
+                            "❌ [Horizon Gateway] Failed to parse annotation JSON: {}",
+                            e
+                        );
                     }
                 }
 
@@ -201,20 +209,44 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.horizon-gateway/api/mock-rule/toggle" && req.method() == hyper::Method::POST {
+    if clean_path == "/.horizon-gateway/api/mock-rule/toggle" && req.method() == hyper::Method::POST
+    {
         if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
-                let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
-                if payload.get("all").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let enabled = payload
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                if payload
+                    .get("all")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
                     let rules = state.mocking_service.get_mock_rules();
                     for r in rules {
                         state.mocking_service.update_mock_rule(
-                            r.id, None, None, None, None, None, None, None, Some(enabled),
+                            r.id,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            Some(enabled),
                         );
                     }
                 } else if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
                     state.mocking_service.update_mock_rule(
-                        id.to_string(), None, None, None, None, None, None, None, Some(enabled),
+                        id.to_string(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(enabled),
                     );
                 }
                 let _ = state.emit("mock-rules-updated", ());
@@ -227,17 +259,49 @@ pub(crate) async fn try_handle_api(
     if clean_path == "/.horizon-gateway/api/mock-rule/save" && req.method() == hyper::Method::POST {
         if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
-                let id = payload.get("id").and_then(|v| v.as_str()).map(ToString::to_string);
-                let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("Custom Rule").to_string();
-                let host = payload.get("host").and_then(|v| v.as_str()).map(ToString::to_string);
-                let method = payload.get("method").and_then(|v| v.as_str()).unwrap_or("GET").to_string();
-                let url_pattern = payload.get("url_pattern").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let response_status = payload.get("response_status").and_then(|v| v.as_u64()).unwrap_or(200) as u16;
-                let response_body = payload.get("response_body").and_then(|v| v.as_str()).map(ToString::to_string);
-                let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                let id = payload
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                let name = payload
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Custom Rule")
+                    .to_string();
+                let host = payload
+                    .get("host")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                let method = payload
+                    .get("method")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("GET")
+                    .to_string();
+                let url_pattern = payload
+                    .get("url_pattern")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let response_status = payload
+                    .get("response_status")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(200) as u16;
+                let response_body = payload
+                    .get("response_body")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string);
+                let enabled = payload
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
                 let response_headers = payload
                     .get("response_headers")
-                    .and_then(|v| serde_json::from_value::<std::collections::HashMap<String, String>>(v.clone()).ok())
+                    .and_then(|v| {
+                        serde_json::from_value::<std::collections::HashMap<String, String>>(
+                            v.clone(),
+                        )
+                        .ok()
+                    })
                     .unwrap_or_default();
 
                 if let Some(rule_id) = id {
@@ -272,7 +336,8 @@ pub(crate) async fn try_handle_api(
         return Ok((StatusCode::BAD_REQUEST, "Invalid JSON").into_response());
     }
 
-    if clean_path == "/.horizon-gateway/api/mock-rule/delete" && req.method() == hyper::Method::POST {
+    if clean_path == "/.horizon-gateway/api/mock-rule/delete" && req.method() == hyper::Method::POST
+    {
         if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
                 if let Some(id) = payload.get("id").and_then(|v| v.as_str()) {
@@ -299,11 +364,16 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
-    if clean_path == "/.horizon-gateway/api/proxy-route/toggle" && req.method() == hyper::Method::POST {
+    if clean_path == "/.horizon-gateway/api/proxy-route/toggle"
+        && req.method() == hyper::Method::POST
+    {
         if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
             if let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) {
                 if let Some(id) = payload.get("id").and_then(|v| v.as_u64()) {
-                    let enabled = payload.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                    let enabled = payload
+                        .get("enabled")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true);
                     state.route_service.toggle_enabled(id as u32, enabled);
                     let _ = state.emit("local-routes-updated", ());
                     return Ok((StatusCode::OK, "Toggled").into_response());
@@ -352,14 +422,21 @@ fn annotations_stream_response(state: &Arc<ProxyState>) -> Response {
         match rx.recv().await {
             Ok(()) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
                 let json = annotations_json(&inspector);
-                Some((Ok::<_, Infallible>(Event::default().data(json)), (rx, inspector)))
+                Some((
+                    Ok::<_, Infallible>(Event::default().data(json)),
+                    (rx, inspector),
+                ))
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => None,
         }
     });
 
     let mut res = Sse::new(first.chain(rest))
-        .keep_alive(KeepAlive::new().interval(Duration::from_secs(15)).text("ping"))
+        .keep_alive(
+            KeepAlive::new()
+                .interval(Duration::from_secs(15))
+                .text("ping"),
+        )
         .into_response();
     res.headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));

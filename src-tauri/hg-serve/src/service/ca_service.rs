@@ -1,6 +1,4 @@
-use rcgen::{
-    BasicConstraints, Certificate, CertificateParams, IsCa, KeyPair, SerialNumber,
-};
+use rcgen::{BasicConstraints, Certificate, CertificateParams, IsCa, KeyPair, SerialNumber};
 use std::fs;
 use std::path::Path;
 use time::OffsetDateTime;
@@ -104,11 +102,10 @@ mod tests {
         assert!(ca_pem.contains("BEGIN CERTIFICATE"));
         assert!(ca_pem.contains("END CERTIFICATE"));
 
-                        // 2. Sign host certificate
-                        let host = "example.com";
-                        let (cert, _key) = ca_service.sign_host_certificate(host).unwrap();     
-                        let cert_pem = cert.pem();
-                        assert!(cert_pem.contains("BEGIN CERTIFICATE"));
-                    }
-                }
-                
+        // 2. Sign host certificate
+        let host = "example.com";
+        let (cert, _key) = ca_service.sign_host_certificate(host).unwrap();
+        let cert_pem = cert.pem();
+        assert!(cert_pem.contains("BEGIN CERTIFICATE"));
+    }
+}

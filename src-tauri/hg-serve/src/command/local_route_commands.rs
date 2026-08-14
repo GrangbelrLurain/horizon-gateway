@@ -4,8 +4,8 @@ use crate::model::proxy_settings::ProxySettings;
 use crate::service::api_log_service::ApiLogService;
 use crate::service::api_logging_settings_service::ApiLoggingSettingsService;
 use crate::service::ca_service::CaService;
-use crate::service::local_proxy;
 use crate::service::domain_service::DomainService;
+use crate::service::local_proxy;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::proxy_settings_service::ProxySettingsService;
 use crate::service::system_proxy_service::SystemProxyService;
@@ -14,7 +14,7 @@ use std::io;
 use std::sync::atomic::{AtomicU16, Ordering};
 
 fn emit_proxy_status(_app: Option<&()>, payload: &ProxyStatusPayload) {
-    crate::serve::events::publish_event( PROXY_STATUS_CHANGED, payload);
+    crate::serve::events::publish_event(PROXY_STATUS_CHANGED, payload);
 }
 
 /// Build a `ProxyStatusPayload` from the current global state. Public for use in setup hook.
@@ -37,7 +37,9 @@ fn current_proxy_status() -> ProxyStatusPayload {
         };
     }
 
-    if let Some(active) = crate::service::proxy_runtime_state::ProxyRuntimeStateService::load_active_state() {
+    if let Some(active) =
+        crate::service::proxy_runtime_state::ProxyRuntimeStateService::load_active_state()
+    {
         return ProxyStatusPayload {
             running: true,
             port: active.port,
@@ -54,22 +56,46 @@ fn current_proxy_status() -> ProxyStatusPayload {
     }
 }
 
+fn is_addr_in_use(e: &io::Error) -> bool {
+    e.kind() == io::ErrorKind::AddrInUse || matches!(e.raw_os_error(), Some(10048 | 98 | 48))
+}
+
 /// Turns a bind/listen error into a user-friendly message (e.g. port already in use).
 fn map_bind_error(port: u16, e: io::Error) -> String {
-    let code = e.raw_os_error();
-    if code == Some(10048) {
-        // Windows WSAEADDRINUSE
+    if is_addr_in_use(&e) {
         return format!(
-            "Port {port} is already in use. Stop the other process using this port or choose a different port in settings."
-        );
-    }
-    if code == Some(98) || code == Some(48) {
-        // Linux EADDRINUSE, macOS EADDRINUSE
-        return format!(
-            "Port {port} is already in use. Stop the other process or choose a different port."
+            "Port {port} is already in use. A leftover horizon-gateway-serve process may still be holding it. Stop that process or choose a different port in settings."
         );
     }
     format!("Failed to bind port {port}: {e}")
+}
+
+fn already_running_ok(app: Option<()>) -> ApiResponse<ProxyStatusPayload> {
+    let payload = current_proxy_status();
+    emit_proxy_status(app.as_ref(), &payload);
+    ApiResponse {
+        message: "Proxy already running".to_string(),
+        success: true,
+        data: payload,
+    }
+}
+
+fn this_process_has_proxy_listener() -> bool {
+    if PROXY_PORT.load(Ordering::Relaxed) != 0 {
+        return true;
+    }
+    PROXY_HANDLES.lock().map(|g| !g.is_empty()).unwrap_or(false)
+}
+
+/// Auto-start may own the listener while `PROXY_PORT` is not stored yet.
+async fn in_process_proxy_became_ready() -> bool {
+    for _ in 0..20 {
+        if this_process_has_proxy_listener() {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    this_process_has_proxy_listener()
 }
 
 /// Abort all proxy tasks so bound ports are released. Call when start fails partway.
@@ -87,8 +113,9 @@ pub const GET_LOCAL_ROUTES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn get_local_routes_svc(route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Vec<LocalRoute>>, String> {
+pub fn get_local_routes_svc(
+    route_service: &std::sync::Arc<LocalRouteService>,
+) -> Result<ApiResponse<Vec<LocalRoute>>, String> {
     let list = route_service.get_all();
     Ok(ApiResponse {
         message: format!("{} routes", list.len()),
@@ -113,8 +140,11 @@ pub const ADD_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn add_local_route_svc(payload: AddLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<LocalRoute>, String> {
+pub fn add_local_route_svc(
+    payload: AddLocalRoutePayload,
+    route_service: &std::sync::Arc<LocalRouteService>,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<LocalRoute>, String> {
     let domains = domain_service.get_all();
     match route_service.add(
         payload.domain_id,
@@ -159,8 +189,11 @@ pub const UPDATE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn update_local_route_svc(payload: UpdateLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+pub fn update_local_route_svc(
+    payload: UpdateLocalRoutePayload,
+    route_service: &std::sync::Arc<LocalRouteService>,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let domains = domain_service.get_all();
     let route = route_service.update(
         payload.id,
@@ -195,8 +228,10 @@ pub const REMOVE_LOCAL_ROUTE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn remove_local_route_svc(payload: RemoveLocalRoutePayload, route_service: &std::sync::Arc<LocalRouteService>) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+pub fn remove_local_route_svc(
+    payload: RemoveLocalRoutePayload,
+    route_service: &std::sync::Arc<LocalRouteService>,
+) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let route = route_service.remove(payload.id);
     Ok(ApiResponse {
         message: if route.is_some() {
@@ -217,16 +252,20 @@ pub struct SetLocalRouteEnabledPayload {
     pub enabled: bool,
 }
 
-pub const SET_LOCAL_ROUTE_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_local_route_enabled",
-    description: "로컬 라우팅 규칙 활성화 여부를 설정합니다.",
-    payload_example: r#"{"id": 1, "enabled": true}"#,
-    category: "routing",
-    gui_only: false,
-};
+pub const SET_LOCAL_ROUTE_ENABLED_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "set_local_route_enabled",
+        description: "로컬 라우팅 규칙 활성화 여부를 설정합니다.",
+        payload_example: r#"{"id": 1, "enabled": true}"#,
+        category: "routing",
+        gui_only: false,
+    };
 
-
-pub fn set_local_route_enabled_svc(payload: SetLocalRouteEnabledPayload, route_service: &std::sync::Arc<LocalRouteService>, domain_service: &DomainService) -> Result<ApiResponse<Option<LocalRoute>>, String> {
+pub fn set_local_route_enabled_svc(
+    payload: SetLocalRouteEnabledPayload,
+    route_service: &std::sync::Arc<LocalRouteService>,
+    domain_service: &DomainService,
+) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let domains = domain_service.get_all();
     let route = route_service.set_enabled(payload.id, payload.enabled, &domains)?;
     Ok(ApiResponse {
@@ -266,13 +305,14 @@ static PROXY_REVERSE_HTTPS: AtomicU16 = AtomicU16::new(0);
 static PROXY_HANDLES: std::sync::Mutex<Vec<tokio::task::JoinHandle<()>>> =
     std::sync::Mutex::new(Vec::new());
 
-pub const GET_PROXY_AUTO_START_ERROR_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_proxy_auto_start_error",
-    description: "프록시 자동 시작 실패 에러 메시지를 조회합니다. 정상이면 null을 반환합니다.",
-    payload_example: "{}",
-    category: "proxy",
-    gui_only: false,
-};
+pub const GET_PROXY_AUTO_START_ERROR_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_proxy_auto_start_error",
+        description: "프록시 자동 시작 실패 에러 메시지를 조회합니다. 정상이면 null을 반환합니다.",
+        payload_example: "{}",
+        category: "proxy",
+        gui_only: false,
+    };
 
 /// Returns the auto-start error if proxy failed to start on launch, or null if OK.
 
@@ -300,7 +340,6 @@ pub const GET_PROXY_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     category: "proxy",
     gui_only: false,
 };
-
 
 pub async fn get_proxy_status_svc() -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let status = current_proxy_status();
@@ -337,8 +376,9 @@ pub const GET_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn get_proxy_settings_svc(proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
+pub fn get_proxy_settings_svc(
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.get();
     Ok(ApiResponse {
         message: "OK".to_string(),
@@ -361,8 +401,10 @@ pub const SET_PROXY_DNS_SERVER_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn set_proxy_dns_server_svc(payload: SetProxyDnsServerPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
+pub fn set_proxy_dns_server_svc(
+    payload: SetProxyDnsServerPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.set_dns_server(payload.dns_server);
     Ok(ApiResponse {
         message: "DNS server updated".to_string(),
@@ -385,8 +427,10 @@ pub const SET_PROXY_PORT_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
-pub fn set_proxy_port_svc(payload: SetProxyPortPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
+pub fn set_proxy_port_svc(
+    payload: SetProxyPortPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.set_proxy_port(payload.port);
     Ok(ApiResponse {
         message: format!("Proxy port set to {}", settings.proxy_port),
@@ -409,7 +453,6 @@ pub const START_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
 pub async fn start_local_proxy_svc(
     app: Option<()>,
     payload: Option<StartLocalProxyPayload>,
@@ -425,14 +468,8 @@ pub async fn start_local_proxy_svc(
     let port = payload
         .and_then(|p| p.port)
         .unwrap_or_else(|| proxy_settings_service.get().proxy_port);
-    if PROXY_PORT.load(Ordering::Relaxed) != 0 {
-        let payload = current_proxy_status();
-        emit_proxy_status(app.as_ref(), &payload);
-        return Ok(ApiResponse {
-            message: "Proxy already running".to_string(),
-            success: true,
-            data: payload,
-        });
+    if this_process_has_proxy_listener() {
+        return Ok(already_running_ok(app));
     }
     let settings = proxy_settings_service.get();
     let dns_server = settings.dns_server;
@@ -480,6 +517,12 @@ pub async fn start_local_proxy_svc(
     .await
     {
         Ok(h0) => handles.push(h0),
+        Err(e) if is_addr_in_use(&e) => {
+            if in_process_proxy_became_ready().await {
+                return Ok(already_running_ok(app));
+            }
+            return Err(map_bind_error(port, e));
+        }
         Err(e) => return Err(map_bind_error(port, e)),
     }
 
@@ -539,7 +582,11 @@ pub async fn start_local_proxy_svc(
     }
 
     PROXY_PORT.store(port, Ordering::Relaxed);
-    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(port, reverse_http, reverse_https);
+    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(
+        port,
+        reverse_http,
+        reverse_https,
+    );
     set_auto_start_error(None); // clear any previous error
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
@@ -613,16 +660,19 @@ pub struct SetProxyReversePortsPayload {
     pub reverse_https_port: Option<u16>,
 }
 
-pub const SET_PROXY_REVERSE_PORTS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_proxy_reverse_ports",
-    description: "리버스 HTTP/HTTPS 포트를 설정합니다. 다음 프록시 시작시에 적용됩니다.",
-    payload_example: r#"{"reverseHttpPort": 8081, "reverseHttpsPort": 8443}"#,
-    category: "proxy",
-    gui_only: false,
-};
+pub const SET_PROXY_REVERSE_PORTS_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "set_proxy_reverse_ports",
+        description: "리버스 HTTP/HTTPS 포트를 설정합니다. 다음 프록시 시작시에 적용됩니다.",
+        payload_example: r#"{"reverseHttpPort": 8081, "reverseHttpsPort": 8443}"#,
+        category: "proxy",
+        gui_only: false,
+    };
 
-
-pub fn set_proxy_reverse_ports_svc(payload: SetProxyReversePortsPayload, proxy_settings_service: &ProxySettingsService) -> Result<ApiResponse<ProxySettings>, String> {
+pub fn set_proxy_reverse_ports_svc(
+    payload: SetProxyReversePortsPayload,
+    proxy_settings_service: &ProxySettingsService,
+) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service
         .set_reverse_ports(payload.reverse_http_port, payload.reverse_https_port);
     Ok(ApiResponse {
@@ -639,7 +689,6 @@ pub const STOP_LOCAL_PROXY_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     category: "proxy",
     gui_only: false,
 };
-
 
 pub fn stop_local_proxy_svc(app: Option<()>) -> Result<ApiResponse<ProxyStatusPayload>, String> {
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
@@ -668,14 +717,12 @@ pub fn stop_local_proxy_svc(app: Option<()>) -> Result<ApiResponse<ProxyStatusPa
     })
 }
 
-// ── Engine options (CORS, DNS zone, TLS bypass, timeouts) ──────────────
+// ── Engine options (CORS, TLS bypass, timeouts) ──────────────
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateProxySettingsPayload {
     pub cors_rewrite_enabled: Option<bool>,
-    pub dns_capture_enabled: Option<bool>,
-    pub dns_records: Option<Vec<crate::model::proxy_settings::DnsZoneRecord>>,
     pub tls_bypass_hosts: Option<Vec<String>>,
     pub https_decrypt_hosts: Option<Vec<String>>,
     pub connect_timeout_secs: Option<u64>,
@@ -684,8 +731,8 @@ pub struct UpdateProxySettingsPayload {
 
 pub const UPDATE_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_proxy_settings",
-    description: "프록시 엔진 옵션(CORS, DNS 존, TLS 우회, 타임아웃)을 부분 업데이트합니다.",
-    payload_example: r#"{"corsRewriteEnabled": true, "dnsCaptureEnabled": true}"#,
+    description: "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃)을 부분 업데이트합니다.",
+    payload_example: r#"{"corsRewriteEnabled": true}"#,
     category: "proxy",
     gui_only: false,
 };
@@ -696,8 +743,6 @@ pub fn update_proxy_settings_svc(
 ) -> Result<ApiResponse<ProxySettings>, String> {
     let settings = proxy_settings_service.patch(
         payload.cors_rewrite_enabled,
-        payload.dns_capture_enabled,
-        payload.dns_records,
         payload.tls_bypass_hosts,
         payload.https_decrypt_hosts,
         payload.connect_timeout_secs,
@@ -717,13 +762,14 @@ pub struct SetHttpsDecryptHostPayload {
     pub enabled: bool,
 }
 
-pub const SET_HTTPS_DECRYPT_HOST_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_https_decrypt_host",
-    description: "호스트 HTTPS 복호화 여부를 설정합니다.",
-    payload_example: r#"{"host": "api.example.com", "enabled": true}"#,
-    category: "proxy",
-    gui_only: false,
-};
+pub const SET_HTTPS_DECRYPT_HOST_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "set_https_decrypt_host",
+        description: "호스트 HTTPS 복호화 여부를 설정합니다.",
+        payload_example: r#"{"host": "api.example.com", "enabled": true}"#,
+        category: "proxy",
+        gui_only: false,
+    };
 
 pub fn set_https_decrypt_host_svc(
     payload: SetHttpsDecryptHostPayload,
@@ -733,67 +779,13 @@ pub fn set_https_decrypt_host_svc(
     Ok(ApiResponse {
         message: format!(
             "HTTPS decrypt {} for {}",
-            if payload.enabled { "enabled" } else { "disabled" },
+            if payload.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            },
             payload.host
         ),
-        success: true,
-        data: settings,
-    })
-}
-
-#[derive(serde::Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct SetDnsZoneRecordPayload {
-    pub host: String,
-    pub record_type: String,
-    pub value: String,
-}
-
-pub const SET_DNS_ZONE_RECORD_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "set_dns_zone_record",
-    description: "DNS 존 A/CNAME 레코드를 추가하거나 수정합니다.",
-    payload_example: r#"{"host": "dev.local", "recordType": "A", "value": "127.0.0.1"}"#,
-    category: "proxy",
-    gui_only: false,
-};
-
-pub fn set_dns_zone_record_svc(
-    payload: SetDnsZoneRecordPayload,
-    proxy_settings_service: &ProxySettingsService,
-) -> Result<ApiResponse<ProxySettings>, String> {
-    let settings = proxy_settings_service.set_dns_zone_record(crate::model::proxy_settings::DnsZoneRecord {
-        host: payload.host,
-        record_type: payload.record_type,
-        value: payload.value,
-    });
-    Ok(ApiResponse {
-        message: "DNS zone record saved".to_string(),
-        success: true,
-        data: settings,
-    })
-}
-
-#[derive(serde::Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct RemoveDnsZoneRecordPayload {
-    pub host: String,
-}
-
-pub const REMOVE_DNS_ZONE_RECORD_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "remove_dns_zone_record",
-    description: "DNS 존 레코드를 삭제합니다.",
-    payload_example: r#"{"host": "dev.local"}"#,
-    category: "proxy",
-    gui_only: false,
-};
-
-pub fn remove_dns_zone_record_svc(
-    payload: RemoveDnsZoneRecordPayload,
-    proxy_settings_service: &ProxySettingsService,
-) -> Result<ApiResponse<ProxySettings>, String> {
-    let settings = proxy_settings_service.remove_dns_zone_record(&payload.host);
-    Ok(ApiResponse {
-        message: "DNS zone record removed".to_string(),
         success: true,
         data: settings,
     })
@@ -817,7 +809,7 @@ pub async fn auto_start_proxy(
     domain_service: std::sync::Arc<crate::service::domain_service::DomainService>,
     proxy_settings_service: std::sync::Arc<ProxySettingsService>,
 ) -> Result<(), String> {
-    if PROXY_PORT.load(Ordering::Relaxed) != 0 {
+    if this_process_has_proxy_listener() {
         return Ok(()); // already running
     }
 
@@ -916,7 +908,11 @@ pub async fn auto_start_proxy(
     }
 
     PROXY_PORT.store(port, Ordering::Relaxed);
-    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(port, reverse_http, reverse_https);
+    crate::service::proxy_runtime_state::ProxyRuntimeStateService::save_state(
+        port,
+        reverse_http,
+        reverse_https,
+    );
     let mut guard = PROXY_HANDLES.lock().map_err(|e| e.to_string())?;
     *guard = handles;
 
@@ -937,4 +933,33 @@ pub async fn auto_start_proxy(
     }
     eprintln!("{msg}");
     Ok(())
+}
+
+#[cfg(test)]
+mod bind_error_tests {
+    use super::*;
+    use std::io::{Error, ErrorKind};
+
+    #[test]
+    fn addr_in_use_kind_is_detected() {
+        let e = Error::from(ErrorKind::AddrInUse);
+        assert!(is_addr_in_use(&e));
+        let msg = map_bind_error(8888, e);
+        assert!(msg.contains("8888"));
+        assert!(msg.contains("horizon-gateway-serve"));
+    }
+
+    #[test]
+    fn windows_wsaeaddrinuse_is_detected() {
+        let e = Error::from_raw_os_error(10048);
+        assert!(is_addr_in_use(&e));
+    }
+
+    #[test]
+    fn other_bind_errors_keep_generic_copy() {
+        let e = Error::from(ErrorKind::PermissionDenied);
+        let msg = map_bind_error(8888, e);
+        assert!(msg.contains("Failed to bind port 8888"));
+        assert!(!msg.contains("already in use"));
+    }
 }

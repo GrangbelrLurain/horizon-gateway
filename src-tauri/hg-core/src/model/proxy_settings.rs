@@ -16,10 +16,6 @@ fn default_upstream_timeout_secs() -> u64 {
     30
 }
 
-fn default_a_record() -> String {
-    "A".to_string()
-}
-
 /// Built-in TLS bypass seed (SSO / captive-portal). Copied into `tls_bypass_hosts` once.
 pub fn default_tls_bypass_hosts() -> Vec<String> {
     vec![
@@ -43,14 +39,6 @@ pub fn default_tls_bypass_hosts() -> Vec<String> {
     ]
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, specta::Type, PartialEq, Eq)]
-pub struct DnsZoneRecord {
-    pub host: String,
-    #[serde(rename = "type", default = "default_a_record")]
-    pub record_type: String,
-    pub value: String,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 pub struct ProxySettings {
     /// Optional DNS server for pass-through resolution (e.g. "8.8.8.8" or "1.1.1.1:53").
@@ -68,12 +56,6 @@ pub struct ProxySettings {
     /// Rewrite CORS on proxied responses (including unregistered hosts).
     #[serde(default = "default_true")]
     pub cors_rewrite_enabled: bool,
-    /// When true, zone records are applied before upstream DNS (CONNECT / pass-through).
-    #[serde(default = "default_true")]
-    pub dns_capture_enabled: bool,
-    /// Authoritative A/CNAME rows. Applied to unregistered CONNECT as well.
-    #[serde(default)]
-    pub dns_records: Vec<DnsZoneRecord>,
     /// Hosts that always tunnel (no decrypt). Seeded from SSO/captive defaults once.
     #[serde(default)]
     pub tls_bypass_hosts: Vec<String>,
@@ -104,8 +86,6 @@ impl Default for ProxySettings {
             reverse_http_port: None,
             reverse_https_port: None,
             cors_rewrite_enabled: true,
-            dns_capture_enabled: true,
-            dns_records: Vec::new(),
             tls_bypass_hosts: Vec::new(),
             https_decrypt_hosts: Vec::new(),
             connect_timeout_secs: default_connect_timeout_secs(),
@@ -133,7 +113,6 @@ mod tests {
         assert_eq!(settings.proxy_port, 9999);
         assert_eq!(settings.reverse_http_port, Some(8080));
         assert!(settings.cors_rewrite_enabled);
-        assert!(settings.dns_capture_enabled);
         assert!(settings.local_routing_enabled);
         assert!(!settings.https_decrypt_seeded);
     }
@@ -158,12 +137,6 @@ mod tests {
             reverse_http_port: None,
             reverse_https_port: None,
             cors_rewrite_enabled: false,
-            dns_capture_enabled: true,
-            dns_records: vec![DnsZoneRecord {
-                host: "dev.local".to_string(),
-                record_type: "A".to_string(),
-                value: "127.0.0.1".to_string(),
-            }],
             tls_bypass_hosts: vec!["okta.com".to_string()],
             https_decrypt_hosts: vec!["api.example.com".to_string()],
             connect_timeout_secs: 10,
@@ -177,7 +150,6 @@ mod tests {
         let deserialized: ProxySettings = serde_json::from_str(&json).unwrap();
         assert!(deserialized.local_routing_enabled, "dropped field defaults to true");
         assert!(!deserialized.cors_rewrite_enabled);
-        assert_eq!(deserialized.dns_records.len(), 1);
         assert_eq!(deserialized.https_decrypt_hosts, vec!["api.example.com"]);
     }
 
@@ -186,7 +158,6 @@ mod tests {
         let settings = ProxySettings::default();
         assert_eq!(settings.proxy_port, 8888);
         assert!(settings.cors_rewrite_enabled);
-        assert!(settings.dns_capture_enabled);
         assert_eq!(settings.connect_timeout_secs, 15);
         assert_eq!(settings.upstream_timeout_secs, 30);
     }

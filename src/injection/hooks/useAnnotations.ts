@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Annotation, LocatorValidation } from "@/entities/inspector";
 import { annotationMatchesPage } from "@/shared/lib/guideMatch";
 import { deleteAnnotationApi, fetchAnnotationsApi, saveAnnotationApi, subscribeAnnotations } from "../api/gateway";
-import { denormalizedSelector, ensureLocators, promoteLocator } from "../lib/locator";
+import { captureElementThumbnail, capturePageMeta } from "../lib/capture";
+import { denormalizedSelector, ensureLocators, promoteLocator, resolveAnnotation } from "../lib/locator";
 
 export function useAnnotations() {
   const [allAnnotations, setAnnotations] = useState<Annotation[]>([]);
@@ -114,6 +115,44 @@ export function useAnnotations() {
     setAnnotations((prev) => prev.map((a) => (a.id === ann.id ? updated : a)));
   }, []);
 
+  const recaptureAnnotation = useCallback(
+    async (ann: Annotation) => {
+      const { el } = resolveAnnotation(ann);
+      if (!el) {
+        setToastMessage(`'${ann.role}' 요소를 이 페이지에서 찾지 못했습니다`);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) {
+        setToastMessage(`'${ann.role}' 요소 크기가 너무 작아 캡처할 수 없습니다`);
+        return;
+      }
+      const thumbnail = await captureElementThumbnail(el);
+      const pageMeta = capturePageMeta();
+      const updated: Annotation = {
+        ...ann,
+        thumbnail: thumbnail || ann.thumbnail,
+        domain: pageMeta.domain,
+        url: pageMeta.url,
+        content: (el.innerText || "").substring(0, 100),
+        timestamp: Date.now(),
+      };
+      const res = await saveAnnotationApi(updated as unknown as Record<string, unknown>);
+      if (res.ok) {
+        setToastMessage(
+          thumbnail
+            ? `'${ann.role}' 캡처를 현재 페이지로 바꿨습니다`
+            : `'${ann.role}' 캡처 출처는 갱신됐지만 미리보기 생성에 실패했습니다`,
+        );
+        fetchAnnotations();
+        window.parent.postMessage({ type: "WT_POLICY_SAVED" }, "*");
+      } else {
+        setToastMessage("캡처 다시 지정에 실패했습니다");
+      }
+    },
+    [fetchAnnotations],
+  );
+
   const promoteAnnotation = useCallback(
     async (ann: Annotation, promoteIndex: number) => {
       const locators = promoteLocator(ensureLocators(ann), promoteIndex);
@@ -155,6 +194,7 @@ export function useAnnotations() {
     fetchAnnotations,
     deleteAnnotation,
     persistValidation,
+    recaptureAnnotation,
     promoteAnnotation,
   };
 }

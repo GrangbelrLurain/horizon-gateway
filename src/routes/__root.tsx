@@ -6,6 +6,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import {
   backendUnavailableAtom,
+  languageAtom,
   TelemetryProvider,
   Titlebar,
   themeAtom,
@@ -49,6 +50,7 @@ const RootLayout = () => {
   useHubHandoffSync();
 
   const theme = useAtomValue(themeAtom);
+  const lang = useAtomValue(languageAtom);
   const userProfile = useAtomValue(userProfileAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPopupWindow = useIsPopupWindow();
@@ -181,7 +183,7 @@ const RootLayout = () => {
       <PromiseModal />
       <UserProfileSetup />
       <UpdateChangelogModal />
-      <ToastHost />
+      <ToastHost lang={lang} />
       <TelemetryProvider />
       <CommandPalette />
     </>

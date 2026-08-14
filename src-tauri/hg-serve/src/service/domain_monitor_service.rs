@@ -2,11 +2,11 @@ use crate::model::domain::Domain;
 use crate::model::domain_monitor_link::{DomainMonitorLink, DomainMonitorWithUrl};
 use crate::model::domain_status_log::DomainStatusLog;
 use crate::model::settings_export::DomainMonitorExport;
-use crate::storage::versioned::{load_versioned, save_versioned};
 use crate::service::domain_group_link_service::DomainGroupLinkService;
-use crate::service::domain_service::DomainService;
 use crate::service::domain_group_service::DomainGroupService;
+use crate::service::domain_service::DomainService;
 use crate::service::proxy_settings_service::ProxySettingsService;
+use crate::storage::versioned::{load_versioned, save_versioned};
 use chrono::{Local, Utc};
 use hickory_resolver::config::{NameServerConfigGroup, ResolverConfig};
 use hickory_resolver::name_server::TokioConnectionProvider;
@@ -120,7 +120,10 @@ impl DomainMonitorService {
     }
 
     /// Export용: `monitor_links를` url 키로 변환 (status log는 제외)
-    pub fn get_domain_monitor_for_export(&self, domain_service: &DomainService) -> Vec<DomainMonitorExport> {
+    pub fn get_domain_monitor_for_export(
+        &self,
+        domain_service: &DomainService,
+    ) -> Vec<DomainMonitorExport> {
         let list = self.load_monitor_links();
         let domains = domain_service.get_all();
         list.into_iter()
@@ -138,11 +141,13 @@ impl DomainMonitorService {
     }
 
     /// Import: monitor 설정 복원 (URL로 매칭). status log는 제외되어 있음.
-    pub fn import_domain_monitor(&self, list: &[DomainMonitorExport], domain_service: &DomainService) {
-        let url_to_export: HashMap<&str, &DomainMonitorExport> = list
-            .iter()
-            .map(|e| (e.url.as_str(), e))
-            .collect();
+    pub fn import_domain_monitor(
+        &self,
+        list: &[DomainMonitorExport],
+        domain_service: &DomainService,
+    ) {
+        let url_to_export: HashMap<&str, &DomainMonitorExport> =
+            list.iter().map(|e| (e.url.as_str(), e)).collect();
         let mut monitor_list = self.load_monitor_links();
         let domains = domain_service.get_all();
         for ds in &mut monitor_list {
@@ -211,11 +216,9 @@ impl DomainMonitorService {
                     vec![],
                     NameServerConfigGroup::from_ips_clear(&[ip], port, true),
                 );
-                let resolver = Resolver::builder_with_config(
-                    config,
-                    TokioConnectionProvider::default(),
-                )
-                .build();
+                let resolver =
+                    Resolver::builder_with_config(config, TokioConnectionProvider::default())
+                        .build();
                 {
                     let full_urls: Vec<String> = domains
                         .iter()
@@ -227,23 +230,19 @@ impl DomainMonitorService {
                             }
                         })
                         .collect();
-                    let unique_hosts: HashSet<String> = full_urls
-                        .iter()
-                        .filter_map(|u| host_from_url(u))
-                        .collect();
+                    let unique_hosts: HashSet<String> =
+                        full_urls.iter().filter_map(|u| host_from_url(u)).collect();
                     let mut host_to_ip: HashMap<String, IpAddr> = HashMap::new();
                     for host in &unique_hosts {
                         if let Ok(lookup) = resolver.lookup_ip(host.as_str()).await {
-                            if let Some(addr) = lookup.iter().next(){
+                            if let Some(addr) = lookup.iter().next() {
                                 host_to_ip.insert(host.clone(), addr);
                             }
                         }
                     }
                     for (host, addr) in &host_to_ip {
-                        client_builder = client_builder.resolve(
-                            host.as_str(),
-                            SocketAddr::new(*addr, 443),
-                        );
+                        client_builder =
+                            client_builder.resolve(host.as_str(), SocketAddr::new(*addr, 443));
                     }
                 }
             }

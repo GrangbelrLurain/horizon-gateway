@@ -16,8 +16,9 @@ pub const GET_MOCKING_STATUS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn get_mocking_status_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockingSettings>, String> {
+pub fn get_mocking_status_svc(
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<MockingSettings>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -33,8 +34,9 @@ pub const GET_SCENARIOS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCo
     gui_only: false,
 };
 
-
-pub fn get_scenarios_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<Scenario>>, String> {
+pub fn get_scenarios_svc(
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<Vec<Scenario>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -57,8 +59,10 @@ pub const CREATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn create_scenario_svc(payload: CreateScenarioPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Scenario>, String> {
+pub fn create_scenario_svc(
+    payload: CreateScenarioPayload,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<Scenario>, String> {
     let scenario = service.create_scenario(payload.name, payload.description);
     Ok(ApiResponse {
         message: "시나리오가 생성되었습니다.".to_string(),
@@ -75,8 +79,13 @@ pub const UPDATE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn update_scenario_svc(id: String, name: Option<String>, description: Option<String>, enabled: Option<bool>, service: &std::sync::Arc<MockingService>) -> Result<Scenario, String> {
+pub fn update_scenario_svc(
+    id: String,
+    name: Option<String>,
+    description: Option<String>,
+    enabled: Option<bool>,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<Scenario, String> {
     service
         .update_scenario(id, name, description, enabled)
         .ok_or_else(|| "Scenario not found".to_string())
@@ -90,8 +99,11 @@ pub const SET_SCENARIO_ENABLED_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
-pub fn set_scenario_enabled_svc(id: String, enabled: bool, service: &std::sync::Arc<MockingService>) -> Result<Vec<Scenario>, String> {
+pub fn set_scenario_enabled_svc(
+    id: String,
+    enabled: bool,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<Vec<Scenario>, String> {
     Ok(service.set_scenario_enabled(id, enabled))
 }
 
@@ -103,8 +115,10 @@ pub const DELETE_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn delete_scenario_svc(id: String, service: &std::sync::Arc<MockingService>) -> Result<bool, String> {
+pub fn delete_scenario_svc(
+    id: String,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<bool, String> {
     Ok(service.delete_scenario(id))
 }
 
@@ -116,8 +130,9 @@ pub const GET_MOCK_RULES_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
-pub fn get_mock_rules_svc(service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<MockRule>>, String> {
+pub fn get_mock_rules_svc(
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<Vec<MockRule>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -131,16 +146,19 @@ pub struct GetMockRulesByScenarioPayload {
     pub scenario_id: String,
 }
 
-pub const GET_MOCK_RULES_BY_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "get_mock_rules_by_scenario",
-    description: "특정 시나리오에 속한 모킹 룰 목록을 조회합니다.",
-    payload_example: r#"{"scenarioId": "scenario-uuid"}"#,
-    category: "mocking",
-    gui_only: false,
-};
+pub const GET_MOCK_RULES_BY_SCENARIO_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "get_mock_rules_by_scenario",
+        description: "특정 시나리오에 속한 모킹 룰 목록을 조회합니다.",
+        payload_example: r#"{"scenarioId": "scenario-uuid"}"#,
+        category: "mocking",
+        gui_only: false,
+    };
 
-
-pub fn get_mock_rules_by_scenario_svc(payload: GetMockRulesByScenarioPayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<Vec<MockRule>>, String> {
+pub fn get_mock_rules_by_scenario_svc(
+    payload: GetMockRulesByScenarioPayload,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<Vec<MockRule>>, String> {
     Ok(ApiResponse {
         message: "OK".to_string(),
         success: true,
@@ -171,8 +189,10 @@ pub const CREATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn create_mock_rule_svc(payload: CreateMockRulePayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
+pub fn create_mock_rule_svc(
+    payload: CreateMockRulePayload,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<MockRule>, String> {
     let rule = service.create_mock_rule(
         payload.name,
         payload.scenario_id,
@@ -213,8 +233,10 @@ pub const UPDATE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn update_mock_rule_svc(payload: UpdateMockRulePayload, service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
+pub fn update_mock_rule_svc(
+    payload: UpdateMockRulePayload,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<MockRule>, String> {
     let rule = service
         .update_mock_rule(
             payload.id,
@@ -244,8 +266,10 @@ pub const DELETE_MOCK_RULE_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn delete_mock_rule_svc(id: String, service: &std::sync::Arc<MockingService>) -> Result<bool, String> {
+pub fn delete_mock_rule_svc(
+    id: String,
+    service: &std::sync::Arc<MockingService>,
+) -> Result<bool, String> {
     Ok(service.delete_mock_rule(id))
 }
 
@@ -259,16 +283,20 @@ pub struct CreateMockFromLogPayload {
     pub log_date: String,
 }
 
-pub const CREATE_MOCK_RULE_FROM_LOG_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "create_mock_rule_from_log",
-    description: "API 로그 항목을 기반으로 모킹 룰을 생성합니다.",
-    payload_example: r#"{"logId": "log-uuid", "scenarioId": null, "name": "Mock from log", "logDate": "2026-07-09"}"#,
-    category: "mocking",
-    gui_only: false,
-};
+pub const CREATE_MOCK_RULE_FROM_LOG_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "create_mock_rule_from_log",
+        description: "API 로그 항목을 기반으로 모킹 룰을 생성합니다.",
+        payload_example: r#"{"logId": "log-uuid", "scenarioId": null, "name": "Mock from log", "logDate": "2026-07-09"}"#,
+        category: "mocking",
+        gui_only: false,
+    };
 
-
-pub fn create_mock_rule_from_log_svc(payload: CreateMockFromLogPayload, log_service: &ApiLogService, mock_service: &std::sync::Arc<MockingService>) -> Result<ApiResponse<MockRule>, String> {
+pub fn create_mock_rule_from_log_svc(
+    payload: CreateMockFromLogPayload,
+    log_service: &ApiLogService,
+    mock_service: &std::sync::Arc<MockingService>,
+) -> Result<ApiResponse<MockRule>, String> {
     let log = log_service
         .get_log_by_id(&payload.log_id, Some(&payload.log_date))
         .ok_or_else(|| {

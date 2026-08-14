@@ -115,13 +115,14 @@ impl ApiLogService {
         let meta_path = self.log_dir.join(format!("{date_str}.meta.jsonl"));
         let idx_path = self.log_dir.join(format!("{date_str}.idx"));
 
-        let offset = meta_path
-            .metadata()
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let offset = meta_path.metadata().map(|m| m.len()).unwrap_or(0);
 
         if let Ok(json) = serde_json::to_string(&meta) {
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&meta_path) {
+            if let Ok(mut file) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&meta_path)
+            {
                 let _ = writeln!(file, "{json}");
             }
             if let Ok(mut idx) = OpenOptions::new().create(true).append(true).open(&idx_path) {
@@ -180,7 +181,8 @@ impl ApiLogService {
         host_filter: Option<String>,
         exact_match: bool,
     ) -> Vec<ApiLogEntry> {
-        let summaries = self.get_summaries(date, domain_filter, method_filter, host_filter, exact_match);
+        let summaries =
+            self.get_summaries(date, domain_filter, method_filter, host_filter, exact_match);
         summaries.into_iter().map(|s| s.to_list_entry()).collect()
     }
 
@@ -303,7 +305,13 @@ impl ApiLogService {
     }
 
     pub fn indexed_param_keys(&self) -> Vec<String> {
-        let mut keys: Vec<_> = self.indexed_params.lock().unwrap().iter().cloned().collect();
+        let mut keys: Vec<_> = self
+            .indexed_params
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect();
         keys.sort();
         keys
     }
@@ -566,7 +574,8 @@ fn load_meta_by_id(log_dir: &Path, date: &str, id: &str) -> Option<ApiLogEntry> 
                         let mut reader = BufReader::new(meta_file);
                         let mut line = String::new();
                         if reader.read_line(&mut line).is_ok() {
-                            if let Ok(summary) = serde_json::from_str::<ApiLogSummary>(line.trim()) {
+                            if let Ok(summary) = serde_json::from_str::<ApiLogSummary>(line.trim())
+                            {
                                 return Some(summary.to_list_entry());
                             }
                         }
@@ -694,7 +703,10 @@ fn open_search_db(log_dir: &Path, date: &str) -> Result<Connection, String> {
     )
     .map_err(|e| e.to_string())?;
     // Migrate older search DBs that lack url column
-    let _ = conn.execute("ALTER TABLE logs ADD COLUMN url TEXT NOT NULL DEFAULT ''", []);
+    let _ = conn.execute(
+        "ALTER TABLE logs ADD COLUMN url TEXT NOT NULL DEFAULT ''",
+        [],
+    );
     Ok(conn)
 }
 
@@ -723,8 +735,14 @@ fn index_log_for_search(
 
     // Replace FTS row
     let _ = conn.execute("DELETE FROM logs_fts WHERE id = ?1", params![entry.id]);
-    let req_text = truncate_bytes(entry.request_body.as_deref().unwrap_or(""), FTS_TEXT_CAP_BYTES);
-    let res_text = truncate_bytes(entry.response_body.as_deref().unwrap_or(""), FTS_TEXT_CAP_BYTES);
+    let req_text = truncate_bytes(
+        entry.request_body.as_deref().unwrap_or(""),
+        FTS_TEXT_CAP_BYTES,
+    );
+    let res_text = truncate_bytes(
+        entry.response_body.as_deref().unwrap_or(""),
+        FTS_TEXT_CAP_BYTES,
+    );
     if !req_text.is_empty() || !res_text.is_empty() {
         conn.execute(
             "INSERT INTO logs_fts (id, req_text, res_text) VALUES (?1, ?2, ?3)",
@@ -736,7 +754,10 @@ fn index_log_for_search(
     for key in indexed_keys {
         let values = extract_json_param_values(entry.response_body.as_deref(), key)
             .into_iter()
-            .chain(extract_json_param_values(entry.request_body.as_deref(), key));
+            .chain(extract_json_param_values(
+                entry.request_body.as_deref(),
+                key,
+            ));
         for value in values {
             let _ = conn.execute(
                 "INSERT OR REPLACE INTO param_values (id, key, value) VALUES (?1, ?2, ?3)",
@@ -776,22 +797,25 @@ fn search_fts(
 
     let mut hits = Vec::new();
     let rows = stmt
-        .query_map(params![sanitize_fts_query(query), (limit * 4) as i64], |row| {
-            Ok((
-                ApiLogSummary {
-                    id: row.get(0)?,
-                    timestamp: row.get(1)?,
-                    host: row.get(2)?,
-                    method: row.get(3)?,
-                    path: row.get(4)?,
-                    url: row.get::<_, String>(5).unwrap_or_default(),
-                    status_code: row.get::<_, Option<i64>>(6)?.map(|v| v as u16),
-                    has_bodies: row.get::<_, i64>(7)? != 0,
-                    is_mocked: false,
-                },
-                row.get::<_, Option<String>>(8)?,
-            ))
-        })
+        .query_map(
+            params![sanitize_fts_query(query), (limit * 4) as i64],
+            |row| {
+                Ok((
+                    ApiLogSummary {
+                        id: row.get(0)?,
+                        timestamp: row.get(1)?,
+                        host: row.get(2)?,
+                        method: row.get(3)?,
+                        path: row.get(4)?,
+                        url: row.get::<_, String>(5).unwrap_or_default(),
+                        status_code: row.get::<_, Option<i64>>(6)?.map(|v| v as u16),
+                        has_bodies: row.get::<_, i64>(7)? != 0,
+                        is_mocked: false,
+                    },
+                    row.get::<_, Option<String>>(8)?,
+                ))
+            },
+        )
         .map_err(|e| e.to_string())?;
 
     for row in rows.flatten() {
@@ -911,7 +935,13 @@ fn sanitize_fts_query(query: &str) -> String {
     // Quote as a phrase for substring-ish matching of tokens
     let cleaned: String = query
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' || c == '-' || c == '.' { c } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '-' || c == '.' {
+                c
+            } else {
+                ' '
+            }
+        })
         .collect();
     let cleaned = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
     if cleaned.is_empty() {
@@ -1015,7 +1045,10 @@ mod tests {
 
         let mut entry = sample_entry("1", "2026-02-19T10:00:00Z", "POST", "example.com", "/api");
         entry.response_body = Some(r#"{"errorCode":"E001"}"#.to_string());
-        entry.response_headers = Some(HashMap::from([("content-type".into(), "application/json".into())]));
+        entry.response_headers = Some(HashMap::from([(
+            "content-type".into(),
+            "application/json".into(),
+        )]));
         service.save_log(&entry);
 
         let list = service.get_logs("2026-02-19", None, None, None, false);
@@ -1024,7 +1057,10 @@ mod tests {
         assert!(list[0].has_bodies);
 
         let detail = service.get_log_by_id("1", Some("2026-02-19")).unwrap();
-        assert_eq!(detail.response_body.as_deref(), Some(r#"{"errorCode":"E001"}"#));
+        assert_eq!(
+            detail.response_body.as_deref(),
+            Some(r#"{"errorCode":"E001"}"#)
+        );
     }
 
     #[test]
@@ -1043,7 +1079,12 @@ mod tests {
         e2.url = "http://other.com/api/v2".to_string();
         service.save_log(&e2);
 
-        assert_eq!(service.get_logs("2026-02-19", None, None, None, false).len(), 2);
+        assert_eq!(
+            service
+                .get_logs("2026-02-19", None, None, None, false)
+                .len(),
+            2
+        );
         assert_eq!(
             service
                 .get_logs("2026-02-19", Some("v1".into()), None, None, false)
@@ -1068,11 +1109,23 @@ mod tests {
     fn test_clear_logs() {
         let dir = tempdir().unwrap();
         let service = ApiLogService::new(dir.path().to_path_buf());
-        service.save_log(&sample_entry("1", "2026-02-19T10:00:00Z", "GET", "example.com", "/"));
+        service.save_log(&sample_entry(
+            "1",
+            "2026-02-19T10:00:00Z",
+            "GET",
+            "example.com",
+            "/",
+        ));
         assert_eq!(service.list_dates().len(), 1);
         service.clear_logs(Some("2026-02-19".into())).unwrap();
         assert_eq!(service.list_dates().len(), 0);
-        service.save_log(&sample_entry("1", "2026-02-19T10:00:00Z", "GET", "example.com", "/"));
+        service.save_log(&sample_entry(
+            "1",
+            "2026-02-19T10:00:00Z",
+            "GET",
+            "example.com",
+            "/",
+        ));
         service.clear_logs(None).unwrap();
         assert_eq!(service.list_dates().len(), 0);
     }

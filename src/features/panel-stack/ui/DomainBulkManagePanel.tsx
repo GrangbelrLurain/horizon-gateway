@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Activity, Code, ListChecks, Loader2, Lock, Server, Trash2, Wifi } from "lucide-react";
+import { Activity, Code, ListChecks, Loader2, Lock, MapPin, Trash2, Wifi } from "lucide-react";
 import { useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiLoggingLinksAtom } from "@/entities/domain-api-logging";
@@ -167,7 +167,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                             ) : key === "monitor" ? (
                               <Activity className="w-4 h-4" />
                             ) : key === "proxy" ? (
-                              <Server className="w-4 h-4" />
+                              <MapPin className="w-4 h-4" />
                             ) : (
                               <Wifi className="w-4 h-4" />
                             )}
@@ -184,7 +184,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                     : key === "monitor"
                                       ? t.monitor
                                       : key === "proxy"
-                                        ? t.proxy
+                                        ? t.localDestination
                                         : t.api}
                               </span>
                               {allEnabled ? (
@@ -211,7 +211,7 @@ export function DomainBulkManagePanel({ onClose }: DomainBulkManagePanelProps) {
                                   : key === "monitor"
                                     ? t.monitorEnableHint
                                     : key === "proxy"
-                                      ? t.proxyRouteToggleHint
+                                      ? t.localDestinationHint
                                       : t.apiEnableHint}
                             </p>
                           </div>

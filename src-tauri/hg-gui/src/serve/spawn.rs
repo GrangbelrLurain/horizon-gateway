@@ -73,8 +73,28 @@ fn push_sidecar_candidates(out: &mut Vec<PathBuf>, dir: &Path, bin_name: &str) {
     out.push(dir.join(bin_name));
 }
 
-/// Spawn the serve backend detached. On Windows uses `runas` so UAC is shown.
+/// Spawn the serve backend detached.
+///
+/// Release: elevate via UAC so system proxy / CA install keep working.
+/// Debug / `tauri dev`: spawn unelevated so leftovers can be killed without UAC
+/// and cannot pin 8888 at a higher integrity level.
 pub fn spawn_detached() -> Result<(), String> {
+    spawn_detached_elevated()
+}
+
+pub fn spawn_detached_for_debug() -> Result<(), String> {
+    let exe = serve_exe_path()?;
+    #[cfg(windows)]
+    {
+        spawn_unelevated_windows(&exe)
+    }
+    #[cfg(not(windows))]
+    {
+        spawn_std(&exe)
+    }
+}
+
+pub fn spawn_detached_elevated() -> Result<(), String> {
     let exe = serve_exe_path()?;
     #[cfg(windows)]
     {
@@ -82,14 +102,61 @@ pub fn spawn_detached() -> Result<(), String> {
     }
     #[cfg(not(windows))]
     {
-        use std::process::{Command, Stdio};
-        Command::new(exe)
+        spawn_std(&exe)
+    }
+}
+
+#[cfg(not(windows))]
+fn spawn_std(exe: &Path) -> Result<(), String> {
+    use std::process::{Command, Stdio};
+    Command::new(exe)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("failed to spawn horizon-gateway-serve: {e}"))?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn spawn_unelevated_windows(exe: &Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::{Command, Stdio};
+
+    const DETACHED_PROCESS: u32 = 0x00000008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+    const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x01000000;
+
+    let mut cmd = Command::new(exe);
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
+
+    match cmd.spawn() {
+        Ok(_) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(740) => {
+            tracing::warn!(
+                "[gui] horizon-gateway-serve requires elevation (os 740); falling back to UAC spawn"
+            );
+            spawn_elevated_windows(exe)
+        }
+        Err(_) => match Command::new(exe)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
+            .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
             .spawn()
-            .map_err(|e| format!("failed to spawn horizon-gateway-serve: {e}"))?;
-        Ok(())
+        {
+            Ok(_) => Ok(()),
+            Err(e) if e.raw_os_error() == Some(740) => {
+                tracing::warn!(
+                    "[gui] horizon-gateway-serve requires elevation (os 740); falling back to UAC spawn"
+                );
+                spawn_elevated_windows(exe)
+            }
+            Err(e) => Err(format!("failed to spawn horizon-gateway-serve: {e}")),
+        },
     }
 }
 

@@ -10,8 +10,9 @@ pub const GET_TAILSCALE_IP_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cl
     gui_only: false,
 };
 
-
-pub fn get_tailscale_ip_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<Option<String>>, String> {
+pub fn get_tailscale_ip_svc(
+    tunnel_service: &Arc<TunnelService>,
+) -> Result<ApiResponse<Option<String>>, String> {
     let ip = tunnel_service.get_tailscale_ip();
     Ok(ApiResponse {
         message: "OK".to_string(),
@@ -20,16 +21,18 @@ pub fn get_tailscale_ip_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiRe
     })
 }
 
-pub const START_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "start_cloudflare_tunnel",
-    description: "Cloudflare 터널을 시작하고 표준 툰널 URL을 반환합니다.",
-    payload_example: "{}",
-    category: "mobile",
-    gui_only: false,
-};
+pub const START_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "start_cloudflare_tunnel",
+        description: "Cloudflare 터널을 시작하고 표준 툰널 URL을 반환합니다.",
+        payload_example: "{}",
+        category: "mobile",
+        gui_only: false,
+    };
 
-
-pub async fn start_cloudflare_tunnel_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<String>, String> {
+pub async fn start_cloudflare_tunnel_svc(
+    tunnel_service: &Arc<TunnelService>,
+) -> Result<ApiResponse<String>, String> {
     match tunnel_service.start_tunnel().await {
         Ok(url) => Ok(ApiResponse {
             message: "Tunnel started successfully".to_string(),
@@ -40,16 +43,18 @@ pub async fn start_cloudflare_tunnel_svc(tunnel_service: &Arc<TunnelService>) ->
     }
 }
 
-pub const STOP_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "stop_cloudflare_tunnel",
-    description: "실행 중인 Cloudflare 터널을 중지합니다.",
-    payload_example: "{}",
-    category: "mobile",
-    gui_only: false,
-};
+pub const STOP_CLOUDFLARE_TUNNEL_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "stop_cloudflare_tunnel",
+        description: "실행 중인 Cloudflare 터널을 중지합니다.",
+        payload_example: "{}",
+        category: "mobile",
+        gui_only: false,
+    };
 
-
-pub async fn stop_cloudflare_tunnel_svc(tunnel_service: &Arc<TunnelService>) -> Result<ApiResponse<()>, String> {
+pub async fn stop_cloudflare_tunnel_svc(
+    tunnel_service: &Arc<TunnelService>,
+) -> Result<ApiResponse<()>, String> {
     match tunnel_service.stop_tunnel().await {
         Ok(()) => Ok(ApiResponse {
             message: "Tunnel stopped successfully".to_string(),

@@ -35,7 +35,12 @@ impl JsonSchemaRegistryService {
     }
 
     pub fn get_by_id(&self, id: &str) -> Option<SavedJsonSchema> {
-        self.items.lock().unwrap().iter().find(|s| s.id == id).cloned()
+        self.items
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|s| s.id == id)
+            .cloned()
     }
 
     pub fn create(

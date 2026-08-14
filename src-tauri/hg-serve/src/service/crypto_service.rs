@@ -1,10 +1,13 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use aes_gcm::{Aes256Gcm, Key, Nonce};
 use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use base64::{
+    engine::general_purpose::STANDARD as BASE64_STANDARD,
+    engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE, Engine as _,
+};
 use hmac::{Hmac, Mac};
-use sha2::{Sha256, Digest};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD, engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 
 pub use hg_core::model::crypto::CryptoAction;
 
@@ -17,10 +20,10 @@ impl CryptoService {
 
     /// JSON Schema Draft 7 / 2020-12 Validation using `jsonschema` crate
     pub fn validate_json_schema(&self, payload: &str, schema: &str) -> Result<(), String> {
-        let payload_json: serde_json::Value = serde_json::from_str(payload)
-            .map_err(|e| format!("Invalid payload JSON: {}", e))?;
-        let schema_json: serde_json::Value = serde_json::from_str(schema)
-            .map_err(|e| format!("Invalid schema JSON: {}", e))?;
+        let payload_json: serde_json::Value =
+            serde_json::from_str(payload).map_err(|e| format!("Invalid payload JSON: {}", e))?;
+        let schema_json: serde_json::Value =
+            serde_json::from_str(schema).map_err(|e| format!("Invalid schema JSON: {}", e))?;
 
         let validator = jsonschema::validator_for(&schema_json)
             .map_err(|e| format!("Schema compilation failed: {}", e))?;
@@ -41,35 +44,24 @@ impl CryptoService {
         iv: Option<&str>,
     ) -> Result<String, String> {
         match action {
-            CryptoAction::Base64Encode => {
-                Ok(BASE64_STANDARD.encode(payload.as_bytes()))
-            }
+            CryptoAction::Base64Encode => Ok(BASE64_STANDARD.encode(payload.as_bytes())),
             CryptoAction::Base64Decode => {
-                let decoded = BASE64_STANDARD.decode(payload.trim())
+                let decoded = BASE64_STANDARD
+                    .decode(payload.trim())
                     .map_err(|e| format!("Base64 decode failed: {}", e))?;
-                String::from_utf8(decoded)
-                    .map_err(|e| format!("UTF-8 decode failed: {}", e))
+                String::from_utf8(decoded).map_err(|e| format!("UTF-8 decode failed: {}", e))
             }
-            CryptoAction::UrlEncode => {
-                Ok(urlencoding::encode(payload).into_owned())
-            }
-            CryptoAction::UrlDecode => {
-                urlencoding::decode(payload)
-                    .map(|cow| cow.into_owned())
-                    .map_err(|e| format!("URL decode failed: {}", e))
-            }
-            CryptoAction::HexEncode => {
-                Ok(hex::encode(payload.as_bytes()))
-            }
+            CryptoAction::UrlEncode => Ok(urlencoding::encode(payload).into_owned()),
+            CryptoAction::UrlDecode => urlencoding::decode(payload)
+                .map(|cow| cow.into_owned())
+                .map_err(|e| format!("URL decode failed: {}", e)),
+            CryptoAction::HexEncode => Ok(hex::encode(payload.as_bytes())),
             CryptoAction::HexDecode => {
-                let decoded = hex::decode(payload.trim())
-                    .map_err(|e| format!("Hex decode failed: {}", e))?;
-                String::from_utf8(decoded)
-                    .map_err(|e| format!("UTF-8 decode failed: {}", e))
+                let decoded =
+                    hex::decode(payload.trim()).map_err(|e| format!("Hex decode failed: {}", e))?;
+                String::from_utf8(decoded).map_err(|e| format!("UTF-8 decode failed: {}", e))
             }
-            CryptoAction::JwtDecode => {
-                self.decode_jwt(payload, key)
-            }
+            CryptoAction::JwtDecode => self.decode_jwt(payload, key),
             CryptoAction::AesEncrypt => {
                 let k_str = key.ok_or_else(|| "Key is required for AES encryption".to_string())?;
                 let iv_str = iv.ok_or_else(|| "IV is required for AES encryption".to_string())?;
@@ -143,14 +135,20 @@ impl CryptoService {
         let nonce = Nonce::from_slice(&nonce_bytes);
         let cipher = Aes256Gcm::new(key);
 
-        let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes())
+        let ciphertext = cipher
+            .encrypt(nonce, plaintext.as_bytes())
             .map_err(|e| format!("AES encryption failed: {}", e))?;
 
         Ok(BASE64_STANDARD.encode(ciphertext))
     }
 
     /// AES-256-GCM Decryption (Input ciphertext should be Base64-encoded)
-    fn aes_decrypt(&self, ciphertext_base64: &str, key_str: &str, iv_str: &str) -> Result<String, String> {
+    fn aes_decrypt(
+        &self,
+        ciphertext_base64: &str,
+        key_str: &str,
+        iv_str: &str,
+    ) -> Result<String, String> {
         let key_bytes = self.derive_aes_key(key_str);
         let nonce_bytes = self.derive_aes_nonce(iv_str);
 
@@ -158,10 +156,12 @@ impl CryptoService {
         let nonce = Nonce::from_slice(&nonce_bytes);
         let cipher = Aes256Gcm::new(key);
 
-        let ciphertext = BASE64_STANDARD.decode(ciphertext_base64.trim())
+        let ciphertext = BASE64_STANDARD
+            .decode(ciphertext_base64.trim())
             .map_err(|e| format!("Base64 decode of ciphertext failed: {}", e))?;
 
-        let decrypted = cipher.decrypt(nonce, ciphertext.as_slice())
+        let decrypted = cipher
+            .decrypt(nonce, ciphertext.as_slice())
             .map_err(|e| format!("AES decryption failed: {}", e))?;
 
         String::from_utf8(decrypted)
@@ -172,15 +172,18 @@ impl CryptoService {
     fn decode_jwt(&self, token: &str, key: Option<&str>) -> Result<String, String> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() < 2 {
-            return Err("Invalid JWT: token must contain at least a header and payload separated by a dot".to_string());
+            return Err(
+                "Invalid JWT: token must contain at least a header and payload separated by a dot"
+                    .to_string(),
+            );
         }
 
         // Insecure parse (always decoded so the user can inspect it)
         let decode_part = |part: &str| -> Result<serde_json::Value, String> {
-            let decoded = BASE64_URL_SAFE.decode(part)
+            let decoded = BASE64_URL_SAFE
+                .decode(part)
                 .map_err(|e| format!("Base64Url decode failed: {}", e))?;
-            serde_json::from_slice(&decoded)
-                .map_err(|e| format!("JSON parse failed: {}", e))
+            serde_json::from_slice(&decoded).map_err(|e| format!("JSON parse failed: {}", e))
         };
 
         let header_json = decode_part(parts[0])?;
@@ -196,13 +199,14 @@ impl CryptoService {
         if let Some(k_str) = key {
             if !k_str.is_empty() {
                 // Determine algorithm from header (default to HS256)
-                let alg_str = header_json.get("alg")
+                let alg_str = header_json
+                    .get("alg")
                     .and_then(|v| v.as_str())
                     .unwrap_or("HS256");
 
                 let validation = jsonwebtoken::Validation::new(
                     self.parse_jwt_algorithm(alg_str)
-                        .unwrap_or(jsonwebtoken::Algorithm::HS256)
+                        .unwrap_or(jsonwebtoken::Algorithm::HS256),
                 );
 
                 let decoding_key = if alg_str.starts_with("HS") {
@@ -212,21 +216,31 @@ impl CryptoService {
                     jsonwebtoken::DecodingKey::from_rsa_pem(k_str.as_bytes())
                         .or_else(|_| jsonwebtoken::DecodingKey::from_ec_pem(k_str.as_bytes()))
                         .or_else(|_| jsonwebtoken::DecodingKey::from_ed_pem(k_str.as_bytes()))
-                        .unwrap_or_else(|_| jsonwebtoken::DecodingKey::from_secret(k_str.as_bytes()))
+                        .unwrap_or_else(|_| {
+                            jsonwebtoken::DecodingKey::from_secret(k_str.as_bytes())
+                        })
                 };
 
-                let verify_result: Result<jsonwebtoken::TokenData<HashMap<String, serde_json::Value>>, _> = 
-                    jsonwebtoken::decode(token, &decoding_key, &validation);
+                let verify_result: Result<
+                    jsonwebtoken::TokenData<HashMap<String, serde_json::Value>>,
+                    _,
+                > = jsonwebtoken::decode(token, &decoding_key, &validation);
 
                 match verify_result {
                     Ok(_) => {
                         if let Some(obj) = result.as_object_mut() {
-                            obj.insert("signatureVerified".to_string(), serde_json::Value::Bool(true));
+                            obj.insert(
+                                "signatureVerified".to_string(),
+                                serde_json::Value::Bool(true),
+                            );
                         }
                     }
                     Err(e) => {
                         if let Some(obj) = result.as_object_mut() {
-                            obj.insert("signatureError".to_string(), serde_json::Value::String(e.to_string()));
+                            obj.insert(
+                                "signatureError".to_string(),
+                                serde_json::Value::String(e.to_string()),
+                            );
                         }
                     }
                 }
@@ -264,10 +278,14 @@ mod tests {
     fn test_base64_encoding() {
         let service = CryptoService::new();
         let payload = "Hello World";
-        let encoded = service.process_crypto(CryptoAction::Base64Encode, payload, None, None).unwrap();
+        let encoded = service
+            .process_crypto(CryptoAction::Base64Encode, payload, None, None)
+            .unwrap();
         assert_eq!(encoded, "SGVsbG8gV29ybGQ=");
 
-        let decoded = service.process_crypto(CryptoAction::Base64Decode, &encoded, None, None).unwrap();
+        let decoded = service
+            .process_crypto(CryptoAction::Base64Decode, &encoded, None, None)
+            .unwrap();
         assert_eq!(decoded, payload);
     }
 
@@ -275,10 +293,14 @@ mod tests {
     fn test_hex_encoding() {
         let service = CryptoService::new();
         let payload = "Hello";
-        let encoded = service.process_crypto(CryptoAction::HexEncode, payload, None, None).unwrap();
+        let encoded = service
+            .process_crypto(CryptoAction::HexEncode, payload, None, None)
+            .unwrap();
         assert_eq!(encoded, "48656c6c6f");
 
-        let decoded = service.process_crypto(CryptoAction::HexDecode, &encoded, None, None).unwrap();
+        let decoded = service
+            .process_crypto(CryptoAction::HexDecode, &encoded, None, None)
+            .unwrap();
         assert_eq!(decoded, payload);
     }
 
@@ -286,10 +308,14 @@ mod tests {
     fn test_url_encoding() {
         let service = CryptoService::new();
         let payload = "hello world!?";
-        let encoded = service.process_crypto(CryptoAction::UrlEncode, payload, None, None).unwrap();
+        let encoded = service
+            .process_crypto(CryptoAction::UrlEncode, payload, None, None)
+            .unwrap();
         assert_eq!(encoded, "hello%20world%21%3F");
 
-        let decoded = service.process_crypto(CryptoAction::UrlDecode, &encoded, None, None).unwrap();
+        let decoded = service
+            .process_crypto(CryptoAction::UrlDecode, &encoded, None, None)
+            .unwrap();
         assert_eq!(decoded, payload);
     }
 
@@ -297,10 +323,17 @@ mod tests {
     fn test_sha256_and_hmac() {
         let service = CryptoService::new();
         let payload = "hello";
-        let sha = service.process_crypto(CryptoAction::Sha256, payload, None, None).unwrap();
-        assert_eq!(sha, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        let sha = service
+            .process_crypto(CryptoAction::Sha256, payload, None, None)
+            .unwrap();
+        assert_eq!(
+            sha,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
 
-        let hmac_res = service.process_crypto(CryptoAction::HmacSha256, payload, Some("key"), None).unwrap();
+        let hmac_res = service
+            .process_crypto(CryptoAction::HmacSha256, payload, Some("key"), None)
+            .unwrap();
         assert!(!hmac_res.is_empty());
     }
 
@@ -310,10 +343,14 @@ mod tests {
         let payload = "secret data";
         let key = "mysecretkey12345";
         let iv = "myinitialvector";
-        let encrypted = service.process_crypto(CryptoAction::AesEncrypt, payload, Some(key), Some(iv)).unwrap();
+        let encrypted = service
+            .process_crypto(CryptoAction::AesEncrypt, payload, Some(key), Some(iv))
+            .unwrap();
         assert!(!encrypted.is_empty());
 
-        let decrypted = service.process_crypto(CryptoAction::AesDecrypt, &encrypted, Some(key), Some(iv)).unwrap();
+        let decrypted = service
+            .process_crypto(CryptoAction::AesDecrypt, &encrypted, Some(key), Some(iv))
+            .unwrap();
         assert_eq!(decrypted, payload);
     }
 
@@ -345,6 +382,8 @@ mod tests {
         "#;
 
         assert!(service.validate_json_schema(valid_payload, schema).is_ok());
-        assert!(service.validate_json_schema(invalid_payload, schema).is_err());
+        assert!(service
+            .validate_json_schema(invalid_payload, schema)
+            .is_err());
     }
 }

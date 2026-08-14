@@ -10,8 +10,9 @@ pub const GET_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::Cli
     gui_only: false,
 };
 
-
-pub fn get_annotations_svc(service: &InspectorService) -> Result<ApiResponse<Vec<Annotation>>, String> {
+pub fn get_annotations_svc(
+    service: &InspectorService,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
     let list = service.get_all();
     Ok(ApiResponse {
         message: format!("{}개의 정책 조회 완료", list.len()),
@@ -32,7 +33,6 @@ pub const GET_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     category: "inspector",
     gui_only: false,
 };
-
 
 pub fn get_annotation_svc(
     service: &InspectorService,
@@ -65,8 +65,10 @@ pub const ADD_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliC
     gui_only: false,
 };
 
-
-pub fn add_annotation_svc(service: &InspectorService, payload: Annotation) -> Result<ApiResponse<Vec<Annotation>>, String> {
+pub fn add_annotation_svc(
+    service: &InspectorService,
+    payload: Annotation,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.add_annotation(payload);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -108,8 +110,10 @@ pub const UPDATE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn update_annotation_svc(service: &InspectorService, payload: UpdateAnnotationPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
+pub fn update_annotation_svc(
+    service: &InspectorService,
+    payload: UpdateAnnotationPayload,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.update_annotation(
         payload.id,
         payload.role,
@@ -138,8 +142,10 @@ pub const DELETE_ANNOTATION_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::C
     gui_only: false,
 };
 
-
-pub fn delete_annotation_svc(service: &InspectorService, payload: DeleteAnnotationPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
+pub fn delete_annotation_svc(
+    service: &InspectorService,
+    payload: DeleteAnnotationPayload,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.delete_annotation(payload.id);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -162,8 +168,10 @@ pub const IMPORT_ANNOTATIONS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::
     gui_only: false,
 };
 
-
-pub fn import_annotations_svc(service: &InspectorService, payload: ImportAnnotationsPayload) -> Result<ApiResponse<Vec<Annotation>>, String> {
+pub fn import_annotations_svc(
+    service: &InspectorService,
+    payload: ImportAnnotationsPayload,
+) -> Result<ApiResponse<Vec<Annotation>>, String> {
     service.import_annotations(payload.annotations);
     let list = service.get_all();
     Ok(ApiResponse {
@@ -183,8 +191,9 @@ pub const GET_INJECTION_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn get_injection_domains_svc(service: &InspectorService) -> Result<ApiResponse<Vec<String>>, String> {
+pub fn get_injection_domains_svc(
+    service: &InspectorService,
+) -> Result<ApiResponse<Vec<String>>, String> {
     let list = service.get_injection_domains();
     Ok(ApiResponse {
         message: "인젝션 도메인 목록 조회 완료".to_string(),
@@ -206,8 +215,10 @@ pub const SET_INJECTION_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cl
     gui_only: false,
 };
 
-
-pub fn set_injection_domains_svc(service: &InspectorService, payload: SetInjectionDomainsPayload) -> Result<ApiResponse<Vec<String>>, String> {
+pub fn set_injection_domains_svc(
+    service: &InspectorService,
+    payload: SetInjectionDomainsPayload,
+) -> Result<ApiResponse<Vec<String>>, String> {
     service.set_injection_domains(payload.domains);
     let list = service.get_injection_domains();
     Ok(ApiResponse {
@@ -230,7 +241,6 @@ pub const ADD_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli
     gui_only: false,
 };
 
-
 pub fn add_injection_domain_svc(
     service: &InspectorService,
     payload: SingleDomainPayload,
@@ -243,14 +253,14 @@ pub fn add_injection_domain_svc(
     })
 }
 
-pub const REMOVE_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
-    name: "remove_injection_domain",
-    description: "UI 인스펙터 스크립트 주입 도메인을 제거합니다.",
-    payload_example: r#"{"domain": "modetour.dev"}"#,
-    category: "inspector",
-    gui_only: false,
-};
-
+pub const REMOVE_INJECTION_DOMAIN_CLI_INFO: crate::cli::CliCommandInfo =
+    crate::cli::CliCommandInfo {
+        name: "remove_injection_domain",
+        description: "UI 인스펙터 스크립트 주입 도메인을 제거합니다.",
+        payload_example: r#"{"domain": "modetour.dev"}"#,
+        category: "inspector",
+        gui_only: false,
+    };
 
 pub fn remove_injection_domain_svc(
     service: &InspectorService,

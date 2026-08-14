@@ -46,21 +46,25 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
 
     // Migration from Watchtower (com.lurain.watchtower) to Horizon Gateway (com.lurain.horizon-gateway)
     // Robust check: check if domains.json does not exist in new location, but does in old location
-    let old_domains_path = dirs::data_dir()
-        .map(|base| base.join("com.lurain.watchtower").join("domains.json"));
+    let old_domains_path =
+        dirs::data_dir().map(|base| base.join("com.lurain.watchtower").join("domains.json"));
     let new_domains_path = app_data_dir.join("domains.json");
 
     if !new_domains_path.exists() {
         if let Some(old_path) = old_domains_path {
             if old_path.exists() {
-                if let Some(old_dir) = dirs::data_dir().map(|base| base.join("com.lurain.watchtower")) {
+                if let Some(old_dir) =
+                    dirs::data_dir().map(|base| base.join("com.lurain.watchtower"))
+                {
                     if !app_data_dir.exists() {
                         let _ = fs::create_dir_all(&app_data_dir);
                     }
                     if let Err(e) = copy_dir_all(&old_dir, &app_data_dir) {
                         eprintln!("Failed to copy app data directory: {e}");
                     } else {
-                        println!("Successfully migrated app data from Watchtower to Horizon Gateway.");
+                        println!(
+                            "Successfully migrated app data from Watchtower to Horizon Gateway."
+                        );
                     }
                 }
             }
@@ -68,7 +72,8 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     }
 
     if !app_data_dir.exists() {
-        fs::create_dir_all(&app_data_dir).map_err(|e| format!("failed to create app data dir: {e}"))?;
+        fs::create_dir_all(&app_data_dir)
+            .map_err(|e| format!("failed to create app data dir: {e}"))?;
     }
 
     crate::storage::migration::run_all(&app_data_dir);
@@ -115,8 +120,7 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     let tunnel_service = Arc::new(TunnelService::new());
     let usb_service = Arc::new(UsbService::new());
     let pipeline_library_service = Arc::new(PipelineLibraryService::new(pipelines_path));
-    let json_schema_registry_service =
-        Arc::new(JsonSchemaRegistryService::new(json_schemas_path));
+    let json_schema_registry_service = Arc::new(JsonSchemaRegistryService::new(json_schemas_path));
     let crypto_preset_service = Arc::new(CryptoPresetService::new(crypto_presets_path));
 
     monitor_service.sync_with_domains(&domain_service.get_all());
@@ -181,7 +185,6 @@ fn migrate_removed_global_toggles(
     }
     proxy_settings.seed_tls_defaults_if_needed(decrypt_hosts);
 }
-
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
     fs::create_dir_all(&dst)?;

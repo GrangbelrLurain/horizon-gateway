@@ -24,9 +24,10 @@ pub(crate) fn get_logging_config_for_host(
             continue;
         }
         if (*host_key == *key || host_key.ends_with(&format!(".{key}")))
-            && best.as_ref().map_or(0, |(k, _)| k.len()) < key.len() {
-                best = Some((key.clone(), *cfg));
-            }
+            && best.as_ref().map_or(0, |(k, _)| k.len()) < key.len()
+        {
+            best = Some((key.clone(), *cfg));
+        }
     }
     best.map(|(_, cfg)| cfg)
 }
@@ -75,15 +76,7 @@ fn host_matches_pattern(host: &str, pattern: &str) -> bool {
     host == pattern || host.ends_with(&format!(".{pattern}")) || host.contains(&pattern)
 }
 
-pub(crate) fn host_matches_key(host: &str, key: &str) -> bool {
-    let host = host_key_for_logging_map(host);
-    let key = host_key_for_logging_map(key);
-    if key.is_empty() {
-        return false;
-    }
-    host == key || host.ends_with(&format!(".{key}"))
-}
-
 pub(crate) fn host_in_list(host: &str, list: &[String]) -> bool {
-    list.iter().any(|pattern| host_matches_pattern(host, pattern))
+    list.iter()
+        .any(|pattern| host_matches_pattern(host, pattern))
 }

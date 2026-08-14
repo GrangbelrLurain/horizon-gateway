@@ -6,8 +6,8 @@ use axum::{
 };
 use std::sync::Arc;
 
-use super::pipeline::proxy_handler_inner;
 use super::super::state::ProxyState;
+use super::pipeline::proxy_handler_inner;
 
 pub(crate) async fn proxy_handler(
     state: State<Arc<ProxyState>>,

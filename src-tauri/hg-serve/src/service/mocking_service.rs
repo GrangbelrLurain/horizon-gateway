@@ -1,6 +1,6 @@
-use crate::model::scenario::Scenario;
 use crate::model::mock_rule::MockRule;
 use crate::model::mocking_settings::MockingSettings;
+use crate::model::scenario::Scenario;
 use crate::storage::versioned::{load_versioned, save_versioned};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -208,11 +208,7 @@ impl MockingService {
     }
 
     /// Merge by id: keep existing, add missing from import.
-    pub fn merge_scenarios_and_rules(
-        &self,
-        scenarios: Vec<Scenario>,
-        mock_rules: Vec<MockRule>,
-    ) {
+    pub fn merge_scenarios_and_rules(&self, scenarios: Vec<Scenario>, mock_rules: Vec<MockRule>) {
         {
             let mut list = self.scenarios.lock().unwrap();
             for incoming in scenarios {
@@ -247,19 +243,21 @@ impl MockingService {
             .collect()
     }
 
-fn sanitize_headers(mut headers: std::collections::HashMap<String, String>) -> std::collections::HashMap<String, String> {
-    headers.retain(|k, _| {
-        let k_lower = k.trim().to_lowercase();
-        k_lower != "content-encoding"
-            && k_lower != "content-length"
-            && k_lower != "transfer-encoding"
-            && k_lower != "connection"
-            && k_lower != "keep-alive"
-            && k_lower != "content-range"
-            && k_lower != "accept-ranges"
-    });
-    headers
-}
+    fn sanitize_headers(
+        mut headers: std::collections::HashMap<String, String>,
+    ) -> std::collections::HashMap<String, String> {
+        headers.retain(|k, _| {
+            let k_lower = k.trim().to_lowercase();
+            k_lower != "content-encoding"
+                && k_lower != "content-length"
+                && k_lower != "transfer-encoding"
+                && k_lower != "connection"
+                && k_lower != "keep-alive"
+                && k_lower != "content-range"
+                && k_lower != "accept-ranges"
+        });
+        headers
+    }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_mock_rule(
@@ -362,8 +360,8 @@ fn sanitize_headers(mut headers: std::collections::HashMap<String, String>) -> s
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::collections::HashMap;
+    use tempfile::tempdir;
 
     #[test]
     fn test_mocking_service_scenarios() {
@@ -388,7 +386,14 @@ mod tests {
         assert!(scenarios.iter().any(|s| s.id == s1.id));
 
         // Update
-        let updated = service.update_scenario(s1.id.clone(), Some("Updated Scenario".to_string()), None, None).unwrap();
+        let updated = service
+            .update_scenario(
+                s1.id.clone(),
+                Some("Updated Scenario".to_string()),
+                None,
+                None,
+            )
+            .unwrap();
         assert_eq!(updated.name, "Updated Scenario");
         assert_eq!(updated.description.as_deref(), Some("Desc 1")); // Unchanged
 
@@ -435,17 +440,19 @@ mod tests {
         assert_eq!(rules.len(), 1);
 
         // Update
-        let updated = service.update_mock_rule(
-            rule.id.clone(),
-            None,
-            None,
-            None,
-            Some("/api/test2".to_string()),
-            Some(201),
-            None,
-            None,
-            Some(false),
-        ).unwrap();
+        let updated = service
+            .update_mock_rule(
+                rule.id.clone(),
+                None,
+                None,
+                None,
+                Some("/api/test2".to_string()),
+                Some(201),
+                None,
+                None,
+                Some(false),
+            )
+            .unwrap();
 
         assert_eq!(updated.url_pattern, "/api/test2");
         assert_eq!(updated.response_status, 201);
