@@ -7,16 +7,18 @@ on:
       - 'website/**'
       - 'docs/**'
       - 'README.md'
-      - 'README.en.md'
+      - 'README.ko.md'
       - 'CHANGELOG.md'
+      - 'CHANGELOG.ko.md'
   pull_request:
     branches: [main]
     paths-ignore:
       - 'website/**'
       - 'docs/**'
       - 'README.md'
-      - 'README.en.md'
+      - 'README.ko.md'
       - 'CHANGELOG.md'
+      - 'CHANGELOG.ko.md'
 
 jobs:
   frontend:
