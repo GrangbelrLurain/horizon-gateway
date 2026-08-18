@@ -139,17 +139,45 @@ For number fields in settings, add `className="h-9 text-sm w-full"` when slightl
 
 | File | Role |
 |------|------|
+| `src/global.css` | Build-time DaisyUI theme registration (`@plugin daisyui/theme`) |
 | `src/entities/app/theme/presets.ts` | Default dark/light themes (`baseFontSize: 13`, `lineHeight: 1.4`) |
-| `src/entities/app/theme/applyTheme.ts` | Injects CSS variables into document |
+| `src/entities/app/theme/applyTheme.ts` | Runtime CSS variable injection + `data-theme` |
 | `src/entities/app/theme/store.ts` | Active theme persistence |
+| `src/routes/__root.tsx` | App-wide `applyThemeToDocument` on active theme changes |
 | `src/features/theme-editor/ui/ThemeEditorPanel.tsx` | User theme editor |
 
-### How theme injection works
+### Theme Token Injection
 
-1. `applyThemeToDocument(theme)` sets `data-theme="<theme.id>"` on `<html>`.
-2. A `<style id="custom-active-theme">` tag injects variables into **both** `:root` and `[data-theme="<id>"]`.
-3. This avoids DaisyUI 5 `@layer` specificity races between compiled and dynamic themes.
-4. Injected vars include `--color-primary`, `--color-base-100`…`300`, `--color-base-content`, `--font-sans`, plus root `font-size`, `font-weight`, `line-height`.
+#### Architecture
+
+1. **Build time:** `src/global.css` lists `horizon-gateway-light` / `horizon-gateway-dark` in `@plugin "daisyui"` and defines full token sets (including every `*-content` pair and `color-scheme`) via `@plugin "daisyui/theme"`.
+2. **Runtime:** `applyThemeToDocument()` runs from `src/routes/__root.tsx` whenever the active theme changes. It resolves a **compiled DaisyUI theme id**, sets `data-theme` on `<html>`, and injects overrides through `#custom-active-theme` on both `:root` and `[data-theme="<compiled-id>"]`.
+
+#### Root causes fixed (v2.8.0)
+
+- **No app-wide apply:** Theme injection was not guaranteed on every route until `__root.tsx` subscribed to the active theme and called `applyThemeToDocument`.
+- **Missing `-content` tokens:** Compiled themes omitted semantic `*-content` variables, so text/icon colors did not match design tokens.
+- **Wrong `data-theme` id:** Runtime used user `custom-theme-*` ids on `data-theme`, but only `horizon-gateway-light` / `horizon-gateway-dark` exist in the compiled DaisyUI theme list, so selectors never matched.
+
+#### Rules for agents
+
+- Set `data-theme` on `<html>` to **`horizon-gateway-light`** or **`horizon-gateway-dark`** only (use `resolveDaisyThemeId()` in `applyTheme.ts`; built-in presets use their own id; custom themes map from `theme.base`).
+- **Never** put `custom-theme-*` or other user-defined ids on `data-theme`.
+- When editing compiled themes in `global.css`, add **both** base colors and matching **`-content`** tokens, plus `color-scheme`.
+- Keep runtime overrides on `:root` and `[data-theme="<compiled-id>"]` with `!important` unless DaisyUI layering is re-audited.
+
+#### Known follow-ups
+
+- **FOUC in `index.html`:** First paint may flash before React runs `applyThemeToDocument`; consider an inline boot snippet or persisted theme snapshot.
+- **LivePreviewer sync:** Theme editor live preview should mirror the same compiled-id + injection path as production.
+
+### How theme injection works (runtime)
+
+1. `resolveDaisyThemeId(theme)` returns `horizon-gateway-light` or `horizon-gateway-dark` (custom themes follow `theme.base`, not `theme.id`).
+2. `document.documentElement.setAttribute("data-theme", daisyThemeId)`.
+3. `#custom-active-theme` injects variables into `:root` and `[data-theme="<daisyThemeId>"]`.
+4. Injected declarations use `!important` to avoid DaisyUI 5 `@layer` specificity races between compiled and dynamic themes.
+5. Injected vars include `--color-primary`, `*-content` pairs, `--color-base-100`–`300`, `--color-base-content`, `--font-sans`, and root `font-size`, `font-weight`, `line-height`.
 
 ### Default preset IDs
 
@@ -157,9 +185,6 @@ For number fields in settings, add `className="h-9 text-sm w-full"` when slightl
 - Light: `horizon-gateway-light`
 
 When editing typography in presets, update **both** default themes unless intentionally diverging.
-
----
-
 ## 6. Settings page checklist
 
 When adding a new settings section:
