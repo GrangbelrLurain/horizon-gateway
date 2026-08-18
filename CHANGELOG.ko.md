@@ -4,6 +4,16 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.8.1] - 2026-08-18
+
+### Fixed (버그 수정)
+
+- **레거시 데이터 마이그레이션**: Watchtower → Horizon Gateway 마이그레이션이 새 `domains.json`이 이미 존재해도 hostname 기반으로 병합하도록 개선했습니다. 기존 스토어에 없는 hostname은 새 ID를 부여해 추가하고, 중복 hostname은 그대로 유지합니다. 도메인 외 다른 설정 파일(그룹, 라우트, mock 규칙 등)은 대상 디렉터리에 없을 때만 복사합니다.
+- **마이그레이션 후 정리**: 마이그레이션 완료 후 기존 `com.lurain.watchtower` 디렉터리를 `com.lurain.watchtower.migrated`로 이름 변경하여 중복 마이그레이션 및 구 데이터 참조를 방지합니다.
+- **Pull 시 도메인 ID 충돌**: 워크스페이스 Pull 시 원격 도메인 ID가 로컬 ID와 겹쳐 도메인 목록이 손상되던 문제를 수정했습니다. 새로 가져오는 도메인에는 빈 로컬 ID를 할당합니다.
+- **Pull 후 동기화 패널 미갱신**: push/pull/서버 편집 후 카운터만 증가시키고 스냅샷을 리로드하지 않아 UI가 수동 새로고침 전까지 갱신되지 않던 문제를 수정했습니다.
+- **Pull 시 도메인 전체 삭제**: `importAllSettings` IPC 디스패치가 Tauri 인자 래퍼 `{ payload, mode }` 전체를 `SettingsExport`로 역직렬화해, `domains`·`groups` 등 모든 필드가 빈 배열로 초기화되어 Pull 때마다 모든 데이터가 삭제되던 문제를 수정했습니다. 이제 inner `payload` 객체와 `mode` 문자열을 올바르게 분리해 처리합니다.
+
 ## [v2.8.0] - 2026-08-18
 
 ### Added (추가 기능)
