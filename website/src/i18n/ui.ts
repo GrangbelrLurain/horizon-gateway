@@ -9,16 +9,16 @@ export const ui = {
   ko: {
     "nav.home": "Home",
     "nav.changelog": "변경 이력",
-    "hero.badge": "v2.8.0 릴리즈",
+    "hero.badge": "v2.8.1 릴리즈",
     "hero.title.pre": "당신의 로컬 개발 인프라를",
     "hero.title.post": "지키는 관측소, ",
     "hero.subtitle":
-      "도메인 헬스체크, 로컬 MITM 프록시, API 모킹, 모바일 터널링까지. 개발 생산성을 극대화하기 위해 복잡한 인프라 도구를 단 하나의 데스크톱 앱으로 통합했습니다.",
+      "도메인 헬스체크, 로컬 MITM 프록시, API 모킹, UI 가이드 인스펙터, 모바일 터널링까지. 개발 생산성을 극대화하기 위해 복잡한 인프라 도구를 단 하나의 데스크톱 앱으로 통합했습니다.",
     "hero.download.win": "Windows용 다운로드",
     "hero.download.mac": "macOS용 다운로드",
     "hero.download.all": "모든 설치 파일 보기",
-    "hero.download.sub.win": "Download .msi (v2.8.0)",
-    "hero.download.sub.mac": "Download .dmg (v2.8.0)",
+    "hero.download.sub.win": "Download .msi (v2.8.1)",
+    "hero.download.sub.mac": "Download .dmg (v2.8.1)",
     "hero.download.sub.all": "View All Installers",
     "features.title": "로컬 인프라 제어의 ",
     "features.title.accent": "핵심 기능",
@@ -32,9 +32,9 @@ export const ui = {
     "features.api.title": "OpenAPI 및 모킹",
     "features.api.desc":
       "불러온 OpenAPI 스펙의 구조를 파악하고 모킹 규칙을 세부 정의합니다. 응답 헤더, 상태 코드, JSON 본문을 임의로 조작하여 클라이언트를 유연하게 테스트합니다.",
-    "features.mobile.title": "디버그 주입 & 모바일",
+    "features.mobile.title": "UI 인스펙터 & 모바일",
     "features.mobile.desc":
-      "모바일 브라우저에 원격 디버그 스크립트를 주입하고 터널링(Tailscale, Cloudflare)을 사용해 외부 인터넷에 노출함으로써 간편한 하이브리드 모바일 연동을 돕습니다.",
+      "라이브 캡처로 웹 화면에 UI 정책을 시각적으로 주입하고, ADB 포트 포워딩 및 터널링(Tailscale, Cloudflare)으로 모바일 기기까지 손쉽게 연동합니다.",
     "features.mobile.connect": "ADB 연결",
     "features.mobile.tunnel": "터널 활성화",
     "terminal.badge": "AI 에이전트 통합",
@@ -42,7 +42,7 @@ export const ui = {
     "terminal.title.accent": "CLI 명령어",
     "terminal.title.post": " 인터페이스",
     "terminal.desc":
-      "Horizon Gateway는 GUI 외에도 터미널 명령어를 지원하여 Cursor, Gemini, Claude와 같은 AI 에이전트와 완벽하게 통합됩니다. 에이전트가 로컬 개발 서버와 도메인 구성을 직접 인지하고 제어하도록 만들어 보세요.",
+      "Horizon Gateway는 GUI 외에도 전용 CLI 클라이언트(hgc)를 지원하여 Cursor, Gemini, Claude와 같은 AI 에이전트와 완벽하게 통합됩니다. 에이전트가 로컬 개발 서버와 도메인 구성을 직접 인지하고 제어하도록 만들어 보세요.",
     "perf.title": "Rust & Tauri 2 기반의 ",
     "perf.title.accent": "가벼움과 고성능",
     "perf.subtitle": "웹뷰 패키징의 무거움을 덜어내고 네이티브 수준의 속도와 안정성을 보장합니다.",
@@ -68,16 +68,16 @@ export const ui = {
   en: {
     "nav.home": "Home",
     "nav.changelog": "Changelog",
-    "hero.badge": "v2.8.0 Release",
+    "hero.badge": "v2.8.1 Release",
     "hero.title.pre": "The local dev-infra",
     "hero.title.post": "control center, ",
     "hero.subtitle":
-      "From domain health check, local MITM proxy, and API mocking to mobile tunneling. We integrated complex dev-infra tools into a single desktop application to maximize your productivity.",
+      "From domain health check, local MITM proxy, and API mocking to UI policy inspector and mobile tunneling. We integrated complex dev-infra tools into a single desktop application to maximize your productivity.",
     "hero.download.win": "Download for Windows",
     "hero.download.mac": "Download for macOS",
     "hero.download.all": "View All Releases",
-    "hero.download.sub.win": "Download .msi (v2.8.0)",
-    "hero.download.sub.mac": "Download .dmg (v2.8.0)",
+    "hero.download.sub.win": "Download .msi (v2.8.1)",
+    "hero.download.sub.mac": "Download .dmg (v2.8.1)",
     "hero.download.sub.all": "View All Installers",
     "features.title": "Core features of ",
     "features.title.accent": "Infra Control",
@@ -91,9 +91,9 @@ export const ui = {
     "features.api.title": "OpenAPI & Mocking",
     "features.api.desc":
       "Inspect OpenAPI schema trees and define mocking rules. Manipulate headers, status codes, and JSON bodies to test clients flexibly.",
-    "features.mobile.title": "Debug Injection & Mobile",
+    "features.mobile.title": "UI Inspector & Mobile",
     "features.mobile.desc":
-      "Inject remote debug scripts into mobile browsers and expose local environments to the internet with Tailscale or Cloudflare tunnels.",
+      "Visually inject UI policies into live web apps, and seamlessly connect mobile devices via ADB port forwarding and secure tunneling (Tailscale, Cloudflare).",
     "features.mobile.connect": "ADB Connected",
     "features.mobile.tunnel": "Tunnel Active",
     "terminal.badge": "AI Agent Integration",
@@ -101,7 +101,7 @@ export const ui = {
     "terminal.title.accent": "CLI Command",
     "terminal.title.post": " Interface",
     "terminal.desc":
-      "Horizon Gateway supports terminal commands to integrate seamlessly with AI coding assistants like Cursor, Gemini, and Claude. Let the agent recognize and control local configs.",
+      "Horizon Gateway supports a dedicated CLI client (hgc) for seamless integration with AI coding assistants like Cursor, Gemini, and Claude. Let AI agents control your local proxy routes and mocking directly.",
     "perf.title": "Rust & Tauri 2 Powered ",
     "perf.title.accent": "Light & Fast",
     "perf.subtitle": "Discard heavy webview packaging. Enjoy native-level speeds and resource footprint.",
