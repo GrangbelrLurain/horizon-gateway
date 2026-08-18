@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 
 type State = Pick<
@@ -21,11 +22,11 @@ export function PrxPopover({ s }: { s: State }) {
         bottom: `${s.dragOffset.y + 48}px`,
         width: "380px",
         maxHeight: "65vh",
-        backgroundColor: "rgba(15, 23, 42, 0.98)",
+        backgroundColor: "var(--wt-bg-panel)",
         borderRadius: "16px",
         border: "1px solid rgba(16, 185, 129, 0.4)",
-        boxShadow: "0 20px 50px -10px rgba(0,0,0,0.7), 0 0 20px rgba(16, 185, 129, 0.15)",
-        color: "white",
+        boxShadow: "var(--wt-shadow)",
+        color: "var(--wt-text-main)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -37,7 +38,7 @@ export function PrxPopover({ s }: { s: State }) {
       <div
         style={{
           padding: "10px 14px",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          borderBottom: "1px solid var(--wt-border)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -65,14 +66,17 @@ export function PrxPopover({ s }: { s: State }) {
           style={{
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.6)",
+            color: "var(--wt-text-muted)",
             cursor: "pointer",
-            fontSize: "14px",
-            padding: "2px 6px",
+            padding: "2px 4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "4px",
           }}
           title="닫기"
         >
-          ✕
+          <X style={{ width: "16px", height: "16px" }} />
         </button>
       </div>
       <div
@@ -90,14 +94,19 @@ export function PrxPopover({ s }: { s: State }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "rgba(255,255,255,0.05)",
+            backgroundColor: "var(--wt-bg-card)",
             padding: "8px 12px",
             borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid var(--wt-border)",
           }}
         >
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>프록시 연결 상태</span>
-          <span style={{ fontWeight: "700", color: s.status.proxy ? "#10b981" : "#ef4444" }}>
+          <span style={{ color: "var(--wt-text-muted)" }}>프록시 연결 상태</span>
+          <span
+            style={{
+              fontWeight: "700",
+              color: s.status.proxy ? "var(--color-success, #10b981)" : "var(--color-error, #ef4444)",
+            }}
+          >
             {s.status.proxy ? "● ACTIVE (정상)" : "○ INACTIVE (비활성)"}
           </span>
         </div>
@@ -106,14 +115,14 @@ export function PrxPopover({ s }: { s: State }) {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "rgba(255,255,255,0.05)",
+            backgroundColor: "var(--wt-bg-card)",
             padding: "8px 12px",
             borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid var(--wt-border)",
           }}
         >
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>중계된 총 트래픽 수</span>
-          <span style={{ fontWeight: "700", color: "#f3f4f6" }}>{s.status.proxyCount ?? 0}건</span>
+          <span style={{ color: "var(--wt-text-muted)" }}>중계된 총 트래픽 수</span>
+          <span style={{ fontWeight: "700", color: "var(--wt-text-main)" }}>{s.status.proxyCount ?? 0}건</span>
         </div>
 
         <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -128,9 +137,9 @@ export function PrxPopover({ s }: { s: State }) {
                 type="button"
                 onClick={() => s.setShowAllProxyRoutes(!s.showAllProxyRoutes)}
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  color: "#38bdf8",
+                  backgroundColor: "var(--wt-bg-subtle)",
+                  border: "1px solid var(--wt-border)",
+                  color: "var(--color-primary, #38bdf8)",
                   fontSize: "9px",
                   fontWeight: "700",
                   padding: "2px 6px",
@@ -144,7 +153,7 @@ export function PrxPopover({ s }: { s: State }) {
           </div>
 
           {s.matchedProxyRoutes.length === 0 ? (
-            <div style={{ padding: "12px", textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: "11px" }}>
+            <div style={{ padding: "12px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "11px" }}>
               {s.showAllProxyRoutes
                 ? "등록된 로컬 프록시 라우트가 없습니다."
                 : `현재 도메인(${window.location.hostname})에 매칭되는 라우트가 없습니다.`}
@@ -154,10 +163,10 @@ export function PrxPopover({ s }: { s: State }) {
               <div
                 key={route.id}
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.05)",
+                  backgroundColor: "var(--wt-bg-card)",
                   borderRadius: "8px",
                   padding: "8px 10px",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid var(--wt-border)",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -168,7 +177,7 @@ export function PrxPopover({ s }: { s: State }) {
                     style={{
                       fontWeight: "700",
                       fontSize: "11px",
-                      color: "#f3f4f6",
+                      color: "var(--wt-text-main)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -176,7 +185,7 @@ export function PrxPopover({ s }: { s: State }) {
                   >
                     {route.domain}
                   </span>
-                  <span style={{ fontSize: "10px", color: "#38bdf8", fontFamily: "monospace" }}>
+                  <span style={{ fontSize: "10px", color: "var(--color-primary, #38bdf8)", fontFamily: "monospace" }}>
                     ➔ {route.target_host}:{route.target_port}
                   </span>
                 </div>
@@ -185,9 +194,9 @@ export function PrxPopover({ s }: { s: State }) {
                   type="button"
                   onClick={() => s.handleToggleProxyRoute(route.id, !route.enabled)}
                   style={{
-                    backgroundColor: route.enabled ? "rgba(16, 185, 129, 0.2)" : "rgba(255,255,255,0.1)",
-                    border: `1px solid ${route.enabled ? "#10b981" : "rgba(255,255,255,0.2)"}`,
-                    color: route.enabled ? "#10b981" : "rgba(255,255,255,0.5)",
+                    backgroundColor: route.enabled ? "rgba(16, 185, 129, 0.15)" : "var(--wt-bg-subtle)",
+                    border: `1px solid ${route.enabled ? "#10b981" : "var(--wt-border)"}`,
+                    color: route.enabled ? "#10b981" : "var(--wt-text-muted)",
                     fontSize: "10px",
                     fontWeight: "800",
                     padding: "2px 8px",

@@ -67,49 +67,46 @@ function hubTheme() {
 }
 
 function overlayTheme() {
-  return EditorView.theme(
-    {
-      "&": {
-        height: "100%",
-        minHeight: "0",
-        maxHeight: "100%",
-        fontSize: "12px",
-        fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
-        color: "#f8fafc",
-        backgroundColor: "rgba(15, 23, 42, 0.6)",
-        overflow: "hidden",
-      },
-      "&.cm-focused": { outline: "none" },
-      ".cm-scroller": {
-        overflow: "auto",
-        fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
-        lineHeight: "1.6",
-        height: "100%",
-        minHeight: "0",
-      },
-      ".cm-gutters": {
-        backgroundColor: "transparent",
-        color: "rgba(255, 255, 255, 0.25)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
-        paddingRight: "6px",
-      },
-      ".cm-activeLineGutter": {
-        backgroundColor: "transparent",
-        color: "#60a5fa",
-      },
-      ".cm-content": {
-        padding: "10px 12px",
-        caretColor: "#38bdf8",
-      },
-      ".cm-line": { padding: "0" },
-      ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#38bdf8", borderLeftWidth: "2px" },
-      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-        backgroundColor: "rgba(59, 130, 246, 0.38)",
-      },
-      ".cm-activeLine": { backgroundColor: "rgba(255, 255, 255, 0.03)" },
+  return EditorView.theme({
+    "&": {
+      height: "100%",
+      minHeight: "0",
+      maxHeight: "100%",
+      fontSize: "12px",
+      fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
+      color: "var(--wt-text-main, #f8fafc)",
+      backgroundColor: "var(--wt-bg-card, rgba(15, 23, 42, 0.6))",
+      overflow: "hidden",
     },
-    { dark: true },
-  );
+    "&.cm-focused": { outline: "none" },
+    ".cm-scroller": {
+      overflow: "auto",
+      fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
+      lineHeight: "1.6",
+      height: "100%",
+      minHeight: "0",
+    },
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      color: "var(--wt-text-faint, rgba(255, 255, 255, 0.25))",
+      borderRight: "1px solid var(--wt-border-translucent, rgba(255, 255, 255, 0.08))",
+      paddingRight: "6px",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "transparent",
+      color: "var(--color-primary, #60a5fa)",
+    },
+    ".cm-content": {
+      padding: "10px 12px",
+      caretColor: "var(--color-accent, #38bdf8)",
+    },
+    ".cm-line": { padding: "0" },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--color-accent, #38bdf8)", borderLeftWidth: "2px" },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+      backgroundColor: "var(--wt-bg-active, rgba(59, 130, 246, 0.38))",
+    },
+    ".cm-activeLine": { backgroundColor: "var(--wt-bg-subtle, rgba(255, 255, 255, 0.03))" },
+  });
 }
 
 export const GuideMarkdownEditor = forwardRef<
@@ -346,8 +343,8 @@ export const GuideMarkdownEditor = forwardRef<
                 minHeight: 0,
                 overflow: "hidden",
                 borderRadius: "10px",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
+                border: "1px solid var(--wt-border)",
+                backgroundColor: "var(--wt-bg-card)",
               }
             : undefined
         }
@@ -376,9 +373,10 @@ export const GuideMarkdownEditor = forwardRef<
                   maxHeight: "55%",
                   overflowY: "auto",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.14)",
-                  background: "rgba(15, 23, 42, 0.98)",
-                  boxShadow: "0 12px 28px rgba(0,0,0,0.45)",
+                  border: "1px solid var(--wt-border)",
+                  background: "var(--wt-bg-panel)",
+                  color: "var(--wt-text-main)",
+                  boxShadow: "var(--wt-shadow)",
                 }
               : undefined
           }

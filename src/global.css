@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: horizon-gateway-light --default, horizon-gateway-dark --prefersdark;
+  themes:
+    horizon-gateway-light --default,
+    horizon-gateway-dark --prefersdark;
 }
 
 @plugin "daisyui/theme" {
@@ -27,6 +29,14 @@
   --color-warning-content: #ffffff;
   --color-error: #ef4444;
   --color-error-content: #ffffff;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
 @plugin "daisyui/theme" {
@@ -53,6 +63,14 @@
   --color-warning-content: #020617;
   --color-error: #f87171;
   --color-error-content: #020617;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
 html,

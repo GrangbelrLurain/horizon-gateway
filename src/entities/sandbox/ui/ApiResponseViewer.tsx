@@ -194,41 +194,45 @@ export function ApiResponseViewer({
 
   if (loading) {
     return (
-      <Card className={`p-5 bg-base-100 border-base-300 shadow-sm flex flex-col ${heightClass}`}>
-        <h3 className="font-semibold text-lg text-base-content/85 mb-3 shrink-0">{t.response}</h3>
-        <div className="flex-1 flex flex-col items-center justify-center space-y-3 min-h-[240px]">
-          <span className="loading loading-spinner loading-md text-primary" />
-          <span className="text-xs text-base-content/60">{t.sending}</span>
-        </div>
-      </Card>
+      <section className={`space-y-2 min-w-0 flex flex-col ${heightClass}`}>
+        <h2 className="text-sm font-semibold text-base-content">{t.response}</h2>
+        <Card className="p-5 flex flex-col flex-1 min-h-0">
+          <div className="flex-1 flex flex-col items-center justify-center space-y-3 min-h-[240px]">
+            <span className="loading loading-spinner loading-md text-primary" />
+            <span className="text-xs text-base-content/60">{t.sending}</span>
+          </div>
+        </Card>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <Card className={`p-5 bg-base-100 border-base-300 shadow-sm flex flex-col ${heightClass}`}>
-        <h3 className="font-semibold text-lg text-base-content/85 mb-3 shrink-0">{t.response}</h3>
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-error/10 border border-error/20 rounded-lg text-error space-y-2 min-h-[240px]">
+      <section className={`space-y-2 min-w-0 flex flex-col ${heightClass}`}>
+        <h2 className="text-sm font-semibold text-base-content">{t.response}</h2>
+        <Card className="p-5 flex flex-col flex-1 min-h-0 items-center justify-center text-error bg-error/5 min-h-[240px] space-y-2">
           <AlertTriangle className="w-8 h-8" />
           <span className="text-sm font-semibold">{error}</span>
-        </div>
-      </Card>
+        </Card>
+      </section>
     );
   }
 
   if (!response) {
     return (
-      <Card className={`p-5 bg-base-100 border-base-300 shadow-sm flex flex-col ${heightClass}`}>
-        <h3 className="font-semibold text-lg text-base-content/85 mb-3 shrink-0">{t.response}</h3>
-        <div className="flex-1 flex items-center justify-center text-base-content/40 italic text-sm min-h-[240px]">
-          요청을 보내면 여기에 응답 결과가 출력됩니다.
-        </div>
-      </Card>
+      <section className={`space-y-2 min-w-0 flex flex-col ${heightClass}`}>
+        <h2 className="text-sm font-semibold text-base-content">{t.response}</h2>
+        <Card className="p-5 flex flex-col flex-1 min-h-0">
+          <div className="flex-1 flex items-center justify-center text-base-content/40 italic text-sm min-h-[240px]">
+            요청을 보내면 여기에 응답 결과가 출력됩니다.
+          </div>
+        </Card>
+      </section>
     );
   }
 
   const metaBar: ReactNode = showMetaBar ? (
-    <div className="flex items-center gap-4 bg-base-200/50 p-2 rounded-lg text-xs mb-3 shrink-0">
+    <div className="flex items-center gap-4 px-4 pt-3 text-xs shrink-0">
       <span className="flex items-center gap-1.5 font-medium">
         {t.responseStatus}:
         <Badge variant={{ color: getStatusColor(response.statusCode), size: "sm" }} className="font-black tabular-nums">

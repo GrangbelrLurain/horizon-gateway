@@ -4,6 +4,30 @@
 
 이 형식은 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)를 기반으로 합니다.
 
+## [v2.8.0] - 2026-08-18
+
+### Added (추가 기능)
+
+- **도메인 일괄 IPC (Bulk domain IPC)**: `remove_domains`, `set_domain_groups`, `set_domain_api_logging`, `remove_domain_api_logging`, `update_local_route`, `set_https_decrypt_host`에 일괄 처리(`ids`/`domainIds`/`hosts`)를 지원하여 한 번의 IPC 호출로 다수 도메인을 처리합니다.
+- **업데이트 전환 (`prepare_for_update`)**: GUI가 serve 사이드카 프로세스를 정상 종료 후 대기하여 Windows 파일 락 충돌을 방지합니다.
+- **Serve 수명주기 이벤트**: `serve-ready` 및 `backend-unavailable` 이벤트를 도입하여 백엔드 재연결 시 부트스트랩 및 구독을 자동으로 재시도합니다.
+- **가이드 기능 카탈로그 & 링크**: `[[` 별칭을 확장하여 마크다운에서 `hg://domain/:id/:panel` 및 글로벌 도구를 직접 연결합니다.
+- **인스펙터 전면 테마 토큰화 & 프록시 테마 동기화**: 인스펙터의 모든 컴포넌트(가이드, 모달, 팝오버, JSON/헤더 뷰어, 플로팅 핀, 에디터)에 CSS 테마 토큰 변수를 적용하고, `/.horizon-gateway/api/theme` 및 `theme.json` 영속화를 통해 실시간 테마 동기화를 지원합니다.
+- **PAC TLS 바이패스 목록**: 생성된 PAC 스크립트가 설정된 `tlsBypassHosts`를 준수하도록 확장했습니다.
+- **기본 TLS 바이패스 시드**: Teams, Slack, Zoom, Discord 등의 업무 도구 호스트를 기본 포함합니다.
+
+### Changed (변경 사항)
+
+- **인스펙터 SVG 아이콘 통일**: 텍스트 및 이모지 아이콘을 Lucide SVG 아이콘으로 교체하고 접힘 모드 로고를 미니멀 아이콘으로 정비했습니다.
+- **커스텀 테마 (DaisyUI 5)**: `:root` 및 `[data-theme="<id>"]`에 CSS 변수를 동적 주입하여 컴파일된 테마와의 우선순위 충돌을 방지했습니다.
+- **기본 타이포그래피**: 라이트/다크 기본 프리셋의 기본 폰트 크기 13px, 줄 간격 1.4로 조정했습니다.
+- **설정 UI & 프록시 설정**: 카드 외부 섹션 타이틀 레이아웃(`watchtower-ui`)과 여백 리듬을 정비했습니다.
+
+### Fixed (버그 수정)
+
+- **GUI 시작 경쟁 상태**: 초기 앱 데이터 로드 실패 시 백오프 재시도를 수행하여 serve 준비 완료 시 정상 복구됩니다.
+- **어노테이션 무한 폴링 방지**: SSE 스트림 안정화 및 브라우저 캐시 방지 헤더/쿼리를 강화했습니다.
+
 ## [v2.7.10] - 2026-08-14
 
 ### Added (추가 기능)

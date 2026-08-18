@@ -2,6 +2,8 @@ import { Check, Copy } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
+import { JsonTreeView } from "@/shared/ui/json-tree-view";
+import { SegmentedTabs, type TabItem } from "@/shared/ui/tabs";
 import { formatHttpBody } from "../lib/formatHttpBody";
 
 export interface ApiHttpMessageViewerLabels {
@@ -57,6 +59,18 @@ export function ApiHttpMessageViewer({
   const formattedBody = useMemo(() => formatHttpBody(body), [body]);
   const headerCount = Object.keys(headers).length;
 
+  const tabItems = useMemo<TabItem[]>(
+    () => [
+      { id: "body", label: labels.body },
+      { id: "headers", label: labels.headers, badge: headerCount > 0 ? headerCount : undefined },
+      ...additionalTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+      })),
+    ],
+    [labels.body, labels.headers, headerCount, additionalTabs],
+  );
+
   const handleCopyTab = async () => {
     let text = "";
     if (resolvedTab === "body") {
@@ -82,9 +96,9 @@ export function ApiHttpMessageViewer({
   };
 
   return (
-    <Card className={`p-5 bg-base-100 border-base-300 shadow-sm flex flex-col min-w-0 ${heightClass}`}>
-      <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
-        <h3 className="font-semibold text-lg text-base-content/85">{title}</h3>
+    <section className={`flex flex-col space-y-2 min-w-0 ${heightClass}`}>
+      <div className="flex items-start justify-between gap-3 shrink-0">
+        <h2 className="text-sm font-semibold text-base-content">{title}</h2>
         <div className="flex items-center gap-2 shrink-0">
           {enableCopy && (
             <Button
@@ -102,69 +116,53 @@ export function ApiHttpMessageViewer({
         </div>
       </div>
 
-      {metaBar}
+      <Card className="p-0 flex flex-col min-w-0 flex-1 min-h-0 overflow-hidden">
+        {metaBar}
 
-      <div className="tabs tabs-lifted mb-2 shrink-0">
-        <button
-          type="button"
-          className={`tab tab-sm font-medium ${resolvedTab === "body" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("body")}
+        <div className="px-4 pt-2.5 pb-0.5 shrink-0">
+          <SegmentedTabs value={resolvedTab} onChange={setActiveTab} items={tabItems} size="sm" />
+        </div>
+
+        <div
+          className={`flex-1 p-3 font-mono text-xs [scrollbar-gutter:stable] overflow-y-auto overflow-x-auto ${bodyPanelHeightClass}`}
         >
-          {labels.body}
-        </button>
-        <button
-          type="button"
-          className={`tab tab-sm font-medium ${resolvedTab === "headers" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("headers")}
-        >
-          {labels.headers} ({headerCount})
-        </button>
-        {additionalTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`tab tab-sm font-medium ${resolvedTab === tab.id ? "tab-active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+          {resolvedTab === "body" && (
+            <JsonTreeView
+              data={body}
+              rawString={formattedBody}
+              emptyLabel={labels.empty || "(Empty Body)"}
+              copyAllLabel={copyLabel}
+              copiedAllLabel={copiedLabel}
+              className={bodyTextClassName}
+            />
+          )}
 
-      <div
-        className={`bg-base-200 border border-base-300 rounded-b-lg p-3 font-mono text-xs [scrollbar-gutter:stable] overflow-y-auto overflow-x-auto ${bodyPanelHeightClass}`}
-      >
-        {resolvedTab === "body" && (
-          <pre className={`m-0 whitespace-pre-wrap break-all leading-relaxed ${bodyTextClassName}`}>
-            {formattedBody || labels.empty || "(Empty Body)"}
-          </pre>
-        )}
+          {resolvedTab === "headers" &&
+            (headerCount > 0 ? (
+              <table className="table table-xs w-full text-base-content/80 font-mono">
+                <tbody>
+                  {Object.entries(headers).map(([key, value]) => (
+                    <tr key={key} className="border-base-300/40">
+                      <td className="font-semibold text-primary/80 pr-4 align-top w-[150px]">{key}</td>
+                      <td className="break-all">{String(value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-base-content/40 italic m-0">{labels.empty || "(Empty)"}</p>
+            ))}
 
-        {resolvedTab === "headers" &&
-          (headerCount > 0 ? (
-            <table className="table table-xs w-full text-base-content/80 font-mono">
-              <tbody>
-                {Object.entries(headers).map(([key, value]) => (
-                  <tr key={key} className="border-base-300/40">
-                    <td className="font-semibold text-primary/80 pr-4 align-top w-[150px]">{key}</td>
-                    <td className="break-all">{String(value)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-base-content/40 italic m-0">{labels.empty || "(Empty)"}</p>
-          ))}
-
-        {additionalTabs.map(
-          (tab) =>
-            resolvedTab === tab.id && (
-              <div key={tab.id} className="font-sans">
-                {tab.panel}
-              </div>
-            ),
-        )}
-      </div>
-    </Card>
+          {additionalTabs.map(
+            (tab) =>
+              resolvedTab === tab.id && (
+                <div key={tab.id} className="font-sans">
+                  {tab.panel}
+                </div>
+              ),
+          )}
+        </div>
+      </Card>
+    </section>
   );
 }

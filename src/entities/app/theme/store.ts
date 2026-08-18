@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { BUILTIN_PRESETS, DEFAULT_DARK_THEME } from "./presets";
+import { BUILTIN_PRESETS, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from "./presets";
 import type { CustomTheme } from "./types";
 
 // Use `string` instead of a narrow union so custom theme IDs (e.g. "custom-theme-1234567890")
@@ -35,15 +35,16 @@ export const activeCustomThemeAtom = atom<CustomTheme>((get) => {
 
   const foundCustom = safeList.find((t) => t && t.id === currentTheme);
   if (foundCustom) {
+    const basePreset = foundCustom.base === "light" ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME;
     return {
-      ...DEFAULT_DARK_THEME,
+      ...basePreset,
       ...foundCustom,
       colors: {
-        ...DEFAULT_DARK_THEME.colors,
+        ...basePreset.colors,
         ...(foundCustom.colors || {}),
       },
       typography: {
-        ...DEFAULT_DARK_THEME.typography,
+        ...basePreset.typography,
         ...(foundCustom.typography || {}),
       },
     };

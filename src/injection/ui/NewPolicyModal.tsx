@@ -73,16 +73,16 @@ export function NewPolicyModal({ s }: { s: State }) {
     >
       <div
         style={{
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
+          background: "var(--wt-bg-panel)",
           width: "640px",
           maxWidth: "calc(100vw - 32px)",
           maxHeight: "92vh",
           overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-          border: "1px solid rgba(236, 72, 153, 0.35)",
-          color: "white",
+          boxShadow: "var(--wt-shadow)",
+          border: "1px solid var(--wt-border)",
+          color: "var(--wt-text-main)",
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -91,7 +91,9 @@ export function NewPolicyModal({ s }: { s: State }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <PlusCircle style={{ width: "16px", height: "16px", color: "#ec4899" }} />
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>새 가이드 등록</h3>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "var(--wt-text-main)" }}>
+              새 가이드 등록
+            </h3>
           </div>
           <button
             type="button"
@@ -99,7 +101,7 @@ export function NewPolicyModal({ s }: { s: State }) {
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255, 255, 255, 0.5)",
+              color: "var(--wt-text-muted)",
               cursor: "pointer",
               padding: "4px",
               display: "flex",
@@ -114,26 +116,23 @@ export function NewPolicyModal({ s }: { s: State }) {
 
         <div
           style={{
-            backgroundColor: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
+            backgroundColor: "var(--wt-bg-card)",
+            border: "1px solid var(--wt-border)",
             padding: "10px 12px",
             borderRadius: "10px",
             fontSize: "10.5px",
-            color: "rgba(255, 255, 255, 0.6)",
+            color: "var(--wt-text-muted)",
             lineHeight: "1.4",
           }}
         >
-          <span style={{ fontWeight: "700", color: "rgba(255,255,255,0.8)" }}>Selector: </span>
-          <code style={{ color: "#60a5fa", wordBreak: "break-all", fontFamily: "monospace" }}>
+          <span style={{ fontWeight: "700", color: "var(--wt-text-main)" }}>Selector: </span>
+          <code style={{ color: "var(--color-primary, #60a5fa)", wordBreak: "break-all", fontFamily: "monospace" }}>
             {editingElement.selector}
           </code>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label
-            htmlFor="wt-role-input"
-            style={{ fontSize: "10px", fontWeight: "500", color: "rgba(255,255,255,0.55)" }}
-          >
+          <label htmlFor="wt-role-input" style={{ fontSize: "10px", fontWeight: "500", color: "var(--wt-text-muted)" }}>
             가이드명 (Role / Title)
           </label>
           <input
@@ -142,11 +141,11 @@ export function NewPolicyModal({ s }: { s: State }) {
             onChange={(e) => s.setRole(e.target.value)}
             placeholder="예: 로그인 버튼 정책"
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              backgroundColor: "var(--wt-bg-card)",
+              border: "1px solid var(--wt-border)",
               borderRadius: "10px",
               padding: "10px 12px",
-              color: "white",
+              color: "var(--wt-text-main)",
               fontSize: "13px",
               fontWeight: "600",
               outline: "none",
@@ -169,7 +168,7 @@ export function NewPolicyModal({ s }: { s: State }) {
             style={{
               fontSize: "10px",
               fontWeight: "500",
-              color: "rgba(255,255,255,0.55)",
+              color: "var(--wt-text-muted)",
               flexShrink: 0,
             }}
           >
@@ -195,13 +194,13 @@ export function NewPolicyModal({ s }: { s: State }) {
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
-                color: "rgba(255,255,255,0.5)",
+                color: "var(--wt-text-muted)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
             >
-              <Globe style={{ width: "10px", height: "10px", color: "#60a5fa" }} /> Host Pattern
+              <Globe style={{ width: "10px", height: "10px", color: "var(--color-primary, #60a5fa)" }} /> Host Pattern
             </label>
             <input
               id="wt-host-pattern"
@@ -211,11 +210,11 @@ export function NewPolicyModal({ s }: { s: State }) {
               onCompositionEnd={(e) => s.setHostPattern(e.currentTarget.value)}
               placeholder="예: *.modetour.*, !api"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
                 borderRadius: "8px",
                 padding: "8px 10px",
-                color: "#93c5fd",
+                color: "var(--color-primary, #93c5fd)",
                 fontSize: "11px",
                 fontFamily: "monospace",
                 outline: "none",
@@ -231,10 +230,13 @@ export function NewPolicyModal({ s }: { s: State }) {
                     type="button"
                     onClick={() => s.setHostPattern(pat)}
                     style={{
-                      background: s.hostPattern === pat ? "rgba(59, 130, 246, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                      border: s.hostPattern === pat ? "1px solid #3b82f6" : "1px solid rgba(255, 255, 255, 0.1)",
+                      background: s.hostPattern === pat ? "rgba(59, 130, 246, 0.25)" : "var(--wt-bg-subtle)",
+                      border:
+                        s.hostPattern === pat
+                          ? "1px solid var(--color-primary, #3b82f6)"
+                          : "1px solid var(--wt-border)",
                       borderRadius: "4px",
-                      color: s.hostPattern === pat ? "#93c5fd" : "rgba(255, 255, 255, 0.6)",
+                      color: s.hostPattern === pat ? "var(--color-primary, #93c5fd)" : "var(--wt-text-muted)",
                       fontSize: "9px",
                       fontFamily: "monospace",
                       padding: "2px 6px",
@@ -256,13 +258,14 @@ export function NewPolicyModal({ s }: { s: State }) {
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
-                color: "rgba(255,255,255,0.5)",
+                color: "var(--wt-text-muted)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
             >
-              <FolderTree style={{ width: "10px", height: "10px", color: "#f472b6" }} /> Path Pattern
+              <FolderTree style={{ width: "10px", height: "10px", color: "var(--color-secondary, #f472b6)" }} /> Path
+              Pattern
             </label>
             <input
               id="wt-path-pattern"
@@ -272,11 +275,11 @@ export function NewPolicyModal({ s }: { s: State }) {
               onCompositionEnd={(e) => s.setPathPattern(e.currentTarget.value)}
               placeholder="예: /products/*"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
                 borderRadius: "8px",
                 padding: "8px 10px",
-                color: "#f472b6",
+                color: "var(--color-secondary, #f472b6)",
                 fontSize: "11px",
                 fontFamily: "monospace",
                 outline: "none",
@@ -292,10 +295,13 @@ export function NewPolicyModal({ s }: { s: State }) {
                     type="button"
                     onClick={() => s.setPathPattern(pat)}
                     style={{
-                      background: s.pathPattern === pat ? "rgba(236, 72, 153, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                      border: s.pathPattern === pat ? "1px solid #ec4899" : "1px solid rgba(255, 255, 255, 0.1)",
+                      background: s.pathPattern === pat ? "rgba(236, 72, 153, 0.25)" : "var(--wt-bg-subtle)",
+                      border:
+                        s.pathPattern === pat
+                          ? "1px solid var(--color-secondary, #ec4899)"
+                          : "1px solid var(--wt-border)",
                       borderRadius: "4px",
-                      color: s.pathPattern === pat ? "#f472b6" : "rgba(255, 255, 255, 0.6)",
+                      color: s.pathPattern === pat ? "var(--color-secondary, #f472b6)" : "var(--wt-text-muted)",
                       fontSize: "9px",
                       fontFamily: "monospace",
                       padding: "2px 6px",
@@ -326,11 +332,11 @@ export function NewPolicyModal({ s }: { s: State }) {
             type="button"
             onClick={() => s.setEditingElement(null)}
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              backgroundColor: "var(--wt-bg-subtle)",
+              border: "1px solid var(--wt-border)",
               borderRadius: "10px",
               padding: "8px 16px",
-              color: "white",
+              color: "var(--wt-text-main)",
               fontSize: "12px",
               fontWeight: "600",
               cursor: "pointer",
@@ -343,11 +349,11 @@ export function NewPolicyModal({ s }: { s: State }) {
             onClick={handleSave}
             disabled={!s.role || s.isSaving}
             style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+              backgroundColor: "var(--color-primary, #3b82f6)",
               border: "none",
               borderRadius: "10px",
               padding: "8px 18px",
-              color: "white",
+              color: "var(--color-primary-content, #ffffff)",
               fontSize: "12px",
               fontWeight: "800",
               cursor: "pointer",

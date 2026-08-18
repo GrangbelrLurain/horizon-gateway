@@ -12,7 +12,6 @@ import {
   TelemetryProvider,
   Titlebar,
   useAppBootstrap,
-  userProfileAtom,
 } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
 import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
@@ -52,7 +51,6 @@ const RootLayout = () => {
 
   const activeTheme = useAtomValue(activeCustomThemeAtom);
   const lang = useAtomValue(languageAtom);
-  const userProfile = useAtomValue(userProfileAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPopupWindow = useIsPopupWindow();
   const isDetachedWindow = useIsDetachedWindow();
@@ -62,49 +60,23 @@ const RootLayout = () => {
   useEffect(() => {
     if (activeTheme) {
       applyThemeToDocument(activeTheme);
+      const json = JSON.stringify(activeTheme);
+      const endpoints = [
+        "http://127.0.0.1:8888/.horizon-gateway/api/theme",
+        "http://localhost:8888/.horizon-gateway/api/theme",
+        "/.horizon-gateway/api/theme",
+      ];
+      for (const ep of endpoints) {
+        fetch(ep, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: json,
+        }).catch(() => {});
+      }
     }
+    // Drop legacy avatar-color override tag so custom theme vars are not clobbered.
+    document.getElementById("dynamic-theme")?.remove();
   }, [activeTheme]);
-
-  useEffect(() => {
-    const color = userProfile?.avatarColor;
-    if (!color) {
-      const styleTag = document.getElementById("dynamic-theme");
-      if (styleTag) {
-        styleTag.remove();
-      }
-      return;
-    }
-    const colorMap: Record<string, string> = {
-      "bg-gradient-to-br from-indigo-500 to-purple-600": "#6366f1",
-      "bg-gradient-to-br from-blue-500 to-cyan-400": "#3b82f6",
-      "bg-gradient-to-br from-emerald-400 to-teal-600": "#34d399",
-      "bg-gradient-to-br from-amber-400 to-orange-500": "#fbbf24",
-      "bg-gradient-to-br from-rose-400 to-red-500": "#f43f5e",
-      "bg-gradient-to-br from-fuchsia-500 to-pink-500": "#d946ef",
-      "bg-slate-800": "#1e293b",
-    };
-    const targetHex = colorMap[color];
-    if (targetHex) {
-      let styleTag = document.getElementById("dynamic-theme");
-      if (!styleTag) {
-        styleTag = document.createElement("style");
-        styleTag.id = "dynamic-theme";
-        document.head.appendChild(styleTag);
-      }
-      styleTag.innerHTML = `
-        :root {
-          --p: ${targetHex} !important;
-          --pc: #ffffff !important;
-          --color-primary: ${targetHex} !important;
-        }
-      `;
-    } else {
-      const styleTag = document.getElementById("dynamic-theme");
-      if (styleTag) {
-        styleTag.remove();
-      }
-    }
-  }, [userProfile?.avatarColor]);
 
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
   const [isLoading, setIsLoading] = useState(false);

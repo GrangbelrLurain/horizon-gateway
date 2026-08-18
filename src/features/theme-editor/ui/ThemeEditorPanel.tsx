@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Download, Palette, RefreshCw, Type, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   activeCustomThemeAtom,
   applyThemeToDocument,
@@ -14,6 +14,7 @@ import {
   themeAtom,
 } from "@/entities/app";
 import { Button } from "@/shared/ui/button/Button";
+import { Card } from "@/shared/ui/card/card";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 
 const BUNDLED_FONTS: Array<{ id: BundledFontId; name: string; sample: string }> = [
@@ -36,8 +37,8 @@ const POPULAR_SYSTEM_FONTS = [
 
 function ColorPickerBox({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex flex-col gap-1 p-2 rounded-lg bg-base-100 border border-base-300">
-      <span className="text-[10px] font-semibold text-base-content/55 truncate">{label}</span>
+    <label className="flex flex-col gap-1 min-w-0">
+      <span className="text-[10px] font-medium text-base-content/50 truncate">{label}</span>
       <div className="flex items-center gap-1.5">
         <input
           type="color"
@@ -49,10 +50,10 @@ function ColorPickerBox({ label, value, onChange }: { label: string; value: stri
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="input input-xs input-bordered bg-base-200 font-mono text-[10px] w-full px-1 text-center"
+          className="input input-xs input-bordered bg-base-100 font-mono text-[10px] w-full px-1 text-center"
         />
       </div>
-    </div>
+    </label>
   );
 }
 
@@ -60,6 +61,8 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
   const [, setActiveThemeId] = useAtom(themeAtom);
   const [customThemes, setCustomThemes] = useAtom(customThemesAtom);
   const activeTheme = useAtomValue(activeCustomThemeAtom);
+  const activeThemeRef = useRef(activeTheme);
+  activeThemeRef.current = activeTheme;
 
   const [draft, setDraft] = useState<CustomTheme>(() => ({
     ...activeTheme,
@@ -92,6 +95,12 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
   useEffect(() => {
     applyThemeToDocument(draft);
   }, [draft]);
+
+  useEffect(() => {
+    return () => {
+      applyThemeToDocument(activeThemeRef.current);
+    };
+  }, []);
 
   const handleColorChange = (key: keyof CustomTheme["colors"], value: string) => {
     setDraft((prev) => ({
@@ -174,7 +183,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-base-100 rounded-2xl border border-base-300 shadow-sm w-full min-w-0">
+    <div className="flex flex-col gap-6 p-6 w-full min-w-0">
       {/* Header Bar */}
       <div className="flex items-center justify-between border-b border-base-300 pb-4">
         <div className="flex items-center gap-2.5">
@@ -247,169 +256,171 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       </div>
 
       {/* Colors Grid Grouped */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-bold text-base-content/80 flex items-center gap-1.5">
+      <section className="space-y-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content flex items-center gap-1.5">
           <Palette className="w-3.5 h-3.5 text-primary" />
           {lang === "ko" ? "컬러 팔레트 그룹" : "Color Palette Groups"}
-        </h3>
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Primary Group */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-base-200/50 border border-base-300">
-            <div className="flex items-center gap-2 border-b border-base-300 pb-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: draft.colors.primary }} />
-              <span className="text-xs font-bold text-base-content">Primary</span>
+        <Card className="p-3 @min-[32rem]:p-4 min-w-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Primary Group */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: draft.colors.primary }} />
+                Primary
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ColorPickerBox
+                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  value={draft.colors.primary}
+                  onChange={(v) => handleColorChange("primary", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  value={draft.colors.primaryContent || "#ffffff"}
+                  onChange={(v) => handleColorChange("primaryContent", v)}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <ColorPickerBox
-                label={lang === "ko" ? "배경 (Bg)" : "Background"}
-                value={draft.colors.primary}
-                onChange={(v) => handleColorChange("primary", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
-                value={draft.colors.primaryContent || "#ffffff"}
-                onChange={(v) => handleColorChange("primaryContent", v)}
-              />
-            </div>
-          </div>
 
-          {/* Secondary Group */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-base-200/50 border border-base-300">
-            <div className="flex items-center gap-2 border-b border-base-300 pb-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: draft.colors.secondary }} />
-              <span className="text-xs font-bold text-base-content">Secondary</span>
+            {/* Secondary Group */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: draft.colors.secondary }} />
+                Secondary
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ColorPickerBox
+                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  value={draft.colors.secondary}
+                  onChange={(v) => handleColorChange("secondary", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  value={draft.colors.secondaryContent || "#ffffff"}
+                  onChange={(v) => handleColorChange("secondaryContent", v)}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <ColorPickerBox
-                label={lang === "ko" ? "배경 (Bg)" : "Background"}
-                value={draft.colors.secondary}
-                onChange={(v) => handleColorChange("secondary", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
-                value={draft.colors.secondaryContent || "#ffffff"}
-                onChange={(v) => handleColorChange("secondaryContent", v)}
-              />
-            </div>
-          </div>
 
-          {/* Accent Group */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-base-200/50 border border-base-300">
-            <div className="flex items-center gap-2 border-b border-base-300 pb-2">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: draft.colors.accent }} />
-              <span className="text-xs font-bold text-base-content">Accent</span>
+            {/* Accent Group */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: draft.colors.accent }} />
+                Accent
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ColorPickerBox
+                  label={lang === "ko" ? "배경 (Bg)" : "Background"}
+                  value={draft.colors.accent}
+                  onChange={(v) => handleColorChange("accent", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
+                  value={draft.colors.accentContent || "#ffffff"}
+                  onChange={(v) => handleColorChange("accentContent", v)}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <ColorPickerBox
-                label={lang === "ko" ? "배경 (Bg)" : "Background"}
-                value={draft.colors.accent}
-                onChange={(v) => handleColorChange("accent", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "폰트 (Text)" : "Text Color"}
-                value={draft.colors.accentContent || "#ffffff"}
-                onChange={(v) => handleColorChange("accentContent", v)}
-              />
-            </div>
-          </div>
 
-          {/* Base & Surface Group */}
-          <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-base-200/50 border border-base-300">
-            <div className="flex items-center gap-2 border-b border-base-300 pb-2">
-              <span
-                className="w-3 h-3 rounded-full border border-base-content/40"
-                style={{ backgroundColor: draft.colors.base100 }}
-              />
-              <span className="text-xs font-bold text-base-content">
+            {/* Base & Surface Group */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content flex items-center gap-2">
+                <span
+                  className="w-3 h-3 rounded-full border border-base-content/40 shrink-0"
+                  style={{ backgroundColor: draft.colors.base100 }}
+                />
                 {lang === "ko" ? "배경 및 텍스트" : "Base & Content"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <ColorPickerBox
-                label={lang === "ko" ? "기본 텍스트" : "Content Text"}
-                value={draft.colors.content}
-                onChange={(v) => handleColorChange("content", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "패널 (100)" : "Panel (100)"}
-                value={draft.colors.base100}
-                onChange={(v) => handleColorChange("base100", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "앱 (200)" : "App (200)"}
-                value={draft.colors.base200}
-                onChange={(v) => handleColorChange("base200", v)}
-              />
-              <ColorPickerBox
-                label={lang === "ko" ? "구분선 (300)" : "Border (300)"}
-                value={draft.colors.base300}
-                onChange={(v) => handleColorChange("base300", v)}
-              />
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <ColorPickerBox
+                  label={lang === "ko" ? "기본 텍스트" : "Content Text"}
+                  value={draft.colors.content}
+                  onChange={(v) => handleColorChange("content", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "패널 (100)" : "Panel (100)"}
+                  value={draft.colors.base100}
+                  onChange={(v) => handleColorChange("base100", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "앱 (200)" : "App (200)"}
+                  value={draft.colors.base200}
+                  onChange={(v) => handleColorChange("base200", v)}
+                />
+                <ColorPickerBox
+                  label={lang === "ko" ? "구분선 (300)" : "Border (300)"}
+                  value={draft.colors.base300}
+                  onChange={(v) => handleColorChange("base300", v)}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </Card>
+      </section>
 
       {/* Typography Section */}
-      <div className="flex flex-col gap-3 border-t border-base-300 pt-4">
-        <h3 className="text-xs font-bold text-base-content/80 flex items-center gap-1.5">
+      <section className="space-y-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content flex items-center gap-1.5">
           <Type className="w-3.5 h-3.5 text-accent" />
           {lang === "ko" ? "타이포그래피 & 폰트" : "Typography & Fonts"}
-        </h3>
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Bundled Fonts */}
-          <div className="flex flex-col gap-2 p-3 rounded-xl bg-base-200/50 border border-base-300">
-            <span className="text-xs font-semibold text-base-content">
-              {lang === "ko" ? "📦 앱 번들 폰트" : "📦 Bundled App Fonts"}
-            </span>
-            <div className="flex flex-col gap-1">
-              {BUNDLED_FONTS.map((font) => {
-                const isSelected =
-                  draft.typography.fontSource.type === "bundled" && draft.typography.fontSource.id === font.id;
-                return (
-                  <button
-                    key={font.id}
-                    type="button"
-                    onClick={() =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        typography: {
-                          ...prev.typography,
-                          fontSource: { type: "bundled", id: font.id },
-                        },
-                      }))
-                    }
-                    className={`flex items-center justify-between p-2 rounded-lg text-xs text-left transition-colors ${
-                      isSelected
-                        ? "bg-primary/15 text-primary border border-primary/30 font-semibold"
-                        : "hover:bg-base-200 text-base-content/80"
-                    }`}
-                  >
-                    <span>{font.name}</span>
-                    <span className="font-mono text-[10px] opacity-60">{font.sample}</span>
-                  </button>
-                );
-              })}
+        <Card className="p-3 @min-[32rem]:p-4 space-y-4 min-w-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Bundled Fonts */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content">
+                {lang === "ko" ? "앱 번들 폰트" : "Bundled App Fonts"}
+              </h3>
+              <div className="flex flex-col gap-1">
+                {BUNDLED_FONTS.map((font) => {
+                  const isSelected =
+                    draft.typography.fontSource.type === "bundled" && draft.typography.fontSource.id === font.id;
+                  return (
+                    <button
+                      key={font.id}
+                      type="button"
+                      onClick={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          typography: {
+                            ...prev.typography,
+                            fontSource: { type: "bundled", id: font.id },
+                          },
+                        }))
+                      }
+                      className={`flex items-center justify-between p-2 rounded-lg text-xs text-left transition-colors ${
+                        isSelected
+                          ? "bg-primary/15 text-primary border border-primary/30 font-semibold"
+                          : "hover:bg-base-200 text-base-content/80"
+                      }`}
+                    >
+                      <span>{font.name}</span>
+                      <span className="font-mono text-[10px] opacity-60">{font.sample}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* OS System Fonts */}
-          <div className="flex flex-col gap-2 p-3 rounded-xl bg-base-200/50 border border-base-300">
-            <span className="text-xs font-semibold text-base-content">
-              {lang === "ko" ? "🖥 내 컴퓨터 설치 폰트 (System Local Font)" : "🖥 Installed System Fonts"}
-            </span>
-            <input
-              type="text"
-              value={fontQuery}
-              onChange={(e) => setFontQuery(e.target.value)}
-              placeholder={lang === "ko" ? "폰트 이름 검색 (예: Pretendard)..." : "Search font family name..."}
-              className="input input-xs input-bordered bg-base-100 text-xs mb-1"
-            />
-            <div className="max-h-40 overflow-y-auto flex flex-col gap-1 pr-1">
-              {POPULAR_SYSTEM_FONTS.filter((f) => !fontQuery || f.toLowerCase().includes(fontQuery.toLowerCase())).map(
-                (fontFamily) => {
+            {/* OS System Fonts */}
+            <div className="flex flex-col gap-2 min-w-0">
+              <h3 className="text-xs font-semibold text-base-content">
+                {lang === "ko" ? "내 컴퓨터 설치 폰트" : "Installed System Fonts"}
+              </h3>
+              <input
+                type="text"
+                value={fontQuery}
+                onChange={(e) => setFontQuery(e.target.value)}
+                placeholder={lang === "ko" ? "폰트 이름 검색 (예: Pretendard)..." : "Search font family name..."}
+                className="input input-xs input-bordered bg-base-100 text-xs mb-1"
+              />
+              <div className="max-h-40 overflow-y-auto flex flex-col gap-1 pr-1">
+                {POPULAR_SYSTEM_FONTS.filter(
+                  (f) => !fontQuery || f.toLowerCase().includes(fontQuery.toLowerCase()),
+                ).map((fontFamily) => {
                   const isSelected =
                     draft.typography.fontSource.type === "system" &&
                     draft.typography.fontSource.familyName === fontFamily;
@@ -438,119 +449,108 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
                       </span>
                     </button>
                   );
-                },
-              )}
+                })}
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* Font Size & Line Height Sliders */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-medium text-base-content/80">
-              <span>{lang === "ko" ? "기본 폰트 크기" : "Base Font Size"}</span>
-              <span className="font-mono">{draft.typography.baseFontSize}px</span>
-            </div>
-            <input
-              type="range"
-              min="12"
-              max="18"
-              step="1"
-              value={draft.typography.baseFontSize}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  typography: { ...prev.typography, baseFontSize: Number(e.target.value) },
-                }))
-              }
-              className="range range-xs range-primary"
-            />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs font-medium text-base-content/80">
-              <span>{lang === "ko" ? "줄 간격 (Line Height)" : "Line Height"}</span>
-              <span className="font-mono">{draft.typography.lineHeight}</span>
+          {/* Font Size & Line Height Sliders */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-base-200">
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between text-xs font-medium text-base-content/80">
+                <span>{lang === "ko" ? "기본 폰트 크기" : "Base Font Size"}</span>
+                <span className="font-mono">{draft.typography.baseFontSize}px</span>
+              </div>
+              <input
+                type="range"
+                min="12"
+                max="18"
+                step="1"
+                value={draft.typography.baseFontSize}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    typography: { ...prev.typography, baseFontSize: Number(e.target.value) },
+                  }))
+                }
+                className="range range-xs range-primary"
+              />
             </div>
-            <input
-              type="range"
-              min="1.2"
-              max="1.8"
-              step="0.1"
-              value={draft.typography.lineHeight}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  typography: { ...prev.typography, lineHeight: Number(e.target.value) },
-                }))
-              }
-              className="range range-xs range-accent"
-            />
+
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between text-xs font-medium text-base-content/80">
+                <span>{lang === "ko" ? "줄 간격 (Line Height)" : "Line Height"}</span>
+                <span className="font-mono">{draft.typography.lineHeight}</span>
+              </div>
+              <input
+                type="range"
+                min="1.2"
+                max="1.8"
+                step="0.1"
+                value={draft.typography.lineHeight}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    typography: { ...prev.typography, lineHeight: Number(e.target.value) },
+                  }))
+                }
+                className="range range-xs range-accent"
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </Card>
+      </section>
 
       {/* Live Preview Card */}
-      <div className="flex flex-col gap-2 border-t border-base-300 pt-4">
-        <span className="text-xs font-bold text-base-content/70">
+      <section className="space-y-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content">
           {lang === "ko" ? "실시간 미리보기" : "Live Preview"}
-        </span>
-        <div
-          className="p-4 rounded-xl border flex flex-col gap-3 transition-colors shadow-sm"
-          style={{
-            backgroundColor: draft.colors.base200,
-            borderColor: draft.colors.base300,
-            color: draft.colors.content,
-          }}
-        >
+        </h2>
+        <Card className="p-4 space-y-3 min-w-0">
           <div className="flex items-center flex-wrap gap-2">
             <button
               type="button"
-              className="px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-opacity hover:opacity-90"
+              className="btn btn-sm px-3"
               style={{
                 backgroundColor: draft.colors.primary,
                 color: draft.colors.primaryContent || "#ffffff",
+                borderColor: draft.colors.primary,
               }}
             >
               Primary Button
             </button>
             <button
               type="button"
-              className="px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-opacity hover:opacity-90"
+              className="btn btn-sm px-3"
               style={{
                 backgroundColor: draft.colors.secondary,
                 color: draft.colors.secondaryContent || "#ffffff",
+                borderColor: draft.colors.secondary,
               }}
             >
               Secondary Button
             </button>
             <span
-              className="px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs"
+              className="badge badge-sm font-semibold"
               style={{
                 backgroundColor: draft.colors.accent,
                 color: draft.colors.accentContent || "#ffffff",
+                borderColor: draft.colors.accent,
               }}
             >
               Accent Badge
             </span>
           </div>
 
-          <div
-            className="p-3 rounded-lg border text-xs leading-relaxed"
-            style={{
-              backgroundColor: draft.colors.base100,
-              borderColor: draft.colors.base300,
-              color: draft.colors.content,
-            }}
-          >
-            <p className="font-bold mb-1">{lang === "ko" ? "💡 실시간 테마 적용 안내" : "💡 Live Theme Preview"}</p>
-            <p className="opacity-80">
+          <div className="text-xs leading-relaxed space-y-1">
+            <p className="font-semibold">{lang === "ko" ? "실시간 테마 적용 안내" : "Live Theme Preview"}</p>
+            <p className="text-base-content/55">
               Horizon Gateway를 사용하면 API 프록시, 도메인 헬스체크, 네트워크 트래픽 캡처 및 테마 커스터마이징을 한
               곳에서 손쉽게 제어할 수 있습니다.
             </p>
           </div>
-        </div>
-      </div>
+        </Card>
+      </section>
     </div>
   );
 }

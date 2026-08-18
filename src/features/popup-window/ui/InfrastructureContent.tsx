@@ -9,6 +9,7 @@ import type { ProxyStatusPayload } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { Button } from "@/shared/ui/button/Button";
+import { Card } from "@/shared/ui/card/card";
 import { popupEn } from "../i18n/en";
 import { popupKo } from "../i18n/ko";
 
@@ -89,67 +90,69 @@ export function InfrastructureContent() {
   const pacUrl = port > 0 ? `http://127.0.0.1:${port}/.horizon-gateway/proxy.pac` : "";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ProxyServerWarning onStartProxy={toggleProxy} loading={loading} />
 
-      <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-black text-base-content">{t.infraProxy}</p>
-            <p className="text-xs text-base-content/60 mt-1 leading-relaxed">{t.infraProxyDesc}</p>
-            <p className="text-xs text-base-content/40 mt-1">
+      <section className="space-y-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content">{t.infraProxy}</h2>
+        <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+          <p className="text-xs text-base-content/55 leading-relaxed">{t.infraProxyDesc}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-base-content/40">
               {proxyStatus.running ? `Port ${proxyStatus.port}` : "Stopped"}
             </p>
+            <Button
+              variant={proxyStatus.running ? "secondary" : "primary"}
+              size="sm"
+              onClick={toggleProxy}
+              disabled={loading}
+            >
+              {proxyStatus.running ? t.infraStop : t.infraStart}
+            </Button>
           </div>
-          <Button
-            variant={proxyStatus.running ? "secondary" : "primary"}
-            size="sm"
-            onClick={toggleProxy}
-            disabled={loading}
-          >
-            {proxyStatus.running ? t.infraStop : t.infraStart}
-          </Button>
-        </div>
-      </div>
+        </Card>
+      </section>
 
       {proxyStatus.running && (
         <>
-          <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
-            <div>
-              <p className="text-sm font-black text-base-content">{t.infraCert}</p>
-              <p className="text-xs text-base-content/60 mt-1 leading-relaxed">{t.infraCertDesc}</p>
-            </div>
-            <Button variant="primary" size="sm" className="gap-1.5" onClick={handleSaveCA}>
-              <Download className="w-3.5 h-3.5" />
-              {t.infraCertSave}
-            </Button>
-          </div>
+          <section className="space-y-2 min-w-0">
+            <h2 className="text-sm font-semibold text-base-content">{t.infraCert}</h2>
+            <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+              <p className="text-xs text-base-content/55 leading-relaxed">{t.infraCertDesc}</p>
+              <Button variant="primary" size="sm" className="gap-1.5" onClick={handleSaveCA}>
+                <Download className="w-3.5 h-3.5" />
+                {t.infraCertSave}
+              </Button>
+            </Card>
+          </section>
 
-          <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-2">
-            <div>
-              <p className="text-sm font-black text-base-content">{t.infraPac}</p>
-              <p className="text-xs text-base-content/60 mt-1 leading-relaxed">{t.infraPacDesc}</p>
-            </div>
-            <code className="block text-xs font-mono bg-base-200 p-3 rounded-lg break-all text-indigo-600 dark:text-indigo-400">
-              {pacUrl || "—"}
-            </code>
-          </div>
+          <section className="space-y-2 min-w-0">
+            <h2 className="text-sm font-semibold text-base-content">{t.infraPac}</h2>
+            <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+              <p className="text-xs text-base-content/55 leading-relaxed">{t.infraPacDesc}</p>
+              <code className="block text-xs font-mono bg-base-200 p-3 rounded-lg break-all text-indigo-600 dark:text-indigo-400">
+                {pacUrl || "—"}
+              </code>
+            </Card>
+          </section>
 
-          <div className="p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3">
-            <p className="text-sm font-black text-base-content">{t.infraMobile}</p>
-            <p className="text-xs text-base-content/60">{t.infraMobileDesc}</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => {
-                void openPopupWindow("mobile");
-              }}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              {t.infraMobileOpen}
-            </Button>
-          </div>
+          <section className="space-y-2 min-w-0">
+            <h2 className="text-sm font-semibold text-base-content">{t.infraMobile}</h2>
+            <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+              <p className="text-xs text-base-content/55 leading-relaxed">{t.infraMobileDesc}</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  void openPopupWindow("mobile");
+                }}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                {t.infraMobileOpen}
+              </Button>
+            </Card>
+          </section>
         </>
       )}
     </div>

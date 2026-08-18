@@ -61,54 +61,54 @@ export function InspectorPanel({
         </header>
       )}
 
-      <Card className="p-6 border-none bg-base-100 shadow-sm ring-1 ring-base-300">
-        <div className="flex flex-col gap-1 mb-6">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <ExternalLink className="w-5 h-5 text-primary" />
-            {t.injectionSettings}
-          </h2>
-          <P className="text-sm text-base-content/60 leading-relaxed">{t.injectionDomainsDesc}</P>
-        </div>
+      <section className="space-y-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content flex items-center gap-2">
+          <ExternalLink className="w-4 h-4 text-primary shrink-0" />
+          {t.injectionSettings}
+        </h2>
+        <Card className="p-6 border-none bg-base-100 shadow-sm ring-1 ring-base-300">
+          <P className="text-xs text-base-content/55 leading-relaxed mb-6">{t.injectionDomainsDesc}</P>
 
-        <div className="pt-0">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
-                {t.injectionDomainsLabel}
-              </label>
-            </div>
+          <div className="pt-0">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black uppercase text-base-content/40 tracking-widest px-1">
+                  {t.injectionDomainsLabel}
+                </label>
+              </div>
 
-            <div className="flex flex-wrap gap-2 mb-2">
-              {injectionDomains.map((domain) => (
-                <div
-                  key={domain}
-                  className="group flex items-center gap-1.5 bg-base-200 hover:bg-base-300 px-3 py-1.5 rounded-xl border border-base-300 transition-colors"
-                >
-                  <Globe className="w-3 h-3 text-base-content/40" />
-                  <span className="text-xs font-bold font-mono">{domain}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveDomain(domain)}
-                    className="p-0.5 hover:text-error transition-colors"
+              <div className="flex flex-wrap gap-2 mb-2">
+                {injectionDomains.map((domain) => (
+                  <div
+                    key={domain}
+                    className="group flex items-center gap-1.5 bg-base-200 hover:bg-base-300 px-3 py-1.5 rounded-xl border border-base-300 transition-colors"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                    <Globe className="w-3 h-3 text-base-content/40" />
+                    <span className="text-xs font-bold font-mono">{domain}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveDomain(domain)}
+                      className="p-0.5 hover:text-error transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <div className="relative flex-1 min-w-[200px]">
+                  <Input
+                    value={newDomain}
+                    onChange={(e) => onNewDomainChange(e.target.value)}
+                    onKeyDown={onAddDomain}
+                    placeholder={t.addDomainPlaceholder}
+                    className="h-9 text-xs font-mono"
+                  />
+                  <Plus className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/30" />
                 </div>
-              ))}
-              <div className="relative flex-1 min-w-[200px]">
-                <Input
-                  value={newDomain}
-                  onChange={(e) => onNewDomainChange(e.target.value)}
-                  onKeyDown={onAddDomain}
-                  placeholder={t.addDomainPlaceholder}
-                  className="h-9 text-xs font-mono"
-                />
-                <Plus className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/30" />
               </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </section>
 
       {!isProxyRunning && (
         <Card className="p-6 border-none bg-error/10 shadow-sm ring-1 ring-error/20">

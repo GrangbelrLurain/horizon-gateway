@@ -17,8 +17,8 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom, proxyRunningAtom } from "@/entities/app";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { activeCustomThemeAtom, languageAtom, proxyRunningAtom } from "@/entities/app";
 import type { Annotation, CapturedElement } from "@/entities/inspector";
 import { hubLiveCaptureUrlAtom } from "@/features/panel-stack";
 import type { ApiLogEntry, MockRule } from "@/shared/api";
@@ -96,9 +96,17 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
       .catch(() => setHasEnabledMockRule(false));
   }, []);
 
-  // Sync Status to Iframe
-  useEffect(() => {
+  const activeCustomTheme = useAtomValue(activeCustomThemeAtom);
+
+  const syncStateToIframe = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: "WT_SET_THEME",
+          payload: activeCustomTheme,
+        },
+        "*",
+      );
       iframeRef.current.contentWindow.postMessage(
         {
           type: "WT_UPDATE_STATUS",
@@ -111,7 +119,12 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
         "*",
       );
     }
-  }, [isProxyRunning, hasEnabledMockRule]);
+  }, [activeCustomTheme, isProxyRunning, hasEnabledMockRule]);
+
+  // Sync Status and Theme to Iframe on changes
+  useEffect(() => {
+    syncStateToIframe();
+  }, [syncStateToIframe]);
 
   const t = {
     ko: {
@@ -202,6 +215,9 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
       // Debug log
       console.log("Horizon Gateway App received message:", event.data.type, event.data);
 
+      if (event.data.type === "WT_GET_THEME" || event.data.type === "WT_READY") {
+        syncStateToIframe();
+      }
       if (event.data.type === "WT_INSPECT_MODE_CHANGED") {
         setIsSelecting(event.data.enabled);
       }
@@ -238,7 +254,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
       unlistenTraffic.then((fn) => fn());
       window.removeEventListener("message", handleMessage);
     };
-  }, [currentUrl]);
+  }, [currentUrl, syncStateToIframe]);
 
   const relatedAnnotations = useMemo(() => {
     if (!currentUrl || annotations.length === 0) {
@@ -440,6 +456,7 @@ export function LiveCaptureWorkspace({ urlFromRoute }: { urlFromRoute?: string }
           <iframe
             ref={iframeRef}
             src={currentUrl}
+            onLoad={syncStateToIframe}
             className="w-full h-full border-none bg-white"
             title="Live Capture Browser"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

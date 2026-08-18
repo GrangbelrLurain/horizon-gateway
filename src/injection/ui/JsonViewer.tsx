@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { parsePartialJson } from "../lib/json";
 
@@ -34,11 +35,11 @@ export function JsonViewer({ src }: { src: string }) {
     return (
       <pre
         style={{
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: "var(--wt-bg-card)",
           padding: "10px",
           borderRadius: "8px",
-          border: "1px solid rgba(255,255,255,0.1)",
-          color: "#38bdf8",
+          border: "1px solid var(--wt-border)",
+          color: "var(--color-primary, #38bdf8)",
           fontSize: "11px",
           fontFamily: "monospace",
           overflowY: "auto",
@@ -57,9 +58,11 @@ export function JsonViewer({ src }: { src: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minHeight: 0 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", fontWeight: "600" }}>
+        <span style={{ fontSize: "10px", color: "var(--wt-text-muted)", fontWeight: "600" }}>
           💡 ▼/▶ 클릭하여 접기 · 마우스 드래그로 원하는 텍스트 부분 복사 가능
-          {isTruncated && <span style={{ color: "#f59e0b", marginLeft: "6px" }}>(⚠️ 데이터 일부 생략됨)</span>}
+          {isTruncated && (
+            <span style={{ color: "var(--color-warning, #f59e0b)", marginLeft: "6px" }}>(⚠️ 데이터 일부 생략됨)</span>
+          )}
         </span>
         <button
           type="button"
@@ -69,32 +72,36 @@ export function JsonViewer({ src }: { src: string }) {
             setTimeout(() => setCopiedAll(false), 1500);
           }}
           style={{
-            backgroundColor: "rgba(255,255,255,0.1)",
-            border: "none",
-            color: copiedAll ? "#10b981" : "#38bdf8",
+            backgroundColor: "var(--wt-bg-subtle)",
+            border: "1px solid var(--wt-border)",
+            color: copiedAll ? "var(--color-success, #10b981)" : "var(--color-primary, #38bdf8)",
             fontSize: "10px",
-            padding: "2px 8px",
+            padding: "3px 8px",
             borderRadius: "4px",
             cursor: "pointer",
             fontWeight: "700",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
           }}
         >
-          {copiedAll ? "✓ 전체 복사됨!" : "📋 전체 JSON 복사"}
+          {copiedAll ? <Check style={{ width: 11, height: 11 }} /> : <Copy style={{ width: 11, height: 11 }} />}
+          {copiedAll ? "전체 복사됨!" : "전체 JSON 복사"}
         </button>
       </div>
 
       <div
         style={{
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: "var(--wt-bg-card)",
           padding: "10px",
           borderRadius: "8px",
-          border: "1px solid rgba(255,255,255,0.1)",
+          border: "1px solid var(--wt-border)",
           overflowY: "auto",
           maxHeight: "340px",
           fontFamily: "monospace",
           fontSize: "11px",
           lineHeight: "1.6",
-          color: "#f3f4f6",
+          color: "var(--wt-text-main)",
           userSelect: "text",
         }}
       >
@@ -133,10 +140,44 @@ function TreeJsonNode({
     } catch (_e) {}
   };
 
+  const renderGutter = (collapsible: boolean) => {
+    if (collapsible) {
+      return (
+        <button
+          type="button"
+          onClick={() => setFolded(!folded)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            userSelect: "none",
+            color: "#cbd5e1",
+            fontWeight: "700",
+            fontSize: "10px",
+            marginRight: "4px",
+            width: "12px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            verticalAlign: "middle",
+          }}
+          title={folded ? "펼치기" : "접기"}
+        >
+          {folded ? "▶" : "▼"}
+        </button>
+      );
+    }
+    return <span style={{ display: "inline-block", width: "12px", marginRight: "4px", verticalAlign: "middle" }} />;
+  };
+
   if (value === null) {
     return (
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{ display: "flex", alignItems: "center", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+        {renderGutter(false)}
         {renderKey}
         <span style={{ color: "#ef4444", fontWeight: "700" }}>null</span>
         {comma}
@@ -145,8 +186,11 @@ function TreeJsonNode({
   }
   if (typeof value === "boolean") {
     return (
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{ display: "flex", alignItems: "center", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+        {renderGutter(false)}
         {renderKey}
         <span style={{ color: "#f59e0b", fontWeight: "700" }}>{value ? "true" : "false"}</span>
         {comma}
@@ -155,8 +199,11 @@ function TreeJsonNode({
   }
   if (typeof value === "number") {
     return (
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{ display: "flex", alignItems: "center", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+        {renderGutter(false)}
         {renderKey}
         <span style={{ color: "#f59e0b" }}>{value}</span>
         {comma}
@@ -165,8 +212,18 @@ function TreeJsonNode({
   }
   if (typeof value === "string") {
     return (
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          userSelect: "text",
+          lineHeight: "1.6",
+          whiteSpace: "pre-wrap",
+        }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+        {renderGutter(false)}
         {renderKey}
         <span style={{ color: "#a3e635" }}>"{value}"</span>
         {comma}
@@ -183,8 +240,11 @@ function TreeJsonNode({
 
   if (entries.length === 0) {
     return (
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{ display: "flex", alignItems: "center", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+        {renderGutter(false)}
         {renderKey}
         <span style={{ color: "#94a3b8" }}>
           {openBracket}
@@ -198,28 +258,18 @@ function TreeJsonNode({
   return (
     <div style={{ display: "block", userSelect: "text" }}>
       {/* Object Header Line */}
-      <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          userSelect: "text",
+          lineHeight: "1.6",
+          whiteSpace: "pre-wrap",
+        }}
+      >
         <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
-        <button
-          type="button"
-          onClick={() => setFolded(!folded)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            userSelect: "none",
-            color: "#cbd5e1",
-            fontWeight: "700",
-            fontSize: "10px",
-            marginRight: "4px",
-            width: "12px",
-            display: "inline-block",
-            textAlign: "center",
-          }}
-        >
-          {folded ? "▶" : "▼"}
-        </button>
+        {renderGutter(true)}
         {renderKey}
         <span style={{ color: "#cbd5e1", fontWeight: "700" }}>{openBracket}</span>
 
@@ -230,17 +280,20 @@ function TreeJsonNode({
           style={{
             background: "none",
             border: "none",
-            padding: "0 4px",
+            padding: "0 2px",
             fontSize: "9px",
             color: copiedNode ? "#10b981" : "rgba(255,255,255,0.4)",
             cursor: "pointer",
             fontWeight: "600",
             marginLeft: "4px",
             userSelect: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            verticalAlign: "middle",
           }}
           title="이 노드 데이터 복사"
         >
-          {copiedNode ? "✓ 복사됨" : "📋"}
+          {copiedNode ? <Check style={{ width: 10, height: 10 }} /> : <Copy style={{ width: 10, height: 10 }} />}
         </button>
 
         {folded && (
@@ -249,31 +302,28 @@ function TreeJsonNode({
             style={{
               color: "rgba(255,255,255,0.5)",
               cursor: "pointer",
-              fontSize: "11px",
+              fontSize: "10px",
               fontWeight: "600",
-              marginLeft: "4px",
-              userSelect: "text",
+              marginLeft: "6px",
+              padding: "0 4px",
+              borderRadius: "4px",
+              backgroundColor: "rgba(255,255,255,0.06)",
+              userSelect: "none",
             }}
           >
-            ... {closeBracket}
+            ... {entries.length} {isArray ? "items" : "keys"}
+          </span>
+        )}
+        {folded && (
+          <span style={{ color: "#cbd5e1", fontWeight: "700", marginLeft: "4px" }}>
+            {closeBracket}
             {comma}
           </span>
         )}
       </div>
 
-      {/* Children lines with distinct vertical guide line */}
       {!folded && (
-        <div
-          style={{
-            paddingLeft: "16px",
-            borderLeft: "1px dashed rgba(255, 255, 255, 0.15)",
-            marginLeft: "5px",
-            marginTop: "1px",
-            marginBottom: "1px",
-            display: "block",
-            userSelect: "text",
-          }}
-        >
+        <div style={{ display: "block", userSelect: "text" }}>
           {entries.map(([k, v], idx) => (
             <TreeJsonNode
               key={k}
@@ -283,14 +333,20 @@ function TreeJsonNode({
               depth={depth + 1}
             />
           ))}
-        </div>
-      )}
-
-      {!folded && (
-        <div style={{ display: "block", userSelect: "text", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
-          <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
-          <span style={{ color: "#cbd5e1", fontWeight: "700" }}>{closeBracket}</span>
-          {comma}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              userSelect: "text",
+              lineHeight: "1.6",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            <span style={{ whiteSpace: "pre", userSelect: "text" }}>{indentStr}</span>
+            {renderGutter(false)}
+            <span style={{ color: "#cbd5e1", fontWeight: "700" }}>{closeBracket}</span>
+            {comma}
+          </div>
         </div>
       )}
     </div>

@@ -10,7 +10,7 @@ use crate::service::local_proxy::routing::host_key_for_logging_map;
 
 use super::super::state::ProxyState;
 
-pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str = r#"<script id="wt-injection-marker" type="module" src="/.horizon-gateway/inspector.js"></script>"#;
+pub(crate) const INSPECTOR_INJECTION_SCRIPT: &str = r#"<script id="wt-injection-marker" type="module" src="/.horizon-gateway/inspector.js?v=2.8.0"></script>"#;
 
 pub(crate) const EARLY_INTERCEPTOR_SCRIPT: &str = r#"<script id="wt-early-interceptor">
 (function(){

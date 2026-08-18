@@ -101,16 +101,16 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
     >
       <div
         style={{
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
+          background: "var(--wt-bg-panel)",
           width: "640px",
           maxWidth: "calc(100vw - 32px)",
           maxHeight: "92vh",
           overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-          border: "1px solid rgba(236, 72, 153, 0.35)",
-          color: "white",
+          boxShadow: "var(--wt-shadow)",
+          border: "1px solid var(--wt-border)",
+          color: "var(--wt-text-main)",
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -119,7 +119,9 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Edit3 style={{ width: "16px", height: "16px", color: "#ec4899" }} />
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>가이드 수정</h3>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "var(--wt-text-main)" }}>
+              가이드 수정
+            </h3>
           </div>
           <button
             type="button"
@@ -127,7 +129,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255, 255, 255, 0.5)",
+              color: "var(--wt-text-muted)",
               cursor: "pointer",
               padding: "4px",
               display: "flex",
@@ -143,7 +145,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
             htmlFor="edit-role-input"
-            style={{ fontSize: "10px", fontWeight: "500", color: "rgba(255,255,255,0.55)" }}
+            style={{ fontSize: "10px", fontWeight: "500", color: "var(--wt-text-muted)" }}
           >
             가이드명 (Role / Title)
           </label>
@@ -153,11 +155,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             onChange={(e) => setRole(e.target.value)}
             placeholder="예: 로그인 버튼 정책"
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              backgroundColor: "var(--wt-bg-card)",
+              border: "1px solid var(--wt-border)",
               borderRadius: "10px",
               padding: "10px 12px",
-              color: "white",
+              color: "var(--wt-text-main)",
               fontSize: "13px",
               fontWeight: "600",
               outline: "none",
@@ -180,7 +182,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             style={{
               fontSize: "10px",
               fontWeight: "500",
-              color: "rgba(255,255,255,0.55)",
+              color: "var(--wt-text-muted)",
               flexShrink: 0,
             }}
           >
@@ -205,13 +207,13 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
-                color: "rgba(255,255,255,0.5)",
+                color: "var(--wt-text-muted)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
             >
-              <Globe style={{ width: "10px", height: "10px", color: "#60a5fa" }} /> Host Pattern
+              <Globe style={{ width: "10px", height: "10px", color: "var(--color-primary, #60a5fa)" }} /> Host Pattern
             </label>
             <input
               id="edit-host-pattern"
@@ -221,11 +223,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               onCompositionEnd={(e) => commitHostPattern(e.currentTarget.value)}
               placeholder="예: *.modetour.*, !api"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
                 borderRadius: "8px",
                 padding: "8px 10px",
-                color: "#93c5fd",
+                color: "var(--color-primary, #93c5fd)",
                 fontSize: "11px",
                 fontFamily: "monospace",
                 outline: "none",
@@ -239,13 +241,14 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               style={{
                 fontSize: "10px",
                 fontWeight: "800",
-                color: "rgba(255,255,255,0.5)",
+                color: "var(--wt-text-muted)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
             >
-              <FolderTree style={{ width: "10px", height: "10px", color: "#f472b6" }} /> Path Pattern
+              <FolderTree style={{ width: "10px", height: "10px", color: "var(--color-secondary, #f472b6)" }} /> Path
+              Pattern
             </label>
             <input
               id="edit-path-pattern"
@@ -255,11 +258,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
               onCompositionEnd={(e) => commitPathPattern(e.currentTarget.value)}
               placeholder="예: /products/*"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.06)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
                 borderRadius: "8px",
                 padding: "8px 10px",
-                color: "#f472b6",
+                color: "var(--color-secondary, #f472b6)",
                 fontSize: "11px",
                 fontFamily: "monospace",
                 outline: "none",
@@ -283,11 +286,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             type="button"
             onClick={onClose}
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              backgroundColor: "var(--wt-bg-subtle)",
+              border: "1px solid var(--wt-border)",
               borderRadius: "10px",
               padding: "8px 16px",
-              color: "white",
+              color: "var(--wt-text-main)",
               fontSize: "12px",
               fontWeight: "600",
               cursor: "pointer",
@@ -300,11 +303,11 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             onClick={handleSave}
             disabled={!role.trim() || isSaving}
             style={{
-              background: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
+              backgroundColor: "var(--color-primary, #3b82f6)",
               border: "none",
               borderRadius: "10px",
               padding: "8px 18px",
-              color: "white",
+              color: "var(--color-primary-content, #ffffff)",
               fontSize: "12px",
               fontWeight: "800",
               cursor: "pointer",

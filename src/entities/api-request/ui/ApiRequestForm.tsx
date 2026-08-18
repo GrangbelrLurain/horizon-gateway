@@ -86,6 +86,18 @@ export function ApiRequestForm({
   );
 }
 
+function FormSection({ title, titleExtra, children }: { title: string; titleExtra?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="space-y-2 min-w-0">
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <h3 className="text-sm font-semibold text-base-content">{title}</h3>
+        {titleExtra}
+      </div>
+      <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">{children}</Card>
+    </section>
+  );
+}
+
 export interface ApiRequestFormHeaderProps {
   method: string;
   summary?: string;
@@ -156,16 +168,12 @@ function ApiRequestFormParams({ parameters, title }: ApiRequestFormParamsProps) 
   }
 
   return (
-    <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl">
-      <h3 className="text-[10px] font-black text-base-content/40 mb-4 uppercase tracking-widest">{title}</h3>
+    <FormSection title={title}>
       <div className="space-y-2">
         {parameters.map((param) => {
           const paramSuggestions = buildParamSuggestions(param, suggestions.paramValues);
           return (
-            <div
-              key={`${param.in}-${param.name}`}
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-base-200/50 transition-colors"
-            >
+            <div key={`${param.in}-${param.name}`} className="flex items-center gap-3 py-1">
               <span
                 className={`text-[9px] font-black uppercase w-12 text-center shrink-0 p-1 rounded border overflow-hidden ${
                   param.in === "path"
@@ -201,7 +209,7 @@ function ApiRequestFormParams({ parameters, title }: ApiRequestFormParamsProps) 
           );
         })}
       </div>
-    </Card>
+    </FormSection>
   );
 }
 
@@ -224,20 +232,21 @@ function ApiRequestFormBody({ title, contentType }: ApiRequestFormBodyProps) {
   }
 
   return (
-    <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl space-y-3">
-      <h3 className="text-[10px] font-black text-base-content/40 uppercase tracking-widest flex items-center justify-between">
-        {title}
-        {contentType && (
-          <span className="text-[9px] font-bold text-primary px-2 py-0.5 bg-primary/10 rounded-full">
+    <FormSection
+      title={title}
+      titleExtra={
+        contentType ? (
+          <span className="text-[10px] font-medium text-primary px-2 py-0.5 bg-primary/10 rounded-full">
             {contentType}
           </span>
-        )}
-      </h3>
+        ) : undefined
+      }
+    >
       <div className="relative">
         {editable ? (
           <>
             <textarea
-              className="w-full border border-base-300 rounded-xl px-4 py-3 text-xs font-mono bg-base-200/50 focus:ring-2 focus:ring-primary focus:bg-base-100 focus:border-transparent outline-none resize-y min-h-[120px] transition-all shadow-inner text-base-content"
+              className="textarea textarea-bordered w-full text-xs font-mono bg-base-100 focus:border-primary/50 min-h-[120px] resize-y"
               value={draft.bodyText}
               onChange={(event) => onChange({ bodyText: event.target.value })}
               spellCheck={false}
@@ -259,12 +268,12 @@ function ApiRequestFormBody({ title, contentType }: ApiRequestFormBodyProps) {
             )}
           </>
         ) : (
-          <pre className="w-full border border-base-300 rounded-xl px-4 py-3 text-xs font-mono bg-base-200/50 min-h-[120px] whitespace-pre-wrap break-all">
+          <pre className="w-full text-xs font-mono min-h-[120px] whitespace-pre-wrap break-all text-base-content/80">
             {draft.bodyText || "—"}
           </pre>
         )}
       </div>
-    </Card>
+    </FormSection>
   );
 }
 
@@ -315,8 +324,7 @@ function ApiRequestFormQueryParams({ title, labels }: ApiRequestFormQueryParamsP
   };
 
   return (
-    <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl">
-      <h3 className="text-[10px] font-black text-base-content/40 mb-3 uppercase tracking-widest">{title}</h3>
+    <FormSection title={title}>
       <div className="space-y-2">
         {rows.map((row, index) => (
           <div key={`${index}-${row.key}`} className="flex gap-2 items-center">
@@ -361,7 +369,7 @@ function ApiRequestFormQueryParams({ title, labels }: ApiRequestFormQueryParamsP
           </Button>
         )}
       </div>
-    </Card>
+    </FormSection>
   );
 }
 
@@ -382,8 +390,7 @@ function ApiRequestFormHeaders({ title, labels }: ApiRequestFormHeadersProps) {
   }
 
   return (
-    <Card className="p-4 bg-base-100 border-base-300 shadow-sm rounded-2xl">
-      <h3 className="text-[10px] font-black text-base-content/40 mb-3 uppercase tracking-widest">{title}</h3>
+    <FormSection title={title}>
       <HeaderRowsField
         rows={draft.headers}
         onChange={(headers) => onChange({ headers })}
@@ -392,7 +399,7 @@ function ApiRequestFormHeaders({ title, labels }: ApiRequestFormHeadersProps) {
         control={config.headers}
         labels={labels}
       />
-    </Card>
+    </FormSection>
   );
 }
 

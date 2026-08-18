@@ -1,3 +1,4 @@
+import { ArrowUpRight, Copy, List, Sparkles, Terminal, X, Zap } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 import { HeadersViewer } from "./HeadersViewer";
 import { JsonViewer } from "./JsonViewer";
@@ -13,7 +14,10 @@ type State = Pick<
 >;
 
 export function LogDetailModal({ s }: { s: State }) {
-  const selectedLogDetail = s.selectedLogDetail!;
+  const selectedLogDetail = s.selectedLogDetail;
+  if (!selectedLogDetail) {
+    return null;
+  }
   return (
     <div
       style={{
@@ -32,12 +36,12 @@ export function LogDetailModal({ s }: { s: State }) {
         style={{
           width: "560px",
           maxHeight: "85vh",
-          backgroundColor: "rgba(15, 23, 42, 0.98)",
+          backgroundColor: "var(--wt-bg-panel)",
           borderRadius: "16px",
-          border: "1px solid rgba(59, 130, 246, 0.5)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.9)",
+          border: "1px solid var(--wt-border-primary)",
+          boxShadow: "var(--wt-shadow)",
           padding: "20px",
-          color: "white",
+          color: "var(--wt-text-main)",
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -48,8 +52,11 @@ export function LogDetailModal({ s }: { s: State }) {
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
               style={{
-                backgroundColor: selectedLogDetail.method === "GET" ? "#3b82f6" : "#10b981",
-                color: "white",
+                backgroundColor:
+                  selectedLogDetail.method === "GET"
+                    ? "var(--color-primary, #3b82f6)"
+                    : "var(--color-success, #10b981)",
+                color: "var(--color-primary-content, white)",
                 fontSize: "10px",
                 fontWeight: "900",
                 padding: "2px 6px",
@@ -58,24 +65,36 @@ export function LogDetailModal({ s }: { s: State }) {
             >
               {selectedLogDetail.method}
             </span>
-            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#f3f4f6" }}>API 통신 상세 Log</h3>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "var(--wt-text-main)" }}>
+              API 통신 상세 Log
+            </h3>
           </div>
           <button
             type="button"
             onClick={() => s.setSelectedLogDetail(null)}
-            style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px" }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--wt-text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
           >
-            ✕
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
         <div
           style={{
             fontSize: "11px",
-            color: "#f3f4f6",
+            color: "var(--wt-text-main)",
             wordBreak: "break-all",
             fontFamily: "monospace",
-            backgroundColor: "rgba(255,255,255,0.05)",
+            backgroundColor: "var(--wt-bg-card)",
+            border: "1px solid var(--wt-border)",
             padding: "8px",
             borderRadius: "6px",
           }}
@@ -83,17 +102,21 @@ export function LogDetailModal({ s }: { s: State }) {
           {selectedLogDetail.url}
         </div>
 
-        <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+        <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--wt-text-muted)" }}>
           <span>
             Status:{" "}
-            <strong style={{ color: selectedLogDetail.status < 300 ? "#10b981" : "#ef4444" }}>
+            <strong
+              style={{
+                color: selectedLogDetail.status < 300 ? "var(--color-success, #10b981)" : "var(--color-error, #ef4444)",
+              }}
+            >
               {selectedLogDetail.status}
             </strong>
           </span>
           <span>
             Latency: <strong>{selectedLogDetail.duration}ms</strong>
           </span>
-          {selectedLogDetail.isMocked && <strong style={{ color: "#f59e0b" }}>[MOCKED]</strong>}
+          {selectedLogDetail.isMocked && <strong style={{ color: "var(--color-warning, #f59e0b)" }}>[MOCKED]</strong>}
         </div>
 
         {/* Modal Tabs */}
@@ -101,7 +124,7 @@ export function LogDetailModal({ s }: { s: State }) {
           style={{
             display: "flex",
             gap: "6px",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            borderBottom: "1px solid var(--wt-border)",
             paddingBottom: "6px",
           }}
         >
@@ -111,15 +134,18 @@ export function LogDetailModal({ s }: { s: State }) {
             style={{
               padding: "4px 10px",
               borderRadius: "6px",
-              backgroundColor: s.activeDetailTab === "response" ? "rgba(59, 130, 246, 0.3)" : "transparent",
-              border: s.activeDetailTab === "response" ? "1px solid #3b82f6" : "none",
-              color: s.activeDetailTab === "response" ? "#60a5fa" : "rgba(255,255,255,0.6)",
+              backgroundColor: s.activeDetailTab === "response" ? "var(--wt-bg-active)" : "transparent",
+              border: s.activeDetailTab === "response" ? "1px solid var(--color-primary, #3b82f6)" : "none",
+              color: s.activeDetailTab === "response" ? "var(--color-primary, #60a5fa)" : "var(--wt-text-muted)",
               fontSize: "11px",
               fontWeight: "700",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            ⚡ Response Body
+            <Zap style={{ width: 12, height: 12 }} /> Response Body
           </button>
           <button
             type="button"
@@ -127,15 +153,18 @@ export function LogDetailModal({ s }: { s: State }) {
             style={{
               padding: "4px 10px",
               borderRadius: "6px",
-              backgroundColor: s.activeDetailTab === "request" ? "rgba(59, 130, 246, 0.3)" : "transparent",
-              border: s.activeDetailTab === "request" ? "1px solid #3b82f6" : "none",
-              color: s.activeDetailTab === "request" ? "#60a5fa" : "rgba(255,255,255,0.6)",
+              backgroundColor: s.activeDetailTab === "request" ? "var(--wt-bg-active)" : "transparent",
+              border: s.activeDetailTab === "request" ? "1px solid var(--color-primary, #3b82f6)" : "none",
+              color: s.activeDetailTab === "request" ? "var(--color-primary, #60a5fa)" : "var(--wt-text-muted)",
               fontSize: "11px",
               fontWeight: "700",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            📤 Request Body {selectedLogDetail.requestBody ? "•" : ""}
+            <ArrowUpRight style={{ width: 12, height: 12 }} /> Request Body {selectedLogDetail.requestBody ? "•" : ""}
           </button>
           <button
             type="button"
@@ -143,15 +172,18 @@ export function LogDetailModal({ s }: { s: State }) {
             style={{
               padding: "4px 10px",
               borderRadius: "6px",
-              backgroundColor: s.activeDetailTab === "headers" ? "rgba(59, 130, 246, 0.3)" : "transparent",
-              border: s.activeDetailTab === "headers" ? "1px solid #3b82f6" : "none",
-              color: s.activeDetailTab === "headers" ? "#60a5fa" : "rgba(255,255,255,0.6)",
+              backgroundColor: s.activeDetailTab === "headers" ? "var(--wt-bg-active)" : "transparent",
+              border: s.activeDetailTab === "headers" ? "1px solid var(--color-primary, #3b82f6)" : "none",
+              color: s.activeDetailTab === "headers" ? "var(--color-primary, #60a5fa)" : "var(--wt-text-muted)",
               fontSize: "11px",
               fontWeight: "700",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            📋 Headers
+            <List style={{ width: 12, height: 12 }} /> Headers
           </button>
         </div>
 
@@ -161,29 +193,30 @@ export function LogDetailModal({ s }: { s: State }) {
             (selectedLogDetail.responseBody ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minHeight: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
-                    Response Data (Foldable Tree)
-                  </span>
+                  <span style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>Response Data (Foldable Tree)</span>
                   <button
                     type="button"
                     onClick={() => navigator.clipboard.writeText(selectedLogDetail.responseBody || "")}
                     style={{
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      border: "none",
-                      color: "#38bdf8",
+                      backgroundColor: "var(--wt-bg-subtle)",
+                      border: "1px solid var(--wt-border)",
+                      color: "var(--color-primary, #38bdf8)",
                       fontSize: "10px",
-                      padding: "2px 6px",
+                      padding: "2px 8px",
                       borderRadius: "4px",
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
                     }}
                   >
-                    📋 Response 복사
+                    <Copy style={{ width: 11, height: 11 }} /> Response 복사
                   </button>
                 </div>
                 <JsonViewer src={selectedLogDetail.responseBody} />
               </div>
             ) : (
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>
+              <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>
                 Response Body가 비어있거나 스트리밍 바이너리 데이터입니다.
               </div>
             ))}
@@ -192,27 +225,30 @@ export function LogDetailModal({ s }: { s: State }) {
             (selectedLogDetail.requestBody ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minHeight: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>Request Data</span>
+                  <span style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>Request Data</span>
                   <button
                     type="button"
                     onClick={() => navigator.clipboard.writeText(selectedLogDetail.requestBody || "")}
                     style={{
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      border: "none",
-                      color: "#38bdf8",
+                      backgroundColor: "var(--wt-bg-subtle)",
+                      border: "1px solid var(--wt-border)",
+                      color: "var(--color-primary, #38bdf8)",
                       fontSize: "10px",
-                      padding: "2px 6px",
+                      padding: "2px 8px",
                       borderRadius: "4px",
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
                     }}
                   >
-                    📋 Request 복사
+                    <Copy style={{ width: 11, height: 11 }} /> Request 복사
                   </button>
                 </div>
                 <JsonViewer src={selectedLogDetail.requestBody} />
               </div>
             ) : (
-              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>
+              <div style={{ fontSize: "11px", color: "var(--wt-text-faint)", fontStyle: "italic" }}>
                 Request Body (전송된 데이터)가 존재하지 않습니다 (GET 또는 Body 없음).
               </div>
             ))}
@@ -229,13 +265,27 @@ export function LogDetailModal({ s }: { s: State }) {
               }}
             >
               <div>
-                <div style={{ fontSize: "11px", fontWeight: "700", color: "#38bdf8", marginBottom: "4px" }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    color: "var(--color-primary, #38bdf8)",
+                    marginBottom: "4px",
+                  }}
+                >
                   Request Headers
                 </div>
                 <HeadersViewer headers={selectedLogDetail.requestHeaders} />
               </div>
               <div>
-                <div style={{ fontSize: "11px", fontWeight: "700", color: "#10b981", marginBottom: "4px" }}>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    color: "var(--color-success, #10b981)",
+                    marginBottom: "4px",
+                  }}
+                >
                   Response Headers
                 </div>
                 <HeadersViewer headers={selectedLogDetail.responseHeaders} />
@@ -251,14 +301,17 @@ export function LogDetailModal({ s }: { s: State }) {
             style={{
               padding: "5px 10px",
               borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "white",
+              backgroundColor: "var(--wt-bg-subtle)",
+              border: "1px solid var(--wt-border)",
+              color: "var(--wt-text-main)",
               fontSize: "11px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            📋 URL 복사
+            <Copy style={{ width: 12, height: 12 }} /> URL 복사
           </button>
           <button
             type="button"
@@ -268,14 +321,17 @@ export function LogDetailModal({ s }: { s: State }) {
             style={{
               padding: "5px 10px",
               borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "white",
+              backgroundColor: "var(--wt-bg-subtle)",
+              border: "1px solid var(--wt-border)",
+              color: "var(--wt-text-main)",
               fontSize: "11px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            📋 cURL 복사
+            <Terminal style={{ width: 12, height: 12 }} /> cURL 복사
           </button>
           <button
             type="button"
@@ -301,9 +357,12 @@ export function LogDetailModal({ s }: { s: State }) {
               fontSize: "11px",
               fontWeight: "800",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
-            ⚡ 이 API 모킹 규칙 생성
+            <Sparkles style={{ width: 13, height: 13 }} /> 이 API 모킹 규칙 생성
           </button>
         </div>
       </div>

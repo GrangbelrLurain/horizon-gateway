@@ -25,10 +25,10 @@ const RECAPTURE_COPY = {
 } as const;
 
 const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }> = {
-  ok: { bg: "#22c55e", border: "#86efac", label: "ok" },
-  weak: { bg: "#f59e0b", border: "#fcd34d", label: "weak" },
-  broken: { bg: "#ef4444", border: "#fca5a5", label: "broken" },
-  ambiguous: { bg: "#a855f7", border: "#d8b4fe", label: "ambiguous" },
+  ok: { bg: "var(--color-success, #22c55e)", border: "var(--color-success, #86efac)", label: "ok" },
+  weak: { bg: "var(--color-warning, #f59e0b)", border: "var(--color-warning, #fcd34d)", label: "weak" },
+  broken: { bg: "var(--color-error, #ef4444)", border: "var(--color-error, #fca5a5)", label: "broken" },
+  ambiguous: { bg: "var(--color-secondary, #a855f7)", border: "var(--color-secondary, #d8b4fe)", label: "ambiguous" },
 };
 
 function isSameValidation(a: LocatorValidation | null, b: LocatorValidation | null): boolean {
@@ -151,7 +151,11 @@ export function PolicyBadge({
     };
   }, [updatePosition]);
 
+  const targetAnnotationId = targetAnnotation?.id;
   useEffect(() => {
+    if (!targetAnnotationId) {
+      return;
+    }
     setConfirmRecapture(false);
     setIsRecapturing(false);
     if (confirmRecaptureTimer.current != null) {
@@ -164,7 +168,7 @@ export function PolicyBadge({
         confirmRecaptureTimer.current = null;
       }
     };
-  }, [targetAnnotation?.id]);
+  }, [targetAnnotationId]);
 
   // broken / ambiguous with no unique element: no floating badge
   if (!targetAnnotation || !rect || rect.width === 0 || rect.height === 0) {
@@ -187,13 +191,13 @@ export function PolicyBadge({
   const badgeBg =
     status === "ok"
       ? isActive
-        ? "linear-gradient(135deg, #f87171 0%, #dc2626 100%)"
-        : "linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)"
+        ? "var(--color-error, #dc2626)"
+        : "var(--color-primary, #2563eb)"
       : status === "weak"
-        ? "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)"
+        ? "var(--color-warning, #d97706)"
         : status === "ambiguous"
-          ? "linear-gradient(135deg, #c084fc 0%, #7e22ce 100%)"
-          : "linear-gradient(135deg, #f87171 0%, #b91c1c 100%)";
+          ? "var(--color-secondary, #7e22ce)"
+          : "var(--color-error, #b91c1c)";
 
   const dotLeft = Math.max(4, Math.min((rect?.left ?? 16) - 12, window.innerWidth - 32));
   const dotTop = Math.max(4, Math.min((rect?.top ?? 16) - 12, window.innerHeight - 32));
@@ -264,8 +268,8 @@ export function PolicyBadge({
           width: isCluster ? "28px" : "24px",
           height: isCluster ? "28px" : "24px",
           borderRadius: "50%",
-          backgroundImage: badgeBg,
-          color: "white",
+          backgroundColor: badgeBg,
+          color: "var(--color-primary-content, #ffffff)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -273,10 +277,10 @@ export function PolicyBadge({
           fontWeight: "900",
           cursor: "pointer",
           boxShadow: isCluster
-            ? "0 0 16px rgba(96, 165, 250, 0.7), 3px 3px 0 rgba(236, 72, 153, 0.5)"
+            ? "0 0 16px var(--color-primary, rgba(96, 165, 250, 0.7)), 3px 3px 0 var(--color-secondary, rgba(236, 72, 153, 0.5))"
             : isActive
-              ? "0 0 16px rgba(239, 68, 68, 0.6)"
-              : "0 4px 14px rgba(59, 130, 246, 0.5)",
+              ? "0 0 16px var(--color-error, rgba(239, 68, 68, 0.6))"
+              : "0 4px 14px var(--color-primary, rgba(59, 130, 246, 0.5))",
           border: `2px solid ${statusMeta.border}`,
           transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
           transform: isActive ? "scale(1.15)" : "scale(1)",
@@ -298,12 +302,12 @@ export function PolicyBadge({
             maxHeight: `${maxCardHeight}px`,
             minHeight: 0,
             overflow: "hidden",
-            background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
-            color: "white",
+            background: "var(--wt-bg-panel)",
+            color: "var(--wt-text-main)",
             padding: "14px 16px 12px",
             borderRadius: "16px",
-            boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-            border: "1px solid rgba(59, 130, 246, 0.35)",
+            boxShadow: "var(--wt-shadow)",
+            border: "1px solid var(--wt-border-primary)",
             zIndex: 2147483645,
             wordBreak: "break-word",
             overflowWrap: "anywhere",
@@ -320,10 +324,10 @@ export function PolicyBadge({
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  backgroundColor: "rgba(0, 0, 0, 0.35)",
+                  backgroundColor: "var(--wt-bg-subtle)",
                   padding: "4px",
                   borderRadius: "10px",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  border: "1px solid var(--wt-border)",
                   overflowX: "auto",
                 }}
               >
@@ -339,11 +343,11 @@ export function PolicyBadge({
                       }}
                       style={{
                         background: isTabActive
-                          ? "linear-gradient(135deg, #ec4899 0%, #3b82f6 100%)"
-                          : "rgba(255, 255, 255, 0.05)",
+                          ? "linear-gradient(135deg, #ec4899 0%, var(--color-primary, #3b82f6) 100%)"
+                          : "var(--wt-bg-subtle)",
                         border: isTabActive ? "1px solid rgba(255, 255, 255, 0.3)" : "none",
                         borderRadius: "7px",
-                        color: isTabActive ? "white" : "rgba(255, 255, 255, 0.6)",
+                        color: isTabActive ? "white" : "var(--wt-text-muted)",
                         fontSize: "10px",
                         fontWeight: "800",
                         padding: "4px 9px",
@@ -369,15 +373,13 @@ export function PolicyBadge({
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                <Pin style={{ width: "14px", height: "14px", color: "#60a5fa", flexShrink: 0 }} />
+                <Pin style={{ width: "14px", height: "14px", color: "var(--color-primary, #60a5fa)", flexShrink: 0 }} />
                 <h4
                   style={{
                     margin: 0,
                     fontSize: "14px",
                     fontWeight: "800",
-                    background: "linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    color: "var(--color-primary, #60a5fa)",
                     letterSpacing: "-0.01em",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -408,8 +410,8 @@ export function PolicyBadge({
                     type="button"
                     onClick={() => onEdit(annotation)}
                     style={{
-                      background: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                      background: "var(--wt-bg-subtle)",
+                      border: "1px solid var(--wt-border)",
                       borderRadius: "6px",
                       color: "#f472b6",
                       cursor: "pointer",
@@ -435,7 +437,7 @@ export function PolicyBadge({
                   style={{
                     background: "none",
                     border: "none",
-                    color: "rgba(255, 255, 255, 0.5)",
+                    color: "var(--wt-text-muted)",
                     cursor: "pointer",
                     padding: "2px",
                     display: "flex",
@@ -464,16 +466,16 @@ export function PolicyBadge({
           >
             <MarkdownRenderer
               content={annotation.description}
-              style={{ fontSize: "12px", color: "rgba(241, 245, 249, 0.9)" }}
+              style={{ fontSize: "12px", color: "var(--wt-text-main)" }}
               codeStyle={{
-                backgroundColor: "rgba(99, 102, 241, 0.15)",
-                color: "#a5b4fc",
-                border: "1px solid rgba(165, 180, 252, 0.25)",
+                backgroundColor: "var(--wt-bg-subtle)",
+                color: "var(--color-primary, #a5b4fc)",
+                border: "1px solid var(--wt-border)",
               }}
             />
 
             {locators.length > 1 && (
-              <div style={{ fontSize: "9.5px", color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
+              <div style={{ fontSize: "9.5px", color: "var(--wt-text-muted)", fontFamily: "monospace" }}>
                 primary: {locators[0]?.strategy ?? "—"}
                 {validation?.resolvedBy != null && validation.resolvedBy > 0
                   ? ` · resolved via #${validation.resolvedBy} (${locators[validation.resolvedBy]?.strategy})`
@@ -516,7 +518,7 @@ export function PolicyBadge({
               gap: "4px",
               paddingTop: "8px",
               paddingBottom: "2px",
-              borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+              borderTop: "1px solid var(--wt-border)",
               flexShrink: 0,
             }}
           >
@@ -525,10 +527,10 @@ export function PolicyBadge({
                 type="button"
                 onClick={() => onCopyDescription(annotation)}
                 style={{
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  background: "var(--wt-bg-subtle)",
+                  border: "1px solid var(--wt-border)",
                   borderRadius: "6px",
-                  color: "rgba(255, 255, 255, 0.8)",
+                  color: "var(--wt-text-main)",
                   cursor: "pointer",
                   padding: "4px 8px",
                   fontSize: "10px",
@@ -540,7 +542,7 @@ export function PolicyBadge({
                 }}
                 title="설명 복사"
               >
-                <Copy style={{ width: "11px", height: "11px", color: "#60a5fa" }} />
+                <Copy style={{ width: "11px", height: "11px", color: "var(--color-primary, #60a5fa)" }} />
                 <span>설명 복사</span>
               </button>
             )}
@@ -550,10 +552,10 @@ export function PolicyBadge({
                 type="button"
                 onClick={() => onCopySelector(annotation)}
                 style={{
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  background: "var(--wt-bg-subtle)",
+                  border: "1px solid var(--wt-border)",
                   borderRadius: "6px",
-                  color: "rgba(255, 255, 255, 0.8)",
+                  color: "var(--wt-text-main)",
                   cursor: "pointer",
                   padding: "4px 8px",
                   fontSize: "10px",
@@ -565,7 +567,7 @@ export function PolicyBadge({
                 }}
                 title="Selector 복사"
               >
-                <Target style={{ width: "11px", height: "11px", color: "#34d399" }} />
+                <Target style={{ width: "11px", height: "11px", color: "var(--color-success, #34d399)" }} />
                 <span>Selector</span>
               </button>
             )}
@@ -576,12 +578,10 @@ export function PolicyBadge({
                 onClick={(e) => void handleRecaptureClick(e)}
                 disabled={isRecapturing}
                 style={{
-                  background: confirmRecapture ? "rgba(251, 191, 36, 0.18)" : "rgba(255, 255, 255, 0.06)",
-                  border: confirmRecapture
-                    ? "1px solid rgba(251, 191, 36, 0.45)"
-                    : "1px solid rgba(255, 255, 255, 0.1)",
+                  background: confirmRecapture ? "rgba(251, 191, 36, 0.18)" : "var(--wt-bg-subtle)",
+                  border: confirmRecapture ? "1px solid rgba(251, 191, 36, 0.45)" : "1px solid var(--wt-border)",
                   borderRadius: "6px",
-                  color: confirmRecapture ? "#fcd34d" : "rgba(255, 255, 255, 0.8)",
+                  color: confirmRecapture ? "var(--color-warning, #fcd34d)" : "var(--wt-text-main)",
                   cursor: isRecapturing ? "default" : "pointer",
                   padding: "4px 8px",
                   fontSize: "10px",
@@ -610,10 +610,10 @@ export function PolicyBadge({
                 type="button"
                 onClick={() => onCopySummary(annotation)}
                 style={{
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  background: "var(--wt-bg-subtle)",
+                  border: "1px solid var(--wt-border)",
                   borderRadius: "6px",
-                  color: "rgba(255, 255, 255, 0.8)",
+                  color: "var(--wt-text-main)",
                   cursor: "pointer",
                   padding: "4px 8px",
                   fontSize: "10px",
@@ -625,7 +625,7 @@ export function PolicyBadge({
                 }}
                 title="요약 복사"
               >
-                <FileText style={{ width: "11px", height: "11px", color: "#fbbf24" }} />
+                <FileText style={{ width: "11px", height: "11px", color: "var(--color-warning, #fbbf24)" }} />
                 <span>요약 복사</span>
               </button>
             )}
@@ -638,7 +638,7 @@ export function PolicyBadge({
                   background: "rgba(239, 68, 68, 0.1)",
                   border: "1px solid rgba(239, 68, 68, 0.2)",
                   borderRadius: "6px",
-                  color: "#f87171",
+                  color: "var(--color-error, #f87171)",
                   cursor: "pointer",
                   padding: "4px 8px",
                   fontSize: "10px",

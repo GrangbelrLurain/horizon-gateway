@@ -17,10 +17,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **PAC TLS bypass list**: Generated PAC scripts honor configured `tlsBypassHosts` (suffix and substring rules), not only loopback/Tailscale.
 - **Default TLS bypass seeds**: Teams/Office/Skype, Slack, Zoom, Discord, and related SSO hosts are included and merged into existing installs.
 - **Settings export resilience**: `.hg.json` import/export tolerates missing fields, camelCase/snake_case aliases, and default schema metadata; Rust unit tests cover partial payloads.
+- **Inspector full theme tokenization & proxy sync**: All inspector components (guide modal, policy modals, traffic popovers, JSON/headers viewer, floating pins, editor) use CSS theme tokens; `/.horizon-gateway/api/theme` and disk persistence (`theme.json`) sync the active desktop theme to injected web pages in real-time.
 - **watchtower-ui agent skill**: Documents section-title-outside-card layout, typography, spacing, and theme conventions for agents; linked from the horizon-gateway skill.
 
 ### Changed
 
+- **Inspector SVG icons**: Replaced emoji and plain text icons with Lucide SVG icons and streamlined compact toolbar expand mode.
 - **Custom themes (DaisyUI 5)**: Dynamic themes inject CSS variables on both `:root` and `[data-theme="<id>"]` with `data-color-scheme`, avoiding layer/specificity races with compiled themes.
 - **Default typography**: Built-in light/dark presets use 13px base size and 1.4 line height.
 - **Team workspace sync**: Pull payload carries `version`, `schemaVersion`, and `app` for consistent settings exchange.

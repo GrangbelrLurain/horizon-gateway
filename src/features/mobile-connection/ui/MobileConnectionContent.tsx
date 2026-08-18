@@ -12,6 +12,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { languageAtom, proxyRunningAtom } from "@/entities/app";
 import { ProxyServerWarning } from "@/entities/proxy";
@@ -20,8 +21,34 @@ import { commands, unwrap } from "@/shared/api";
 import { Badge } from "@/shared/ui/badge/badge";
 import { Card } from "@/shared/ui/card/card";
 import { StatusToggle } from "@/shared/ui/status-toggle/StatusToggle";
+import { SegmentedTabs } from "@/shared/ui/tabs";
 import { toastInfo } from "@/shared/ui/toast";
-import { H1, H2, P } from "@/shared/ui/typography/typography";
+import { H1, P } from "@/shared/ui/typography/typography";
+
+function Section({
+  title,
+  desc,
+  children,
+  titleExtra,
+  cardClassName,
+}: {
+  title: ReactNode;
+  desc?: string;
+  children: ReactNode;
+  titleExtra?: ReactNode;
+  cardClassName?: string;
+}) {
+  return (
+    <section className="space-y-2 min-w-0">
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <h2 className="text-sm font-semibold text-base-content flex items-center gap-2 min-w-0">{title}</h2>
+        {titleExtra}
+      </div>
+      {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
+      <Card className={`p-3 @min-[28rem]:p-4 space-y-3 min-w-0 ${cardClassName ?? ""}`}>{children}</Card>
+    </section>
+  );
+}
 
 export function MobileConnectionContent({ embedded = false }: { embedded?: boolean }) {
   const lang = useAtomValue(languageAtom);
@@ -199,59 +226,51 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
 
       {!embedded && <ProxyServerWarning />}
 
-      <div className="flex border-b border-base-300 min-w-0">
-        <button
-          type="button"
-          onClick={() => setActiveTab("wireless")}
-          className={`flex-1 min-w-0 px-2 @min-[28rem]:px-4 @min-[36rem]:px-6 py-2 @min-[28rem]:py-3 font-bold text-[11px] @min-[28rem]:text-sm border-b-2 transition-all flex items-center justify-center gap-1.5 @min-[28rem]:gap-2 ${
-            activeTab === "wireless"
-              ? "border-primary text-primary"
-              : "border-transparent text-base-content/50 hover:text-base-content"
-          }`}
-        >
-          <Wifi className="w-4 h-4 shrink-0" />
-          <span className="truncate">
-            {embedded
+      <SegmentedTabs<"wireless" | "usb">
+        value={activeTab}
+        onChange={setActiveTab}
+        variant="underline"
+        size="md"
+        fullWidth
+        className="min-w-0"
+        items={[
+          {
+            id: "wireless",
+            label: embedded
               ? lang === "ko"
                 ? "무선"
                 : "Wireless"
               : lang === "ko"
                 ? "무선 연결 (Wi-Fi / VPN)"
-                : "Wireless Connect (Wi-Fi / VPN)"}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("usb")}
-          className={`flex-1 min-w-0 px-2 @min-[28rem]:px-4 @min-[36rem]:px-6 py-2 @min-[28rem]:py-3 font-bold text-[11px] @min-[28rem]:text-sm border-b-2 transition-all flex items-center justify-center gap-1.5 @min-[28rem]:gap-2 ${
-            activeTab === "usb"
-              ? "border-primary text-primary"
-              : "border-transparent text-base-content/50 hover:text-base-content"
-          }`}
-        >
-          <Usb className="w-4 h-4 shrink-0" />
-          <span className="truncate">
-            {embedded
+                : "Wireless Connect (Wi-Fi / VPN)",
+            icon: Wifi,
+          },
+          {
+            id: "usb",
+            label: embedded
               ? lang === "ko"
                 ? "USB"
                 : "USB"
               : lang === "ko"
                 ? "USB 연결 (안드로이드 전용)"
-                : "USB Connect (Android Only)"}
-          </span>
-        </button>
-      </div>
+                : "USB Connect (Android Only)",
+            icon: Usb,
+          },
+        ]}
+      />
 
       {activeTab === "wireless" ? (
         <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Status and Controls */}
           <div className="@min-[36rem]:col-span-2 flex flex-col gap-4 @min-[36rem]:gap-6">
-            <Card className="p-4 @min-[28rem]:p-6">
-              <H2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary" />
-                {lang === "ko" ? "기기 및 네트워크 상태" : "Device & Network Status"}
-              </H2>
-
+            <Section
+              title={
+                <>
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                  {lang === "ko" ? "기기 및 네트워크 상태" : "Device & Network Status"}
+                </>
+              }
+            >
               <div className="space-y-4">
                 {/* Proxy Running State */}
                 <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
@@ -330,21 +349,23 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   </div>
                 </div>
               )}
-            </Card>
+            </Section>
 
             {/* Cloudflare Tunnel Controller */}
-            <Card className="p-4 @min-[28rem]:p-6">
-              <H2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Wifi className="w-5 h-5 text-primary" />
-                {lang === "ko" ? "임시 Cloudflare 외부 연결 터널" : "Temporary Cloudflare Tunnel"}
-              </H2>
-              <P className="text-base-content/60 text-sm mb-6 leading-relaxed">
-                {lang === "ko"
+            <Section
+              title={
+                <>
+                  <Wifi className="w-4 h-4 text-primary shrink-0" />
+                  {lang === "ko" ? "임시 Cloudflare 외부 연결 터널" : "Temporary Cloudflare Tunnel"}
+                </>
+              }
+              desc={
+                lang === "ko"
                   ? "모바일 브라우저의 최초 접속을 받기 위해 임시 cloudflared 터널을 백그라운드에서 구동합니다. 연결 진단 및 가이드 설정이 완료된 후 터널을 비활성화하면 통신이 자동으로 차단됩니다."
-                  : "Spawns a temporary cloudflared tunnel in the background to receive initial mobile connections. Once the configuration guide is set up, disabling the tunnel instantly blocks internet access."}
-              </P>
-
-              <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30 mb-6">
+                  : "Spawns a temporary cloudflared tunnel in the background to receive initial mobile connections. Once the configuration guide is set up, disabling the tunnel instantly blocks internet access."
+              }
+            >
+              <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
                 <div className="flex flex-col">
                   <span className="font-bold text-sm">{lang === "ko" ? "터널 상태" : "Tunnel Status"}</span>
                   <span className="text-xs text-base-content/60 font-mono break-all mt-1">
@@ -433,17 +454,20 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   )}
                 </div>
               )}
-            </Card>
+            </Section>
           </div>
 
           {/* QR Code and Mobile Connection Steps */}
           <div className="flex flex-col gap-4 @min-[36rem]:gap-6">
-            <Card className="p-4 @min-[28rem]:p-6 flex flex-col items-center text-center">
-              <H2 className="text-lg font-bold mb-4 self-start flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-primary" />
-                {lang === "ko" ? "모바일 스캔용 QR 코드" : "Connection QR Code"}
-              </H2>
-
+            <Section
+              title={
+                <>
+                  <QrCode className="w-4 h-4 text-primary shrink-0" />
+                  {lang === "ko" ? "모바일 스캔용 QR 코드" : "Connection QR Code"}
+                </>
+              }
+              cardClassName="flex flex-col items-center text-center"
+            >
               {tunnelActive && connectUrl ? (
                 <div className="flex flex-col items-center gap-5 w-full">
                   <div className="p-4 bg-white rounded-2xl shadow-lg border border-base-300/20">
@@ -466,10 +490,9 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   </span>
                 </div>
               )}
-            </Card>
+            </Section>
 
-            <Card className="p-4 @min-[28rem]:p-6">
-              <h3 className="font-bold text-sm mb-3">{lang === "ko" ? "접속 및 구성 가이드" : "Handoff Process"}</h3>
+            <Section title={lang === "ko" ? "접속 및 구성 가이드" : "Handoff Process"}>
               <ul className="space-y-3 text-xs leading-relaxed text-base-content/70">
                 <li className="flex gap-2">
                   <span className="font-bold text-primary shrink-0">1.</span>
@@ -496,30 +519,32 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   </span>
                 </li>
               </ul>
-            </Card>
+            </Section>
           </div>
         </div>
       ) : (
         /* USB Tab */
         <div className="grid grid-cols-1 @min-[36rem]:grid-cols-3 gap-4 @min-[36rem]:gap-8 items-start animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="@min-[36rem]:col-span-2 flex flex-col gap-4 @min-[36rem]:gap-6">
-            <Card className="p-4 @min-[28rem]:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <H2 className="text-lg font-bold flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-primary" />
+            <Section
+              title={
+                <>
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
                   {lang === "ko" ? "ADB 및 USB 디바이스 감지" : "ADB & USB Device Detection"}
-                </H2>
+                </>
+              }
+              titleExtra={
                 <button
                   type="button"
                   onClick={fetchAdbStatus}
                   disabled={adbLoading}
-                  className="p-1.5 bg-base-200 hover:bg-base-300 border border-base-300 rounded-lg text-base-content/70 hover:text-base-content transition-all disabled:opacity-50"
+                  className="p-1.5 bg-base-200 hover:bg-base-300 border border-base-300 rounded-lg text-base-content/70 hover:text-base-content transition-all disabled:opacity-50 shrink-0"
                   title={lang === "ko" ? "상태 갱신" : "Refresh Status"}
                 >
                   <RefreshCw className={`w-4 h-4 ${adbLoading ? "animate-spin" : ""}`} />
                 </button>
-              </div>
-
+              }
+            >
               {adbLoading ? (
                 <div className="flex items-center justify-center py-10">
                   <Loader2Icon className="w-8 h-8 text-primary animate-spin" />
@@ -633,20 +658,22 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   </div>
                 </div>
               )}
-            </Card>
+            </Section>
 
             {/* USB Reverse Controller */}
-            <Card className="p-4 @min-[28rem]:p-6">
-              <H2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <Usb className="w-5 h-5 text-primary" />
-                {lang === "ko" ? "USB 포트 터널링 스위치" : "USB Port Tunneling Switch"}
-              </H2>
-              <P className="text-base-content/60 text-sm mb-6 leading-relaxed">
-                {lang === "ko"
+            <Section
+              title={
+                <>
+                  <Usb className="w-4 h-4 text-primary shrink-0" />
+                  {lang === "ko" ? "USB 포트 터널링 스위치" : "USB Port Tunneling Switch"}
+                </>
+              }
+              desc={
+                lang === "ko"
                   ? `안드로이드 폰의 로컬 ${proxyStatus.port || 8888} 포트를 PC의 Horizon Gateway 프록시 서버로 다이렉트 바인딩해주는 USB 터널을 켭니다. 무선 공유기 상태에 구애받지 않고 오프라인 상태에서도 온전히 감시와 모킹이 가능합니다.`
-                  : `Forward your Android device's local port ${proxyStatus.port || 8888} back to the Horizon Gateway proxy server on your host PC via USB. This operates offline and bypasses Wi-Fi router / corporate intranet restrictions.`}
-              </P>
-
+                  : `Forward your Android device's local port ${proxyStatus.port || 8888} back to the Horizon Gateway proxy server on your host PC via USB. This operates offline and bypasses Wi-Fi router / corporate intranet restrictions.`
+              }
+            >
               <div className="flex items-center justify-between p-4 bg-base-200/50 rounded-xl border border-base-300/30">
                 <div className="flex flex-col">
                   <span className="font-bold text-sm">{lang === "ko" ? "USB 터널 상태" : "USB Tunnel Status"}</span>
@@ -674,15 +701,12 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   {usbError}
                 </div>
               )}
-            </Card>
+            </Section>
           </div>
 
           {/* USB Connect Guidelines */}
           <div className="flex flex-col gap-4 @min-[36rem]:gap-6">
-            <Card className="p-4 @min-[28rem]:p-6">
-              <h3 className="font-bold text-sm mb-3">
-                {lang === "ko" ? "USB 프록시 구성 가이드" : "USB Setup Process"}
-              </h3>
+            <Section title={lang === "ko" ? "USB 프록시 구성 가이드" : "USB Setup Process"}>
               <ul className="space-y-4 text-xs leading-relaxed text-base-content/70">
                 <li className="flex gap-2">
                   <span className="font-bold text-primary shrink-0">1.</span>
@@ -726,14 +750,14 @@ export function MobileConnectionContent({ embedded = false }: { embedded?: boole
                   </div>
                 </li>
               </ul>
-            </Card>
+            </Section>
 
             {/* iOS Unsupported warning card */}
             <Card className="p-4 @min-[28rem]:p-6 border border-warning/20 bg-warning/5 text-warning">
-              <H2 className="text-sm font-bold mb-2 flex items-center gap-2 text-warning">
+              <h2 className="text-sm font-bold mb-2 flex items-center gap-2 text-warning">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {lang === "ko" ? "iOS (아이폰/아이패드) 미지원 안내" : "iOS Unsupported"}
-              </H2>
+              </h2>
               <P className="text-xs leading-relaxed opacity-85">
                 {lang === "ko"
                   ? "Apple의 샌드박스 정책 및 iOS 시스템 제약으로 인해 USB 포트를 통한 웹 데이터 역방향 포워딩(Reverse tunneling)은 지원되지 않습니다. 아이폰 사용자의 경우 상단의 [무선 연결] 탭을 눌러 Tailscale VPN 또는 일반 Wi-Fi 프록시 구성을 이용해 주시기 바랍니다."

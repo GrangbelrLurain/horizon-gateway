@@ -12,6 +12,8 @@ Horizon Gateway is a local HTTP proxy/debugging app. Agents interact with it in 
 | `scripts/logs.mjs` | Read API logs **directly from disk** (fast, no app startup) |
 | `hgc` | Call **any Horizon Gateway command** (domains, proxy, mocking, sandbox, settings, …) |
 
+**UI layout & theme conventions:** see [watchtower-ui](../watchtower-ui/SKILL.md) (section titles outside cards, typography, spacing, theme injection).
+
 ## Install this skill
 
 Run once so your agent discovers Horizon Gateway automatically:

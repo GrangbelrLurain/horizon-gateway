@@ -68,6 +68,7 @@ import { Badge } from "@/shared/ui/badge/badge";
 import { Button } from "@/shared/ui/button/Button";
 import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
+import { SegmentedTabs } from "@/shared/ui/tabs";
 import { H1, P } from "@/shared/ui/typography/typography";
 import { en } from "./en";
 import { ko } from "./ko";
@@ -784,31 +785,26 @@ function SchemaOptionsPanel() {
   );
 
   return (
-    <Card className="p-6 max-w-2xl bg-base-100 border-base-300 shadow-xl rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex items-start gap-3 mb-6">
-        <div className="p-2 bg-secondary/10 text-secondary rounded-lg shrink-0">
-          <Settings2 className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-black tracking-tight text-base-content">{t.optionsTitle}</h2>
-          <p className="text-sm text-base-content/60 mt-1">{t.optionsSubtitle}</p>
-        </div>
-      </div>
+    <section className="space-y-2 min-w-0">
+      <h2 className="text-sm font-semibold text-base-content">{t.optionsTitle}</h2>
+      <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+        <p className="text-xs text-base-content/55 leading-relaxed">{t.optionsSubtitle}</p>
 
-      <FieldPermissionsCard
-        title={t.fieldSettings}
-        labels={{
-          method: t.fieldMethod,
-          origin: t.origin,
-          pathname: t.pathname,
-          params: t.parameters,
-          body: t.body,
-          headers: t.customHeaders,
-        }}
-        config={fieldConfig}
-        onConfigChange={handleConfigChange}
-      />
-    </Card>
+        <FieldPermissionsCard
+          title={t.fieldSettings}
+          labels={{
+            method: t.fieldMethod,
+            origin: t.origin,
+            pathname: t.pathname,
+            params: t.parameters,
+            body: t.body,
+            headers: t.customHeaders,
+          }}
+          config={fieldConfig}
+          onConfigChange={handleConfigChange}
+        />
+      </Card>
+    </section>
   );
 }
 
@@ -1249,93 +1245,85 @@ export function ApiSchemaPage({
           </div>
         )}
 
-        <div className="tabs tabs-boxed w-fit shrink-0">
-          <button
-            type="button"
-            className={`tab gap-1.5 font-bold text-xs uppercase tracking-wider ${activeTab === "endpoints" ? "tab-active" : ""}`}
-            onClick={() => setActiveTab("endpoints")}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            {t.tabEndpoints}
-          </button>
-          <button
-            type="button"
-            className={`tab gap-1.5 font-bold text-xs uppercase tracking-wider ${activeTab === "options" ? "tab-active" : ""}`}
-            onClick={() => setActiveTab("options")}
-          >
-            <Settings2 className="w-3.5 h-3.5" />
-            {t.tabOptions}
-          </button>
-        </div>
+        <SegmentedTabs<SchemaPageTab>
+          value={activeTab}
+          onChange={setActiveTab}
+          size="sm"
+          items={[
+            { id: "endpoints", label: t.tabEndpoints, icon: BookOpen },
+            { id: "options", label: t.tabOptions, icon: Settings2 },
+          ]}
+        />
 
         {activeTab === "options" && (
-          <div className="space-y-4 max-w-2xl">
+          <div className="space-y-6 max-w-2xl">
             {selectedDomainId && (
-              <Card className="p-6 bg-base-100 border-base-300 shadow-xl rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 font-bold text-sm text-base-content">
-                  <Download className="w-4 h-4 text-primary" />
-                  <span>{t.schemaUrlLabel}</span>
-                </div>
-                <p className="text-xs text-base-content/60 leading-relaxed">{t.noSchemaDownloadAction}</p>
+              <section className="space-y-2 min-w-0">
+                <h2 className="text-sm font-semibold text-base-content">{t.schemaUrlLabel}</h2>
+                <Card className="p-3 @min-[32rem]:p-4 space-y-3">
+                  <p className="text-xs text-base-content/55 leading-relaxed">{t.noSchemaDownloadAction}</p>
 
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input
-                    value={schemaUrlInput}
-                    onChange={(e) => setSchemaUrlInput(e.target.value)}
-                    placeholder={t.schemaPlaceholder}
-                    className="flex-1 h-9 text-xs font-mono bg-base-100 border-base-300"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleSaveSchemaUrl}
-                      disabled={savingSchema || !selectedDomainId}
-                    >
-                      {savingSchema ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.save}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={handleDownloadSchema}
-                      disabled={downloadingSchema || !schemaUrlInput.trim() || !selectedDomainId}
-                    >
-                      {downloadingSchema ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Download className="w-3.5 h-3.5" />
-                      )}
-                      {t.download}
-                    </Button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      value={schemaUrlInput}
+                      onChange={(e) => setSchemaUrlInput(e.target.value)}
+                      placeholder={t.schemaPlaceholder}
+                      className="flex-1 h-9 text-xs font-mono bg-base-100 border-base-300"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSaveSchemaUrl}
+                        disabled={savingSchema || !selectedDomainId}
+                      >
+                        {savingSchema ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t.save}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={handleDownloadSchema}
+                        disabled={downloadingSchema || !schemaUrlInput.trim() || !selectedDomainId}
+                      >
+                        {downloadingSchema ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                        {t.download}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                {schemaActionMessage && (
-                  <p className={clsx("text-xs font-bold", schemaActionMessage.ok ? "text-success" : "text-error")}>
-                    {schemaActionMessage.msg}
-                  </p>
-                )}
-              </Card>
+                  {schemaActionMessage && (
+                    <p className={clsx("text-xs font-bold", schemaActionMessage.ok ? "text-success" : "text-error")}>
+                      {schemaActionMessage.msg}
+                    </p>
+                  )}
+                </Card>
+              </section>
             )}
 
             {selectedDomainId && (
-              <Card className="p-6 bg-base-100 border-base-300 shadow-xl rounded-2xl">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-base-content">{t.apiBodyLogging}</span>
-                  {savingBody ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
-                  ) : (
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-primary toggle-sm shrink-0"
-                      checked={currentLink?.bodyEnabled ?? false}
-                      onChange={handleToggleBody}
-                      disabled={!(currentLink?.loggingEnabled ?? false)}
-                    />
-                  )}
-                </div>
-                <p className="text-xs text-base-content/50 mt-1">{t.apiBodyLoggingDesc}</p>
-              </Card>
+              <section className="space-y-2 min-w-0">
+                <h2 className="text-sm font-semibold text-base-content">{t.apiBodyLogging}</h2>
+                <Card className="p-3 @min-[32rem]:p-4 space-y-3">
+                  <p className="text-xs text-base-content/55 leading-relaxed">{t.apiBodyLoggingDesc}</p>
+                  <div className="flex justify-end">
+                    {savingBody ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary toggle-sm shrink-0"
+                        checked={currentLink?.bodyEnabled ?? false}
+                        onChange={handleToggleBody}
+                        disabled={!(currentLink?.loggingEnabled ?? false)}
+                      />
+                    )}
+                  </div>
+                </Card>
+              </section>
             )}
 
             <SchemaOptionsPanel />

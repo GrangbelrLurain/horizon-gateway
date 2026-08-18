@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 import type { MockedApiEntry, MockRule } from "../types";
 
@@ -22,11 +23,11 @@ export function MockListPopover({ s }: { s: State }) {
         bottom: `${s.dragOffset.y + 48}px`,
         width: "380px",
         maxHeight: "65vh",
-        backgroundColor: "rgba(15, 23, 42, 0.98)",
+        backgroundColor: "var(--wt-bg-panel)",
         borderRadius: "16px",
         border: "1px solid rgba(245, 158, 11, 0.4)",
-        boxShadow: "0 20px 50px -10px rgba(0,0,0,0.7), 0 0 20px rgba(245, 158, 11, 0.15)",
-        color: "white",
+        boxShadow: "var(--wt-shadow)",
+        color: "var(--wt-text-main)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -38,7 +39,7 @@ export function MockListPopover({ s }: { s: State }) {
       <div
         style={{
           padding: "10px 14px",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          borderBottom: "1px solid var(--wt-border)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -76,7 +77,7 @@ export function MockListPopover({ s }: { s: State }) {
               })
             }
             style={{
-              backgroundColor: "rgba(245, 158, 11, 0.2)",
+              backgroundColor: "rgba(245, 158, 11, 0.15)",
               border: "1px solid rgba(245, 158, 11, 0.5)",
               color: "#f59e0b",
               borderRadius: "6px",
@@ -108,14 +109,17 @@ export function MockListPopover({ s }: { s: State }) {
             style={{
               background: "none",
               border: "none",
-              color: "rgba(255,255,255,0.6)",
+              color: "var(--wt-text-muted)",
               cursor: "pointer",
-              fontSize: "14px",
-              padding: "2px 6px",
+              padding: "2px 4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "4px",
             }}
             title="닫기"
           >
-            ✕
+            <X style={{ width: "16px", height: "16px" }} />
           </button>
         </div>
       </div>
@@ -126,18 +130,18 @@ export function MockListPopover({ s }: { s: State }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          backgroundColor: "rgba(255,255,255,0.02)",
+          borderBottom: "1px solid var(--wt-border)",
+          backgroundColor: "var(--wt-bg-subtle)",
           fontSize: "11px",
         }}
       >
-        <span style={{ color: "rgba(255,255,255,0.6)" }}>전체 모킹 상태</span>
+        <span style={{ color: "var(--wt-text-muted)" }}>전체 모킹 상태</span>
         <div style={{ display: "flex", gap: "6px" }}>
           <button
             type="button"
             onClick={() => s.handleToggleAllMockRules(true)}
             style={{
-              backgroundColor: "rgba(16, 185, 129, 0.2)",
+              backgroundColor: "rgba(16, 185, 129, 0.15)",
               border: "1px solid #10b981",
               color: "#10b981",
               fontSize: "9px",
@@ -153,7 +157,7 @@ export function MockListPopover({ s }: { s: State }) {
             type="button"
             onClick={() => s.handleToggleAllMockRules(false)}
             style={{
-              backgroundColor: "rgba(239, 68, 68, 0.2)",
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
               border: "1px solid #ef4444",
               color: "#ef4444",
               fontSize: "9px",
@@ -169,7 +173,7 @@ export function MockListPopover({ s }: { s: State }) {
       </div>
 
       {s.backendMockRules.length === 0 && s.mockedRequests.length === 0 ? (
-        <div style={{ padding: "24px 16px", textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>
+        <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--wt-text-muted)", fontSize: "12px" }}>
           이 페이지에서 발생한 API 중 모킹된 요청이 없습니다.
         </div>
       ) : (
@@ -188,11 +192,11 @@ export function MockListPopover({ s }: { s: State }) {
               <div
                 key={ruleId}
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.05)",
+                  backgroundColor: "var(--wt-bg-card)",
                   borderRadius: "8px",
                   padding: "8px 10px",
                   fontSize: "11px",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid var(--wt-border)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "6px",
@@ -202,8 +206,9 @@ export function MockListPopover({ s }: { s: State }) {
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <span
                       style={{
-                        backgroundColor: method === "GET" ? "#3b82f6" : "#10b981",
-                        color: "white",
+                        backgroundColor:
+                          method === "GET" ? "var(--color-primary, #3b82f6)" : "var(--color-success, #10b981)",
+                        color: "var(--color-primary-content, white)",
                         fontSize: "9px",
                         fontWeight: "900",
                         padding: "1px 5px",
@@ -216,7 +221,7 @@ export function MockListPopover({ s }: { s: State }) {
                     {isBackendRule && (
                       <span
                         style={{
-                          backgroundColor: enabled ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                          backgroundColor: enabled ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
                           color: enabled ? "#10b981" : "#ef4444",
                           fontSize: "9px",
                           fontWeight: "800",
@@ -246,9 +251,9 @@ export function MockListPopover({ s }: { s: State }) {
                         }
                       }}
                       style={{
-                        backgroundColor: "rgba(255,255,255,0.1)",
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        color: "white",
+                        backgroundColor: "var(--wt-bg-subtle)",
+                        border: "1px solid var(--wt-border)",
+                        color: "var(--wt-text-main)",
                         fontSize: "9px",
                         fontWeight: "800",
                         padding: "1px 6px",
@@ -314,7 +319,7 @@ export function MockListPopover({ s }: { s: State }) {
                     fontFamily: "monospace",
                     fontSize: "11px",
                     wordBreak: "break-all",
-                    color: "#f3f4f6",
+                    color: "var(--wt-text-main)",
                     fontWeight: "600",
                   }}
                 >

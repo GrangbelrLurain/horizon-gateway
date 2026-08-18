@@ -3,12 +3,14 @@ import type { MockedApiEntry } from "../types";
 import { useAnnotations } from "./useAnnotations";
 import { useDockDrag } from "./useDockDrag";
 import { useGatewayStatus } from "./useGatewayStatus";
+import { useInjectionTheme } from "./useInjectionTheme";
 import { useInspectMode } from "./useInspectMode";
 import { useMockRules } from "./useMockRules";
 import { useProxyRoutes } from "./useProxyRoutes";
 import { useTrafficLogs } from "./useTrafficLogs";
 
 export function useInjectionAppState() {
+  const theme = useInjectionTheme();
   const gateway = useGatewayStatus();
   const proxy = useProxyRoutes(gateway.fetchStatus);
   const mock = useMockRules();
@@ -94,6 +96,7 @@ export function useInjectionAppState() {
   }, [setMockedRequests]);
 
   return {
+    ...theme,
     ...gateway,
     ...proxy,
     ...mock,

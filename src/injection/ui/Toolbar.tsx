@@ -44,13 +44,13 @@ export function Toolbar({ s }: { s: State }) {
             right: "0px",
             zIndex: 2147483647,
             pointerEvents: "auto",
-            backgroundColor: "rgba(15, 23, 42, 0.98)",
+            backgroundColor: "var(--wt-bg-panel-translucent)",
             padding: "8px 12px",
             borderRadius: "100px 0 0 100px",
-            border: "1px solid rgba(255,255,255,0.25)",
+            border: "1px solid var(--wt-border-translucent)",
             borderRight: "none",
-            boxShadow: "0 10px 30px -5px rgba(0,0,0,0.6)",
-            color: "white",
+            boxShadow: "var(--wt-shadow)",
+            color: "var(--wt-text-main)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -72,14 +72,19 @@ export function Toolbar({ s }: { s: State }) {
           }}
           title="클릭/호버하여 툴바 펼치기"
         >
-          <ChevronLeft style={{ width: "14px", height: "14px", color: "#f59e0b" }} />
+          <ChevronLeft style={{ width: "14px", height: "14px", color: "var(--color-warning, #f59e0b)" }} />
           <div
             style={{
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              backgroundColor: s.mockedRequests.length > 0 ? "#f59e0b" : s.status.proxy ? "#10b981" : "#6b7280",
-              boxShadow: s.mockedRequests.length > 0 ? "0 0 8px #f59e0b" : "none",
+              backgroundColor:
+                s.mockedRequests.length > 0
+                  ? "var(--color-warning, #f59e0b)"
+                  : s.status.proxy
+                    ? "var(--color-success, #10b981)"
+                    : "var(--wt-text-faint)",
+              boxShadow: s.mockedRequests.length > 0 ? "0 0 8px var(--color-warning, #f59e0b)" : "none",
             }}
           />
         </div>
@@ -104,13 +109,13 @@ export function Toolbar({ s }: { s: State }) {
               display: "flex",
               alignItems: "center",
               gap: "4px",
-              backgroundColor: "rgba(15, 23, 42, 0.98)",
+              backgroundColor: "var(--wt-bg-panel-translucent)",
               padding: "4px 8px",
               borderRadius: s.isDocked ? "100px 0 0 100px" : "100px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRight: s.isDocked ? "none" : "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)",
-              color: "white",
+              border: "1px solid var(--wt-border-translucent)",
+              borderRight: s.isDocked ? "none" : "1px solid var(--wt-border-translucent)",
+              boxShadow: "var(--wt-shadow)",
+              color: "var(--wt-text-main)",
               fontFamily: "sans-serif",
               cursor: s.isDragging ? "grabbing" : "grab",
               touchAction: "none",
@@ -130,14 +135,10 @@ export function Toolbar({ s }: { s: State }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "2px 4px",
+                  padding: "4px 6px",
                 }}
               >
-                <img
-                  src="/.horizon-gateway/logo.svg"
-                  alt="Watchtower Logo"
-                  style={{ width: "18px", height: "18px", display: "block" }}
-                />
+                <ChevronLeft style={{ width: "14px", height: "14px", color: "var(--color-primary)" }} />
               </div>
             ) : (
               <div
@@ -230,7 +231,7 @@ export function Toolbar({ s }: { s: State }) {
                     display: "flex",
                     alignItems: "center",
                     gap: "4px",
-                    borderLeft: "1px solid rgba(255,255,255,0.15)",
+                    borderLeft: "1px solid var(--wt-border-translucent)",
                     paddingLeft: "6px",
                     marginLeft: "2px",
                   }}
@@ -243,7 +244,7 @@ export function Toolbar({ s }: { s: State }) {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "rgba(255,255,255,0.5)",
+                      color: "var(--wt-text-muted)",
                       cursor: "pointer",
                       padding: "2px",
                       display: "flex",
@@ -262,7 +263,7 @@ export function Toolbar({ s }: { s: State }) {
                     style={{
                       background: "none",
                       border: "none",
-                      color: "rgba(255,255,255,0.5)",
+                      color: "var(--wt-text-muted)",
                       cursor: "pointer",
                       padding: "2px",
                       display: "flex",

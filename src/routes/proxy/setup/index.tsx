@@ -130,16 +130,16 @@ function ProxySetupPage() {
       {/* Checklist */}
       <section className="space-y-2">
         <H2>{t.checklistTitle}</H2>
+        <p className="text-xs text-base-content/55 leading-relaxed">{t.checklistDesc}</p>
         <Card className="p-5 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <P className="text-xs text-base-content/55 leading-relaxed min-w-0">{t.checklistDesc}</P>
+          <div className="flex justify-end">
             <Button variant="secondary" size="sm" className="gap-1.5 shrink-0" onClick={resetChecklist}>
               <RotateCcw className="w-3.5 h-3.5" />
               {t.checklistReset}
             </Button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1 divide-y divide-base-200">
             {(
               [
                 ["certSaved", t.checklistCertSaved],
@@ -151,7 +151,7 @@ function ProxySetupPage() {
                 key={key}
                 type="button"
                 onClick={() => toggleItem(key)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-base-200 bg-base-200/40 hover:bg-base-200/70 transition-colors text-left"
+                className="w-full flex items-center gap-3 py-2.5 hover:bg-base-200/50 transition-colors text-left"
               >
                 {checklist[key] ? (
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
@@ -167,26 +167,22 @@ function ProxySetupPage() {
             ))}
           </div>
 
-          {allDone && (
-            <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-success text-sm font-bold text-center">
-              {t.checklistAllDone}
-            </div>
-          )}
+          {allDone && <p className="text-success text-sm font-semibold text-center py-2">{t.checklistAllDone}</p>}
         </Card>
       </section>
 
       {/* Root CA */}
       <section className="space-y-2">
         <H2>{t.certTitle}</H2>
+        <p className="text-xs text-base-content/55 leading-relaxed">{t.certDesc}</p>
         <Card className="p-5 space-y-3">
-          <P className="text-xs text-base-content/55 leading-relaxed">{t.certDesc}</P>
           <Button variant="primary" size="sm" className="gap-1.5" onClick={handleSaveCA} disabled={saving}>
             <Download className="w-3.5 h-3.5" />
             {t.saveCertBtn}
           </Button>
 
           <div className="pt-3 border-t border-base-200 space-y-2">
-            <h3 className="text-sm font-bold text-base-content">{t.installationStepsTitle}</h3>
+            <h3 className="text-sm font-semibold text-base-content">{t.installationStepsTitle}</h3>
             <ol className="space-y-1.5 text-xs text-base-content/55 leading-relaxed list-decimal list-inside">
               <li>{t.step1}</li>
               <li>{t.step2}</li>
@@ -198,20 +194,16 @@ function ProxySetupPage() {
             </ol>
           </div>
 
-          <div className="p-3 rounded-xl bg-info/10 border border-info/20 text-info text-xs leading-relaxed">
-            {t.macosUsers}
-          </div>
+          <p className="text-info text-xs leading-relaxed">{t.macosUsers}</p>
         </Card>
       </section>
 
       {/* PAC / Manual proxy */}
       <section className="space-y-2">
         <H2>{t.pacTitle}</H2>
+        <p className="text-xs text-base-content/55 leading-relaxed">{t.pacDesc}</p>
         <Card className="p-5 space-y-3">
-          <P className="text-xs text-base-content/55 leading-relaxed">{t.pacDesc}</P>
-          <code className="block text-xs font-mono bg-base-200 p-2.5 rounded-md break-all text-primary/80">
-            {pacUrl || "—"}
-          </code>
+          <code className="block text-xs font-mono break-all text-primary/80">{pacUrl || "—"}</code>
           <div className="text-xs text-base-content/55 space-y-1">
             <p>{t.pacWindows}</p>
             <p>{t.pacMacos}</p>
@@ -221,13 +213,13 @@ function ProxySetupPage() {
             <h3 className="text-sm font-bold text-base-content">{t.manualTitle}</h3>
             <P className="text-xs text-base-content/55">{t.manualDesc}</P>
             <div className="grid grid-cols-2 gap-3 max-w-xs">
-              <div className="p-3 bg-base-200 rounded-lg">
+              <div className="space-y-0.5">
                 <p className="text-[10px] font-medium text-base-content/50">{t.manualAddress}</p>
-                <p className="text-sm font-mono font-bold">127.0.0.1</p>
+                <p className="text-sm font-mono font-semibold">127.0.0.1</p>
               </div>
-              <div className="p-3 bg-base-200 rounded-lg">
+              <div className="space-y-0.5">
                 <p className="text-[10px] font-medium text-base-content/50">{t.manualPort}</p>
-                <p className="text-sm font-mono font-bold">{port || "—"}</p>
+                <p className="text-sm font-mono font-semibold">{port || "—"}</p>
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { useOpenHubSurface } from "@/shared/lib/tauri/openHubSurface";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { SegmentedTabs } from "@/shared/ui/tabs";
 
 export interface AssignDomainsModalTranslations {
   title: (groupName: string) => string;
@@ -103,30 +104,16 @@ export function AssignDomainsModal({
                 />
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFilterType("all")}
-                  className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                    filterType === "all"
-                      ? "bg-primary text-primary-content border-primary shadow-lg shadow-primary/20"
-                      : "bg-base-200 text-base-content/40 border-transparent hover:bg-base-300"
-                  }`}
-                >
-                  {translations.filterAll}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterType("unassigned")}
-                  className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                    filterType === "unassigned"
-                      ? "bg-primary text-primary-content border-primary shadow-lg shadow-primary/20"
-                      : "bg-base-200 text-base-content/40 border-transparent hover:bg-base-300"
-                  }`}
-                >
-                  {translations.filterUnassigned}
-                </button>
-              </div>
+              <SegmentedTabs<"all" | "unassigned">
+                value={filterType}
+                onChange={setFilterType}
+                size="sm"
+                fullWidth
+                items={[
+                  { id: "all", label: translations.filterAll },
+                  { id: "unassigned", label: translations.filterUnassigned },
+                ]}
+              />
             </div>
 
             <div className="flex gap-2 bg-base-200/50 p-2 rounded-2xl border border-base-300/50 shrink-0">

@@ -11,23 +11,35 @@ Cursor-style minimal UI conventions for Watchtower (Horizon Gateway). Follow the
 
 ---
 
-## 1. Section layout — title OUTSIDE card
+## 1. Section layout — title OUTSIDE card, flat nesting
 
-**Canonical pattern.** Section headings sit above the card; the card holds description + controls only.
+**Canonical pattern.** Section headings and descriptions sit above a **single** card; the card holds only interactive content or data fields.
 
 ```tsx
 import { Card } from "@/shared/ui/card/card";
 
 <section className="space-y-2 min-w-0">
   <h2 className="text-sm font-semibold text-base-content">{title}</h2>
+  {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
   <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
-    {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
-    {/* controls, inputs, buttons */}
+    {/* controls, inputs, code blocks — no nested bordered sub-panels */}
   </Card>
 </section>
 ```
 
-### Do NOT
+### Flat nesting — avoid “box in box”
+
+Do **not** stack bordered/shadowed containers (Card → bordered div → bordered field). Prefer one surface per section.
+
+| Layer | Belongs outside card | Belongs inside card (only) |
+|-------|----------------------|----------------------------|
+| Section title (H2) | ✅ | ❌ |
+| Section description | ✅ | ❌ |
+| Form controls, toggles, inputs | ❌ | ✅ |
+| Data/code display (PAC URL, JSON body) | ❌ | ✅ |
+| Subsection label (H3) | ✅ above its fields, or plain text inside | Avoid H3 + wrapper border |
+
+**Do NOT**
 
 ```tsx
 // ❌ Title inside card
@@ -36,6 +48,68 @@ import { Card } from "@/shared/ui/card/card";
   <p>{desc}</p>
   <Input />
 </Card>
+
+// ❌ Card wrapping another bordered panel
+<Card>
+  <div className="rounded-xl border border-base-300 bg-base-200/50 p-4">
+    <h3>Primary</h3>
+    <div className="rounded-lg border ..."><ColorPicker /></div>
+  </div>
+</Card>
+
+// ❌ Card + inner content box with its own border (API viewer)
+<Card>
+  <Tabs />
+  <div className="border border-base-300 bg-base-200 rounded-lg">...</div>
+</Card>
+```
+
+**Do**
+
+```tsx
+// ✅ Description outside; one card for controls
+<section className="space-y-2">
+  <h2>PAC URL</h2>
+  <p className="text-xs text-base-content/55">{desc}</p>
+  <Card className="p-3 flex gap-2">
+    <code className="flex-1 text-xs font-mono break-all">{url}</code>
+    <Button>Copy</Button>
+  </Card>
+</section>
+
+// ✅ Subgroups as flat grid inside one card (theme editor colors)
+<Card>
+  <div className="grid grid-cols-4 gap-4">
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold">Primary</h3>
+      <ColorField /> {/* no extra border wrapper */}
+    </div>
+  </div>
+</Card>
+```
+
+Use `Card variant="subtle"` only when a **sibling** block needs slight separation inside the same section — never Card ⊃ bordered Card.
+
+### Multi-column tool layouts (crypto sandbox, API client)
+
+Grid **columns are layout regions, not cards.** Do not wrap an entire column in `card border shadow-sm`.
+
+| Column role | Outside card | Inside single card |
+|-------------|--------------|-------------------|
+| Sidebar list | H2 + search + actions | Preset/list rows only |
+| Editor | H2 + toolbar (save, badges) | Form fields + primary action |
+| Output | H2 + copy action | Result body only |
+
+Reference: `src/entities/sandbox/ui/CryptoNode.tsx` (standalone `layout="page"`).
+
+### Do NOT (legacy)
+
+```tsx
+// ❌ Description inside card (old pattern)
+<Card>
+  <p>{desc}</p>
+  {controls}
+</Card>
 ```
 
 ### Reference implementations
@@ -43,7 +117,7 @@ import { Card } from "@/shared/ui/card/card";
 | Page | File |
 |------|------|
 | Settings (proxy + app tabs) | `src/features/popup-window/ui/SettingsContent.tsx` — `Section` component |
-| Proxy setup wizard | `src/routes/proxy/setup/index.tsx` |
+| API request form sections | `src/entities/api-request/ui/ApiRequestForm.tsx` — `FormSection` helper |
 
 ### Page-level spacing
 
@@ -71,7 +145,7 @@ Base density follows Cursor: **13px / line-height 1.4** (set in theme presets an
 | Section title (H2) | `text-sm font-semibold text-base-content` | Outside card |
 | Subsection (H3) | `text-sm font-semibold` | Inside card when needed |
 | Body | `text-sm` | Default via P/Span |
-| Section description | `text-xs text-base-content/55 leading-relaxed` | Inside card, top |
+| Section description | `text-xs text-base-content/55 leading-relaxed` | **Outside** card, under H2 |
 | Field label | `text-[10px] font-medium text-base-content/50` | No uppercase |
 | Hint / placeholder | `text-base-content/40` | Muted helper text |
 
@@ -102,7 +176,7 @@ Default variant is **`flat`** (Cursor style: no border, no shadow).
 |---------|-----|
 | `flat` (default) | Settings sections, content panels |
 | `bordered` | Legacy / emphasis (border + shadow) |
-| `subtle` | Nested containers (`bg-base-100/50`) |
+| `subtle` | Rare sibling emphasis inside one section — not nested inside another card |
 
 ```tsx
 <Card variant="flat" className="p-5 space-y-3">...</Card>
@@ -164,7 +238,9 @@ For number fields in settings, add `className="h-9 text-sm w-full"` when slightl
 - Set `data-theme` on `<html>` to **`horizon-gateway-light`** or **`horizon-gateway-dark`** only (use `resolveDaisyThemeId()` in `applyTheme.ts`; built-in presets use their own id; custom themes map from `theme.base`).
 - **Never** put `custom-theme-*` or other user-defined ids on `data-theme`.
 - When editing compiled themes in `global.css`, add **both** base colors and matching **`-content`** tokens, plus `color-scheme`.
+- Custom `@plugin "daisyui/theme"` blocks must also define shape tokens: `--radius-field` (buttons/inputs), `--radius-box` (cards/modals), `--radius-selector` (badges/toggles), `--size-field`, `--size-selector`, `--border`, `--depth`, `--noise`. Missing `--radius-field` breaks `.btn` border-radius.
 - Keep runtime overrides on `:root` and `[data-theme="<compiled-id>"]` with `!important` unless DaisyUI layering is re-audited.
+- **Never** inject theme tokens (e.g. `--color-primary`) via a separate `#dynamic-theme` style tag after `applyThemeToDocument`; use only `#custom-active-theme` from `applyTheme.ts`. Stale `#dynamic-theme` is removed at apply time; duplicate injection causes token conflicts (e.g. avatar primary).
 
 #### Known follow-ups
 
@@ -191,14 +267,15 @@ When adding a new settings section:
 
 1. Wrap in `<section className="space-y-2">`.
 2. Put **title** in `<h2>` **above** `<Card>`.
-3. Put **description** as first child **inside** `<Card>`.
-4. Put controls below description inside the same card.
-5. Use `space-y-6` between sections in the panel scroll area.
-6. Use shared `Button`, `Input`, `Card` — do not invent local card styles with `border rounded-2xl shadow-sm`.
+3. Put **description** under H2, **outside** `<Card>`.
+4. Put controls / data fields **only** inside the single `<Card>`.
+5. Avoid bordered sub-panels inside the card; use grids, gaps, and field labels instead.
+6. Use `space-y-6` between sections in the panel scroll area.
+7. Use shared `Button`, `Input`, `Card` — do not invent local card styles with `border rounded-2xl shadow-sm`.
 
 ### Toggle-only sections (e.g. CORS)
 
-Title outside, description inside card, toggle aligned `justify-end`:
+Title outside, description outside card, toggle aligned `justify-end` inside card:
 
 ```tsx
 <Section title={t.corsTitle} desc={t.corsDesc}>
@@ -236,7 +313,8 @@ Use theme tokens, not hardcoded colors:
 ## Quick reference
 
 ```
-Section:     space-y-2  →  H2 outside  →  Card (flat, p-4–5, space-y-3)
+Section:     space-y-2  →  H2 + desc outside  →  Card (flat, one level, p-4–5)
+Flat:        no bordered box inside Card; H3 labels + grid/fields only
 Page:        p-5, space-y-6 / gap-6, max-w-3xl
 Secondary:   text-base-content/55
 Hints:       text-base-content/40

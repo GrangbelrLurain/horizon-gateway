@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import { Modal } from "@/shared/ui/modal/Modal";
+import { SegmentedTabs } from "@/shared/ui/tabs";
 import { DEFAULT_SYNC_OPTIONS, type DomainMatchKey, type WorkspaceSyncOptions } from "../sync";
 import {
   buildSyncDiffFromSnapshot,
@@ -390,22 +391,16 @@ export function SyncDiffListPane({
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {filterOptions.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
-                filter === f
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-base-300 text-base-content/50 hover:bg-base-200"
-              }`}
-            >
-              {f === "all" ? (lang === "ko" ? "전체" : "All") : STATUS_META[f as SyncDiffStatus][lang]}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs<DiffFilter>
+          value={filter}
+          onChange={setFilter}
+          variant="pills"
+          size="xs"
+          items={filterOptions.map((f) => ({
+            id: f,
+            label: f === "all" ? (lang === "ko" ? "전체" : "All") : STATUS_META[f as SyncDiffStatus][lang],
+          }))}
+        />
 
         {kind === "domains" && (
           <div className="flex flex-col gap-1.5">

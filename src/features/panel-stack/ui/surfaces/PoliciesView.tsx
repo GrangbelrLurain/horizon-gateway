@@ -46,6 +46,7 @@ import { Button } from "@/shared/ui/button/Button";
 import { Input } from "@/shared/ui/input/Input";
 import type { GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
 import { ConfirmModal } from "@/shared/ui/modal/ConfirmModal";
+import { SegmentedTabs } from "@/shared/ui/tabs";
 import { reportError, toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
 import { usePanelNavigation } from "../../hooks/usePanelNavigation";
@@ -143,28 +144,17 @@ function HostCoveragePanel({ coverage, t }: { coverage: GuideHostCoverage | unde
       </button>
       {expanded && (
         <div className="mt-1.5 rounded-lg border border-base-300 bg-base-100 p-2">
-          <div className="flex gap-1 mb-1.5">
-            <button
-              type="button"
-              onClick={() => setTab("in")}
-              className={clsx(
-                "flex-1 px-2 py-1 rounded-md text-[10px] font-bold",
-                tab === "in" ? "bg-primary/15 text-primary" : "bg-base-200 text-base-content/50",
-              )}
-            >
-              {t.coverageIncluded} ({coverage.matchedHosts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("out")}
-              className={clsx(
-                "flex-1 px-2 py-1 rounded-md text-[10px] font-bold",
-                tab === "out" ? "bg-base-300 text-base-content" : "bg-base-200 text-base-content/50",
-              )}
-            >
-              {t.coverageExcluded} ({coverage.unmatchedHosts.length})
-            </button>
-          </div>
+          <SegmentedTabs<"in" | "out">
+            value={tab}
+            onChange={setTab}
+            size="xs"
+            fullWidth
+            className="mb-1.5"
+            items={[
+              { id: "in", label: t.coverageIncluded, badge: coverage.matchedHosts.length },
+              { id: "out", label: t.coverageExcluded, badge: coverage.unmatchedHosts.length },
+            ]}
+          />
           <div className="relative mb-1.5">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-base-content/35" />
             <Input
@@ -443,7 +433,7 @@ export function PoliciesView() {
       if (aliasOrPath.startsWith("domain/")) {
         const parts = aliasOrPath.slice("domain/".length).split("/");
         const domainId = parseInt(parts[0], 10);
-        if (!isNaN(domainId)) {
+        if (!Number.isNaN(domainId)) {
           const panelId = (parts.slice(1).join("/") as PanelId) || "overview";
           if (isDetached) {
             toastInfo(t.featureLinkUseHub);
@@ -759,34 +749,15 @@ export function PoliciesView() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex bg-base-300 p-0.5 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setViewMode("manage")}
-                className={clsx(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
-                  viewMode === "manage"
-                    ? "bg-base-100 shadow-sm text-primary"
-                    : "text-base-content/45 hover:text-base-content",
-                )}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                {t.viewManage}
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("report")}
-                className={clsx(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
-                  viewMode === "report"
-                    ? "bg-base-100 shadow-sm text-primary"
-                    : "text-base-content/45 hover:text-base-content",
-                )}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                {t.viewPreview}
-              </button>
-            </div>
+            <SegmentedTabs<ViewMode>
+              value={viewMode}
+              onChange={setViewMode}
+              size="xs"
+              items={[
+                { id: "manage", label: t.viewManage, icon: LayoutGrid },
+                { id: "report", label: t.viewPreview, icon: FileText },
+              ]}
+            />
 
             <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-[10px] font-bold" onClick={handleImportJson}>
               <Upload className="w-3.5 h-3.5" />

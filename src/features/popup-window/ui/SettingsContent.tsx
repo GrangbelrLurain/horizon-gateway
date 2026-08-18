@@ -89,10 +89,8 @@ function Section({ title, desc, children }: { title?: string; desc?: string; chi
   return (
     <section className="space-y-2 min-w-0">
       {title && <h2 className="text-sm font-semibold text-base-content">{title}</h2>}
-      <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
-        {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
-        {children}
-      </Card>
+      {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
+      <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">{children}</Card>
     </section>
   );
 }
@@ -738,8 +736,8 @@ export function SettingsContent() {
                     </Button>
                   </Section>
                   <Section title={t.pacTitle} desc={t.pacDesc}>
-                    <div className="flex flex-col @min-[28rem]:flex-row gap-2 @min-[28rem]:items-start">
-                      <code className="flex-1 min-w-0 text-xs font-mono bg-base-200 p-3 rounded-lg break-all text-indigo-600 dark:text-indigo-400">
+                    <div className="flex flex-col @min-[28rem]:flex-row gap-2 @min-[28rem]:items-center">
+                      <code className="flex-1 min-w-0 text-xs font-mono break-all text-primary/80">
                         {pacUrl || "—"}
                       </code>
                       <Button

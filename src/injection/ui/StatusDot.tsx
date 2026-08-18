@@ -21,7 +21,9 @@ export function StatusDot({ active, color, label }: { active: boolean; color: st
           flexShrink: 0,
         }}
       />
-      <span style={{ fontSize: "9px", fontWeight: "800", color: "white", letterSpacing: "0.2px" }}>{label}</span>
+      <span style={{ fontSize: "9px", fontWeight: "800", color: "var(--wt-text-main)", letterSpacing: "0.2px" }}>
+        {label}
+      </span>
     </div>
   );
 }

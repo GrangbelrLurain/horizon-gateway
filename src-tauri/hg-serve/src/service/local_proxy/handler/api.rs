@@ -209,6 +209,58 @@ pub(crate) async fn try_handle_api(
             .into_response());
     }
 
+    if clean_path == "/.horizon-gateway/api/theme" {
+        static THEME_CACHE: std::sync::OnceLock<std::sync::RwLock<Option<serde_json::Value>>> =
+            std::sync::OnceLock::new();
+        let cache = THEME_CACHE.get_or_init(|| {
+            let loaded = crate::runtime::paths::resolve_app_data_dir()
+                .ok()
+                .and_then(|dir| std::fs::read_to_string(dir.join("theme.json")).ok())
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok());
+            std::sync::RwLock::new(loaded)
+        });
+
+        if req.method() == hyper::Method::GET {
+            let mut val = cache.read().unwrap().clone();
+            if val.is_none() {
+                if let Ok(dir) = crate::runtime::paths::resolve_app_data_dir() {
+                    if let Ok(s) = std::fs::read_to_string(dir.join("theme.json")) {
+                        if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&s) {
+                            *cache.write().unwrap() = Some(json_val.clone());
+                            val = Some(json_val);
+                        }
+                    }
+                }
+            }
+            let json = val
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "null".to_string());
+            return Ok((
+                StatusCode::OK,
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/json"),
+                )],
+                json,
+            )
+                .into_response());
+        }
+
+        if req.method() == hyper::Method::POST {
+            if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {
+                if let Ok(theme_val) = serde_json::from_slice::<serde_json::Value>(&body) {
+                    *cache.write().unwrap() = Some(theme_val.clone());
+                    if let Ok(dir) = crate::runtime::paths::resolve_app_data_dir() {
+                        let _ = std::fs::create_dir_all(&dir);
+                        let _ = std::fs::write(dir.join("theme.json"), theme_val.to_string());
+                    }
+                    return Ok((StatusCode::OK, "Theme updated").into_response());
+                }
+            }
+            return Ok((StatusCode::BAD_REQUEST, "Invalid theme JSON").into_response());
+        }
+    }
+
     if clean_path == "/.horizon-gateway/api/mock-rule/toggle" && req.method() == hyper::Method::POST
     {
         if let Ok(body) = axum::body::to_bytes(req.into_body(), usize::MAX).await {

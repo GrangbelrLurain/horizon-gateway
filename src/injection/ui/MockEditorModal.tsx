@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 import { JsonViewer } from "./JsonViewer";
 
@@ -13,7 +14,10 @@ type State = Pick<
 >;
 
 export function MockEditorModal({ s }: { s: State }) {
-  const editingMockRule = s.editingMockRule!;
+  const editingMockRule = s.editingMockRule;
+  if (!editingMockRule) {
+    return null;
+  }
   return (
     <div
       style={{
@@ -32,12 +36,12 @@ export function MockEditorModal({ s }: { s: State }) {
         style={{
           width: "600px",
           maxHeight: "88vh",
-          backgroundColor: "rgba(15, 23, 42, 0.98)",
+          backgroundColor: "var(--wt-bg-panel)",
           borderRadius: "16px",
           border: "1px solid rgba(245, 158, 11, 0.5)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.9)",
+          boxShadow: "var(--wt-shadow)",
           padding: "20px",
-          color: "white",
+          color: "var(--wt-text-main)",
           display: "flex",
           flexDirection: "column",
           gap: "12px",
@@ -74,7 +78,7 @@ export function MockEditorModal({ s }: { s: State }) {
               }}
               style={{
                 backgroundColor:
-                  (editingMockRule.enabled ?? true) ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                  (editingMockRule.enabled ?? true) ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
                 border: `1px solid ${(editingMockRule.enabled ?? true) ? "#10b981" : "#ef4444"}`,
                 color: (editingMockRule.enabled ?? true) ? "#10b981" : "#ef4444",
                 fontSize: "11px",
@@ -89,15 +93,25 @@ export function MockEditorModal({ s }: { s: State }) {
             <button
               type="button"
               onClick={() => s.setEditingMockRule(null)}
-              style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "16px" }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--wt-text-muted)",
+                cursor: "pointer",
+                padding: "2px 4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "4px",
+              }}
             >
-              ✕
+              <X style={{ width: "16px", height: "16px" }} />
             </button>
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>규칙 이름</label>
+          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>규칙 이름</label>
           <input
             type="text"
             value={editingMockRule.name || ""}
@@ -106,9 +120,9 @@ export function MockEditorModal({ s }: { s: State }) {
             style={{
               padding: "7px 10px",
               borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "white",
+              backgroundColor: "var(--wt-bg-card)",
+              border: "1px solid var(--wt-border)",
+              color: "var(--wt-text-main)",
               fontSize: "12px",
             }}
           />
@@ -116,16 +130,16 @@ export function MockEditorModal({ s }: { s: State }) {
 
         <div style={{ display: "flex", gap: "8px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100px" }}>
-            <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>Method</label>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>Method</label>
             <select
               value={editingMockRule.method || "GET"}
               onChange={(e) => s.setEditingMockRule({ ...editingMockRule, method: e.target.value })}
               style={{
                 padding: "6px 8px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(15, 23, 42, 0.95)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "white",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
+                color: "var(--wt-text-main)",
                 fontSize: "12px",
               }}
             >
@@ -139,7 +153,7 @@ export function MockEditorModal({ s }: { s: State }) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "110px" }}>
-            <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>상태 코드</label>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>상태 코드</label>
             <input
               type="number"
               value={editingMockRule.response_status || 200}
@@ -149,16 +163,16 @@ export function MockEditorModal({ s }: { s: State }) {
               style={{
                 padding: "6px 10px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "white",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
+                color: "var(--wt-text-main)",
                 fontSize: "12px",
               }}
             />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-            <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>지연 시간 (ms)</label>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>지연 시간 (ms)</label>
             <input
               type="number"
               value={editingMockRule.delay_ms || 0}
@@ -169,9 +183,9 @@ export function MockEditorModal({ s }: { s: State }) {
               style={{
                 padding: "6px 10px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "white",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
+                color: "var(--wt-text-main)",
                 fontSize: "12px",
               }}
             />
@@ -179,7 +193,7 @@ export function MockEditorModal({ s }: { s: State }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>URL Pattern (Wildcard * 가능)</label>
+          <label style={{ fontSize: "11px", color: "var(--wt-text-muted)" }}>URL Pattern (Wildcard * 가능)</label>
           <input
             type="text"
             value={editingMockRule.url_pattern || ""}
@@ -188,9 +202,9 @@ export function MockEditorModal({ s }: { s: State }) {
             style={{
               padding: "7px 10px",
               borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "white",
+              backgroundColor: "var(--wt-bg-card)",
+              border: "1px solid var(--wt-border)",
+              color: "var(--color-primary, #38bdf8)",
               fontSize: "12px",
               fontFamily: "monospace",
             }}
@@ -200,7 +214,7 @@ export function MockEditorModal({ s }: { s: State }) {
         {/* Response Body Tabs */}
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minHeight: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)", fontWeight: "600" }}>
+            <label style={{ fontSize: "11px", color: "var(--wt-text-muted)", fontWeight: "600" }}>
               Response Body (모킹 응답 데이터)
             </label>
             <div style={{ display: "flex", gap: "4px" }}>
@@ -210,9 +224,9 @@ export function MockEditorModal({ s }: { s: State }) {
                 style={{
                   padding: "2px 8px",
                   borderRadius: "4px",
-                  backgroundColor: s.mockTab === "edit" ? "rgba(245, 158, 11, 0.3)" : "rgba(255,255,255,0.06)",
-                  border: s.mockTab === "edit" ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.1)",
-                  color: s.mockTab === "edit" ? "#f59e0b" : "rgba(255,255,255,0.6)",
+                  backgroundColor: s.mockTab === "edit" ? "rgba(245, 158, 11, 0.2)" : "var(--wt-bg-subtle)",
+                  border: s.mockTab === "edit" ? "1px solid #f59e0b" : "1px solid var(--wt-border)",
+                  color: s.mockTab === "edit" ? "#f59e0b" : "var(--wt-text-muted)",
                   fontSize: "10px",
                   fontWeight: "700",
                   cursor: "pointer",
@@ -226,9 +240,9 @@ export function MockEditorModal({ s }: { s: State }) {
                 style={{
                   padding: "2px 8px",
                   borderRadius: "4px",
-                  backgroundColor: s.mockTab === "preview" ? "rgba(245, 158, 11, 0.3)" : "rgba(255,255,255,0.06)",
-                  border: s.mockTab === "preview" ? "1px solid #f59e0b" : "1px solid rgba(255,255,255,0.1)",
-                  color: s.mockTab === "preview" ? "#f59e0b" : "rgba(255,255,255,0.6)",
+                  backgroundColor: s.mockTab === "preview" ? "rgba(245, 158, 11, 0.2)" : "var(--wt-bg-subtle)",
+                  border: s.mockTab === "preview" ? "1px solid #f59e0b" : "1px solid var(--wt-border)",
+                  color: s.mockTab === "preview" ? "#f59e0b" : "var(--wt-text-muted)",
                   fontSize: "10px",
                   fontWeight: "700",
                   cursor: "pointer",
@@ -248,9 +262,9 @@ export function MockEditorModal({ s }: { s: State }) {
               style={{
                 padding: "8px 10px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                color: "#38bdf8",
+                backgroundColor: "var(--wt-bg-card)",
+                border: "1px solid var(--wt-border)",
+                color: "var(--color-primary, #38bdf8)",
                 fontSize: "11px",
                 fontFamily: "monospace",
                 resize: "vertical",
@@ -283,9 +297,9 @@ export function MockEditorModal({ s }: { s: State }) {
               style={{
                 padding: "6px 12px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
                 border: "1px solid #ef4444",
-                color: "#ef4444",
+                color: "var(--color-error, #ef4444)",
                 fontSize: "12px",
                 fontWeight: "800",
                 cursor: "pointer",
@@ -304,9 +318,9 @@ export function MockEditorModal({ s }: { s: State }) {
               style={{
                 padding: "6px 14px",
                 borderRadius: "6px",
-                backgroundColor: "rgba(255,255,255,0.1)",
-                border: "none",
-                color: "white",
+                backgroundColor: "var(--wt-bg-subtle)",
+                border: "1px solid var(--wt-border)",
+                color: "var(--wt-text-main)",
                 fontSize: "12px",
                 cursor: "pointer",
               }}

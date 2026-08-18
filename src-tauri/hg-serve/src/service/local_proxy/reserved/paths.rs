@@ -205,9 +205,10 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
                 ),
                 (
                     header::CACHE_CONTROL,
-                    HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+                    HeaderValue::from_static("no-store, no-cache, must-revalidate, max-age=0"),
                 ),
                 (header::PRAGMA, HeaderValue::from_static("no-cache")),
+                (header::EXPIRES, HeaderValue::from_static("0")),
             ],
             js,
         )

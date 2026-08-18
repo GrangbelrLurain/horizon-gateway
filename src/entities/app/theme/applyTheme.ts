@@ -22,6 +22,7 @@ export function applyThemeToDocument(theme: CustomTheme) {
 
   document.documentElement.setAttribute("data-theme", daisyThemeId);
   document.documentElement.setAttribute("data-color-scheme", colorScheme);
+  document.getElementById("dynamic-theme")?.remove();
 
   let fontCss = "system-ui, -apple-system, sans-serif";
   const fontSource = theme.typography?.fontSource;
