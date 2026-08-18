@@ -14,14 +14,15 @@
   --color-text-secondary: #9ca3af;
   --color-text-muted: #6b7280;
 
-  --color-primary: #a855f7; /* Violet */
+  --color-primary: #a855f7;   /* Violet */
   --color-secondary: #3b82f6; /* Electric Blue */
-  --color-accent: #ec4899; /* Rose */
-  --color-success: #10b981; /* Emerald/Mint */
-  --color-warning: #f59e0b; /* Amber */
-  --color-danger: #ef4444; /* Rose Red */
+  --color-accent: #ec4899;    /* Rose */
+  --color-success: #10b981;   /* Emerald/Mint */
+  --color-warning: #f59e0b;   /* Amber */
+  --color-danger: #ef4444;    /* Rose Red */
 
   --gradient-hero: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #ec4899 100%);
+  --gradient-hero-text: linear-gradient(120deg, #a855f7 0%, #6366f1 50%, #ec4899 100%);
   --gradient-card-border: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(59, 130, 246, 0.3) 100%);
   --gradient-dark: linear-gradient(180deg, #0b0f19 0%, #060814 100%);
 

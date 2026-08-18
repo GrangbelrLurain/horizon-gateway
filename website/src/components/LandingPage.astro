@@ -19,19 +19,39 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 <Layout lang={lang}>
   <main data-lang={lang}>
-    <!-- Background Glows -->
-    <div class="glow-backdrop" style="top: 100px; left: -100px;"></div>
-    <div class="glow-backdrop" style="top: 600px; right: -100px;"></div>
+    <!-- Background Glows — stronger, multi-layer -->
+    <div class="glow-hero-primary"></div>
+    <div class="glow-hero-secondary"></div>
+    <div class="glow-hero-accent"></div>
+    <div class="glow-backdrop" style="top: 1400px; left: -200px;"></div>
+    <div class="glow-backdrop" style="top: 2600px; right: -200px; background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);"></div>
 
-    <!-- Hero Section -->
-    <section class="hero-section container">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Hero Section — Full-screen centered, big logo               -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="hero-section">
+      <!-- Animated Logo — big, edge-to-edge feel -->
+      <div class="hero-visual">
+        <img
+          src={`${baseUrl}/logo-animated.svg`}
+          alt="Horizon Gateway Logo"
+          class="hero-animated-logo"
+          loading="eager"
+        />
+      </div>
+
       <div class="hero-content">
         <div class="badge">{t('hero.badge')}</div>
-        <h1 class="hero-title">{t('hero.title.pre')}<br/>{t('hero.title.post')}<img src={`${baseUrl}/logo-text.svg`} alt="Horizon Gateway" class="hero-logo-text" /></h1>
+
+        <h1 class="hero-title">
+          {t('hero.title.pre')}<br/>
+          {t('hero.title.post')}<img src={`${baseUrl}/logo-text.svg`} alt="Horizon Gateway" class="hero-logo-text" />
+        </h1>
+
         <p class="hero-subtitle">
           {t('hero.subtitle')}
         </p>
-        
+
         <div class="hero-actions">
           <a href="https://github.com/GrangbelrLurain/horizon-gateway/releases" class="btn btn-primary btn-hero-download" id="primary-download-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -44,7 +64,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
               <span id="primary-download-subtext" class="btn-subtext">{t('hero.download.sub.win')}</span>
             </div>
           </a>
-          
+
           <div class="cli-copy-box">
             <span class="cli-prefix">$</span>
             <code class="cli-code">hgc init --project</code>
@@ -60,87 +80,13 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
           </div>
         </div>
       </div>
-
-      <!-- App Mockup Container -->
-      <div class="mockup-container animate-float">
-        <div class="app-mockup glass-panel">
-          <div class="mockup-header">
-            <div class="mockup-dots">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-            </div>
-            <div class="mockup-address">horizon-gateway.app / dashboard</div>
-          </div>
-          <div class="mockup-body">
-            <div class="mockup-sidebar">
-              <div class="sidebar-item active">Domains</div>
-              <div class="sidebar-item">Local Proxy</div>
-              <div class="sidebar-item">APIs & Mocking</div>
-              <div class="sidebar-item">Settings</div>
-            </div>
-            <div class="mockup-main">
-              <div class="main-header">
-                <h3>Domain Health Status</h3>
-                <span class="status-indicator-badge live">Live Mode</span>
-              </div>
-              <div class="domain-card-mockup">
-                <div class="domain-info">
-                  <span class="domain-dot online"></span>
-                  <div>
-                    <div class="domain-name">api.development.local</div>
-                    <div class="domain-meta">Ping: 12ms | HTTP 200 OK</div>
-                  </div>
-                </div>
-                <div class="mini-chart">
-                  <div class="bar" style="height: 40%"></div>
-                  <div class="bar" style="height: 60%"></div>
-                  <div class="bar" style="height: 55%"></div>
-                  <div class="bar" style="height: 70%"></div>
-                  <div class="bar highlight" style="height: 85%"></div>
-                </div>
-              </div>
-              <div class="domain-card-mockup">
-                <div class="domain-info">
-                  <span class="domain-dot online"></span>
-                  <div>
-                    <div class="domain-name">auth.service.internal</div>
-                    <div class="domain-meta">Ping: 8ms | HTTP 200 OK</div>
-                  </div>
-                </div>
-                <div class="mini-chart">
-                  <div class="bar" style="height: 30%"></div>
-                  <div class="bar" style="height: 45%"></div>
-                  <div class="bar" style="height: 40%"></div>
-                  <div class="bar" style="height: 50%"></div>
-                  <div class="bar highlight" style="height: 60%"></div>
-                </div>
-              </div>
-              <div class="domain-card-mockup warning">
-                <div class="domain-info">
-                  <span class="domain-dot alert"></span>
-                  <div>
-                    <div class="domain-name">legacy-database.internal</div>
-                    <div class="domain-meta">Connection Timeout | HTTP 504</div>
-                  </div>
-                </div>
-                <div class="mini-chart">
-                  <div class="bar" style="height: 70%"></div>
-                  <div class="bar" style="height: 65%"></div>
-                  <div class="bar" style="height: 20%"></div>
-                  <div class="bar" style="height: 0%"></div>
-                  <div class="bar alert" style="height: 0%"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features-section container" style="margin-top: 150px;">
-      <div style="text-align: center; max-width: 600px; margin: 0 auto 50px;">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Features Section                                            -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="features-section container" style="margin-top: 140px;">
+      <div style="text-align: center; max-width: 620px; margin: 0 auto 50px;">
         <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">{t('features.title')}<span class="text-gradient">{t('features.title.accent')}</span></h2>
         <p style="color: var(--color-text-secondary);">{t('features.subtitle')}</p>
       </div>
@@ -185,7 +131,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
           </div>
           <h3>{t('features.api.title')}</h3>
           <p>{t('features.api.desc')}</p>
-          <div class="feature-visual font-mono" style="font-size: 0.8rem; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px 12px; justify-content: flex-start; color: var(--color-accent);">
+          <div class="feature-visual font-mono" style="font-size: 0.8rem; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 6px 12px; justify-content: flex-start; color: var(--color-accent);">
             <span>{'{ "mocked": true, "status": "success" }'}</span>
           </div>
         </div>
@@ -206,49 +152,301 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       </div>
     </section>
 
-    <!-- CLI Terminal Section -->
-    <section class="terminal-section container" style="margin-top: 150px;">
-      <div style="display: flex; flex-direction: column; gap: 40px;">
-        <div style="max-width: 500px;">
-          <div class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--color-secondary);">{t('terminal.badge')}</div>
-          <h2 style="font-size: 2.3rem; margin: 15px 0;">{t('terminal.title')}<span class="text-gradient">{t('terminal.title.accent')}</span>{t('terminal.title.post')}</h2>
-          <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
-            {t('terminal.desc')}
-          </p>
-          <div class="terminal-buttons">
-            <button class="btn btn-secondary terminal-tab active" data-command="init">hgc init</button>
-            <button class="btn btn-secondary terminal-tab" data-command="list">hgc list</button>
-            <button class="btn btn-secondary terminal-tab" data-command="run">hgc run</button>
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Feature Gallery Section — 4-tab interactive mockup          -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="gallery-section container" style="margin-top: 160px;">
+      <div style="text-align: center; max-width: 620px; margin: 0 auto 50px;">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">{t('gallery.title')}<span class="text-gradient">{t('gallery.title.accent')}</span></h2>
+        <p style="color: var(--color-text-secondary);">{t('gallery.subtitle')}</p>
+      </div>
+
+      <!-- Gallery Tabs -->
+      <div class="gallery-tabs">
+        <button class="gallery-tab active" data-tab="domains">{t('gallery.tab.domains')}</button>
+        <button class="gallery-tab" data-tab="proxy">{t('gallery.tab.proxy')}</button>
+        <button class="gallery-tab" data-tab="mocking">{t('gallery.tab.mocking')}</button>
+        <button class="gallery-tab" data-tab="inspector">{t('gallery.tab.inspector')}</button>
+      </div>
+
+      <!-- Gallery Panels -->
+      <div class="gallery-panel-wrap">
+
+        <!-- Panel: Domains -->
+        <div class="gallery-panel active glass-panel" data-panel="domains">
+          <div class="mockup-header">
+            <div class="mockup-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+            <div class="mockup-address">{t('gallery.domains.label')}</div>
+          </div>
+          <div class="gallery-mockup-body">
+            <div class="gallery-sidebar">
+              <div class="gallery-sidebar-item active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+                Domains
+              </div>
+              <div class="gallery-sidebar-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Local Proxy
+              </div>
+              <div class="gallery-sidebar-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                APIs & Mocking
+              </div>
+              <div class="gallery-sidebar-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/></svg>
+                Inspector
+              </div>
+            </div>
+            <div class="gallery-main">
+              <div class="gallery-main-header">
+                <span style="font-size:0.82rem; font-weight:600;">Domain Health Status</span>
+                <span class="status-live-badge">● Live</span>
+              </div>
+              <!-- domain group -->
+              <div class="g-group-label">Production</div>
+              <div class="g-domain-row ok">
+                <span class="g-dot ok"></span>
+                <div class="g-domain-info">
+                  <span class="g-domain-name">api.production.com</span>
+                  <span class="g-domain-meta">200 OK · 12ms</span>
+                </div>
+                <div class="g-sparkline"><span style="height:40%"></span><span style="height:55%"></span><span style="height:50%"></span><span style="height:70%"></span><span class="ok" style="height:85%"></span></div>
+              </div>
+              <div class="g-domain-row ok">
+                <span class="g-dot ok"></span>
+                <div class="g-domain-info">
+                  <span class="g-domain-name">auth.service.com</span>
+                  <span class="g-domain-meta">200 OK · 8ms</span>
+                </div>
+                <div class="g-sparkline"><span style="height:30%"></span><span style="height:45%"></span><span style="height:40%"></span><span style="height:55%"></span><span class="ok" style="height:65%"></span></div>
+              </div>
+              <div class="g-group-label" style="margin-top:10px;">Staging</div>
+              <div class="g-domain-row warn">
+                <span class="g-dot warn"></span>
+                <div class="g-domain-info">
+                  <span class="g-domain-name">legacy-db.internal</span>
+                  <span class="g-domain-meta">Timeout · HTTP 504</span>
+                </div>
+                <div class="g-sparkline"><span style="height:70%"></span><span style="height:65%"></span><span style="height:20%"></span><span style="height:5%"></span><span class="warn" style="height:0%"></span></div>
+              </div>
+              <div class="g-domain-row ok">
+                <span class="g-dot ok"></span>
+                <div class="g-domain-info">
+                  <span class="g-domain-name">cdn.assets.internal</span>
+                  <span class="g-domain-meta">200 OK · 4ms</span>
+                </div>
+                <div class="g-sparkline"><span style="height:60%"></span><span style="height:70%"></span><span style="height:65%"></span><span style="height:80%"></span><span class="ok" style="height:90%"></span></div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="terminal-mockup glass-panel">
-          <div class="mockup-header" style="background: rgba(0,0,0,0.4)">
-            <div class="mockup-dots">
-              <span class="dot red"></span>
-              <span class="dot yellow"></span>
-              <span class="dot green"></span>
-            </div>
-            <div class="mockup-address" style="font-family: var(--font-mono)">Terminal - powershell</div>
+        <!-- Panel: Proxy -->
+        <div class="gallery-panel glass-panel" data-panel="proxy">
+          <div class="mockup-header">
+            <div class="mockup-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+            <div class="mockup-address">{t('gallery.proxy.label')}</div>
           </div>
-          <div class="terminal-body">
-            <div class="terminal-line input-line">
-              <span class="prompt-prefix">PS C:\project></span>
-              <span id="terminal-input-text">hgc init --project</span><span class="terminal-cursor"></span>
+          <div class="gallery-mockup-body">
+            <div class="gallery-sidebar">
+              <div class="gallery-sidebar-item">Domains</div>
+              <div class="gallery-sidebar-item active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Local Proxy
+              </div>
+              <div class="gallery-sidebar-item">APIs & Mocking</div>
+              <div class="gallery-sidebar-item">Inspector</div>
             </div>
-            <div class="terminal-output" id="terminal-output-text">
-              [Info] Initializing agent skill settings...
-              [Success] Created skill folder: .agents/skills/horizon-gateway/
-              [Success] Created file: .agents/skills/horizon-gateway/SKILL.md
-              [Info] Skill documentation registration completed.
+            <div class="gallery-main">
+              <div class="gallery-main-header">
+                <span style="font-size:0.82rem; font-weight:600;">Local MITM Proxy</span>
+                <span class="status-live-badge proxy-on">● Running :8888</span>
+              </div>
+              <!-- proxy status row -->
+              <div class="g-proxy-info">
+                <div class="g-proxy-stat"><span class="g-stat-val">8888</span><span class="g-stat-lbl">HTTP Port</span></div>
+                <div class="g-proxy-stat"><span class="g-stat-val">8889</span><span class="g-stat-lbl">HTTPS Port</span></div>
+                <div class="g-proxy-stat"><span class="g-stat-val">47</span><span class="g-stat-lbl">Requests/min</span></div>
+              </div>
+              <!-- route rules -->
+              <div class="g-group-label" style="margin-top:14px;">Route Rules</div>
+              <div class="g-route-row">
+                <div class="g-route-from">api.production.com</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-secondary)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                <div class="g-route-to">localhost:3001</div>
+                <span class="g-route-badge on">ON</span>
+              </div>
+              <div class="g-route-row">
+                <div class="g-route-from">cdn.assets.internal</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-secondary)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                <div class="g-route-to">./dist/assets/</div>
+                <span class="g-route-badge on">ON</span>
+              </div>
+              <div class="g-route-row">
+                <div class="g-route-from">auth.legacy.com</div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                <div class="g-route-to" style="color: var(--color-text-muted);">localhost:4000</div>
+                <span class="g-route-badge off">OFF</span>
+              </div>
+              <!-- traffic log -->
+              <div class="g-group-label" style="margin-top:14px;">Recent Traffic</div>
+              <div class="g-log-row"><span class="g-method get">GET</span><span class="g-log-path">/api/users</span><span class="g-log-status ok-s">200</span><span class="g-log-ms">12ms</span></div>
+              <div class="g-log-row"><span class="g-method post">POST</span><span class="g-log-path">/api/auth/login</span><span class="g-log-status ok-s">201</span><span class="g-log-ms">34ms</span></div>
+              <div class="g-log-row"><span class="g-method get">GET</span><span class="g-log-path">/api/products?page=2</span><span class="g-log-status err-s">504</span><span class="g-log-ms">3000ms</span></div>
             </div>
+          </div>
+        </div>
+
+        <!-- Panel: Mocking -->
+        <div class="gallery-panel glass-panel" data-panel="mocking">
+          <div class="mockup-header">
+            <div class="mockup-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+            <div class="mockup-address">{t('gallery.mocking.label')}</div>
+          </div>
+          <div class="gallery-mockup-body">
+            <div class="gallery-sidebar">
+              <div class="gallery-sidebar-item">Domains</div>
+              <div class="gallery-sidebar-item">Local Proxy</div>
+              <div class="gallery-sidebar-item active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                APIs & Mocking
+              </div>
+              <div class="gallery-sidebar-item">Inspector</div>
+            </div>
+            <div class="gallery-main">
+              <div class="gallery-main-header">
+                <span style="font-size:0.82rem; font-weight:600;">Mock Rules</span>
+                <span class="status-live-badge mock-on">3 Active</span>
+              </div>
+              <!-- mock rule -->
+              <div class="g-mock-rule">
+                <div class="g-mock-rule-header">
+                  <span class="g-method post">POST</span>
+                  <span class="g-mock-path">/api/auth/login</span>
+                  <span class="g-mock-toggle active">●</span>
+                </div>
+                <div class="g-mock-editor">
+                  <div class="g-editor-line"><span class="json-key">"status"</span><span>: </span><span class="json-num">200</span><span>,</span></div>
+                  <div class="g-editor-line"><span class="json-key">"body"</span><span>: </span><span class="json-str">{"{"}</span></div>
+                  <div class="g-editor-line indent"><span class="json-key">"token"</span><span>: </span><span class="json-str">"eyJhbGciOi..."</span><span>,</span></div>
+                  <div class="g-editor-line indent"><span class="json-key">"user"</span><span>: </span><span class="json-str">{"{"} "id": 1, "role": "admin" {"}"}</span></div>
+                  <div class="g-editor-line"><span class="json-str">{"}"}</span></div>
+                </div>
+              </div>
+              <div class="g-mock-rule" style="opacity:0.6;">
+                <div class="g-mock-rule-header">
+                  <span class="g-method get">GET</span>
+                  <span class="g-mock-path">/api/products</span>
+                  <span class="g-mock-toggle">○</span>
+                </div>
+              </div>
+              <div class="g-mock-rule" style="opacity:0.6;">
+                <div class="g-mock-rule-header">
+                  <span class="g-method get">GET</span>
+                  <span class="g-mock-path">/api/users/me</span>
+                  <span class="g-mock-toggle active">●</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Inspector -->
+        <div class="gallery-panel glass-panel" data-panel="inspector">
+          <div class="mockup-header">
+            <div class="mockup-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+            <div class="mockup-address">{t('gallery.inspector.label')}</div>
+          </div>
+          <div class="gallery-mockup-body">
+            <div class="gallery-sidebar">
+              <div class="gallery-sidebar-item">Domains</div>
+              <div class="gallery-sidebar-item">Local Proxy</div>
+              <div class="gallery-sidebar-item">APIs & Mocking</div>
+              <div class="gallery-sidebar-item active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/></svg>
+                Inspector
+              </div>
+            </div>
+            <div class="gallery-main">
+              <div class="gallery-main-header">
+                <span style="font-size:0.82rem; font-weight:600;">UI Annotations</span>
+                <span class="status-live-badge inspector-on">Injecting</span>
+              </div>
+              <!-- browser preview area -->
+              <div class="g-browser-preview">
+                <div class="g-page-sim">
+                  <div class="g-page-nav"></div>
+                  <div class="g-page-hero"></div>
+                  <div class="g-page-row">
+                    <div class="g-page-card highlighted">
+                      <div class="g-annotation-badge">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        Submit Button
+                      </div>
+                    </div>
+                    <div class="g-page-card"></div>
+                    <div class="g-page-card"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- annotation detail -->
+              <div class="g-annotation-detail">
+                <div class="g-ann-row"><span class="g-ann-key">Role</span><span class="g-ann-val">Submit Button</span></div>
+                <div class="g-ann-row"><span class="g-ann-key">Selector</span><span class="g-ann-val mono">[data-testid="submit"]</span></div>
+                <div class="g-ann-row"><span class="g-ann-key">Status</span><span class="g-ann-val ok-text">● Valid</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- CLI Terminal Section                                        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="terminal-section container" style="margin-top: 160px;">
+      <div style="max-width: 500px;">
+        <div class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--color-secondary); border-color: rgba(59, 130, 246, 0.2);">{t('terminal.badge')}</div>
+        <h2 style="font-size: 2.3rem; margin: 15px 0;">{t('terminal.title')}<span class="text-gradient">{t('terminal.title.accent')}</span>{t('terminal.title.post')}</h2>
+        <p style="color: var(--color-text-secondary); margin-bottom: 20px;">
+          {t('terminal.desc')}
+        </p>
+        <div class="terminal-buttons">
+          <button class="btn btn-secondary terminal-tab active" data-command="init">hgc init</button>
+          <button class="btn btn-secondary terminal-tab" data-command="list">hgc list</button>
+          <button class="btn btn-secondary terminal-tab" data-command="run">hgc run</button>
+        </div>
+      </div>
+
+      <div class="terminal-mockup glass-panel">
+        <div class="mockup-header" style="background: rgba(0,0,0,0.5)">
+          <div class="mockup-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <div class="mockup-address" style="font-family: var(--font-mono)">Terminal — powershell</div>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line input-line">
+            <span class="prompt-prefix">PS C:\project></span>
+            <span id="terminal-input-text">hgc init --project</span><span class="terminal-cursor"></span>
+          </div>
+          <div class="terminal-output" id="terminal-output-text">
+            [Info] Initializing agent skill settings...
+            [Success] Created skill folder: .agents/skills/horizon-gateway/
+            [Success] Created file: .agents/skills/horizon-gateway/SKILL.md
+            [Info] Skill documentation registration completed.
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Technical Stack / Performance -->
-    <section class="performance-section container" style="margin-top: 150px; background: radial-gradient(circle at center, rgba(168,85,247,0.05) 0%, transparent 70%); border-radius: 24px; padding: 60px 20px;">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Technical Stack / Performance                               -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="performance-section container" style="margin-top: 160px; background: radial-gradient(ellipse at center, rgba(62,200,255,0.04) 0%, rgba(255,138,43,0.03) 50%, transparent 70%); border-radius: 24px; padding: 70px 20px;">
       <div style="text-align: center; margin-bottom: 50px;">
         <h2 style="font-size: 2.3rem;">{t('perf.title')}<span class="text-gradient">{t('perf.title.accent')}</span></h2>
         <p style="color: var(--color-text-secondary); margin-top: 10px;">{t('perf.subtitle')}</p>
@@ -276,14 +474,18 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       </div>
     </section>
 
-    <!-- CTA Section -->
-    <section class="cta-section container" style="margin: 150px auto 100px; text-align: center; position: relative;">
-      <div class="glass-panel" style="padding: 80px 40px; border-radius: 24px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);">
-        <h2 style="font-size: 2.8rem; margin-bottom: 1.5rem;">{t('cta.title')}<span class="text-gradient">{t('cta.title.accent')}</span>{t('cta.title.post')}</h2>
-        <p style="color: var(--color-text-secondary); max-width: 600px; margin: 0 auto 40px; font-size: 1.1rem;">
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- CTA Section                                                  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <section class="cta-section container" style="margin: 160px auto 100px; text-align: center; position: relative;">
+      <div class="glass-panel cta-panel">
+        <div class="cta-glow-cyan"></div>
+        <div class="cta-glow-orange"></div>
+        <h2 style="font-size: 2.8rem; margin-bottom: 1.5rem; position:relative; z-index:1;">{t('cta.title')}<span class="text-gradient">{t('cta.title.accent')}</span>{t('cta.title.post')}</h2>
+        <p style="color: var(--color-text-secondary); max-width: 600px; margin: 0 auto 40px; font-size: 1.1rem; position:relative; z-index:1;">
           {t('cta.desc')}
         </p>
-        <div style="display: flex; justify-content: center; gap: 20px;">
+        <div style="display: flex; justify-content: center; gap: 20px; position:relative; z-index:1;">
           <a href="https://github.com/GrangbelrLurain/horizon-gateway/releases" class="btn btn-primary" style="padding: 1rem 2rem;">
             {t('cta.btn')}
           </a>
@@ -303,7 +505,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   const downloadBtn = document.getElementById('primary-download-btn') as HTMLAnchorElement | null;
   const downloadText = document.getElementById('primary-download-text');
   const downloadSubText = document.getElementById('primary-download-subtext');
-  
+
   if (downloadBtn && downloadText && downloadSubText) {
     let currentVer = 'v2.7.3';
     const updateDownloadInfo = (ver: string) => {
@@ -338,7 +540,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   const copyBtn = document.getElementById('copy-cli-btn');
   const copyIcon = document.getElementById('copy-icon');
   const checkIcon = document.getElementById('check-icon');
-  
+
   if (copyBtn && copyIcon && checkIcon) {
     copyBtn.addEventListener('click', async () => {
       try {
@@ -378,7 +580,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 ]`
     },
     run: {
-      cmd: 'hgc run get_domains \'{}\' --query \'data[].domainName\'',
+      cmd: "hgc run get_domains '{}' --query 'data[].domainName'",
       output: `[
   "api.development.local",
   "auth.service.internal"
@@ -399,7 +601,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
         // Typing animation simulation
         outputEl.style.opacity = '0';
         inputEl.textContent = '';
-        
+
         let i = 0;
         const text = data.cmd;
         const typingInterval = setInterval(() => {
@@ -417,41 +619,142 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
       }
     });
   });
+
+  // 4. Gallery Tab Logic
+  const galleryTabs = document.querySelectorAll('.gallery-tab');
+  const galleryPanels = document.querySelectorAll('.gallery-panel');
+
+  galleryTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const targetTab = tab.getAttribute('data-tab');
+
+      galleryTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      galleryPanels.forEach(panel => {
+        if (panel.getAttribute('data-panel') === targetTab) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+    });
+  });
 </script>
 
 <style>
-  /* Local Scoped Styles for Index page */
-  .hero-section {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    align-items: center;
-    gap: 4rem;
-    min-height: calc(85vh - 70px);
+  /* ─── Layout ─── */
+  main {
+    padding-top: 70px;
     position: relative;
+    overflow: hidden;
+  }
+
+  /* ─── Multi-layer Hero Glows ─── */
+  .glow-hero-primary {
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1100px;
+    height: 800px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(168, 85, 247, 0.18) 0%, rgba(168, 85, 247, 0.06) 40%, transparent 70%);
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-hero-secondary {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-40%);
+    width: 800px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-hero-accent {
+    position: absolute;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-60%);
+    width: 600px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(236, 72, 153, 0.08) 0%, transparent 70%);
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── Badge ─── */
+  .badge {
+    background: rgba(168, 85, 247, 0.12);
+    color: var(--color-primary);
+    padding: 0.4rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    display: inline-block;
+    backdrop-filter: blur(8px);
+  }
+
+  /* ─── Hero ─── */
+  .hero-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+    min-height: calc(100vh - 70px);
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    padding: 0 2rem 60px;
+  }
+
+  .hero-visual {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    width: 100%;
+    margin-bottom: -2rem;
+  }
+
+  .hero-animated-logo {
+    width: 100%;
+    max-width: 960px;
+    height: auto;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 80px rgba(168, 85, 247, 0.2));
   }
 
   .hero-content {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    z-index: 2;
-  }
-
-  .badge {
-    background: rgba(168, 85, 247, 0.1);
-    color: var(--color-primary);
-    padding: 0.35rem 0.8rem;
-    border-radius: 9999px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(168, 85, 247, 0.2);
+    align-items: center;
+    z-index: 3;
+    position: relative;
   }
 
   .hero-title {
     font-size: 3.6rem;
     line-height: 1.15;
     margin-bottom: 1.5rem;
+    letter-spacing: -0.03em;
+    word-break: keep-all;
+    text-wrap: balance;
   }
 
   .hero-logo-text {
@@ -459,22 +762,26 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     width: auto;
     vertical-align: middle;
     display: inline-block;
-    margin-top: -0.2rem;
+    margin-top: -0.25rem;
+    filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.25));
   }
 
   .hero-subtitle {
     font-size: 1.15rem;
     color: var(--color-text-secondary);
     margin-bottom: 2.5rem;
-    max-width: 600px;
+    max-width: 640px;
+    line-height: 1.75;
+    word-break: keep-all;
+    text-wrap: balance;
   }
 
   .hero-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 1.5rem;
+    gap: 1.2rem;
     align-items: center;
-    width: 100%;
+    justify-content: center;
   }
 
   .btn-hero-download {
@@ -490,7 +797,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   }
 
   .btn-subtext {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 400;
     opacity: 0.8;
   }
@@ -500,7 +807,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     display: flex;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(168, 85, 247, 0.15);
     padding: 0 1.2rem;
     border-radius: 10px;
     height: 54px;
@@ -508,6 +815,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     gap: 0.8rem;
     font-size: 0.9rem;
     max-width: 100%;
+    backdrop-filter: blur(8px);
   }
 
   .cli-prefix {
@@ -533,197 +841,11 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   }
 
   .cli-copy-btn:hover {
-    color: var(--color-text-primary);
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  /* Mockup App Interface Styling */
-  .mockup-container {
-    perspective: 1000px;
-    z-index: 2;
-  }
-
-  .app-mockup {
-    width: 100%;
-    max-width: 500px;
-    aspect-ratio: 4/3;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
-    transform: rotateX(8deg) rotateY(-12deg) rotateZ(3deg);
-    transition: transform var(--transition-slow);
-  }
-
-  .app-mockup:hover {
-    transform: rotateX(3deg) rotateY(-4deg) rotateZ(1deg);
-  }
-
-  .mockup-header {
-    background: rgba(11, 15, 25, 0.8);
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .mockup-dots {
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .dot.red { background: #ff5f56; }
-  .dot.yellow { background: #ffbd2e; }
-  .dot.green { background: #27c93f; }
-
-  .mockup-address {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    background: rgba(0, 0, 0, 0.2);
-    padding: 0.2rem 1.5rem;
-    border-radius: 4px;
-    flex-grow: 1;
-    text-align: center;
-  }
-
-  .mockup-body {
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    flex-grow: 1;
-    overflow: hidden;
-  }
-
-  .mockup-sidebar {
-    background: rgba(11, 15, 25, 0.4);
-    border-right: 1px solid var(--border-color);
-    padding: 1rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .sidebar-item {
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 0.4rem 0.6rem;
-    border-radius: 6px;
-    color: var(--color-text-secondary);
-  }
-
-  .sidebar-item.active {
-    background: rgba(168, 85, 247, 0.15);
     color: var(--color-primary);
+    background: rgba(168, 85, 247, 0.1);
   }
 
-  .mockup-main {
-    padding: 1.2rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .main-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .main-header h3 {
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-
-  .status-indicator-badge {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-
-  .status-indicator-badge.live {
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--color-success);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  }
-
-  .domain-card-mockup {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0.6rem 0.8rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .domain-card-mockup.warning {
-    border-color: rgba(239, 68, 68, 0.2);
-    background: rgba(239, 68, 68, 0.02);
-  }
-
-  .domain-info {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-
-  .domain-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  .domain-dot.online {
-    background: var(--color-success);
-    box-shadow: 0 0 8px var(--color-success);
-  }
-
-  .domain-dot.alert {
-    background: var(--color-danger);
-    box-shadow: 0 0 8px var(--color-danger);
-  }
-
-  .domain-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .domain-meta {
-    font-size: 0.65rem;
-    color: var(--color-text-muted);
-  }
-
-  .mini-chart {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 24px;
-  }
-
-  .mini-chart .bar {
-    width: 3px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 1px;
-  }
-
-  .mini-chart .bar.highlight {
-    background: var(--color-success);
-  }
-
-  .mini-chart .bar.alert {
-    background: var(--color-danger);
-  }
-
-  /* Feature cards design details */
+  /* ─── Feature Cards ─── */
   .feature-card {
     padding: 2rem;
     display: flex;
@@ -742,27 +864,27 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   }
 
   .feature-icon.icon-violet {
-    background: rgba(168, 85, 247, 0.1);
+    background: rgba(168, 85, 247, 0.12);
     color: var(--color-primary);
   }
 
   .feature-icon.icon-blue {
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(59, 130, 246, 0.12);
     color: var(--color-secondary);
   }
 
   .feature-icon.icon-rose {
-    background: rgba(236, 72, 153, 0.1);
+    background: rgba(236, 72, 153, 0.12);
     color: var(--color-accent);
   }
 
   .feature-icon.icon-green {
-    background: rgba(16, 185, 129, 0.1);
+    background: rgba(16, 185, 129, 0.12);
     color: var(--color-success);
   }
 
   .feature-card h3 {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     margin-bottom: 0.75rem;
   }
 
@@ -771,6 +893,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     color: var(--color-text-secondary);
     margin-bottom: 1.5rem;
     flex-grow: 1;
+    line-height: 1.65;
   }
 
   .feature-visual {
@@ -785,6 +908,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     gap: 10px;
   }
 
+  /* Ping signal */
   .ping-signal {
     position: relative;
     width: 12px;
@@ -833,7 +957,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   }
 
   .route-node.highlight {
-    color: var(--color-secondary);
+    color: var(--color-primary);
     font-weight: 500;
   }
 
@@ -841,7 +965,412 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     color: var(--color-text-muted);
   }
 
-  /* Terminal Simulator Styling */
+  /* ─── Gallery Section ─── */
+  .gallery-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .gallery-tab {
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: var(--font-display);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+  }
+
+  .gallery-tab:hover {
+    background: rgba(168, 85, 247, 0.07);
+    border-color: rgba(168, 85, 247, 0.2);
+    color: var(--color-text-primary);
+  }
+
+  .gallery-tab.active {
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.35);
+    color: var(--color-primary);
+  }
+
+  .gallery-panel-wrap {
+    position: relative;
+  }
+
+  .gallery-panel {
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 16px;
+    min-height: 380px;
+  }
+
+  .gallery-panel.active {
+    display: flex;
+    animation: fadeInPanel 0.25s ease;
+  }
+
+  @keyframes fadeInPanel {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Common mockup pieces shared with gallery */
+  .mockup-header {
+    background: rgba(8, 14, 28, 0.9);
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .mockup-dots {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot.red    { background: #ff5f56; }
+  .dot.yellow { background: #ffbd2e; }
+  .dot.green  { background: #27c93f; }
+
+  .mockup-address {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    background: rgba(0,0,0,0.25);
+    padding: 0.2rem 1.5rem;
+    border-radius: 4px;
+    flex-grow: 1;
+    text-align: center;
+  }
+
+  .gallery-mockup-body {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    flex-grow: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .gallery-sidebar {
+    background: rgba(8, 14, 28, 0.5);
+    border-right: 1px solid var(--border-color);
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .gallery-sidebar-item {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .gallery-sidebar-item.active {
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--color-primary);
+  }
+
+  .gallery-main {
+    padding: 1.2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .gallery-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+
+  /* Status badges */
+  .status-live-badge {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--color-success);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+
+  .status-live-badge.proxy-on {
+    background: rgba(168, 85, 247, 0.1);
+    color: var(--color-primary);
+    border-color: rgba(168, 85, 247, 0.2);
+  }
+
+  .status-live-badge.mock-on {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-secondary);
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  .status-live-badge.inspector-on {
+    background: rgba(56, 240, 184, 0.1);
+    color: var(--color-accent);
+    border-color: rgba(56, 240, 184, 0.2);
+  }
+
+  /* Domains panel */
+  .g-group-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+
+  .g-domain-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .g-domain-row.warn {
+    border-color: rgba(239,68,68,0.2);
+    background: rgba(239,68,68,0.025);
+  }
+
+  .g-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .g-dot.ok   { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
+  .g-dot.warn { background: var(--color-danger);  box-shadow: 0 0 6px var(--color-danger); }
+
+  .g-domain-info { flex: 1; min-width: 0; }
+  .g-domain-name { font-size: 0.78rem; font-weight: 600; }
+  .g-domain-meta { font-size: 0.64rem; color: var(--color-text-muted); }
+
+  .g-sparkline {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 20px;
+  }
+
+  .g-sparkline span {
+    width: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+  }
+
+  .g-sparkline span.ok   { background: var(--color-success); }
+  .g-sparkline span.warn { background: var(--color-danger); }
+
+  /* Proxy panel */
+  .g-proxy-info {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(168, 85, 247, 0.04);
+    border: 1px solid rgba(168, 85, 247, 0.1);
+    border-radius: 8px;
+  }
+
+  .g-proxy-stat { display: flex; flex-direction: column; gap: 2px; }
+  .g-stat-val { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700; color: var(--color-primary); }
+  .g-stat-lbl { font-size: 0.62rem; color: var(--color-text-muted); }
+
+  .g-route-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+
+  .g-route-from { color: var(--color-text-muted); flex-shrink: 0; }
+  .g-route-to   { color: var(--color-primary); flex: 1; }
+
+  .g-route-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .g-route-badge.on  { background: rgba(34,197,94,0.15); color: var(--color-success); }
+  .g-route-badge.off { background: rgba(255,255,255,0.05); color: var(--color-text-muted); }
+
+  .g-log-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .g-method {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    min-width: 38px;
+    text-align: center;
+  }
+
+  .g-method.get  { background: rgba(62,200,255,0.12); color: var(--color-primary); }
+  .g-method.post { background: rgba(34,197,94,0.12);  color: var(--color-success); }
+
+  .g-log-path   { flex: 1; color: var(--color-text-secondary); }
+  .g-log-status { font-weight: 600; }
+  .g-log-ms     { color: var(--color-text-muted); }
+
+  .ok-s  { color: var(--color-success); }
+  .err-s { color: var(--color-danger); }
+
+  /* Mocking panel */
+  .g-mock-rule {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .g-mock-rule-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .g-mock-path { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-secondary); flex: 1; }
+
+  .g-mock-toggle       { color: var(--color-text-muted); font-size: 0.9rem; }
+  .g-mock-toggle.active { color: var(--color-secondary); }
+
+  .g-mock-editor {
+    padding: 0.6rem 0.75rem;
+    background: rgba(0,0,0,0.3);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+
+  .g-editor-line { display: flex; gap: 2px; }
+  .g-editor-line.indent { padding-left: 1rem; }
+
+  .json-key { color: var(--color-primary); }
+  .json-str { color: #a8ff78; }
+  .json-num { color: var(--color-secondary); }
+
+  /* Inspector panel */
+  .g-browser-preview {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    position: relative;
+  }
+
+  .g-page-sim {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .g-page-nav {
+    height: 14px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+  }
+
+  .g-page-hero {
+    height: 30px;
+    background: linear-gradient(90deg, rgba(62,200,255,0.08) 0%, rgba(255,138,43,0.05) 100%);
+    border-radius: 4px;
+  }
+
+  .g-page-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .g-page-card {
+    flex: 1;
+    height: 36px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .g-page-card.highlighted {
+    border-color: var(--color-primary);
+    background: rgba(62,200,255,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .g-annotation-badge {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: rgba(62,200,255,0.12);
+    border: 1px solid rgba(62,200,255,0.3);
+    border-radius: 4px;
+    padding: 2px 5px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+  }
+
+  .g-annotation-detail {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .g-ann-row { display: flex; gap: 0.75rem; font-size: 0.72rem; align-items: center; }
+  .g-ann-key { color: var(--color-text-muted); min-width: 60px; }
+  .g-ann-val { color: var(--color-text-primary); font-size: 0.72rem; }
+  .g-ann-val.mono { font-family: var(--font-mono); color: var(--color-primary); }
+  .g-ann-val.ok-text { color: var(--color-success); }
+
+  /* ─── Terminal Section ─── */
   .terminal-section {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
@@ -878,13 +1407,13 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   }
 
   .terminal-body {
-    background: #03050c;
+    background: #02050e;
     padding: 1.5rem;
     flex-grow: 1;
     font-family: var(--font-mono);
     font-size: 0.85rem;
-    line-height: 1.5;
-    color: #a9b1d6;
+    line-height: 1.55;
+    color: #8fa3bc;
   }
 
   .input-line {
@@ -894,9 +1423,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     margin-bottom: 1rem;
   }
 
-  .prompt-prefix {
-    color: var(--color-success);
-  }
+  .prompt-prefix { color: var(--color-primary); }
 
   #terminal-input-text {
     color: var(--color-text-primary);
@@ -907,22 +1434,22 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     display: inline-block;
     width: 8px;
     height: 15px;
-    background: #a9b1d6;
+    background: rgba(168, 85, 247, 0.7);
     animation: blink 1s step-end infinite;
   }
 
   @keyframes blink {
     from, to { background-color: transparent }
-    50% { background-color: #a9b1d6; }
+    50% { background-color: rgba(168, 85, 247, 0.7); }
   }
 
   .terminal-output {
     white-space: pre-wrap;
-    color: #565f89;
+    color: #556080;
     transition: opacity 0.15s ease-in-out;
   }
 
-  /* Performance cards */
+  /* ─── Performance Cards ─── */
   .performance-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -930,15 +1457,16 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
     margin-top: 3rem;
   }
 
-  .perf-card {
-    text-align: left;
-  }
+  .perf-card { text-align: left; }
 
   .perf-metric {
     font-family: var(--font-display);
     font-size: 2.5rem;
     font-weight: 800;
-    color: var(--color-primary);
+    background: var(--gradient-hero-text);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .perf-label {
@@ -949,7 +1477,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   .perf-progress-bar {
     width: 100%;
-    height: 4px;
+    height: 3px;
     background: rgba(255,255,255,0.05);
     border-radius: 2px;
     margin-bottom: 1rem;
@@ -965,45 +1493,95 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
   .perf-desc {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
+    line-height: 1.6;
   }
 
-  /* Responsive styling */
-  @media (max-width: 992px) {
-    .hero-section, .terminal-section {
-      grid-template-columns: 1fr;
-      text-align: center;
-      gap: 3rem;
-    }
-    
-    .hero-content, .hero-actions {
-      align-items: center;
-      justify-content: center;
-    }
-    
+  /* ─── CTA ─── */
+  .cta-panel {
+    padding: 80px 40px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.06) 0%, rgba(59, 130, 246, 0.06) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-glow-cyan {
+    position: absolute;
+    top: -60px; left: -60px;
+    width: 340px; height: 340px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(62,200,255,0.15) 0%, transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+  }
+
+  .cta-glow-orange {
+    position: absolute;
+    bottom: -60px; right: -60px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,138,43,0.12) 0%, transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+  }
+
+  /* ─── Responsive ─── */
+
+  @media (max-width: 1024px) {
     .hero-title {
       font-size: 2.8rem;
     }
 
     .hero-logo-text {
-      height: 3.0rem;
+      height: 3rem;
     }
-    
-    .app-mockup {
-      margin: 0 auto;
-      transform: none;
+
+    .hero-animated-logo {
+      max-width: 700px;
     }
-    
-    .app-mockup:hover {
-      transform: scale(1.02);
+
+    .glow-hero-primary {
+      width: 700px;
+      height: 500px;
     }
-    
-    .terminal-section div {
-      align-items: center;
+
+    .terminal-section {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .terminal-section > div {
       text-align: center;
     }
 
     .terminal-buttons {
       justify-content: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero-title {
+      font-size: 2rem;
+    }
+
+    .hero-animated-logo {
+      max-width: 95vw;
+    }
+
+    .hero-section {
+      padding: 0 1rem 40px;
+    }
+
+    .cta-panel {
+      padding: 50px 24px;
+    }
+
+    .gallery-mockup-body {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-sidebar {
+      display: none;
     }
   }
 </style>
