@@ -98,13 +98,7 @@ fn pid_is_horizon_gateway_serve(pid: u32) -> bool {
     use std::process::Command;
 
     let output = Command::new("tasklist")
-        .args([
-            "/FI",
-            &format!("PID eq {pid}"),
-            "/FO",
-            "CSV",
-            "/NH",
-        ])
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
         .output();
     let Ok(output) = output else {
         return false;

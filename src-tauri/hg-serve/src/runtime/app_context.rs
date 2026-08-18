@@ -44,29 +44,64 @@ pub struct AppContext {
 pub fn bootstrap_app_context() -> Result<AppContext, String> {
     let app_data_dir = resolve_app_data_dir()?;
 
-    // Migration from Watchtower (com.lurain.watchtower) to Horizon Gateway (com.lurain.horizon-gateway)
-    // Robust check: check if domains.json does not exist in new location, but does in old location
-    let old_domains_path =
-        dirs::data_dir().map(|base| base.join("com.lurain.watchtower").join("domains.json"));
-    let new_domains_path = app_data_dir.join("domains.json");
+    // One-time migration from the legacy Watchtower app (com.lurain.watchtower).
+    //
+    // Always runs while the old directory exists (identified by the presence of its domains.json).
+    // Merges old domains into the new location by hostname: old entries whose hostname does not
+    // already exist in the new store are appended.  Other data files (groups, routes, mock rules,
+    // proxy settings, etc.) are copied only when the corresponding file is absent in the new dir.
+    // After a successful merge the old directory is renamed to *.migrated so this block never
+    // runs again and the legacy data no longer shadows anything.
+    if let Some(old_dir) = dirs::data_dir().map(|base| base.join("com.lurain.watchtower")) {
+        let old_domains_path = old_dir.join("domains.json");
+        if old_domains_path.exists() {
+            if !app_data_dir.exists() {
+                let _ = fs::create_dir_all(&app_data_dir);
+            }
 
-    if !new_domains_path.exists() {
-        if let Some(old_path) = old_domains_path {
-            if old_path.exists() {
-                if let Some(old_dir) =
-                    dirs::data_dir().map(|base| base.join("com.lurain.watchtower"))
-                {
-                    if !app_data_dir.exists() {
-                        let _ = fs::create_dir_all(&app_data_dir);
-                    }
-                    if let Err(e) = copy_dir_all(&old_dir, &app_data_dir) {
-                        eprintln!("Failed to copy app data directory: {e}");
-                    } else {
-                        println!(
-                            "Successfully migrated app data from Watchtower to Horizon Gateway."
-                        );
-                    }
+            // Merge domains by hostname — append old entries not present in the new store.
+            let merged = merge_domains_from_legacy(&old_domains_path, &app_data_dir.join("domains.json"));
+            if let Some(merged_domains) = merged {
+                if let Ok(content) = serde_json::to_string_pretty(&serde_json::json!({
+                    "schema_version": 2,
+                    "data": merged_domains
+                })) {
+                    let _ = fs::write(app_data_dir.join("domains.json"), content);
                 }
+            }
+
+            // Copy any other data files that do not yet exist in the new dir.
+            let files_to_copy = [
+                "groups.json",
+                "domain_group_links.json",
+                "domain_local_routes.json",
+                "domain_monitor_links.json",
+                "proxy_settings.json",
+                "domain_api_logging_links.json",
+                "mocking_settings.json",
+                "scenarios.json",
+                "mock_rules.json",
+                "pipelines.json",
+                "crypto_presets.json",
+                "json_schemas.json",
+                "inspector_annotations.json",
+                "injection_domains.json",
+                "inspector_settings.json",
+            ];
+            for file in &files_to_copy {
+                let src = old_dir.join(file);
+                let dst = app_data_dir.join(file);
+                if src.exists() && !dst.exists() {
+                    let _ = fs::copy(&src, &dst);
+                }
+            }
+
+            // Rename old dir so this migration never runs again.
+            let migrated_dir = old_dir.with_file_name("com.lurain.watchtower.migrated");
+            if let Err(e) = fs::rename(&old_dir, &migrated_dir) {
+                eprintln!("Warning: could not rename legacy app data dir after migration: {e}");
+            } else {
+                println!("Migrated app data from com.lurain.watchtower to com.lurain.horizon-gateway.");
             }
         }
     }
@@ -156,6 +191,25 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     })
 }
 
+fn is_empty_versioned_array(path: &Path) -> bool {
+    let Ok(content) = fs::read_to_string(path) else {
+        return true;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return true;
+    };
+
+    match value {
+        serde_json::Value::Array(items) => items.is_empty(),
+        serde_json::Value::Object(map) => map
+            .get("data")
+            .and_then(|value| value.as_array())
+            .map(|items| items.is_empty())
+            .unwrap_or(true),
+        _ => true,
+    }
+}
+
 fn migrate_removed_global_toggles(
     proxy_settings: &ProxySettingsService,
     routes: &LocalRouteService,
@@ -198,6 +252,70 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result
         }
     }
     Ok(())
+}
+
+fn merge_domains_from_legacy(
+    old_path: &Path,
+    new_path: &Path,
+) -> Option<Vec<serde_json::Value>> {
+    let load = |path: &Path| -> Option<Vec<serde_json::Value>> {
+        let content = fs::read_to_string(path).ok()?;
+        let value: serde_json::Value = serde_json::from_str(&content).ok()?;
+        match value {
+            serde_json::Value::Array(items) => Some(items),
+            serde_json::Value::Object(ref map) => map
+                .get("data")
+                .and_then(|v| v.as_array())
+                .cloned(),
+            _ => None,
+        }
+    };
+
+    let old_domains = load(old_path).unwrap_or_default();
+    if old_domains.is_empty() {
+        return None;
+    }
+
+    let new_domains = if new_path.exists() {
+        load(new_path).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    // Build hostname set from the new store to avoid duplicates.
+    let new_hostnames: std::collections::HashSet<String> = new_domains
+        .iter()
+        .filter_map(|d| d.get("url").and_then(|v| v.as_str()))
+        .map(|url| crate::service::domain_hostname::domain_url_to_hostname(url))
+        .filter(|h| !h.is_empty())
+        .collect();
+
+    // Next id above the current max in the new store to avoid id collisions.
+    let max_id = new_domains
+        .iter()
+        .filter_map(|d| d.get("id").and_then(|v| v.as_u64()))
+        .max()
+        .unwrap_or(0);
+    let mut next_id = max_id + 1;
+
+    let mut merged = new_domains;
+    for mut old in old_domains {
+        let host = old
+            .get("url")
+            .and_then(|v| v.as_str())
+            .map(crate::service::domain_hostname::domain_url_to_hostname)
+            .unwrap_or_default();
+        if host.is_empty() || new_hostnames.contains(&host) {
+            continue;
+        }
+        if let Some(obj) = old.as_object_mut() {
+            obj.insert("id".to_string(), serde_json::json!(next_id));
+        }
+        next_id += 1;
+        merged.push(old);
+    }
+
+    Some(merged)
 }
 
 #[cfg(test)]

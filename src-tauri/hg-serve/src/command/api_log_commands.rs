@@ -44,7 +44,8 @@ pub struct SetDomainApiLoggingPayload {
 pub const SET_DOMAIN_API_LOGGING_CLI_INFO: crate::cli::CliCommandInfo =
     crate::cli::CliCommandInfo {
         name: "set_domain_api_logging",
-        description: "도메인 API 로깅 설정을 추가하거나 변경합니다 (단일 domainId 또는 domainIds 배열).",
+        description:
+            "도메인 API 로깅 설정을 추가하거나 변경합니다 (단일 domainId 또는 domainIds 배열).",
         payload_example: r#"{"domainId": 1, "loggingEnabled": true, "bodyEnabled": false, "schemaUrl": null}"#,
         category: "api",
         gui_only: false,

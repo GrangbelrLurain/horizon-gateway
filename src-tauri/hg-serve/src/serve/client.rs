@@ -37,9 +37,8 @@ fn send_request(request: &ServeRequest) -> Result<ServeResponse, String> {
     let addr: std::net::SocketAddr = SERVE_TCP_ADDR
         .parse()
         .map_err(|e| format!("invalid serve address {SERVE_TCP_ADDR}: {e}"))?;
-    let mut stream = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT).map_err(|e| {
-        format!("failed to connect to serve at {SERVE_TCP_ADDR}: {e}")
-    })?;
+    let mut stream = TcpStream::connect_timeout(&addr, CONNECT_TIMEOUT)
+        .map_err(|e| format!("failed to connect to serve at {SERVE_TCP_ADDR}: {e}"))?;
     stream
         .set_read_timeout(Some(IO_TIMEOUT))
         .map_err(|e| format!("set_read_timeout: {e}"))?;

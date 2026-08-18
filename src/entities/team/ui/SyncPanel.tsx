@@ -22,7 +22,6 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
   const [catalogCounts, setCatalogCounts] = useState<Partial<Record<ResourceKind, SyncCatalogCounts>>>({});
   const [snapshot, setSnapshot] = useState<SyncSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
-  const [_refreshToken, setRefreshToken] = useState(0);
   const [managingRemote, setManagingRemote] = useState(false);
 
   const handleCountsChange = useCallback((kind: ResourceKind, counts: SyncCatalogCounts) => {
@@ -55,7 +54,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
   const handleSync = async (options: Parameters<typeof handleExecuteSync>[1]) => {
     const ok = await handleExecuteSync(syncAction, options, { stayOpen: true });
     if (ok) {
-      setRefreshToken((t) => t + 1);
+      await reloadSnapshot();
     }
   };
 
@@ -67,7 +66,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
     try {
       await deleteRemoteResourceItem(activeWorkspaceId, kind, itemId);
       toastSuccess(lang === "ko" ? "서버에서 삭제했습니다." : "Deleted from server.");
-      setRefreshToken((t) => t + 1);
+      await reloadSnapshot();
       return true;
     } catch (e) {
       console.error(e);
@@ -90,7 +89,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
     try {
       await upsertRemoteResourceItem(activeWorkspaceId, kind, item, options);
       toastSuccess(lang === "ko" ? "서버에 저장했습니다." : "Saved to server.");
-      setRefreshToken((t) => t + 1);
+      await reloadSnapshot();
       return true;
     } catch (e) {
       console.error(e);
@@ -156,7 +155,7 @@ export function SyncPanel({ ctrl, onClose }: SyncPanelProps) {
             canManageRemote={isWorkspaceAdmin}
             managingRemote={managingRemote}
             onCountsChange={handleCountsChange}
-            onRefresh={() => setRefreshToken((t) => t + 1)}
+            onRefresh={() => void reloadSnapshot()}
             onSync={(options) => void handleSync(options)}
             onDeleteRemoteItem={handleDeleteRemoteItem}
             onUpsertRemoteItem={handleUpsertRemoteItem}

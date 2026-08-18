@@ -17,28 +17,26 @@ pub fn start_event_forwarder(app: AppHandle) {
         return;
     }
 
-    thread::spawn(move || {
-        loop {
-            if !ensure::is_backend_active() {
-                if super::client::ping().is_ok() {
-                    let _ = ensure::ensure_running();
-                } else {
-                    thread::sleep(Duration::from_secs(1));
-                    continue;
-                }
+    thread::spawn(move || loop {
+        if !ensure::is_backend_active() {
+            if super::client::ping().is_ok() {
+                let _ = ensure::ensure_running();
+            } else {
+                thread::sleep(Duration::from_secs(1));
+                continue;
             }
-
-            match forward_events(&app) {
-                Ok(()) => tracing::info!("[gui] serve event stream disconnected"),
-                Err(e) => {
-                    tracing::debug!("[gui] serve event stream: {e}");
-                    ensure::mark_inactive();
-                    let _ = app.emit("backend-unavailable", e.clone());
-                }
-            }
-
-            thread::sleep(Duration::from_secs(1));
         }
+
+        match forward_events(&app) {
+            Ok(()) => tracing::info!("[gui] serve event stream disconnected"),
+            Err(e) => {
+                tracing::debug!("[gui] serve event stream: {e}");
+                ensure::mark_inactive();
+                let _ = app.emit("backend-unavailable", e.clone());
+            }
+        }
+
+        thread::sleep(Duration::from_secs(1));
     });
 }
 

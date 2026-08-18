@@ -179,11 +179,8 @@ mod tests {
         let payload: SamplePayload = serde_json::from_value(erased.payload).unwrap();
         assert_eq!(payload.n, 7);
 
-        let res = ServeResponse::success_typed(
-            erased.id.clone(),
-            SampleResponse { ok: true },
-        )
-        .unwrap();
+        let res =
+            ServeResponse::success_typed(erased.id.clone(), SampleResponse { ok: true }).unwrap();
         let out: SampleResponse = res.try_into_typed().unwrap();
         assert!(out.ok);
     }

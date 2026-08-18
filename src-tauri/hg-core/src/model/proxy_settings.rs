@@ -166,7 +166,10 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         assert!(!json.contains("local_routing_enabled"));
         let deserialized: ProxySettings = serde_json::from_str(&json).unwrap();
-        assert!(deserialized.local_routing_enabled, "dropped field defaults to true");
+        assert!(
+            deserialized.local_routing_enabled,
+            "dropped field defaults to true"
+        );
         assert!(!deserialized.cors_rewrite_enabled);
         assert_eq!(deserialized.https_decrypt_hosts, vec!["api.example.com"]);
     }

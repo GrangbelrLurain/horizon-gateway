@@ -70,7 +70,11 @@ pub struct SettingsExport {
     #[serde(default, alias = "proxy_settings")]
     pub proxy_settings: ProxySettings,
     /// Monitor settings per domain (`check_enabled`, interval). Status logs are excluded.
-    #[serde(alias = "domain_status", alias = "domain_monitor", default = "default_domain_monitor")]
+    #[serde(
+        alias = "domain_status",
+        alias = "domain_monitor",
+        default = "default_domain_monitor"
+    )]
     pub domain_monitor: Vec<DomainMonitorExport>,
     #[serde(default = "default_scenarios")]
     pub scenarios: Vec<Scenario>,

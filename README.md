@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🔭 Horizon Gateway
+<img src="https://delete-horizon.com/logo-animated.svg" alt="Horizon Gateway Logo" width="100" />
+
+# Horizon Gateway
 
 ### The All-in-One Local Dev-Infra Control Center
 

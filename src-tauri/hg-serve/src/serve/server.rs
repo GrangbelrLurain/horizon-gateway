@@ -192,9 +192,7 @@ fn handle_client(
         writer
             .write_all(out.as_bytes())
             .map_err(|e| format!("write failed: {e}"))?;
-        writer
-            .flush()
-            .map_err(|e| format!("flush failed: {e}"))?;
+        writer.flush().map_err(|e| format!("flush failed: {e}"))?;
     }
 
     Ok(())

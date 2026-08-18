@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🔭 Horizon Gateway (호라이즌 게이트웨이)
+<img src="https://delete-horizon.com/logo-animated.svg" alt="Horizon Gateway Logo" width="100" />
+
+# Horizon Gateway (호라이즌 게이트웨이)
 
 ### 로컬 개발 인프라를 지키는 올인원 관측소
 

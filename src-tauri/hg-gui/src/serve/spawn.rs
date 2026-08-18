@@ -180,9 +180,7 @@ fn spawn_elevated_windows(exe: &Path) -> Result<(), String> {
             verb.as_ptr(),
             exe_wide.as_ptr(),
             std::ptr::null(),
-            work_dir
-                .as_ref()
-                .map_or(std::ptr::null(), |p| p.as_ptr()),
+            work_dir.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
             windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE,
         )
     };

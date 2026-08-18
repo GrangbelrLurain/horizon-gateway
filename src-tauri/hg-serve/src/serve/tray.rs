@@ -117,9 +117,7 @@ mod unix {
     use tao::event::{Event, StartCause};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
     use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
-    use tray_icon::{
-        MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent,
-    };
+    use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
     enum UserEvent {
         TrayIconEvent(TrayIconEvent),
@@ -141,11 +139,7 @@ mod unix {
         let tray_menu = Menu::new();
         let open_i = MenuItem::new("Open Horizon Gateway", true, None);
         let quit_i = MenuItem::new("Quit", true, None);
-        let _ = tray_menu.append_items(&[
-            &open_i,
-            &PredefinedMenuItem::separator(),
-            &quit_i,
-        ]);
+        let _ = tray_menu.append_items(&[&open_i, &PredefinedMenuItem::separator(), &quit_i]);
 
         let mut tray_icon = None;
         event_loop.run(move |event, _, control_flow| {
@@ -194,9 +188,10 @@ mod unix {
     pub fn launch_gui(exe: &Path) {
         #[cfg(target_os = "macos")]
         {
-            if let Some(app) = exe.ancestors().find(|p| {
-                p.extension().and_then(|ext| ext.to_str()) == Some("app")
-            }) {
+            if let Some(app) = exe
+                .ancestors()
+                .find(|p| p.extension().and_then(|ext| ext.to_str()) == Some("app"))
+            {
                 if let Err(e) = std::process::Command::new("open").arg(app).spawn() {
                     tracing::warn!("[serve] tray: failed to open app bundle: {e}");
                 }
@@ -240,7 +235,7 @@ mod windows {
     use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
     use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows_sys::Win32::UI::Shell::{
-        Shell_NotifyIconW, ShellExecuteW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE,
+        ShellExecuteW, Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE,
         NOTIFYICONDATAW,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -439,7 +434,11 @@ mod windows {
         nid.uCallbackMessage = WM_TRAY;
         nid.hIcon = icon;
         let tip = wide("Horizon Gateway");
-        for (i, ch) in tip.iter().take(nid.szTip.len().saturating_sub(1)).enumerate() {
+        for (i, ch) in tip
+            .iter()
+            .take(nid.szTip.len().saturating_sub(1))
+            .enumerate()
+        {
             nid.szTip[i] = *ch;
         }
 

@@ -75,7 +75,11 @@ pub struct Annotation {
     /// Priority-ordered locators. Index 0 is primary.
     #[serde(default, rename = "locators")]
     pub locators: Vec<AnnotationLocator>,
-    #[serde(default, rename = "lastValidation", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "lastValidation",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub last_validation: Option<LocatorValidation>,
 }
 
@@ -108,7 +112,11 @@ impl Annotation {
     }
 
     pub fn sync_selector_from_locators(&mut self) {
-        if let Some(css) = self.locators.iter().find(|l| l.strategy == LocatorStrategy::Css) {
+        if let Some(css) = self
+            .locators
+            .iter()
+            .find(|l| l.strategy == LocatorStrategy::Css)
+        {
             if let Some(v) = &css.value {
                 self.selector = v.clone();
             }
@@ -130,8 +138,7 @@ impl Annotation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
-#[derive(Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type, Default)]
 pub struct InspectorSettings {
     pub enabled: bool,
 }

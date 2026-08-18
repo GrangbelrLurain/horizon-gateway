@@ -218,6 +218,83 @@ function filterRemoteMocksByKeys(remoteMocks: MockRule[], selectedMockRuleKeys: 
   return remoteMocks.filter((m) => selectionMatchesKey(keySet, mockRuleMatchKey(m), m.id));
 }
 
+function collectUsedDomainIds(domains: DomainItem[]): Set<number> {
+  const used = new Set<number>();
+  for (const d of domains) {
+    const id = Number(d.id);
+    if (Number.isFinite(id) && id > 0) {
+      used.add(id);
+    }
+  }
+  return used;
+}
+
+function nextDomainIdSeed(domains: DomainItem[]): number {
+  let max = 0;
+  for (const d of domains) {
+    const id = Number(d.id);
+    if (Number.isFinite(id) && id > max) {
+      max = id;
+    }
+  }
+  return max + 1;
+}
+
+/** Remote workspace ids may overlap local ids — assign a free local id for new imports. */
+function assignLocalDomainId(usedIds: Set<number>, nextId: number, remoteId: unknown): { id: number; nextId: number } {
+  const remoteNum = Number(remoteId);
+  if (Number.isFinite(remoteNum) && remoteNum > 0 && !usedIds.has(remoteNum)) {
+    usedIds.add(remoteNum);
+    return { id: remoteNum, nextId: Math.max(nextId, remoteNum + 1) };
+  }
+  let id = nextId;
+  while (usedIds.has(id)) {
+    id += 1;
+  }
+  usedIds.add(id);
+  return { id, nextId: id + 1 };
+}
+
+function appendImportedRemoteDomain(
+  merged: DomainItem[],
+  rem: DomainItem,
+  usedIds: Set<number>,
+  nextId: number,
+): number {
+  const { id, nextId: bumped } = assignLocalDomainId(usedIds, nextId, rem.id);
+  merged.push({ ...rem, id });
+  return bumped;
+}
+
+function mergeRemoteDomainsIntoLocalList(
+  localDomains: DomainItem[],
+  remoteDomains: DomainItem[],
+  opts: WorkspaceSyncOptions,
+): DomainItem[] {
+  const localByKey = new Map(localDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
+  const merged: DomainItem[] = [...localDomains];
+  const usedIds = collectUsedDomainIds(merged);
+  let nextId = nextDomainIdSeed(merged);
+
+  for (const remDom of remoteDomains) {
+    const key = domainMatchKey(remDom.url, opts.matchKey);
+    const existingLocal = localByKey.get(key);
+    if (existingLocal) {
+      if (opts.overlapPolicy === "keep_target") {
+        continue;
+      }
+      const idx = merged.findIndex((d) => d.id === existingLocal.id);
+      if (idx !== -1) {
+        merged[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
+      }
+      continue;
+    }
+    nextId = appendImportedRemoteDomain(merged, remDom, usedIds, nextId);
+  }
+
+  return merged;
+}
+
 function mergeSelectedDomainsIntoLocal(
   localDomains: DomainItem[],
   remoteDomains: DomainItem[],
@@ -227,6 +304,8 @@ function mergeSelectedDomainsIntoLocal(
   const toPull = filterRemoteDomainsByKeys(remoteDomains, selectedDomainKeys, opts.matchKey);
   const localByKey = new Map(localDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
   const merged = [...localDomains];
+  const usedIds = collectUsedDomainIds(merged);
+  let nextId = nextDomainIdSeed(merged);
   for (const rem of toPull) {
     const key = domainMatchKey(rem.url, opts.matchKey);
     const existing = localByKey.get(key);
@@ -236,7 +315,7 @@ function mergeSelectedDomainsIntoLocal(
         merged[idx] = { ...existing, ...rem, id: existing.id };
       }
     } else {
-      merged.push(rem);
+      nextId = appendImportedRemoteDomain(merged, rem, usedIds, nextId);
     }
   }
   return merged;
@@ -591,9 +670,7 @@ export async function pullWorkspaceSync(
       if (opts.selectedDomainKeys?.length) {
         nextDomains = mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts);
       } else {
-        const localUrlSet = new Set(nextDomains.map((d) => domainMatchKey(d.url, opts.matchKey)));
-        const newRemoteDomains = remoteDomains.filter((d) => !localUrlSet.has(domainMatchKey(d.url, opts.matchKey)));
-        nextDomains = [...nextDomains, ...newRemoteDomains];
+        nextDomains = mergeRemoteDomainsIntoLocalList(nextDomains, remoteDomains, opts);
       }
     }
     if (kindSet.has("groups")) {
@@ -622,24 +699,7 @@ export async function pullWorkspaceSync(
       if (opts.selectedDomainKeys?.length) {
         nextDomains = mergeSelectedDomainsIntoLocal(nextDomains, remoteDomains, opts.selectedDomainKeys, opts);
       } else {
-        const localByKey = new Map(nextDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
-        const mergedDomains: DomainItem[] = [...nextDomains];
-        for (const remDom of remoteDomains) {
-          const key = domainMatchKey(remDom.url, opts.matchKey);
-          const existingLocal = localByKey.get(key);
-          if (existingLocal) {
-            if (opts.overlapPolicy === "keep_target") {
-              continue;
-            }
-            const idx = mergedDomains.findIndex((d) => d.id === existingLocal.id);
-            if (idx !== -1) {
-              mergedDomains[idx] = { ...existingLocal, ...remDom, id: existingLocal.id };
-            }
-          } else {
-            mergedDomains.push(remDom);
-          }
-        }
-        nextDomains = mergedDomains;
+        nextDomains = mergeRemoteDomainsIntoLocalList(nextDomains, remoteDomains, opts);
       }
     }
     if (kindSet.has("groups")) {
@@ -725,7 +785,10 @@ export async function pullWorkspaceSync(
 
   // Use overwrite so field updates on matched hosts actually land (merge import only inserts new hosts).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await commands.importAllSettings(payload as any, "overwrite").then(unwrap);
+  const importRes = await commands.importAllSettings(payload as any, "overwrite").then(unwrap);
+  if (!importRes.success) {
+    throw new Error(importRes.message || "Import failed");
+  }
 
   await notifyHubDataChanged("domains");
   await notifyHubDataChanged("groups");

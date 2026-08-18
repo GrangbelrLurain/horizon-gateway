@@ -19,11 +19,7 @@ pub fn init_serve_logging() {
         }
     };
 
-    let file = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-    {
+    let file = match OpenOptions::new().create(true).append(true).open(&log_path) {
         Ok(f) => f,
         Err(_) => {
             let _ = fmt().with_max_level(LevelFilter::INFO).try_init();

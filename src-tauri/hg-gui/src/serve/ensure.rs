@@ -99,7 +99,9 @@ fn kill_leftover_serve() {
 
 /// Ping-only is not enough: 17345 can be down while 8888 is still held by a leftover proxy.
 pub fn leftover_is_gone() -> bool {
-    client::ping().is_err() && tcp_addr_is_free(SERVE_IPC_PROBE) && tcp_addr_is_free(PROXY_PORT_PROBE)
+    client::ping().is_err()
+        && tcp_addr_is_free(SERVE_IPC_PROBE)
+        && tcp_addr_is_free(PROXY_PORT_PROBE)
 }
 
 pub(crate) fn tcp_addr_is_free(addr: &str) -> bool {

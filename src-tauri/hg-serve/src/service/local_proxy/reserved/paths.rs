@@ -258,8 +258,18 @@ fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
 
     if let Ok(cwd) = std::env::current_dir() {
         paths.push(cwd.join("dist").join("inspector.js"));
-        paths.push(cwd.join("src-tauri").join("hg-serve").join("resources").join("inspector.js"));
-        paths.push(cwd.join("src-tauri").join("hg-gui").join("resources").join("inspector.js"));
+        paths.push(
+            cwd.join("src-tauri")
+                .join("hg-serve")
+                .join("resources")
+                .join("inspector.js"),
+        );
+        paths.push(
+            cwd.join("src-tauri")
+                .join("hg-gui")
+                .join("resources")
+                .join("inspector.js"),
+        );
         push_inspector_variants(&mut paths, &cwd);
     }
 
@@ -270,8 +280,18 @@ fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
             for _ in 0..8 {
                 push_inspector_variants(&mut paths, &cur);
                 paths.push(cur.join("dist").join("inspector.js"));
-                paths.push(cur.join("src-tauri").join("hg-serve").join("resources").join("inspector.js"));
-                paths.push(cur.join("src-tauri").join("hg-gui").join("resources").join("inspector.js"));
+                paths.push(
+                    cur.join("src-tauri")
+                        .join("hg-serve")
+                        .join("resources")
+                        .join("inspector.js"),
+                );
+                paths.push(
+                    cur.join("src-tauri")
+                        .join("hg-gui")
+                        .join("resources")
+                        .join("inspector.js"),
+                );
                 if !cur.pop() {
                     break;
                 }

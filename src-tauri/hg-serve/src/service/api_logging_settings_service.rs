@@ -153,7 +153,11 @@ impl ApiLoggingSettingsService {
         self.remove_links_for_domains(&set, domains);
     }
 
-    pub fn remove_links_for_domains(&self, domain_ids: &std::collections::HashSet<u32>, domains: &[Domain]) {
+    pub fn remove_links_for_domains(
+        &self,
+        domain_ids: &std::collections::HashSet<u32>,
+        domains: &[Domain],
+    ) {
         let mut links = self.links.lock().unwrap();
         let before = links.len();
         links.retain(|l| !domain_ids.contains(&l.domain_id));

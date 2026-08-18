@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.1] - 2026-08-18
+
+### Fixed
+
+- **Legacy data migration**: Watchtower → Horizon Gateway migration now merges domains by hostname instead of skipping when the new `domains.json` already exists. Old entries with hostnames not present in the new store are appended with fresh local ids; duplicate hostnames are left untouched. Other data files (groups, routes, mock rules, etc.) are copied only when missing in the new directory.
+- **Migration cleanup**: After a successful merge the legacy `com.lurain.watchtower` directory is renamed to `com.lurain.watchtower.migrated` to prevent repeated migration and avoid the old data shadowing current settings.
+- **Sync pull domain id collision**: Remote domain ids from workspace pull could overlap with local ids, corrupting the domain list. Pull now assigns free local ids for newly imported domains.
+- **Sync panel not refreshing after pull**: The sync diff panel only bumped a counter instead of reloading the snapshot after push/pull/server edits, so the UI stayed stale until a manual page refresh.
+
 ## [v2.8.0] - 2026-08-18
 
 ### Added
