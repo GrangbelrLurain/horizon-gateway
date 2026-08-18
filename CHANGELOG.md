@@ -25,7 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Default typography**: Built-in light/dark presets use 13px base size and 1.4 line height.
 - **Team workspace sync**: Pull payload carries `version`, `schemaVersion`, and `app` for consistent settings exchange.
 - **Hub bulk actions**: Frontend bulk helpers batch decrypt, API logging, proxy routes, domain removal, and group assignment instead of per-id invoke loops.
-- **Settings UI**: Preferences sections use shared `Card` layout and lighter typography; import normalizes partial exports before apply.
+- **Settings UI & proxy setup**: Section titles sit outside cards (watchtower-ui); shared `Card` `flat` / `bordered` / `subtle` variants; lighter field labels and `space-y-6` section rhythm; import normalizes partial exports before apply.
+- **Hub panel chrome**: Tighter header/body padding and inline panel icons instead of boxed icon tiles.
 - **Inspector bundle paths**: Vite copies `inspector.js` to `hg-serve` and `hg-gui` resources; serve resolves additional dev/cwd paths when loading the injection script.
 - **Injection overlay**: Policy cluster recompute uses stable refs so annotation SSE no longer tears down listeners every tick; new/edit policy modals widen layout and share unified guide suggestions.
 
