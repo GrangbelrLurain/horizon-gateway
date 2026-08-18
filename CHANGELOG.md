@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Migration cleanup**: After a successful merge the legacy `com.lurain.watchtower` directory is renamed to `com.lurain.watchtower.migrated` to prevent repeated migration and avoid the old data shadowing current settings.
 - **Sync pull domain id collision**: Remote domain ids from workspace pull could overlap with local ids, corrupting the domain list. Pull now assigns free local ids for newly imported domains.
 - **Sync panel not refreshing after pull**: The sync diff panel only bumped a counter instead of reloading the snapshot after push/pull/server edits, so the UI stayed stale until a manual page refresh.
+- **Pull wiped all domains**: `importAllSettings` IPC dispatch passed the outer Tauri args wrapper `{ payload, mode }` directly to `serde_json::from_value::<SettingsExport>()`, which has no `payload` field. Serde defaulted every field (domains, groups, …) to an empty array, erasing all local data on every pull. The dispatch now correctly unwraps the inner `payload` object and forwards the `mode` string.
 
 ## [v2.8.0] - 2026-08-18
 
