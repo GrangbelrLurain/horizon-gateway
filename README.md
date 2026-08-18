@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://delete-horizon.com/logo-animated.svg" alt="Horizon Gateway Logo" width="100" />
+<img src="https://delete-horizon.com/logo-animated.svg" alt="Horizon Gateway Logo" width="220" />
 
 # Horizon Gateway
 
