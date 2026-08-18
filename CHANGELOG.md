@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **PAC TLS bypass list**: Generated PAC scripts honor configured `tlsBypassHosts` (suffix and substring rules), not only loopback/Tailscale.
 - **Default TLS bypass seeds**: Teams/Office/Skype, Slack, Zoom, Discord, and related SSO hosts are included and merged into existing installs.
 - **Settings export resilience**: `.hg.json` import/export tolerates missing fields, camelCase/snake_case aliases, and default schema metadata; Rust unit tests cover partial payloads.
+- **watchtower-ui agent skill**: Documents section-title-outside-card layout, typography, spacing, and theme conventions for agents; linked from the horizon-gateway skill.
 
 ### Changed
 
