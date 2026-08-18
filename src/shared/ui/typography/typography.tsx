@@ -6,15 +6,15 @@ interface TypographyProps {
 }
 
 export function H1({ children, className }: TypographyProps) {
-  return <h1 className={clsx("text-2xl font-bold", className)}>{children}</h1>;
+  return <h1 className={clsx("text-xl font-semibold tracking-tight", className)}>{children}</h1>;
 }
 
 export function H2({ children, className }: TypographyProps) {
-  return <h2 className={clsx("text-xl font-bold", className)}>{children}</h2>;
+  return <h2 className={clsx("text-base font-semibold", className)}>{children}</h2>;
 }
 
 export function H3({ children, className }: TypographyProps) {
-  return <h3 className={clsx("text-lg font-bold", className)}>{children}</h3>;
+  return <h3 className={clsx("text-sm font-semibold", className)}>{children}</h3>;
 }
 
 export function H4({ children, className }: TypographyProps) {

@@ -16,7 +16,7 @@ fn default_upstream_timeout_secs() -> u64 {
     30
 }
 
-/// Built-in TLS bypass seed (SSO / captive-portal). Copied into `tls_bypass_hosts` once.
+/// Built-in TLS bypass seed (SSO / captive-portal / messengers). Copied into `tls_bypass_hosts` once.
 pub fn default_tls_bypass_hosts() -> Vec<String> {
     vec![
         "connectivitycheck".to_string(),
@@ -26,16 +26,34 @@ pub fn default_tls_bypass_hosts() -> Vec<String> {
         "detectportal.firefox.com".to_string(),
         "msftconnecttest.com".to_string(),
         "msftncsi.com".to_string(),
+        // Microsoft / Teams / Office / Skype / Azure SSO & Messengers
+        "teams.microsoft.com".to_string(),
+        "teams.live.com".to_string(),
+        "teams.cdn.office.net".to_string(),
+        "skype.com".to_string(),
+        "skypeassets.com".to_string(),
         "login.microsoftonline.com".to_string(),
         "login.live.com".to_string(),
         "aadcdn.msauth.net".to_string(),
+        "msauth.net".to_string(),
+        "msauthimages.net".to_string(),
         "auth.dev.azure.com".to_string(),
         "identity.azure.com".to_string(),
+        "office.com".to_string(),
+        "office365.com".to_string(),
+        "sharepoint.com".to_string(),
+        "azureedge.net".to_string(),
+        // Common Auth / Identity / Collaboration
         "accounts.google.com".to_string(),
         "appleid.apple.com".to_string(),
         "auth0.com".to_string(),
         "okta.com".to_string(),
         "keycloak".to_string(),
+        "slack.com".to_string(),
+        "slack-msgs.com".to_string(),
+        "zoom.us".to_string(),
+        "discord.gg".to_string(),
+        "discord.com".to_string(),
     ]
 }
 

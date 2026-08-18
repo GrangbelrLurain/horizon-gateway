@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { forwardRef } from "react";
 
 const INPUT_BASE =
-  "input input-bordered w-full bg-base-100 disabled:bg-base-200 disabled:cursor-not-allowed text-sm focus:outline-offset-0";
+  "input input-bordered w-full bg-base-100 disabled:bg-base-200 disabled:cursor-not-allowed text-xs h-8 focus:outline-offset-0 focus:border-primary/50";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   placeholder?: string;

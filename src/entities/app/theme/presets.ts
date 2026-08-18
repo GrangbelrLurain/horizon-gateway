@@ -18,10 +18,10 @@ export const DEFAULT_DARK_THEME: CustomTheme = {
   },
   typography: {
     fontSource: { type: "bundled", id: "system" },
-    baseFontSize: 14,
+    baseFontSize: 13,
     fontWeightNormal: 400,
     fontWeightBold: 700,
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
 };
 
@@ -43,10 +43,10 @@ export const DEFAULT_LIGHT_THEME: CustomTheme = {
   },
   typography: {
     fontSource: { type: "bundled", id: "system" },
-    baseFontSize: 14,
+    baseFontSize: 13,
     fontWeightNormal: 400,
     fontWeightBold: 700,
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
 };
 

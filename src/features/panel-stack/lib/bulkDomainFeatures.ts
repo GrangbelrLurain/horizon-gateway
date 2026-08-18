@@ -45,9 +45,8 @@ export async function setBulkHttpsDecrypt(domainUrls: string[], enabled: boolean
       return url.toLowerCase();
     }
   };
-  for (const url of domainUrls) {
-    await commands.setHttpsDecryptHost({ host: extractHost(url), enabled }).then(unwrap);
-  }
+  const hosts = Array.from(new Set(domainUrls.map(extractHost)));
+  await commands.setHttpsDecryptHost({ hosts, enabled }).then(unwrap);
   await notifyHubDataChanged("features");
 }
 
@@ -62,27 +61,22 @@ export async function setBulkMonitor(domainIds: number[], enabled: boolean): Pro
 export async function setBulkApiLogging(
   domainIds: number[],
   enabled: boolean,
-  existingLinks: DomainApiLoggingLink_Serialize[],
+  _existingLinks: DomainApiLoggingLink_Serialize[],
 ): Promise<void> {
   if (domainIds.length === 0) {
     return;
   }
   if (enabled) {
-    for (const domainId of domainIds) {
-      const link = existingLinks.find((l) => l.domainId === domainId);
-      await commands
-        .setDomainApiLogging({
-          domainId,
-          loggingEnabled: true,
-          bodyEnabled: link?.bodyEnabled ?? false,
-          schemaUrl: link?.schemaUrl ?? null,
-        })
-        .then(unwrap);
-    }
+    await commands
+      .setDomainApiLogging({
+        domainIds,
+        loggingEnabled: true,
+        bodyEnabled: false,
+        schemaUrl: null,
+      })
+      .then(unwrap);
   } else {
-    for (const domainId of domainIds) {
-      await commands.removeDomainApiLogging({ domainId }).then(unwrap);
-    }
+    await commands.removeDomainApiLogging({ domainIds }).then(unwrap);
   }
   await notifyHubDataChanged("features");
 }
@@ -90,22 +84,19 @@ export async function setBulkApiLogging(
 export async function setBulkApiBodyLogging(
   domainIds: number[],
   enabled: boolean,
-  existingLinks: DomainApiLoggingLink_Serialize[],
+  _existingLinks: DomainApiLoggingLink_Serialize[],
 ): Promise<void> {
   if (domainIds.length === 0) {
     return;
   }
-  for (const domainId of domainIds) {
-    const link = existingLinks.find((l) => l.domainId === domainId);
-    await commands
-      .setDomainApiLogging({
-        domainId,
-        loggingEnabled: link?.loggingEnabled ?? true,
-        bodyEnabled: enabled,
-        schemaUrl: link?.schemaUrl ?? null,
-      })
-      .then(unwrap);
-  }
+  await commands
+    .setDomainApiLogging({
+      domainIds,
+      loggingEnabled: true,
+      bodyEnabled: enabled,
+      schemaUrl: null,
+    })
+    .then(unwrap);
   await notifyHubDataChanged("features");
 }
 
@@ -117,40 +108,44 @@ export async function setBulkProxy(
     return { applied: 0, skipped: 0 };
   }
 
-  let applied = 0;
+  const routeIds: number[] = [];
   let skipped = 0;
   for (const { state } of states) {
     if (state.proxyRouteId === undefined) {
       skipped++;
-      continue;
+    } else {
+      routeIds.push(state.proxyRouteId);
     }
+  }
+
+  if (routeIds.length > 0) {
     await commands
       .updateLocalRoute({
-        id: state.proxyRouteId,
+        ids: routeIds,
         targetHost: null,
         targetPort: null,
         enabled,
       })
       .then(unwrap);
-    applied++;
-  }
-  if (applied > 0) {
     await notifyHubDataChanged("routes");
   }
-  return { applied, skipped };
+
+  return { applied: routeIds.length, skipped };
 }
 
 export async function bulkRemoveDomains(domainIds: number[]): Promise<void> {
-  for (const id of domainIds) {
-    await commands.removeDomains({ id }).then(unwrap);
+  if (domainIds.length === 0) {
+    return;
   }
+  await commands.removeDomains({ ids: domainIds }).then(unwrap);
   await notifyHubDataChanged("domains");
 }
 
 export async function bulkAssignGroup(domainIds: number[], groupId: number | null): Promise<void> {
-  const groupIds = groupId === null ? [] : [groupId];
-  for (const domainId of domainIds) {
-    await commands.setDomainGroups({ domainId, groupIds }).then(unwrap);
+  if (domainIds.length === 0) {
+    return;
   }
+  const groupIds = groupId === null ? [] : [groupId];
+  await commands.setDomainGroups({ domainIds, groupIds }).then(unwrap);
   await notifyHubDataChanged("groups");
 }

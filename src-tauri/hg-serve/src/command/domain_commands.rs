@@ -142,12 +142,15 @@ pub fn update_domain_by_id_svc(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDomainsPayload {
-    pub id: u32,
+    #[serde(default)]
+    pub id: Option<u32>,
+    #[serde(default)]
+    pub ids: Option<Vec<u32>>,
 }
 
 pub const REMOVE_DOMAINS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "remove_domains",
-    description: "등록된 도메인을 제거합니다.",
+    description: "등록된 도메인을 제거합니다 (단일 id 또는 ids 배열 일괄 삭제).",
     payload_example: r#"{"id": 1}"#,
     category: "domains",
     gui_only: false,
@@ -161,23 +164,45 @@ pub fn remove_domains_svc(
     api_logging_service: &ApiLoggingSettingsService,
     route_service: &std::sync::Arc<LocalRouteService>,
 ) -> Result<ApiResponse<Option<Domain>>, String> {
-    link_service.remove_links_for_domain(payload.id);
-    route_service.remove_for_domain(payload.id);
-    let domain = domain_service.delete_domain(payload.id);
+    let ids: Vec<u32> = if let Some(ids) = payload.ids {
+        ids
+    } else if let Some(id) = payload.id {
+        vec![id]
+    } else {
+        return Ok(ApiResponse {
+            message: "No domain id provided".to_string(),
+            success: false,
+            data: None,
+        });
+    };
+
+    if ids.is_empty() {
+        return Ok(ApiResponse {
+            message: "No domains deleted".to_string(),
+            success: true,
+            data: None,
+        });
+    }
+
+    let id_set: std::collections::HashSet<u32> = ids.into_iter().collect();
+    link_service.remove_links_for_domains(&id_set);
+    route_service.remove_for_domains(&id_set);
+    let deleted = domain_service.delete_domains(&id_set);
     let all_domains = domain_service.get_all();
     monitor_service.sync_with_domains(&all_domains);
-    api_logging_service.remove_link(payload.id, &all_domains);
-    if domain.is_empty() {
+    api_logging_service.remove_links_for_domains(&id_set, &all_domains);
+
+    if deleted.is_empty() {
         Ok(ApiResponse {
-            message: format!("{} 삭제 실패!", payload.id),
+            message: "도메인 삭제 실패".to_string(),
             success: false,
-            data: Option::<Domain>::None,
+            data: None,
         })
     } else {
         Ok(ApiResponse {
-            message: format!("{} 삭제 완료!", payload.id),
+            message: format!("{}개 도메인 삭제 완료!", deleted.len()),
             success: true,
-            data: Some(domain[0].clone()),
+            data: deleted.into_iter().next(),
         })
     }
 }

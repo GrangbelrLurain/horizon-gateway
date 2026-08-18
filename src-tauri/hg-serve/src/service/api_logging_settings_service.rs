@@ -106,18 +106,39 @@ impl ApiLoggingSettingsService {
         schema_url: Option<String>,
         domains: &[Domain],
     ) -> Vec<DomainApiLoggingLink> {
+        self.set_links_bulk(
+            &[domain_id],
+            logging_enabled,
+            body_enabled,
+            schema_url,
+            domains,
+        )
+    }
+
+    pub fn set_links_bulk(
+        &self,
+        domain_ids: &[u32],
+        logging_enabled: bool,
+        body_enabled: bool,
+        schema_url: Option<String>,
+        domains: &[Domain],
+    ) -> Vec<DomainApiLoggingLink> {
         let mut links = self.links.lock().unwrap();
-        if let Some(existing) = links.iter_mut().find(|l| l.domain_id == domain_id) {
-            existing.logging_enabled = logging_enabled;
-            existing.body_enabled = body_enabled;
-            existing.schema_url = schema_url;
-        } else {
-            links.push(DomainApiLoggingLink {
-                domain_id,
-                logging_enabled,
-                body_enabled,
-                schema_url,
-            });
+        for &domain_id in domain_ids {
+            if let Some(existing) = links.iter_mut().find(|l| l.domain_id == domain_id) {
+                existing.logging_enabled = logging_enabled;
+                existing.body_enabled = body_enabled;
+                if schema_url.is_some() {
+                    existing.schema_url = schema_url.clone();
+                }
+            } else {
+                links.push(DomainApiLoggingLink {
+                    domain_id,
+                    logging_enabled,
+                    body_enabled,
+                    schema_url: schema_url.clone(),
+                });
+            }
         }
         self.save(&links);
         drop(links);
@@ -127,9 +148,18 @@ impl ApiLoggingSettingsService {
 
     /// 도메인 로깅 설정 제거 후 `settings_map` 갱신.
     pub fn remove_link(&self, domain_id: u32, domains: &[Domain]) {
+        let mut set = std::collections::HashSet::new();
+        set.insert(domain_id);
+        self.remove_links_for_domains(&set, domains);
+    }
+
+    pub fn remove_links_for_domains(&self, domain_ids: &std::collections::HashSet<u32>, domains: &[Domain]) {
         let mut links = self.links.lock().unwrap();
-        links.retain(|l| l.domain_id != domain_id);
-        self.save(&links);
+        let before = links.len();
+        links.retain(|l| !domain_ids.contains(&l.domain_id));
+        if links.len() != before {
+            self.save(&links);
+        }
         drop(links);
         self.refresh_map(domains);
     }

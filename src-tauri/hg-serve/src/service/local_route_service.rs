@@ -160,6 +160,46 @@ impl LocalRouteService {
         Ok(Some(out))
     }
 
+    pub fn update_bulk(
+        &self,
+        ids: &[u32],
+        domains: &[Domain],
+        target_host: Option<String>,
+        target_port: Option<u16>,
+        enabled: Option<bool>,
+    ) -> Result<Vec<LocalRoute>, String> {
+        let domain_ids: HashSet<u32> = domains.iter().map(|d| d.id).collect();
+        let id_set: HashSet<u32> = ids.iter().copied().collect();
+        let mut list = self.routes.lock().unwrap();
+        let mut updated = Vec::new();
+
+        for r in list.iter_mut() {
+            if id_set.contains(&r.id) {
+                if !domain_ids.contains(&r.domain_id) {
+                    continue;
+                }
+                if let Some(ref h) = target_host {
+                    r.target_host = h.clone();
+                }
+                if let Some(p) = target_port {
+                    r.target_port = p;
+                }
+                if let Some(e) = enabled {
+                    r.enabled = e;
+                }
+                if let Some(domain) = domains.iter().find(|d| d.id == r.domain_id) {
+                    r.domain = domain_url_to_hostname(&domain.url);
+                }
+                updated.push(r.clone());
+            }
+        }
+
+        if !updated.is_empty() {
+            self.save(&list);
+        }
+        Ok(updated)
+    }
+
     pub fn remove(&self, id: u32) -> Option<LocalRoute> {
         let mut list = self.routes.lock().unwrap();
         let pos = list.iter().position(|r| r.id == id)?;
@@ -169,9 +209,15 @@ impl LocalRouteService {
     }
 
     pub fn remove_for_domain(&self, domain_id: u32) {
+        let mut set = HashSet::new();
+        set.insert(domain_id);
+        self.remove_for_domains(&set);
+    }
+
+    pub fn remove_for_domains(&self, domain_ids: &HashSet<u32>) {
         let mut list = self.routes.lock().unwrap();
         let before = list.len();
-        list.retain(|r| r.domain_id != domain_id);
+        list.retain(|r| !domain_ids.contains(&r.domain_id));
         if list.len() != before {
             self.save(&list);
         }

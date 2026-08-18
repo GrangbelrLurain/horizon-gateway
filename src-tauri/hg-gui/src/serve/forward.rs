@@ -6,6 +6,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "open_annotation_dialog",
     "open_external_url",
     "quit_app",
+    "prepare_for_update",
     "plugin:updater|check",
     "plugin:updater|download_and_install",
 ];
@@ -28,5 +29,11 @@ mod tests {
     fn quit_app_stays_in_gui() {
         assert!(is_gui_only("quit_app"));
         assert!(!should_forward("quit_app"));
+    }
+
+    #[test]
+    fn prepare_for_update_stays_in_gui() {
+        assert!(is_gui_only("prepare_for_update"));
+        assert!(!should_forward("prepare_for_update"));
     }
 }

@@ -20,8 +20,12 @@ pub fn start_event_forwarder(app: AppHandle) {
     thread::spawn(move || {
         loop {
             if !ensure::is_backend_active() {
-                thread::sleep(Duration::from_secs(2));
-                continue;
+                if super::client::ping().is_ok() {
+                    let _ = ensure::ensure_running();
+                } else {
+                    thread::sleep(Duration::from_secs(1));
+                    continue;
+                }
             }
 
             match forward_events(&app) {
@@ -29,10 +33,11 @@ pub fn start_event_forwarder(app: AppHandle) {
                 Err(e) => {
                     tracing::debug!("[gui] serve event stream: {e}");
                     ensure::mark_inactive();
+                    let _ = app.emit("backend-unavailable", e.clone());
                 }
             }
 
-            thread::sleep(Duration::from_secs(2));
+            thread::sleep(Duration::from_secs(1));
         }
     });
 }
@@ -43,6 +48,10 @@ fn forward_events(app: &AppHandle) -> Result<(), String> {
     stream
         .set_read_timeout(Some(Duration::from_secs(3600)))
         .ok();
+
+    // Signal GUI that serve backend event connection is established and ready
+    let _ = app.emit("serve-ready", ());
+    tracing::info!("[gui] serve event stream connected; emitted serve-ready");
 
     let reader = BufReader::new(stream);
     for line in reader.lines() {

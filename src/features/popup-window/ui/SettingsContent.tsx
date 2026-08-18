@@ -41,6 +41,7 @@ import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { useIsSecondaryWindow } from "@/shared/lib/tauri/useEmbedMode";
 import { Button } from "@/shared/ui/button/Button";
+import { Card } from "@/shared/ui/card/card";
 import { Input } from "@/shared/ui/input/Input";
 import { reportError, toastError, toastSuccess } from "@/shared/ui/toast";
 import { settingsEn } from "../i18n/settings-en";
@@ -62,7 +63,7 @@ function WindowBehaviorRadios<T extends string>({
 }) {
   return (
     <fieldset className="space-y-2 min-w-0">
-      <legend className="text-[10px] font-black uppercase text-base-content/40 tracking-widest">{label}</legend>
+      <legend className="text-[10px] font-medium text-base-content/50">{label}</legend>
       <div className="flex flex-col gap-2">
         {options.map((opt) => (
           <label key={opt.id} className="flex items-start gap-2 cursor-pointer">
@@ -84,14 +85,14 @@ function WindowBehaviorRadios<T extends string>({
   );
 }
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+function Section({ title, desc, children }: { title?: string; desc?: string; children: ReactNode }) {
   return (
-    <section className="p-3 @min-[32rem]:p-4 rounded-2xl border border-base-300 bg-base-100 shadow-sm space-y-3 min-w-0">
-      <div className="min-w-0">
-        <h2 className="text-sm font-black text-base-content">{title}</h2>
-        {desc && <p className="text-xs text-base-content/60 mt-1 leading-relaxed">{desc}</p>}
-      </div>
-      {children}
+    <section className="space-y-2 min-w-0">
+      {title && <h2 className="text-sm font-semibold text-base-content">{title}</h2>}
+      <Card className="p-3 @min-[32rem]:p-4 space-y-3 min-w-0">
+        {desc && <p className="text-xs text-base-content/55 leading-relaxed">{desc}</p>}
+        {children}
+      </Card>
     </section>
   );
 }
@@ -595,12 +596,24 @@ export function SettingsContent() {
       const parsed = JSON.parse(raw) as SettingsExport_Serialize & {
         data?: SettingsExport_Serialize;
         schemaVersion?: number;
+        schema_version?: number;
       };
-      const data = (parsed.data && typeof parsed.data === "object" ? parsed.data : parsed) as SettingsExport_Serialize;
-      if (typeof data.version !== "number" || !data.domains || !data.groups) {
-        toastError(t.alertImportInvalid);
-        return;
-      }
+      const data = (
+        parsed.data && typeof parsed.data === "object" ? parsed.data : parsed
+      ) as SettingsExport_Serialize & {
+        schemaVersion?: number;
+        schema_version?: number;
+      };
+      const version = data.version ?? data.schemaVersion ?? data.schema_version ?? 3;
+      data.version = version;
+      data.schemaVersion = version;
+      data.domains = data.domains ?? [];
+      data.groups = data.groups ?? [];
+      data.domainGroupLinks = data.domainGroupLinks ?? [];
+      data.localRoutes = data.localRoutes ?? [];
+      data.scenarios = data.scenarios ?? [];
+      data.mockRules = data.mockRules ?? [];
+
       if (data.app && data.app !== "horizon-gateway") {
         toastError(t.alertImportInvalid);
         return;
@@ -652,7 +665,7 @@ export function SettingsContent() {
           id={`settings-panel-${tab}`}
           role="tabpanel"
           aria-labelledby={`settings-tab-${tab}`}
-          className="p-3 @min-[32rem]:p-4 @min-[48rem]:p-5 space-y-3 @min-[32rem]:space-y-4 max-w-3xl @min-[56rem]:max-w-4xl"
+          className="p-3 @min-[32rem]:p-4 @min-[48rem]:p-5 space-y-6 max-w-3xl @min-[56rem]:max-w-4xl"
         >
           {tab === "proxy" && (
             <>
@@ -747,10 +760,7 @@ export function SettingsContent() {
               <Section title={t.networkTitle} desc={t.networkDesc}>
                 <div className="grid grid-cols-1 @min-[28rem]:grid-cols-3 gap-3">
                   <div className="flex flex-col gap-1 min-w-0">
-                    <label
-                      htmlFor="settings-proxy-port"
-                      className="text-[10px] font-bold text-base-content/40 uppercase"
-                    >
+                    <label htmlFor="settings-proxy-port" className="text-[10px] font-medium text-base-content/50">
                       {t.proxyPortLabel}
                     </label>
                     <Input
@@ -764,10 +774,7 @@ export function SettingsContent() {
                     />
                   </div>
                   <div className="flex flex-col gap-1 min-w-0">
-                    <label
-                      htmlFor="settings-reverse-http"
-                      className="text-[10px] font-bold text-base-content/40 uppercase"
-                    >
+                    <label htmlFor="settings-reverse-http" className="text-[10px] font-medium text-base-content/50">
                       {t.proxyHttpLabel}
                     </label>
                     <Input
@@ -782,10 +789,7 @@ export function SettingsContent() {
                     />
                   </div>
                   <div className="flex flex-col gap-1 min-w-0">
-                    <label
-                      htmlFor="settings-reverse-https"
-                      className="text-[10px] font-bold text-base-content/40 uppercase"
-                    >
+                    <label htmlFor="settings-reverse-https" className="text-[10px] font-medium text-base-content/50">
                       {t.proxyHttpsLabel}
                     </label>
                     <Input
@@ -810,7 +814,7 @@ export function SettingsContent() {
               <Section title={t.dnsTitle} desc={t.dnsDesc}>
                 <div className="flex flex-col @min-[28rem]:flex-row gap-2 @min-[28rem]:items-end">
                   <div className="flex flex-col gap-1 flex-1 w-full min-w-0">
-                    <label htmlFor={dnsFieldId} className="text-[10px] font-bold text-base-content/40 uppercase">
+                    <label htmlFor={dnsFieldId} className="text-[10px] font-medium text-base-content/50">
                       {t.dnsLabel}
                     </label>
                     <Input
@@ -833,14 +837,17 @@ export function SettingsContent() {
               </Section>
 
               <Section title={t.corsTitle} desc={t.corsDesc}>
-                <SettingSwitch
-                  title={t.corsTitle}
-                  desc={t.corsDesc}
-                  checked={proxySettings?.cors_rewrite_enabled !== false}
-                  onChange={(checked) => void patchEngine({ corsRewriteEnabled: checked })}
-                  loading={engineSaving}
-                  label={proxySettings?.cors_rewrite_enabled !== false ? t.corsOn : t.corsOff}
-                />
+                <div className="flex justify-end">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-label={proxySettings?.cors_rewrite_enabled !== false ? t.corsOn : t.corsOff}
+                    className="toggle toggle-success toggle-sm shrink-0"
+                    checked={proxySettings?.cors_rewrite_enabled !== false}
+                    disabled={engineSaving}
+                    onChange={(e) => void patchEngine({ corsRewriteEnabled: e.target.checked })}
+                  />
+                </div>
               </Section>
 
               <Section title={t.tlsBypassTitle} desc={t.tlsBypassDesc}>
@@ -865,7 +872,7 @@ export function SettingsContent() {
               <Section title={t.timeoutTitle} desc={t.timeoutDesc}>
                 <div className="grid grid-cols-1 @min-[28rem]:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-base-content/40 uppercase">{t.timeoutConnect}</label>
+                    <label className="text-[10px] font-medium text-base-content/50">{t.timeoutConnect}</label>
                     <Input
                       type="number"
                       min={1}
@@ -876,7 +883,7 @@ export function SettingsContent() {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-base-content/40 uppercase">{t.timeoutUpstream}</label>
+                    <label className="text-[10px] font-medium text-base-content/50">{t.timeoutUpstream}</label>
                     <Input
                       type="number"
                       min={1}
@@ -980,7 +987,7 @@ export function SettingsContent() {
                     </div>
                     <button
                       type="button"
-                      className="text-[10px] font-bold text-base-content/50 uppercase tracking-wide"
+                      className="text-[10px] font-medium text-base-content/50"
                       onClick={() => setShowAdvancedPort((v) => !v)}
                     >
                       {t.transparentAdvanced}
@@ -988,7 +995,7 @@ export function SettingsContent() {
                     </button>
                     {showAdvancedPort && (
                       <div className="flex flex-col gap-1">
-                        <label htmlFor={tpPortId} className="text-[10px] font-bold text-base-content/40 uppercase">
+                        <label htmlFor={tpPortId} className="text-[10px] font-medium text-base-content/50">
                           {t.transparentPortLabel}
                         </label>
                         <Input

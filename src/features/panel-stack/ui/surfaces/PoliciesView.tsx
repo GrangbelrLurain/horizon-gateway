@@ -51,6 +51,7 @@ import { useDomainHubData } from "../../hooks/useDomainHubData";
 import { usePanelNavigation } from "../../hooks/usePanelNavigation";
 import { canOpenPanel } from "../../lib/panelGates";
 import { hubPoliciesDomainSeedAtom } from "../../store";
+import type { HubSurfaceId, PanelId } from "../../types";
 import { GuideDescriptionField } from "./GuideDescriptionField";
 import { policiesEn } from "./policies-en";
 import { policiesKo } from "./policies-ko";
@@ -437,25 +438,71 @@ export function PoliciesView() {
         : t.noFilterResults;
 
   const openGuideFeature = useCallback(
-    (ann: Annotation, alias: string) => {
-      if (!isGuideFeatureAlias(alias)) {
+    (ann: Annotation, aliasOrPath: string) => {
+      // 1. Direct domain link: hg://domain/:id or hg://domain/:id/:panelId
+      if (aliasOrPath.startsWith("domain/")) {
+        const parts = aliasOrPath.slice("domain/".length).split("/");
+        const domainId = parseInt(parts[0], 10);
+        if (!isNaN(domainId)) {
+          const panelId = (parts.slice(1).join("/") as PanelId) || "overview";
+          if (isDetached) {
+            toastInfo(t.featureLinkUseHub);
+            return;
+          }
+          nav.openPanelForDomain(domainId, panelId);
+          return;
+        }
+      }
+
+      // 2. Global tools mapping
+      const globalToolMap: Record<string, HubSurfaceId> = {
+        "api-client": "global/api-client",
+        "api-logs": "global/api-logs",
+        mocking: "global/mocking",
+        "json-schema": "global/json-schema",
+        "schema-explorer": "global/schema-explorer",
+        pipeline: "global/pipeline",
+        crypto: "global/crypto",
+        preview: "global/preview",
+        "live-capture": "global/live-capture",
+        "proxy-graph": "global/proxy-graph",
+        monitor: "global/monitor",
+        "server-logs": "global/server-logs",
+        policies: "global/policies",
+      };
+
+      if (aliasOrPath.startsWith("global/")) {
+        nav.openGlobalSurface(aliasOrPath as HubSurfaceId);
         return;
       }
-      const domain = resolveGuideLinkDomain(ann, nav.domainId, registeredDomains, getDomainHost);
-      if (!domain) {
+
+      // 3. Check legacy aliases with domain resolution
+      if (isGuideFeatureAlias(aliasOrPath)) {
+        const domain = resolveGuideLinkDomain(ann, nav.domainId, registeredDomains, getDomainHost);
+        if (domain) {
+          const rawPanel = GUIDE_FEATURE_PANEL[aliasOrPath];
+          const panelId = rawPanel as PanelId;
+          if (panelId && canOpenPanel(panelId, getFeatureState(domain.id))) {
+            if (isDetached) {
+              toastInfo(t.featureLinkUseHub);
+              return;
+            }
+            nav.openPanelForDomain(domain.id, panelId);
+            return;
+          }
+        }
+        if (globalToolMap[aliasOrPath]) {
+          nav.openGlobalSurface(globalToolMap[aliasOrPath]);
+          return;
+        }
         toastInfo(t.featureLinkNoDomain);
         return;
       }
-      const panelId = GUIDE_FEATURE_PANEL[alias];
-      if (!canOpenPanel(panelId, getFeatureState(domain.id))) {
-        toastInfo(t.featureLinkUnavailable);
+
+      if (globalToolMap[aliasOrPath]) {
+        nav.openGlobalSurface(globalToolMap[aliasOrPath]);
         return;
       }
-      if (isDetached) {
-        toastInfo(t.featureLinkUseHub);
-        return;
-      }
-      nav.openPanelForDomain(domain.id, panelId);
     },
     [getDomainHost, getFeatureState, isDetached, nav, registeredDomains, t],
   );
@@ -814,7 +861,7 @@ export function PoliciesView() {
 
           {viewMode === "report" && (
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-[9px] font-bold text-base-content/40 uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <span className="text-[9px] font-medium text-base-content/50 shrink-0 flex items-center gap-1">
                 <Settings2 className="w-3 h-3" />
                 {t.displayOptions}
               </span>
@@ -827,7 +874,7 @@ export function PoliciesView() {
                       checked={visibleFields[field]}
                       onChange={(e) => setVisibleFields((prev) => ({ ...prev, [field]: e.target.checked }))}
                     />
-                    <span className="text-[10px] font-bold text-base-content/60 group-hover:text-primary uppercase">
+                    <span className="text-[10px] font-medium text-base-content/55 group-hover:text-primary">
                       {field}
                     </span>
                   </label>
@@ -842,9 +889,32 @@ export function PoliciesView() {
         {viewMode === "manage" && (
           <div>
             {filteredAnnotations.length === 0 ? (
-              <div className="py-16 flex flex-col items-center justify-center text-base-content/30 rounded-2xl border-2 border-dashed border-base-300">
-                <Info className="w-10 h-10 mb-3 opacity-40" />
-                <p className="text-sm font-bold">{emptyListCopy}</p>
+              <div className="py-16 flex flex-col items-center justify-center text-base-content/40 rounded-2xl border-2 border-dashed border-base-300 gap-3">
+                {loadError ? (
+                  <>
+                    <AlertTriangle className="w-10 h-10 text-error opacity-80" />
+                    <p className="text-sm font-bold text-error">{loadError}</p>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      className="mt-1 gap-1.5"
+                      onClick={() => {
+                        setReady(false);
+                        setLoadError(null);
+                        fetchAnnotations();
+                        void fetchAll();
+                      }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      {t.retry}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Info className="w-10 h-10 opacity-40" />
+                    <p className="text-sm font-bold">{emptyListCopy}</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1212,7 +1282,7 @@ export function PoliciesView() {
             }
           }}
         >
-          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-2xl w-full max-w-lg h-[90%] max-h-[90vh] overflow-hidden p-5 flex flex-col gap-3 relative isolate">
+          <div className="bg-base-100 rounded-2xl border border-base-300 shadow-2xl w-full max-w-2xl @min-[54rem]:max-w-3xl h-[90%] max-h-[90vh] overflow-hidden p-5 flex flex-col gap-3 relative isolate">
             <div className="flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-primary" />
@@ -1228,9 +1298,7 @@ export function PoliciesView() {
             </div>
 
             <label className="flex flex-col gap-1.5 shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
-                {t.roleLabel}
-              </span>
+              <span className="text-[10px] font-medium tracking-wide text-base-content/50">{t.roleLabel}</span>
               <Input
                 id="app-edit-role"
                 ref={roleInputRef}
@@ -1241,10 +1309,8 @@ export function PoliciesView() {
               />
             </label>
 
-            <div className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden relative z-0">
-              <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 shrink-0">
-                {t.descLabel}
-              </span>
+            <div className="flex flex-col gap-1.5 flex-1 min-h-[160px] overflow-hidden relative z-10">
+              <span className="text-[10px] font-medium tracking-wide text-base-content/50 shrink-0">{t.descLabel}</span>
               <GuideDescriptionField
                 id="app-edit-desc"
                 editorRef={descEditorRef}
@@ -1258,7 +1324,7 @@ export function PoliciesView() {
 
             <div className="min-h-0 overflow-y-auto flex flex-col gap-3 relative z-0">
               <label className="flex flex-col gap-1.5 shrink-0">
-                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                <span className="text-[10px] font-medium tracking-wide text-base-content/50 flex items-center gap-1">
                   <Globe className="w-3 h-3 text-primary" /> {t.hostPatternLabel}
                 </span>
                 <Input
@@ -1274,7 +1340,7 @@ export function PoliciesView() {
               </label>
 
               <label className="flex flex-col gap-1.5 shrink-0">
-                <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                <span className="text-[10px] font-medium tracking-wide text-base-content/50 flex items-center gap-1">
                   <FolderTree className="w-3 h-3 text-secondary" /> {t.pathPatternLabel}
                 </span>
                 <Input
@@ -1294,7 +1360,7 @@ export function PoliciesView() {
 
               <div className="grid grid-cols-2 gap-3 shrink-0">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45 flex items-center gap-1">
+                  <span className="text-[10px] font-medium tracking-wide text-base-content/50 flex items-center gap-1">
                     <Globe className="w-3 h-3 text-base-content/40" /> {t.domainLabel}
                   </span>
                   <Input
@@ -1307,9 +1373,7 @@ export function PoliciesView() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-base-content/45">
-                    {t.urlLabel}
-                  </span>
+                  <span className="text-[10px] font-medium tracking-wide text-base-content/50">{t.urlLabel}</span>
                   <Input
                     ref={urlInputRef}
                     value={editForm.url}

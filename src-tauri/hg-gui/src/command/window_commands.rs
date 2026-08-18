@@ -120,3 +120,20 @@ pub fn quit_app(app: AppHandle) -> Result<(), String> {
     app.exit(0);
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn prepare_for_update() -> Result<(), String> {
+    tracing::info!("[gui] prepare_for_update: stopping serve process before update installation");
+    crate::serve::kill_serve_process();
+    crate::serve::mark_inactive();
+
+    for _ in 0..30 {
+        if crate::serve::leftover_is_gone() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    Ok(())
+}

@@ -175,7 +175,10 @@ pub fn add_local_route_svc(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateLocalRoutePayload {
-    pub id: u32,
+    #[serde(default)]
+    pub id: Option<u32>,
+    #[serde(default)]
+    pub ids: Option<Vec<u32>>,
     pub target_host: Option<String>,
     pub target_port: Option<u16>,
     pub enabled: Option<bool>,
@@ -195,22 +198,29 @@ pub fn update_local_route_svc(
     domain_service: &DomainService,
 ) -> Result<ApiResponse<Option<LocalRoute>>, String> {
     let domains = domain_service.get_all();
-    let route = route_service.update(
-        payload.id,
+    let ids: Vec<u32> = if let Some(ids) = payload.ids {
+        ids
+    } else if let Some(id) = payload.id {
+        vec![id]
+    } else {
+        Vec::new()
+    };
+    let updated = route_service.update_bulk(
+        &ids,
         &domains,
         payload.target_host,
         payload.target_port,
         payload.enabled,
     )?;
     Ok(ApiResponse {
-        message: if route.is_some() {
-            "Route updated"
+        message: if !updated.is_empty() {
+            "Route(s) updated"
         } else {
-            "Route not found"
+            "Route(s) not found"
         }
         .to_string(),
-        success: route.is_some(),
-        data: route,
+        success: !updated.is_empty(),
+        data: updated.into_iter().next(),
     })
 }
 
@@ -758,14 +768,17 @@ pub fn update_proxy_settings_svc(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetHttpsDecryptHostPayload {
-    pub host: String,
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub hosts: Option<Vec<String>>,
     pub enabled: bool,
 }
 
 pub const SET_HTTPS_DECRYPT_HOST_CLI_INFO: crate::cli::CliCommandInfo =
     crate::cli::CliCommandInfo {
         name: "set_https_decrypt_host",
-        description: "호스트 HTTPS 복호화 여부를 설정합니다.",
+        description: "호스트 HTTPS 복호화 여부를 설정합니다 (단일 host 또는 hosts 배열).",
         payload_example: r#"{"host": "api.example.com", "enabled": true}"#,
         category: "proxy",
         gui_only: false,
@@ -775,16 +788,23 @@ pub fn set_https_decrypt_host_svc(
     payload: SetHttpsDecryptHostPayload,
     proxy_settings_service: &ProxySettingsService,
 ) -> Result<ApiResponse<ProxySettings>, String> {
-    let settings = proxy_settings_service.set_https_decrypt_host(&payload.host, payload.enabled);
+    let hosts: Vec<String> = if let Some(hosts) = payload.hosts {
+        hosts
+    } else if let Some(host) = payload.host {
+        vec![host]
+    } else {
+        Vec::new()
+    };
+    let settings = proxy_settings_service.set_https_decrypt_hosts(&hosts, payload.enabled);
     Ok(ApiResponse {
         message: format!(
-            "HTTPS decrypt {} for {}",
+            "HTTPS decrypt {} for {} host(s)",
             if payload.enabled {
                 "enabled"
             } else {
                 "disabled"
             },
-            payload.host
+            hosts.len()
         ),
         success: true,
         data: settings,

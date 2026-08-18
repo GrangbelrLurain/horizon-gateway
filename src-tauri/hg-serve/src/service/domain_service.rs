@@ -68,10 +68,26 @@ impl DomainService {
     }
 
     pub fn delete_domain(&self, id: u32) -> Vec<Domain> {
+        let mut set = HashSet::new();
+        set.insert(id);
+        self.delete_domains(&set)
+    }
+
+    pub fn delete_domains(&self, ids: &HashSet<u32>) -> Vec<Domain> {
         let mut list = self.domains.lock().unwrap();
-        list.retain(|domain| domain.id != id);
-        self.save(&list);
-        list.clone()
+        let mut deleted = Vec::new();
+        list.retain(|domain| {
+            if ids.contains(&domain.id) {
+                deleted.push(domain.clone());
+                false
+            } else {
+                true
+            }
+        });
+        if !deleted.is_empty() {
+            self.save(&list);
+        }
+        deleted
     }
 
     /// URL 수정. 다른 도메인이 이미 사용 중인 호스트면 변경하지 않음. 성공 시 해당 도메인만 담은 Vec 반환.

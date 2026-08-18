@@ -5,11 +5,12 @@ import { AnimatePresence } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import {
+  activeCustomThemeAtom,
+  applyThemeToDocument,
   backendUnavailableAtom,
   languageAtom,
   TelemetryProvider,
   Titlebar,
-  themeAtom,
   useAppBootstrap,
   userProfileAtom,
 } from "@/entities/app";
@@ -49,7 +50,7 @@ const RootLayout = () => {
   useAppBootstrap();
   useHubHandoffSync();
 
-  const theme = useAtomValue(themeAtom);
+  const activeTheme = useAtomValue(activeCustomThemeAtom);
   const lang = useAtomValue(languageAtom);
   const userProfile = useAtomValue(userProfileAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -59,8 +60,10 @@ const RootLayout = () => {
   const isHubPage = pathname === "/";
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+    if (activeTheme) {
+      applyThemeToDocument(activeTheme);
+    }
+  }, [activeTheme]);
 
   useEffect(() => {
     const color = userProfile?.avatarColor;
@@ -143,7 +146,7 @@ const RootLayout = () => {
             !isHubPage &&
             !isPopupWindow &&
             !isDetachedWindow &&
-            "mx-auto max-w-(--breakpoint-2xl) p-4 tablet:p-8 lg:p-10 overflow-y-auto",
+            "mx-auto max-w-(--breakpoint-2xl) p-5 tablet:p-8 lg:p-10 overflow-y-auto",
           (isHubPage || isPopupWindow || isDetachedWindow) && "h-full min-h-0",
         )}
       >

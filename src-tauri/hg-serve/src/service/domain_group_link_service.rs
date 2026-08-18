@@ -60,21 +60,38 @@ impl DomainGroupLinkService {
 
     /// Replace all groups for this domain with the given `group_ids`.
     pub fn set_groups_for_domain(&self, domain_id: u32, group_ids: Vec<u32>) {
+        self.set_groups_for_domains(&[domain_id], &group_ids);
+    }
+
+    /// Replace all groups for multiple domains with the given `group_ids`.
+    pub fn set_groups_for_domains(&self, domain_ids: &[u32], group_ids: &[u32]) {
         let mut list = self.links.lock().unwrap();
-        list.retain(|l| l.domain_id != domain_id);
-        for group_id in group_ids {
-            list.push(DomainGroupLink {
-                domain_id,
-                group_id,
-            });
+        let domain_set: std::collections::HashSet<u32> = domain_ids.iter().copied().collect();
+        list.retain(|l| !domain_set.contains(&l.domain_id));
+        for &domain_id in domain_ids {
+            for &group_id in group_ids {
+                list.push(DomainGroupLink {
+                    domain_id,
+                    group_id,
+                });
+            }
         }
         self.save(&list);
     }
 
     pub fn remove_links_for_domain(&self, domain_id: u32) {
+        let mut set = std::collections::HashSet::new();
+        set.insert(domain_id);
+        self.remove_links_for_domains(&set);
+    }
+
+    pub fn remove_links_for_domains(&self, domain_ids: &std::collections::HashSet<u32>) {
         let mut list = self.links.lock().unwrap();
-        list.retain(|l| l.domain_id != domain_id);
-        self.save(&list);
+        let before = list.len();
+        list.retain(|l| !domain_ids.contains(&l.domain_id));
+        if list.len() != before {
+            self.save(&list);
+        }
     }
 
     pub fn remove_links_for_group(&self, group_id: u32) {

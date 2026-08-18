@@ -15,7 +15,10 @@ const copyInjectionPlugin = () => {
     name: "copy-injection",
     closeBundle() {
       const src = path.resolve(__dirname, "dist/inspector.js");
-      const dests = [path.resolve(__dirname, "src-tauri/hg-serve/resources/inspector.js")];
+      const dests = [
+        path.resolve(__dirname, "src-tauri/hg-serve/resources/inspector.js"),
+        path.resolve(__dirname, "src-tauri/hg-gui/resources/inspector.js"),
+      ];
       if (fs.existsSync(src)) {
         for (const dest of dests) {
           fs.mkdirSync(path.dirname(dest), { recursive: true });

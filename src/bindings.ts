@@ -91,6 +91,7 @@ export const commands = {
 	openInspectorWindow: (url: string, script: string | null) => typedError<null, string>(__TAURI_INVOKE("open_inspector_window", { url, script })),
 	openAnnotationDialog: (selector: string, content: string, tagName: string, thumbnail: string) => typedError<null, string>(__TAURI_INVOKE("open_annotation_dialog", { selector, content, tagName, thumbnail })),
 	quitApp: () => typedError<null, string>(__TAURI_INVOKE("quit_app")),
+	prepareForUpdate: () => typedError<null, string>(__TAURI_INVOKE("prepare_for_update")),
 	getAnnotations: () => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("get_annotations")),
 	getAnnotation: (payload: GetAnnotationPayload) => typedError<ApiResponse<Annotation_Serialize | null>, string>(__TAURI_INVOKE("get_annotation", { payload })),
 	addAnnotation: (payload: Annotation_Deserialize) => typedError<ApiResponse<Annotation_Serialize[]>, string>(__TAURI_INVOKE("add_annotation", { payload })),
@@ -669,11 +670,13 @@ export type RegistDomainsPayload = {
 };
 
 export type RemoveDomainApiLoggingPayload = {
-	domainId: number,
+	domainId?: number | null,
+	domainIds?: number[] | null,
 };
 
 export type RemoveDomainsPayload = {
-	id: number,
+	id?: number | null,
+	ids?: number[] | null,
 };
 
 export type RemoveLocalRoutePayload = {
@@ -847,14 +850,16 @@ export type SendApiRequestPayload = {
 };
 
 export type SetDomainApiLoggingPayload = {
-	domainId: number,
+	domainId?: number | null,
+	domainIds?: number[] | null,
 	loggingEnabled: boolean,
 	bodyEnabled: boolean,
 	schemaUrl: string | null,
 };
 
 export type SetDomainGroupsPayload = {
-	domainId: number,
+	domainId?: number | null,
+	domainIds?: number[] | null,
 	groupIds: number[],
 };
 
@@ -878,7 +883,8 @@ export type SetLocalRouteEnabledPayload = {
 };
 
 export type SetHttpsDecryptHostPayload = {
-	host: string,
+	host?: string | null,
+	hosts?: string[] | null,
 	enabled: boolean,
 };
 
@@ -1042,10 +1048,11 @@ export type UpdateJsonSchemaPayload_Serialize = {
 };
 
 export type UpdateLocalRoutePayload = {
-	id: number,
-	targetHost: string | null,
-	targetPort: number | null,
-	enabled: boolean | null,
+	id?: number | null,
+	ids?: number[] | null,
+	targetHost?: string | null,
+	targetPort?: number | null,
+	enabled?: boolean | null,
 };
 
 export type UpdateMockRulePayload = {

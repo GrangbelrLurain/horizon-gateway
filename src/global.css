@@ -1,37 +1,58 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: horizon-gateway-light --default, horizon-gateway-dark --prefersdark;
+}
 
 @plugin "daisyui/theme" {
   name: "horizon-gateway-light";
   default: true;
+  color-scheme: light;
   --color-base-100: #ffffff;
   --color-base-200: #f8fafc;
   --color-base-300: #f1f5f9;
   --color-base-content: #0f172a;
   --color-primary: #3b82f6;
+  --color-primary-content: #ffffff;
   --color-secondary: #4f46e5;
+  --color-secondary-content: #ffffff;
   --color-accent: #0ea5e9;
+  --color-accent-content: #ffffff;
   --color-neutral: #1e293b;
+  --color-neutral-content: #ffffff;
   --color-info: #0ea5e9;
+  --color-info-content: #ffffff;
   --color-success: #10b981;
+  --color-success-content: #ffffff;
   --color-warning: #f59e0b;
+  --color-warning-content: #ffffff;
   --color-error: #ef4444;
+  --color-error-content: #ffffff;
 }
 
 @plugin "daisyui/theme" {
   name: "horizon-gateway-dark";
+  prefersdark: true;
+  color-scheme: dark;
   --color-base-100: #0f172a;
   --color-base-200: #020617;
   --color-base-300: #1e293b;
   --color-base-content: #f8fafc;
   --color-primary: #60a5fa;
+  --color-primary-content: #020617;
   --color-secondary: #818cf8;
+  --color-secondary-content: #020617;
   --color-accent: #38bdf8;
+  --color-accent-content: #020617;
   --color-neutral: #1e293b;
+  --color-neutral-content: #f8fafc;
   --color-info: #38bdf8;
+  --color-info-content: #020617;
   --color-success: #34d399;
+  --color-success-content: #020617;
   --color-warning: #fbbf24;
+  --color-warning-content: #020617;
   --color-error: #f87171;
+  --color-error-content: #020617;
 }
 
 html,
@@ -217,4 +238,55 @@ body {
 
 .hg-markdown .hg-md-li {
   color: inherit;
+}
+
+/* Monaco Editor Suggest Widget / Autocomplete Popover Theme Sync & Solid Opaque Layering */
+.monaco-editor .overflowingContentWidgets {
+  z-index: 99999 !important;
+}
+
+.monaco-editor .suggest-widget,
+.monaco-editor .suggest-widget .monaco-list,
+.monaco-editor .suggest-widget .monaco-list-rows,
+.monaco-editor .suggest-widget .tree {
+  background-color: var(--color-base-100, #1e1e1e) !important;
+}
+
+.monaco-editor .suggest-widget {
+  z-index: 99999 !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--color-base-300, rgba(255, 255, 255, 0.15)) !important;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  color: var(--color-base-content, #ffffff) !important;
+  overflow: hidden !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list-row {
+  background-color: transparent !important;
+  color: var(--color-base-content, #ffffff) !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list-row.focused,
+.monaco-editor .suggest-widget .monaco-list-row:hover {
+  background-color: var(--color-base-200, rgba(255, 255, 255, 0.08)) !important;
+  color: var(--color-primary, #60a5fa) !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list-row .label-name {
+  color: var(--color-base-content, inherit) !important;
+  font-weight: 600 !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list-row .details-label {
+  color: var(--color-base-content, inherit) !important;
+  opacity: 0.6 !important;
+}
+
+.monaco-editor .suggest-widget .suggest-status-bar {
+  background-color: var(--color-base-200, #18181b) !important;
+  border-top: 1px solid var(--color-base-300, rgba(255, 255, 255, 0.1)) !important;
+  color: var(--color-base-content, inherit) !important;
+  opacity: 0.7 !important;
 }

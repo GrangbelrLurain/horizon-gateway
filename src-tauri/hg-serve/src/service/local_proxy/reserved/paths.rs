@@ -48,18 +48,42 @@ fn first_horizon_gateway_slice(value: &str) -> Option<&str> {
     value.find(".horizon-gateway/").map(|idx| &value[idx..])
 }
 
-/// PAC (Proxy Auto-Config). Returns PROXY for ALL traffic; filtering logic is handled in the proxy itself.
-pub(crate) fn build_pac_js(proxy_host: &str, forward_port: u16) -> String {
+/// PAC (Proxy Auto-Config). Returns DIRECT for loopback, tailscale, and bypass hosts; PROXY for all other traffic.
+pub(crate) fn build_pac_js(proxy_host: &str, forward_port: u16, bypass_hosts: &[String]) -> String {
+    let mut bypass_js_array = String::new();
+    for host in bypass_hosts {
+        let clean = host.trim().to_lowercase();
+        if clean.is_empty() {
+            continue;
+        }
+        if !bypass_js_array.is_empty() {
+            bypass_js_array.push_str(", ");
+        }
+        bypass_js_array.push('"');
+        bypass_js_array.push_str(&clean.replace('\\', "\\\\").replace('"', "\\\""));
+        bypass_js_array.push('"');
+    }
+
     format!(
-        "function FindProxyForURL(url, host) {{ \
-            if (host === 'localhost' || \
-                host === '127.0.0.1' || \
-                host.indexOf('tailscale') !== -1 || \
-                host.indexOf('.ts.net') !== -1) {{ \
-                return 'DIRECT'; \
-            }} \
-            return \"PROXY {proxy_host}:{forward_port}; DIRECT\"; \
-         }}"
+        "function FindProxyForURL(url, host) {{\n\
+           if (isPlainHostName(host) ||\n\
+               host === 'localhost' ||\n\
+               host === '127.0.0.1' ||\n\
+               host === '::1' ||\n\
+               host.indexOf('tailscale') !== -1 ||\n\
+               host.indexOf('.ts.net') !== -1) {{\n\
+               return 'DIRECT';\n\
+           }}\n\
+           var bypass = [{bypass_js_array}];\n\
+           var lHost = host.toLowerCase();\n\
+           for (var i = 0; i < bypass.length; i++) {{\n\
+               var b = bypass[i];\n\
+               if (lHost === b || (lHost.length > b.length && lHost.lastIndexOf('.' + b) === lHost.length - b.length - 1) || (b.indexOf('.') === -1 && lHost.indexOf(b) !== -1)) {{\n\
+                   return 'DIRECT';\n\
+               }}\n\
+           }}\n\
+           return \"PROXY {proxy_host}:{forward_port}; DIRECT\";\n\
+        }}"
     )
 }
 
@@ -89,7 +113,8 @@ pub(crate) async fn serve_horizon_gateway_reserved_path(
             parsed_host.to_string()
         };
 
-        let pac = build_pac_js(&proxy_host, port);
+        let settings = state.proxy_settings.get();
+        let pac = build_pac_js(&proxy_host, port, &settings.tls_bypass_hosts);
         return (
             StatusCode::OK,
             [
@@ -230,8 +255,11 @@ fn load_inspector_js(app: Option<&()>) -> String {
 fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    if let Ok(dir) = crate::runtime::paths::resolve_app_data_dir() {
-        push_inspector_variants(&mut paths, &dir);
+    if let Ok(cwd) = std::env::current_dir() {
+        paths.push(cwd.join("dist").join("inspector.js"));
+        paths.push(cwd.join("src-tauri").join("hg-serve").join("resources").join("inspector.js"));
+        paths.push(cwd.join("src-tauri").join("hg-gui").join("resources").join("inspector.js"));
+        push_inspector_variants(&mut paths, &cwd);
     }
 
     if let Ok(exe) = std::env::current_exe() {
@@ -240,7 +268,9 @@ fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
             let mut cur = exe_dir.to_path_buf();
             for _ in 0..8 {
                 push_inspector_variants(&mut paths, &cur);
-                paths.push(cur.join("src-tauri").join("resources").join("inspector.js"));
+                paths.push(cur.join("dist").join("inspector.js"));
+                paths.push(cur.join("src-tauri").join("hg-serve").join("resources").join("inspector.js"));
+                paths.push(cur.join("src-tauri").join("hg-gui").join("resources").join("inspector.js"));
                 if !cur.pop() {
                     break;
                 }
@@ -248,9 +278,8 @@ fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
         }
     }
 
-    if let Ok(cwd) = std::env::current_dir() {
-        push_inspector_variants(&mut paths, &cwd);
-        paths.push(cwd.join("src-tauri").join("resources").join("inspector.js"));
+    if let Ok(dir) = crate::runtime::paths::resolve_app_data_dir() {
+        push_inspector_variants(&mut paths, &dir);
     }
 
     // Compile-time src-tauri path — reliable for local `tauri dev` regardless of process CWD.
@@ -266,4 +295,5 @@ fn inspector_js_candidates(_app: Option<&()>) -> Vec<PathBuf> {
 fn push_inspector_variants(paths: &mut Vec<PathBuf>, base: &Path) {
     paths.push(base.join("inspector.js"));
     paths.push(base.join("resources").join("inspector.js"));
+    paths.push(base.join("dist").join("inspector.js"));
 }

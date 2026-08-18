@@ -1,6 +1,8 @@
 import { FolderTree, Globe, PlusCircle, Save, X } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { buildUnifiedGuideSuggestions, type UnifiedDomainInfo } from "@/shared/lib/guideFeatureLinks";
 import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
+import { fetchLoggingDomainsApi } from "../api/gateway";
 import type { InjectionAppState } from "../hooks/useInjectionAppState";
 
 type State = Pick<
@@ -22,9 +24,35 @@ type State = Pick<
 >;
 
 export function NewPolicyModal({ s }: { s: State }) {
+  const [extraDomains, setExtraDomains] = useState<UnifiedDomainInfo[]>([]);
   const hostPatternInputRef = useRef<HTMLInputElement>(null);
   const pathPatternInputRef = useRef<HTMLInputElement>(null);
   const descEditorRef = useRef<GuideMarkdownEditorHandle>(null);
+
+  useEffect(() => {
+    fetchLoggingDomainsApi().then((domains) => {
+      if (domains && domains.length > 0) {
+        setExtraDomains(domains.map((h) => ({ host: h })));
+      }
+    });
+  }, []);
+
+  const currentHost = typeof window !== "undefined" ? window.location.hostname : "";
+  const customItems = useMemo(
+    () => buildUnifiedGuideSuggestions({ currentHost, domains: extraDomains }),
+    [currentHost, extraDomains],
+  );
+
+  const handleSave = () => {
+    const liveHost = hostPatternInputRef.current?.value ?? s.hostPattern;
+    const livePath = pathPatternInputRef.current?.value ?? s.pathPattern;
+    const liveDesc = descEditorRef.current?.getValue() ?? s.description;
+    s.setHostPattern(liveHost);
+    s.setPathPattern(livePath);
+    s.setDescription(liveDesc);
+    void s.saveAnnotation({ hostPattern: liveHost, pathPattern: livePath, description: liveDesc });
+  };
+
   const editingElement = s.editingElement;
   if (!editingElement) {
     return null;
@@ -46,14 +74,14 @@ export function NewPolicyModal({ s }: { s: State }) {
       <div
         style={{
           background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
-          width: "440px",
+          width: "640px",
           maxWidth: "calc(100vw - 32px)",
-          maxHeight: "90vh",
+          maxHeight: "92vh",
           overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
-          border: "1px solid rgba(59, 130, 246, 0.35)",
+          border: "1px solid rgba(236, 72, 153, 0.35)",
           color: "white",
           display: "flex",
           flexDirection: "column",
@@ -62,8 +90,8 @@ export function NewPolicyModal({ s }: { s: State }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <PlusCircle style={{ width: "18px", height: "18px", color: "#3b82f6" }} />
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>신규 가이드 등록</h3>
+            <PlusCircle style={{ width: "16px", height: "16px", color: "#ec4899" }} />
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "800", color: "#f8fafc" }}>새 가이드 등록</h3>
           </div>
           <button
             type="button"
@@ -104,7 +132,7 @@ export function NewPolicyModal({ s }: { s: State }) {
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
             htmlFor="wt-role-input"
-            style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
+            style={{ fontSize: "10px", fontWeight: "500", color: "rgba(255,255,255,0.55)" }}
           >
             가이드명 (Role / Title)
           </label>
@@ -131,8 +159,8 @@ export function NewPolicyModal({ s }: { s: State }) {
             display: "flex",
             flexDirection: "column",
             gap: "6px",
-            flex: "1 1 12rem",
-            minHeight: 0,
+            flex: "1 1 20rem",
+            minHeight: "260px",
             overflow: "hidden",
           }}
         >
@@ -140,9 +168,8 @@ export function NewPolicyModal({ s }: { s: State }) {
             htmlFor="wt-desc-input"
             style={{
               fontSize: "10px",
-              fontWeight: "800",
-              color: "rgba(255,255,255,0.5)",
-              textTransform: "uppercase",
+              fontWeight: "500",
+              color: "rgba(255,255,255,0.55)",
               flexShrink: 0,
             }}
           >
@@ -153,9 +180,10 @@ export function NewPolicyModal({ s }: { s: State }) {
             id="wt-desc-input"
             value={s.description}
             onChange={s.setDescription}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능 검색"
+            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능/도구 검색"
             lang="ko"
             variant="overlay"
+            customItems={customItems}
           />
         </div>
 
@@ -312,15 +340,7 @@ export function NewPolicyModal({ s }: { s: State }) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              const liveHost = hostPatternInputRef.current?.value ?? s.hostPattern;
-              const livePath = pathPatternInputRef.current?.value ?? s.pathPattern;
-              const liveDesc = descEditorRef.current?.getValue() ?? s.description;
-              s.setHostPattern(liveHost);
-              s.setPathPattern(livePath);
-              s.setDescription(liveDesc);
-              void s.saveAnnotation({ hostPattern: liveHost, pathPattern: livePath, description: liveDesc });
-            }}
+            onClick={handleSave}
             disabled={!s.role || s.isSaving}
             style={{
               background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",

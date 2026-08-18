@@ -92,8 +92,10 @@ export function useAppBootstrap() {
         })),
       );
       setLoaded(true);
+      setBackendUnavailable(null);
     } catch (e) {
       console.error("useAppBootstrap:", e);
+      throw e;
     } finally {
       setLoading(false);
     }
@@ -106,10 +108,31 @@ export function useAppBootstrap() {
     setSavedCryptoPresets,
     setLoading,
     setLoaded,
+    setBackendUnavailable,
   ]);
 
   useEffect(() => {
-    void refresh();
+    let cancelled = false;
+    const attemptInitialRefresh = async (retryCount = 0) => {
+      try {
+        await refresh();
+      } catch {
+        if (!cancelled && retryCount < 3) {
+          const delay = Math.min(500 * 2 ** retryCount, 2000);
+          setTimeout(() => {
+            if (!cancelled) {
+              void attemptInitialRefresh(retryCount + 1);
+            }
+          }, delay);
+        }
+      }
+    };
+    void attemptInitialRefresh();
+
+    const unlistenServeReady = listen("serve-ready", () => {
+      setBackendUnavailable(null);
+      void refresh().catch(() => {});
+    });
 
     const unlistenProxy = listen<ProxyStatusPayload>("proxy-status-changed", (event) => {
       if (event.payload) {
@@ -118,7 +141,7 @@ export function useAppBootstrap() {
     });
 
     const unlistenHub = listen(HUB_DATA_CHANGED, () => {
-      void refresh();
+      void refresh().catch(() => {});
     });
 
     const unlistenBackend = listen<string>("backend-unavailable", (event) => {
@@ -252,8 +275,10 @@ export function useAppBootstrap() {
     }, 60_000);
 
     return () => {
+      cancelled = true;
       clearInterval(interval);
       authSubscription.unsubscribe();
+      void unlistenServeReady.then((fn) => fn());
       void unlistenProxy.then((fn) => fn());
       void unlistenHub.then((fn) => fn());
       void unlistenBackend.then((fn) => fn());

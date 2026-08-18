@@ -104,16 +104,12 @@ export function Panel({ id, title, subtitle, icon, onClose, width = "md", childr
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-base-300 bg-base-100/80 shrink-0">
+      <div className="flex items-start justify-between gap-2 px-3 py-2 border-b border-base-300 bg-base-100/80 shrink-0">
         <div className="flex items-start gap-2 min-w-0">
-          {PanelIcon && (
-            <div className="w-7 h-7 rounded-lg bg-base-200 flex items-center justify-center text-base-content/50 shrink-0 mt-0.5">
-              <PanelIcon className="w-3.5 h-3.5" />
-            </div>
-          )}
+          {PanelIcon && <PanelIcon className="w-3.5 h-3.5 text-base-content/40 shrink-0 mt-1" />}
           <div className="min-w-0">
             <h2 className="text-sm font-black text-base-content truncate">{title}</h2>
-            {subtitle && <p className="text-[10px] text-base-content/50 truncate mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-[10px] text-base-content/55 truncate mt-0.5">{subtitle}</p>}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -150,7 +146,7 @@ export function Panel({ id, title, subtitle, icon, onClose, width = "md", childr
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">{children}</div>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3">{children}</div>
     </div>
   );
 

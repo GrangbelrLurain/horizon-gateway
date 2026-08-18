@@ -82,6 +82,19 @@ impl ProxySettingsService {
             s.tls_bypass_hosts = default_tls_bypass_hosts();
             s.tls_bypass_seeded = true;
             changed = true;
+        } else {
+            // Ensure core messenger/SSO domains are present in existing bypass lists
+            for default_host in default_tls_bypass_hosts() {
+                let default_clean = default_host.trim().to_lowercase();
+                if !s
+                    .tls_bypass_hosts
+                    .iter()
+                    .any(|h| h.trim().to_lowercase() == default_clean)
+                {
+                    s.tls_bypass_hosts.push(default_host);
+                    changed = true;
+                }
+            }
         }
         if !s.https_decrypt_seeded {
             let mut hosts: Vec<String> = Vec::new();
@@ -136,14 +149,25 @@ impl ProxySettingsService {
     }
 
     pub fn set_https_decrypt_host(&self, host: &str, enabled: bool) -> ProxySettings {
-        let host = host.trim().to_lowercase();
+        self.set_https_decrypt_hosts(&[host.to_string()], enabled)
+    }
+
+    pub fn set_https_decrypt_hosts(&self, hosts: &[String], enabled: bool) -> ProxySettings {
         let mut s = self.settings.lock().unwrap();
         s.https_decrypt_seeded = true;
-        let exists = s.https_decrypt_hosts.iter().any(|h| h == &host);
-        if enabled && !exists && !host.is_empty() {
-            s.https_decrypt_hosts.push(host);
-        } else if !enabled {
-            s.https_decrypt_hosts.retain(|h| h != &host);
+        let host_set: std::collections::HashSet<String> = hosts
+            .iter()
+            .map(|h| h.trim().to_lowercase())
+            .filter(|h| !h.is_empty())
+            .collect();
+        if enabled {
+            for host in host_set {
+                if !s.https_decrypt_hosts.iter().any(|h| h == &host) {
+                    s.https_decrypt_hosts.push(host);
+                }
+            }
+        } else {
+            s.https_decrypt_hosts.retain(|h| !host_set.contains(h));
         }
         let out = s.clone();
         self.save(&out);

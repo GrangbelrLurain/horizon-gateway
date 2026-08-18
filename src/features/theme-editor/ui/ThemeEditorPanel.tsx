@@ -37,7 +37,7 @@ const POPULAR_SYSTEM_FONTS = [
 function ColorPickerBox({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex flex-col gap-1 p-2 rounded-lg bg-base-100 border border-base-300">
-      <span className="text-[10px] font-semibold text-base-content/70 truncate">{label}</span>
+      <span className="text-[10px] font-semibold text-base-content/55 truncate">{label}</span>
       <div className="flex items-center gap-1.5">
         <input
           type="color"
@@ -123,7 +123,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       return [...prev, themeToSave];
     });
 
-    setActiveThemeId(themeToSave.id as any);
+    setActiveThemeId(themeToSave.id);
     toastSuccess(lang === "ko" ? "테마가 저장되었습니다." : "Theme saved successfully.");
   };
 
@@ -155,7 +155,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
       }
       if (theme) {
         setCustomThemes((prev) => [...prev.filter((t) => t.id !== theme.id), theme]);
-        setActiveThemeId(theme.id as any);
+        setActiveThemeId(theme.id);
         if (warning) {
           toastInfo(warning);
         } else {
@@ -169,7 +169,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
 
   const handleResetToDefault = () => {
     setDraft(DEFAULT_DARK_THEME);
-    setActiveThemeId(DEFAULT_DARK_THEME.id as any);
+    setActiveThemeId(DEFAULT_DARK_THEME.id);
     toastInfo(lang === "ko" ? "기본 테마로 복원되었습니다." : "Reset to default theme.");
   };
 
@@ -215,7 +215,7 @@ export function ThemeEditorPanel({ lang }: { lang: "ko" | "en" }) {
             const found = customThemes.find((t) => t.id === targetId) || BUILTIN_PRESETS.find((t) => t.id === targetId);
             if (found) {
               setDraft(found);
-              setActiveThemeId(found.id as any);
+              setActiveThemeId(found.id);
             }
           }}
           className="select select-sm select-bordered bg-base-200 text-xs font-medium"

@@ -3,14 +3,14 @@ import clsx from "clsx";
 const VARIANT_MAP = {
   default: "",
   primary: "btn-primary",
-  secondary: "btn-outline border-base-300 bg-base-100 hover:bg-base-200 text-base-content",
+  secondary: "btn-outline border-base-300 bg-base-100 hover:bg-base-200/60 text-base-content hover:border-base-300",
   ghost: "btn-ghost",
   danger: "btn-error text-white",
 } as const;
 
 const SIZE_MAP = {
   xs: "btn-xs",
-  sm: "btn-sm",
+  sm: "btn-sm h-7 px-2.5 text-xs",
   md: "",
   lg: "btn-lg",
   icon: "btn-square btn-sm",

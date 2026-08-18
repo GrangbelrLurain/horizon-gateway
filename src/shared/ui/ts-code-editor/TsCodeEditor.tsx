@@ -2,7 +2,7 @@ import * as Babel from "@babel/standalone";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import clsx from "clsx";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface SuggestionItem {
   label: string;
@@ -10,7 +10,7 @@ export interface SuggestionItem {
   detail?: string;
 }
 
-interface TsCodeEditorProps {
+export interface TsCodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   context?: Record<string, any>;
@@ -18,9 +18,44 @@ interface TsCodeEditorProps {
   placeholder?: string;
   className?: string;
   rows?: number; // if rows === 1, it runs in single-line mode
-  language?: "typescript" | "json" | "css" | "javascript";
+  language?: "typescript" | "json" | "css" | "javascript" | "markdown";
   onEvaluate?: (result: any, error: string | null) => void;
-  theme?: "horizon-gateway-light" | "horizon-gateway-dark";
+  theme?: "horizon-gateway-light" | "horizon-gateway-dark" | string;
+  onMount?: (editor: any, monaco: Monaco) => void;
+  editorRef?: React.MutableRefObject<any>;
+}
+
+function getDocumentThemeColors(themeOverride?: string) {
+  if (typeof document === "undefined") {
+    return {
+      isLight: false,
+      base100: "#18181b",
+      base200: "#27272a",
+      content: "#d4d4d8",
+      primary: "#9cdcfe",
+      secondary: "#569cd6",
+      accent: "#ce9178",
+    };
+  }
+
+  const root = document.documentElement;
+  const dataTheme = themeOverride || root.getAttribute("data-theme") || "";
+  const isLight = dataTheme === "horizon-gateway-light" || dataTheme.toLowerCase().includes("light");
+
+  const style = getComputedStyle(root);
+  const getProp = (name: string, fallback: string) => {
+    const val = style.getPropertyValue(name).trim();
+    return val && (val.startsWith("#") || val.startsWith("rgb") || val.startsWith("hsl")) ? val : fallback;
+  };
+
+  const base100 = getProp("--color-base-100", isLight ? "#ffffff" : "#18181b");
+  const base200 = getProp("--color-base-200", isLight ? "#f8fafc" : "#27272a");
+  const content = getProp("--color-base-content", isLight ? "#24292f" : "#d4d4d8");
+  const primary = getProp("--color-primary", isLight ? "#0969da" : "#9cdcfe");
+  const secondary = getProp("--color-secondary", isLight ? "#cf222e" : "#569cd6");
+  const accent = getProp("--color-accent", isLight ? "#0a3069" : "#ce9178");
+
+  return { isLight, base100, base200, content, primary, secondary, accent };
 }
 
 // Generate TS declarations (.d.ts) from runtime context object
@@ -124,12 +159,110 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
   rows = 4,
   language = "typescript",
   onEvaluate,
-  theme = "horizon-gateway-light",
+  theme,
+  onMount,
+  editorRef,
 }) => {
   const [editorKey] = useState(() => Math.random().toString(36).substring(2, 9));
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
+  const [_themeVersion, setThemeVersion] = useState(0);
   const extraLibRef = useRef<any>(null);
   const customSuggestRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      setThemeVersion((v) => v + 1);
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme", "style", "class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const themeColors = getDocumentThemeColors(theme);
+  const { isLight, base100, base200, content, primary, secondary, accent } = themeColors;
+
+  const applyThemeToMonaco = useCallback(
+    (monaco: Monaco) => {
+      const dynamicThemeName = isLight ? "horizon-gateway-light" : "horizon-gateway-dark";
+
+      monaco.editor.defineTheme(dynamicThemeName, {
+        base: isLight ? "vs" : "vs-dark",
+        inherit: true,
+        rules: isLight
+          ? [
+              { token: "identifier", foreground: primary.replace("#", "") },
+              { token: "identifier.js", foreground: primary.replace("#", "") },
+              { token: "identifier.ts", foreground: primary.replace("#", "") },
+              { token: "keyword", foreground: secondary.replace("#", "") },
+              { token: "string", foreground: accent.replace("#", "") },
+              { token: "number", foreground: "0550ae" },
+              { token: "comment", foreground: "6e7781" },
+              { token: "delimiter", foreground: content.replace("#", "") },
+              { token: "type", foreground: "953800" },
+            ]
+          : [
+              { token: "identifier", foreground: primary.replace("#", "") },
+              { token: "identifier.js", foreground: primary.replace("#", "") },
+              { token: "identifier.ts", foreground: primary.replace("#", "") },
+              { token: "keyword", foreground: secondary.replace("#", "") },
+              { token: "string", foreground: accent.replace("#", "") },
+              { token: "number", foreground: "b5cea8" },
+              { token: "comment", foreground: "6a9955" },
+              { token: "delimiter", foreground: content.replace("#", "") },
+              { token: "type", foreground: "4ec9b0" },
+            ],
+        colors: {
+          "editor.background": base100,
+          "editor.foreground": content,
+          "editorLineNumber.foreground": isLight ? "#8c959f" : "#52525b",
+          "editorLineNumber.activeForeground": content,
+          "editor.lineHighlightBackground": base200,
+          "editor.selectionBackground": isLight ? "#add6ff80" : "#264f7880",
+
+          // Suggest / Autocomplete Widget
+          "editorSuggestWidget.background": base100,
+          "editorSuggestWidget.border": isLight ? "#e2e8f0" : "#334155",
+          "editorSuggestWidget.foreground": content,
+          "editorSuggestWidget.highlightForeground": primary,
+          "editorSuggestWidget.selectedBackground": isLight ? "#e2e8f0" : "#334155",
+          "editorSuggestWidget.selectedForeground": content,
+          "editorSuggestWidget.focusHighlightForeground": primary,
+
+          // Hover Widget & General Widgets
+          "editorHoverWidget.background": base100,
+          "editorHoverWidget.border": isLight ? "#e2e8f0" : "#334155",
+          "editorHoverWidget.foreground": content,
+          "editorWidget.background": base100,
+          "editorWidget.border": isLight ? "#e2e8f0" : "#334155",
+          "editorWidget.foreground": content,
+
+          // List states inside Suggest / Pickers
+          "list.hoverBackground": isLight ? "#f1f5f9" : "#1e293b",
+          "list.activeSelectionBackground": isLight ? "#e2e8f0" : "#334155",
+          "list.activeSelectionForeground": content,
+          "list.focusBackground": isLight ? "#e2e8f0" : "#334155",
+          "list.focusForeground": content,
+          "list.highlightForeground": primary,
+          "list.inactiveSelectionBackground": isLight ? "#f1f5f9" : "#1e293b",
+          "list.inactiveSelectionForeground": content,
+        },
+      });
+
+      monaco.editor.setTheme(dynamicThemeName);
+    },
+    [isLight, base100, base200, content, primary, secondary, accent],
+  );
+
+  useEffect(() => {
+    if (monacoInstance) {
+      applyThemeToMonaco(monacoInstance);
+    }
+  }, [monacoInstance, applyThemeToMonaco]);
 
   // Debounced evaluation
   useEffect(() => {
@@ -168,7 +301,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
       );
     }
 
-    // 2. Inject custom suggestions (e.g. Schema fields or keyword shortcuts)
+    // 2. Inject custom suggestions (e.g. Schema fields, Markdown links or keyword shortcuts)
     if (customSuggestRef.current) {
       customSuggestRef.current.dispose();
       customSuggestRef.current = null;
@@ -176,6 +309,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
 
     if (customSuggestions.length > 0) {
       customSuggestRef.current = monacoInstance.languages.registerCompletionItemProvider(language, {
+        triggerCharacters: language === "markdown" ? ["[", "/", "#", "@", ":"] : undefined,
         provideCompletionItems: (model: any, position: any) => {
           const expectedUri =
             language === "typescript"
@@ -184,10 +318,72 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
                 ? `file:///preview_${editorKey}.jsx`
                 : language === "json"
                   ? `file:///mock_${editorKey}.json`
-                  : "";
+                  : language === "markdown"
+                    ? `file:///guide_${editorKey}.md`
+                    : "";
 
           if (expectedUri && model.uri.toString() !== expectedUri) {
             return { suggestions: [] };
+          }
+
+          if (language === "markdown") {
+            const lineContent = model.getLineContent(position.lineNumber);
+            const lineUntilCursor = lineContent.slice(0, position.column - 1);
+            const lineAfterCursor = lineContent.slice(position.column - 1);
+
+            const wikiMatch = /\[\[([^\]]*)$/.exec(lineUntilCursor);
+            if (wikiMatch) {
+              const startColumn = position.column - wikiMatch[0].length;
+              let endColumn = position.column;
+              if (lineAfterCursor.startsWith("]]")) {
+                endColumn += 2;
+              } else if (lineAfterCursor.startsWith("]")) {
+                endColumn += 1;
+              }
+
+              const wikiRange = {
+                startLineNumber: position.lineNumber,
+                startColumn,
+                endLineNumber: position.lineNumber,
+                endColumn,
+              };
+
+              // Filter suggestions for wiki links (exclude heading templates)
+              const wikiItems = customSuggestions.filter(
+                (item) => item.insertText?.includes("hg://") || !item.label.startsWith("#"),
+              );
+
+              return {
+                suggestions: wikiItems.map((item) => ({
+                  label: item.label,
+                  kind: monacoInstance.languages.CompletionItemKind.Reference,
+                  documentation: item.detail,
+                  insertText: item.insertText || item.label,
+                  range: wikiRange,
+                  filterText: `[[${item.label}`,
+                })),
+              };
+            }
+
+            const word = model.getWordUntilPosition(position);
+            const range = {
+              startLineNumber: position.lineNumber,
+              startColumn: word.startColumn,
+              endLineNumber: position.lineNumber,
+              endColumn: word.endColumn,
+            };
+
+            return {
+              suggestions: customSuggestions.map((item) => ({
+                label: item.label,
+                kind: item.insertText?.includes("hg://")
+                  ? monacoInstance.languages.CompletionItemKind.Reference
+                  : monacoInstance.languages.CompletionItemKind.Snippet,
+                documentation: item.detail,
+                insertText: item.insertText || item.label,
+                range,
+              })),
+            };
           }
 
           // Verify we are at the root level or typing a key, not inside a dot path
@@ -236,54 +432,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
 
   const handleEditorWillMount = (monaco: Monaco) => {
     setMonacoInstance(monaco);
-
-    // Register premium horizon-gateway-dark theme
-    monaco.editor.defineTheme("horizon-gateway-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [
-        { token: "identifier", foreground: "9cdcfe" },
-        { token: "identifier.js", foreground: "9cdcfe" },
-        { token: "identifier.ts", foreground: "9cdcfe" },
-        { token: "keyword", foreground: "569cd6" },
-        { token: "string", foreground: "ce9178" },
-        { token: "number", foreground: "b5cea8" },
-        { token: "comment", foreground: "6a9955" },
-        { token: "delimiter", foreground: "d4d4d4" },
-        { token: "type", foreground: "4ec9b0" },
-      ],
-      colors: {
-        "editor.background": "#18181b",
-        "editor.foreground": "#d4d4d8",
-        "editorLineNumber.foreground": "#52525b",
-        "editorLineNumber.activeForeground": "#a1a1aa",
-        "editor.lineHighlightBackground": "#27272a",
-      },
-    });
-
-    // Register premium horizon-gateway-light theme
-    monaco.editor.defineTheme("horizon-gateway-light", {
-      base: "vs",
-      inherit: true,
-      rules: [
-        { token: "identifier", foreground: "0969da" },
-        { token: "identifier.js", foreground: "0969da" },
-        { token: "identifier.ts", foreground: "0969da" },
-        { token: "keyword", foreground: "cf222e" },
-        { token: "string", foreground: "0a3069" },
-        { token: "number", foreground: "0550ae" },
-        { token: "comment", foreground: "6e7781" },
-        { token: "delimiter", foreground: "24292f" },
-        { token: "type", foreground: "953800" },
-      ],
-      colors: {
-        "editor.background": "#ffffff",
-        "editor.foreground": "#24292f",
-        "editorLineNumber.foreground": "#8c959f",
-        "editorLineNumber.activeForeground": "#24292f",
-        "editor.lineHighlightBackground": "#f6f8fa",
-      },
-    });
+    applyThemeToMonaco(monaco);
 
     // Setup TypeScript compiler configurations for JSX/TSX support
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -302,7 +451,13 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
 
   const isSingleLine = rows === 1;
 
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount = (editor: any, monaco: Monaco) => {
+    if (editorRef) {
+      editorRef.current = editor;
+    }
+    if (onMount) {
+      onMount(editor, monaco);
+    }
     if (isSingleLine) {
       // Force layout calculation on content change to ensure wordWrap updates e.contentHeight
       editor.onDidChangeModelContent(() => {
@@ -364,9 +519,11 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
               ? `file:///preview_${editorKey}.jsx`
               : language === "json"
                 ? `file:///mock_${editorKey}.json`
-                : undefined
+                : language === "markdown"
+                  ? `file:///guide_${editorKey}.md`
+                  : undefined
         }
-        theme={theme === "horizon-gateway-light" ? "horizon-gateway-light" : "horizon-gateway-dark"}
+        theme={isLight ? "horizon-gateway-light" : "horizon-gateway-dark"}
         value={value}
         onChange={(val) => onChange(val || "")}
         beforeMount={handleEditorWillMount}

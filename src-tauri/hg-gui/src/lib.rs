@@ -8,7 +8,8 @@ mod command {
 }
 
 use command::window_commands::{
-    open_annotation_dialog, open_external_url, open_inspector_window, open_window, quit_app,
+    open_annotation_dialog, open_external_url, open_inspector_window, open_window,
+    prepare_for_update, quit_app,
 };
 
 pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
@@ -18,6 +19,7 @@ pub fn get_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         open_inspector_window,
         open_annotation_dialog,
         quit_app,
+        prepare_for_update,
     ])
 }
 
@@ -96,8 +98,14 @@ pub fn run() {
                 .try_init();
 
             // Ensure hg-serve backend process is running
-            if let Err(e) = crate::serve::ensure_running() {
-                tracing::warn!("[gui] serve backend unavailable on startup: {e}");
+            match crate::serve::ensure_running() {
+                Ok(()) => {
+                    use tauri::Emitter;
+                    let _ = app.emit("serve-ready", ());
+                }
+                Err(e) => {
+                    tracing::warn!("[gui] serve backend unavailable on startup: {e}");
+                }
             }
 
             // Deep Link Listener

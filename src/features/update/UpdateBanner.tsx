@@ -3,6 +3,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { useSetAtom } from "jotai";
 import { Download, Loader2Icon, X } from "lucide-react";
 import { useCallback, useState } from "react";
+import { commands } from "@/shared/api";
 import { Button } from "@/shared/ui/button/Button";
 import { pendingUpdateAtom } from "./store";
 
@@ -20,6 +21,11 @@ export function UpdateBanner({ update, onDismiss }: UpdateBannerProps) {
     setIsInstalling(true);
     setInstallError(null);
     try {
+      try {
+        await commands.prepareForUpdate();
+      } catch (prepErr) {
+        console.warn("Failed to cleanly prepare serve for update:", prepErr);
+      }
       await update.downloadAndInstall((event) => {
         if (event.event === "Finished") {
           setIsInstalling(false);

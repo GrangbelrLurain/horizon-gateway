@@ -2,6 +2,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { useSetAtom } from "jotai";
 import { useCallback, useState } from "react";
+import { commands } from "@/shared/api";
 import { toastError, toastInfo } from "@/shared/ui/toast";
 import { pendingUpdateAtom } from "./store";
 
@@ -14,6 +15,11 @@ export function useInstallUpdate() {
       setIsInstalling(true);
       try {
         toastInfo(labels?.installing ?? "Installing update…");
+        try {
+          await commands.prepareForUpdate();
+        } catch (prepErr) {
+          console.warn("Failed to cleanly prepare serve for update:", prepErr);
+        }
         await update.downloadAndInstall();
         setPendingUpdate(null);
         await relaunch();

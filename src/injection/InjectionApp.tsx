@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Annotation } from "@/entities/inspector";
 import { useInjectionAppState } from "./hooks/useInjectionAppState";
 import { resolveAnnotation } from "./lib/locator";
@@ -102,13 +102,23 @@ export function InjectionApp() {
   const s = useInjectionAppState();
   const [clusters, setClusters] = useState<PolicyCluster[]>([]);
 
+  // Keep a ref to the latest values so recompute stays stable (no dep churn).
+  // Without this, every SSE push changes currentPagePolicies → new recompute →
+  // useEffect cleanup+setup → subscribeAnnotations re-registered every second.
+  const currentPagePoliciesRef = useRef(s.currentPagePolicies);
+  const showPolicyBadgesRef = useRef(s.showPolicyBadges);
+  const editingElementRef = useRef(s.editingElement);
+  currentPagePoliciesRef.current = s.currentPagePolicies;
+  showPolicyBadgesRef.current = s.showPolicyBadges;
+  editingElementRef.current = s.editingElement;
+
   const recompute = useCallback(() => {
-    if (!s.showPolicyBadges || s.editingElement) {
+    if (!showPolicyBadgesRef.current || editingElementRef.current) {
       return;
     }
-    const nextClusters = buildPolicyClusters(s.currentPagePolicies);
+    const nextClusters = buildPolicyClusters(currentPagePoliciesRef.current);
     setClusters(nextClusters);
-  }, [s.currentPagePolicies, s.showPolicyBadges, s.editingElement]);
+  }, []); // stable — refs are always up-to-date
 
   useEffect(() => {
     recompute();

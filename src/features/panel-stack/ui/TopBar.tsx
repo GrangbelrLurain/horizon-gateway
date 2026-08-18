@@ -105,7 +105,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
           type="button"
           data-tauri-drag-region={false}
           onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all text-xs w-full max-w-sm"
+          className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all text-xs w-full max-w-md"
         >
           <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <span className="flex-1 text-left truncate text-[11px]">
@@ -165,7 +165,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                 className="fixed inset-0 z-40 cursor-default"
                 onClick={() => setSettingsMenuOpen(false)}
               />
-              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <button
                   type="button"
                   onClick={() => {
@@ -237,7 +237,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                 className="fixed inset-0 z-40 cursor-default"
                 onClick={() => setProfileMenuOpen(false)}
               />
-              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="absolute right-0 top-9 w-44 bg-slate-900 border border-slate-800 rounded-lg shadow-lg py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 {!session ? (
                   <>
                     <button

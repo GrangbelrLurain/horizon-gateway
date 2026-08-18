@@ -1,7 +1,14 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { EditorSelection, EditorState, Prec } from "@codemirror/state";
-import { placeholder as cmPlaceholder, drawSelection, EditorView, keymap } from "@codemirror/view";
+import {
+  placeholder as cmPlaceholder,
+  drawSelection,
+  EditorView,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import clsx from "clsx";
 import { forwardRef, type KeyboardEvent, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -67,28 +74,39 @@ function overlayTheme() {
         minHeight: "0",
         maxHeight: "100%",
         fontSize: "12px",
+        fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
         color: "#f8fafc",
-        backgroundColor: "transparent",
+        backgroundColor: "rgba(15, 23, 42, 0.6)",
         overflow: "hidden",
       },
       "&.cm-focused": { outline: "none" },
       ".cm-scroller": {
         overflow: "auto",
-        fontFamily: "inherit",
-        lineHeight: "1.5",
+        fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, Menlo, monospace",
+        lineHeight: "1.6",
         height: "100%",
         minHeight: "0",
       },
+      ".cm-gutters": {
+        backgroundColor: "transparent",
+        color: "rgba(255, 255, 255, 0.25)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+        paddingRight: "6px",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent",
+        color: "#60a5fa",
+      },
       ".cm-content": {
         padding: "10px 12px",
-        caretColor: "#f8fafc",
+        caretColor: "#38bdf8",
       },
       ".cm-line": { padding: "0" },
-      ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#f8fafc" },
+      ".cm-cursor, .cm-dropCursor": { borderLeftColor: "#38bdf8", borderLeftWidth: "2px" },
       "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
         backgroundColor: "rgba(59, 130, 246, 0.38)",
       },
-      ".cm-activeLine": { backgroundColor: "transparent" },
+      ".cm-activeLine": { backgroundColor: "rgba(255, 255, 255, 0.03)" },
     },
     { dark: true },
   );
@@ -104,8 +122,12 @@ export const GuideMarkdownEditor = forwardRef<
     lang?: GuideFeatureLang;
     variant?: "hub" | "overlay";
     className?: string;
+    customItems?: GuideFeatureItem[];
   }
->(function MarkdownEditorInner({ id, value, onChange, placeholder, lang = "ko", variant = "hub", className }, ref) {
+>(function MarkdownEditorInner(
+  { id, value, onChange, placeholder, lang = "ko", variant = "hub", className, customItems },
+  ref,
+) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
@@ -114,12 +136,22 @@ export const GuideMarkdownEditor = forwardRef<
   const suggestOpenRef = useRef(false);
   const [suggest, setSuggest] = useState<GuideLinkTrigger | null>(null);
   const [highlight, setHighlight] = useState(0);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   valueRef.current = value;
   onChangeRef.current = onChange;
 
-  const items = suggest ? filterGuideFeatureItems(suggest.query) : [];
+  const items = suggest ? filterGuideFeatureItems(suggest.query, customItems) : [];
   suggestOpenRef.current = Boolean(suggest && items.length > 0);
+
+  useLayoutEffect(() => {
+    if (suggest && items.length > 0 && itemRefs.current[highlight]) {
+      itemRefs.current[highlight]?.scrollIntoView({
+        block: "nearest",
+        behavior: "instant",
+      });
+    }
+  }, [highlight, suggest, items.length]);
 
   const refreshFromViewRef = useRef((view: EditorView) => {
     const text = view.state.doc.toString();
@@ -152,6 +184,7 @@ export const GuideMarkdownEditor = forwardRef<
           indentUnit.of(DEFAULT_INDENT),
           EditorState.tabSize.of(2),
           ...(placeholder ? [cmPlaceholder(placeholder)] : []),
+          ...(overlay ? [lineNumbers(), highlightActiveLineGutter()] : []),
           overlay ? overlayTheme() : hubTheme(),
           EditorView.contentAttributes.of({
             ...(id ? { id } : {}),
@@ -204,13 +237,11 @@ export const GuideMarkdownEditor = forwardRef<
     syncingRef.current = false;
   }, [value]);
 
-  const replaceRange = (start: number, end: number, alias: GuideFeatureAlias, labelOverride?: string) => {
+  const replaceSnippet = (start: number, end: number, snippet: string) => {
     const view = viewRef.current;
     if (!view) {
       return;
     }
-    const label = labelOverride?.trim() || guideFeatureLabel(alias, lang);
-    const snippet = guideFeatureMarkdown(alias, label);
     view.dispatch({
       changes: { from: start, to: end, insert: snippet },
       selection: EditorSelection.cursor(start + snippet.length),
@@ -218,6 +249,12 @@ export const GuideMarkdownEditor = forwardRef<
     });
     view.focus();
     setSuggest(null);
+  };
+
+  const replaceRange = (start: number, end: number, alias: GuideFeatureAlias, labelOverride?: string) => {
+    const label = labelOverride?.trim() || guideFeatureLabel(alias, lang);
+    const snippet = guideFeatureMarkdown(alias, label);
+    replaceSnippet(start, end, snippet);
   };
 
   const insertAlias = (alias: GuideFeatureAlias, labelOverride?: string) => {
@@ -236,7 +273,8 @@ export const GuideMarkdownEditor = forwardRef<
     }
     const view = viewRef.current;
     const text = view?.state.doc.toString() ?? "";
-    replaceRange(suggest.start, guideLinkReplaceEnd(text, suggest.end), item.alias);
+    const snippet = item.customMarkdown || guideFeatureMarkdown(item.alias, item.labels[lang], item);
+    replaceSnippet(suggest.start, guideLinkReplaceEnd(text, suggest.end), snippet);
   };
 
   useImperativeHandle(ref, () => ({
@@ -325,7 +363,7 @@ export const GuideMarkdownEditor = forwardRef<
           className={
             overlay
               ? undefined
-              : "absolute z-30 left-0 right-0 bottom-0 max-h-[45%] overflow-y-auto rounded-lg border border-base-300 bg-base-100 shadow-lg"
+              : "absolute z-30 left-0 right-0 bottom-0 max-h-[55%] overflow-y-auto rounded-lg border border-base-300 bg-base-100 shadow-lg"
           }
           style={
             overlay
@@ -335,7 +373,7 @@ export const GuideMarkdownEditor = forwardRef<
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  maxHeight: "45%",
+                  maxHeight: "55%",
                   overflowY: "auto",
                   borderRadius: "10px",
                   border: "1px solid rgba(255, 255, 255, 0.14)",
@@ -348,6 +386,9 @@ export const GuideMarkdownEditor = forwardRef<
           {items.map((item, index) => (
             <button
               key={item.alias}
+              ref={(el) => {
+                itemRefs.current[index] = el;
+              }}
               type="button"
               className={
                 overlay

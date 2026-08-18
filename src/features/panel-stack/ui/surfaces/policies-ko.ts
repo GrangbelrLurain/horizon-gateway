@@ -8,6 +8,7 @@ export const policiesKo = {
   noFilterResults: "검색 결과가 없습니다.",
   loadFailed: "가이드를 불러오지 못했습니다.",
   loading: "가이드를 불러오는 중...",
+  retry: "다시 시도",
   coverageNone: "등록된 도메인과 맞지 않습니다. Host Pattern을 확인하세요.",
   capturedOn: "캡처",
   coverageIncluded: "들어가는 도메인",

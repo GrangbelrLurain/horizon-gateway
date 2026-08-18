@@ -1,8 +1,9 @@
 import { Edit3, FolderTree, Globe, Save, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation } from "@/entities/inspector";
+import { buildUnifiedGuideSuggestions, type UnifiedDomainInfo } from "@/shared/lib/guideFeatureLinks";
 import { GuideMarkdownEditor, type GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
-import { saveAnnotationApi } from "../api/gateway";
+import { fetchLoggingDomainsApi, saveAnnotationApi } from "../api/gateway";
 
 interface EditPolicyModalProps {
   annotation: Annotation;
@@ -16,12 +17,27 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
   const [description, setDescription] = useState(annotation.description || "");
   const [hostPattern, setHostPattern] = useState(annotation.hostPattern || "");
   const [pathPattern, setPathPattern] = useState(annotation.pathPattern || "");
+  const [extraDomains, setExtraDomains] = useState<UnifiedDomainInfo[]>([]);
   const hostPatternRef = useRef(hostPattern);
   const pathPatternRef = useRef(pathPattern);
   const hostPatternInputRef = useRef<HTMLInputElement>(null);
   const pathPatternInputRef = useRef<HTMLInputElement>(null);
   const descEditorRef = useRef<GuideMarkdownEditorHandle>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchLoggingDomainsApi().then((domains) => {
+      if (domains && domains.length > 0) {
+        setExtraDomains(domains.map((h) => ({ host: h })));
+      }
+    });
+  }, []);
+
+  const currentHost = annotation.domain || (typeof window !== "undefined" ? window.location.hostname : "");
+  const customItems = useMemo(
+    () => buildUnifiedGuideSuggestions({ currentHost, domains: extraDomains }),
+    [currentHost, extraDomains],
+  );
 
   const commitHostPattern = (value: string) => {
     hostPatternRef.current = value;
@@ -86,9 +102,9 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
       <div
         style={{
           background: "linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 100%)",
-          width: "440px",
+          width: "640px",
           maxWidth: "calc(100vw - 32px)",
-          maxHeight: "90vh",
+          maxHeight: "92vh",
           overflow: "hidden",
           padding: "20px 24px",
           borderRadius: "20px",
@@ -127,7 +143,7 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label
             htmlFor="edit-role-input"
-            style={{ fontSize: "10px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}
+            style={{ fontSize: "10px", fontWeight: "500", color: "rgba(255,255,255,0.55)" }}
           >
             가이드명 (Role / Title)
           </label>
@@ -154,8 +170,8 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             display: "flex",
             flexDirection: "column",
             gap: "6px",
-            flex: "1 1 12rem",
-            minHeight: 0,
+            flex: "1 1 20rem",
+            minHeight: "260px",
             overflow: "hidden",
           }}
         >
@@ -163,9 +179,8 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             htmlFor="edit-desc-input"
             style={{
               fontSize: "10px",
-              fontWeight: "800",
-              color: "rgba(255,255,255,0.5)",
-              textTransform: "uppercase",
+              fontWeight: "500",
+              color: "rgba(255,255,255,0.55)",
               flexShrink: 0,
             }}
           >
@@ -176,9 +191,10 @@ export function EditPolicyModal({ annotation, onClose, onSaved, showToast }: Edi
             id="edit-desc-input"
             value={description}
             onChange={setDescription}
-            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능 검색"
+            placeholder="상세 규칙, 코드 참조(`path`), - 목록...  [[ 로 기능/도구 검색"
             lang="ko"
             variant="overlay"
+            customItems={customItems}
           />
         </div>
 

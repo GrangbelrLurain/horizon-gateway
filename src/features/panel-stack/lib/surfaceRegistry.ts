@@ -17,6 +17,9 @@ export type SurfaceTitleKey =
   | "apiLogs"
   | "apiMocking"
   | "apiSchema"
+  | "toolsApiLogs"
+  | "toolsApiMocking"
+  | "toolsApiSchema"
   | "toolsProxyGraph"
   | "toolsMonitor"
   | "toolsPolicies"
@@ -196,7 +199,7 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
   },
   "global/api-logs": {
     id: "global/api-logs",
-    titleKey: "apiLogs",
+    titleKey: "toolsApiLogs",
     route: "/apis/logs",
     detachWidth: 1200,
     detachHeight: 860,
@@ -205,7 +208,7 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
   },
   "global/mocking": {
     id: "global/mocking",
-    titleKey: "apiMocking",
+    titleKey: "toolsApiMocking",
     route: "/apis/mocking",
     detachWidth: 1200,
     detachHeight: 860,
@@ -214,7 +217,7 @@ export const SURFACE_REGISTRY: Record<HubSurfaceId, SurfaceRegistryEntry> = {
   },
   "global/schema-explorer": {
     id: "global/schema-explorer",
-    titleKey: "apiSchema",
+    titleKey: "toolsApiSchema",
     route: "/apis/schema",
     detachWidth: 1100,
     detachHeight: 800,

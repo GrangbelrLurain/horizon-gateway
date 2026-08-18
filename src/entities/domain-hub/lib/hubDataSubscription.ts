@@ -21,6 +21,11 @@ export function useHubDataSubscription(onDataChanged: (reason?: HubDataChangedRe
       }).then((fn) => {
         unlistenFns.push(fn);
       });
+      void listen("serve-ready", () => {
+        void onDataChanged();
+      }).then((fn) => {
+        unlistenFns.push(fn);
+      });
     }
 
     return () => {

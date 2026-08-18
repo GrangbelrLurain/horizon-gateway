@@ -29,13 +29,16 @@ pub fn get_domain_group_links_svc(
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDomainGroupsPayload {
-    pub domain_id: u32,
+    #[serde(default)]
+    pub domain_id: Option<u32>,
+    #[serde(default)]
+    pub domain_ids: Option<Vec<u32>>,
     pub group_ids: Vec<u32>,
 }
 
 pub const SET_DOMAIN_GROUPS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "set_domain_groups",
-    description: "특정 도메인에 속하는 그룹 목록을 설정합니다.",
+    description: "특정 도메인(들)에 속하는 그룹 목록을 설정합니다.",
     payload_example: r#"{"domainId": 1, "groupIds": [1, 2]}"#,
     category: "domains",
     gui_only: false,
@@ -45,7 +48,14 @@ pub fn set_domain_groups_svc(
     payload: SetDomainGroupsPayload,
     link_service: &DomainGroupLinkService,
 ) -> Result<ApiResponse<()>, String> {
-    link_service.set_groups_for_domain(payload.domain_id, payload.group_ids);
+    let domain_ids = if let Some(ids) = payload.domain_ids {
+        ids
+    } else if let Some(id) = payload.domain_id {
+        vec![id]
+    } else {
+        Vec::new()
+    };
+    link_service.set_groups_for_domains(&domain_ids, &payload.group_ids);
     Ok(ApiResponse {
         success: true,
         data: (),

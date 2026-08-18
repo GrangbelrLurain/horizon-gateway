@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v2.8.0] - 2026-08-18
+
+### Added
+
+- **Bulk domain IPC**: `remove_domains`, `set_domain_groups`, `set_domain_api_logging`, `remove_domain_api_logging`, `update_local_route`, and `set_https_decrypt_host` accept optional `ids` / `domainIds` / `hosts` arrays so hub bulk actions hit the backend once.
+- **Update handoff (`prepare_for_update`)**: The GUI stops the serve sidecar and waits for a clean exit before the updater installs, reducing file-lock failures on Windows.
+- **Serve lifecycle events**: `serve-ready` and `backend-unavailable` Tauri events; bootstrap and hub subscriptions retry or refresh when the backend connects or drops.
+- **Guide feature catalog & links**: Expanded `[[` aliases for global tools (API client/logs/mocking, schema, pipeline, crypto, preview, injection, proxy graph, monitor, server logs, policies). Policies resolve `hg://domain/:id/:panel` and open global hub surfaces from guide markdown.
+- **Monaco guide editor**: Policy/guide description fields use `TsCodeEditor` with document-themed Monaco colors, markdown mode, domain-aware autocomplete, and styled suggest widgets in `global.css`.
+- **Tools menu categories**: Global tools grouped into API & traffic, sandbox, and network/monitoring (including dedicated API logs and mocking entries).
+- **PAC TLS bypass list**: Generated PAC scripts honor configured `tlsBypassHosts` (suffix and substring rules), not only loopback/Tailscale.
+- **Default TLS bypass seeds**: Teams/Office/Skype, Slack, Zoom, Discord, and related SSO hosts are included and merged into existing installs.
+- **Settings export resilience**: `.hg.json` import/export tolerates missing fields, camelCase/snake_case aliases, and default schema metadata; Rust unit tests cover partial payloads.
+
+### Changed
+
+- **Custom themes (DaisyUI 5)**: Dynamic themes inject CSS variables on both `:root` and `[data-theme="<id>"]` with `data-color-scheme`, avoiding layer/specificity races with compiled themes.
+- **Default typography**: Built-in light/dark presets use 13px base size and 1.4 line height.
+- **Team workspace sync**: Pull payload carries `version`, `schemaVersion`, and `app` for consistent settings exchange.
+- **Hub bulk actions**: Frontend bulk helpers batch decrypt, API logging, proxy routes, domain removal, and group assignment instead of per-id invoke loops.
+- **Settings UI**: Preferences sections use shared `Card` layout and lighter typography; import normalizes partial exports before apply.
+- **Inspector bundle paths**: Vite copies `inspector.js` to `hg-serve` and `hg-gui` resources; serve resolves additional dev/cwd paths when loading the injection script.
+- **Injection overlay**: Policy cluster recompute uses stable refs so annotation SSE no longer tears down listeners every tick; new/edit policy modals widen layout and share unified guide suggestions.
+
+### Fixed
+
+- **GUI startup race**: Initial app data load retries with backoff and clears backend-unavailable state when serve becomes ready.
+- **Event forwarder reconnect**: When the backend flag is inactive but IPC ping succeeds, the GUI re-ensures serve and resumes SSE forwarding.
+
 ## [v2.7.10] - 2026-08-14
 
 ### Added

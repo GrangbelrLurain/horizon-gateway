@@ -713,6 +713,9 @@ export async function pullWorkspaceSync(
 
   const payload = {
     ...localData,
+    version: localData?.version ?? 3,
+    schemaVersion: localData?.schemaVersion ?? 3,
+    app: localData?.app || "horizon-gateway",
     domains: nextDomains,
     groups: nextGroups,
     domainGroupLinks: nextLinks,
