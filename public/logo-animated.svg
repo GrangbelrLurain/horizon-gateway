@@ -80,18 +80,19 @@
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   
-    <!-- Dark-to-transparent backdrop vignette centered on the constellation -->
-    <radialGradient id="vignetteBackdrop" cx="50%" cy="43%" r="52%" fx="50%" fy="42%">
+    <!-- Dark-to-transparent backdrop vignette for contrast on white/light backgrounds -->
+    <radialGradient id="vignetteBackdrop" cx="50%" cy="50%" r="50%" fx="50%" fy="48%">
       <stop offset="0%" stop-color="#060b14" stop-opacity="0.96"/>
-      <stop offset="38%" stop-color="#060b14" stop-opacity="0.90"/>
-      <stop offset="68%" stop-color="#060b14" stop-opacity="0.45"/>
-      <stop offset="88%" stop-color="#060b14" stop-opacity="0.10"/>
+      <stop offset="30%" stop-color="#060b14" stop-opacity="0.88"/>
+      <stop offset="60%" stop-color="#060b14" stop-opacity="0.45"/>
+      <stop offset="85%" stop-color="#060b14" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#060b14" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
-  <!-- Smooth dark backdrop vignette lifted towards constellation focal center -->
-  <ellipse cx="512" cy="245" rx="490" ry="275" fill="url(#vignetteBackdrop)" filter="url(#blur10)"/>
+  <!-- Smooth dark backdrop vignette -->
+  <rect x="0" y="0" width="1024" height="560" rx="40" fill="url(#vignetteBackdrop)" filter="url(#blur18)"/>
+  <ellipse cx="512" cy="280" rx="480" ry="250" fill="url(#vignetteBackdrop)"/>
 
   <ellipse id="bg-cyan" cx="512" cy="237" rx="340" ry="160" fill="url(#glowCyan)" filter="url(#blur18)" opacity="1">
     <animate attributeName="opacity" values="0.65;1;0.65" dur="6s" begin="0s" repeatCount="indefinite"/></ellipse>

@@ -629,12 +629,28 @@ pub fn dispatch_headless(
             Ok(serde_json::to_value(result).unwrap())
         }
         "import_all_settings" => {
+            // Tauri forwards { payload: <SettingsExport>, mode: <string|null> }.
+            // When the outer object contains both keys we must unwrap them.
+            let (settings_value, mode_opt) = if let Some(obj) = payload.as_object() {
+                if obj.contains_key("payload") {
+                    let inner = obj.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+                    let mode = obj
+                        .get("mode")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    (inner, mode)
+                } else {
+                    (payload, None)
+                }
+            } else {
+                (payload, None)
+            };
             let parsed: crate::model::settings_export::SettingsExport =
-                serde_json::from_value(payload)
+                serde_json::from_value(settings_value)
                     .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
             let result = command::settings_commands::import_all_settings_svc(
                 parsed,
-                None,
+                mode_opt,
                 &ctx.domain_service,
                 &ctx.group_service,
                 &ctx.link_service,
