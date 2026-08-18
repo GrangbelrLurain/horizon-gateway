@@ -25,6 +25,13 @@ try {
   } else {
     console.warn('[Logo Sync] Source logo-text.svg not found');
   }
+
+  const srcAnimated = path.join(rootDir, 'public', 'logo-animated.svg');
+  const destAnimated = path.join(rootDir, 'website', 'public', 'logo-animated.svg');
+  if (fs.existsSync(srcAnimated)) {
+    fs.copyFileSync(srcAnimated, destAnimated);
+    console.log('[Logo Sync] Copied logo-animated.svg -> website/public/logo-animated.svg');
+  }
 } catch (err) {
   console.error('[Logo Sync] Failed to sync logo assets:', err);
   process.exit(1);
