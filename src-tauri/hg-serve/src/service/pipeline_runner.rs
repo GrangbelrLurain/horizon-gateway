@@ -421,16 +421,24 @@ fn interpolate_value(val: &mut serde_json::Value, context: &HashMap<String, serd
                 }
             } else {
                 let mut new_s = s.clone();
-                while let Some(start_idx) = new_s.find("{{") {
-                    if let Some(end_idx) = new_s[start_idx..].find("}}") {
-                        let actual_end = start_idx + end_idx;
-                        let path = &new_s[start_idx + 2..actual_end];
-                        if let Some(resolved) = resolve_path(path, context) {
-                            let resolved_str = match resolved {
-                                serde_json::Value::String(rs) => rs.clone(),
-                                other => other.to_string(),
-                            };
-                            new_s.replace_range(start_idx..actual_end + 2, &resolved_str);
+                let mut cursor = 0;
+                while cursor < new_s.len() {
+                    if let Some(rel_start) = new_s[cursor..].find("{{") {
+                        let start_idx = cursor + rel_start;
+                        if let Some(rel_end) = new_s[start_idx..].find("}}") {
+                            let actual_end = start_idx + rel_end;
+                            let path = &new_s[start_idx + 2..actual_end];
+                            if let Some(resolved) = resolve_path(path, context) {
+                                let resolved_str = match resolved {
+                                    serde_json::Value::String(rs) => rs.clone(),
+                                    other => other.to_string(),
+                                };
+                                let rep_len = resolved_str.len();
+                                new_s.replace_range(start_idx..actual_end + 2, &resolved_str);
+                                cursor = start_idx + rep_len;
+                            } else {
+                                cursor = actual_end + 2;
+                            }
                         } else {
                             break;
                         }
@@ -588,6 +596,15 @@ mod tests {
         assert_eq!(
             test_mixed_val.as_str().unwrap(),
             "Prefix processed_payload Suffix"
+        );
+
+        // Multiple variables with unresolved one in between
+        let mut test_multi =
+            serde_json::json!("Start {{unknown.var}} Middle {{crypto_node.output}} End");
+        interpolate_value(&mut test_multi, &context);
+        assert_eq!(
+            test_multi.as_str().unwrap(),
+            "Start {{unknown.var}} Middle processed_payload End"
         );
     }
 }

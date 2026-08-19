@@ -14,6 +14,7 @@ import {
   useAppBootstrap,
 } from "@/entities/app";
 import { CreateMockModal } from "@/entities/mocking";
+import { proxyPortInputAtom, proxyStatusAtom } from "@/entities/proxy";
 import { CommandPalette, commandPaletteOpenAtom } from "@/features/command-palette";
 import { useHubHandoffSync } from "@/features/panel-stack";
 import { DetachedWindowLayout, PopupWindowLayout } from "@/features/popup-window";
@@ -46,10 +47,13 @@ const RootLayout = () => {
     return () => window.removeEventListener("message", handleMessage);
   }, [setCreateMockModal]);
 
+  useUpdateCheck();
   useAppBootstrap();
   useHubHandoffSync();
 
   const activeTheme = useAtomValue(activeCustomThemeAtom);
+  const proxyStatus = useAtomValue(proxyStatusAtom);
+  const proxyPortInput = useAtomValue(proxyPortInputAtom);
   const lang = useAtomValue(languageAtom);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPopupWindow = useIsPopupWindow();
@@ -61,9 +65,10 @@ const RootLayout = () => {
     if (activeTheme) {
       applyThemeToDocument(activeTheme);
       const json = JSON.stringify(activeTheme);
+      const port = proxyStatus?.port || Number(proxyPortInput) || 8888;
       const endpoints = [
-        "http://127.0.0.1:8888/.horizon-gateway/api/theme",
-        "http://localhost:8888/.horizon-gateway/api/theme",
+        `http://127.0.0.1:${port}/.horizon-gateway/api/theme`,
+        `http://localhost:${port}/.horizon-gateway/api/theme`,
         "/.horizon-gateway/api/theme",
       ];
       for (const ep of endpoints) {
@@ -76,7 +81,7 @@ const RootLayout = () => {
     }
     // Drop legacy avatar-color override tag so custom theme vars are not clobbered.
     document.getElementById("dynamic-theme")?.remove();
-  }, [activeTheme]);
+  }, [activeTheme, proxyStatus?.port, proxyPortInput]);
 
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
   const [isLoading, setIsLoading] = useState(false);

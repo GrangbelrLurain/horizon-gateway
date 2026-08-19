@@ -22,6 +22,7 @@ struct SessionVal {
     orig_dst_ip: Ipv4Addr,
     #[allow(dead_code)]
     orig_dst_port: u16,
+    last_seen: std::time::Instant,
 }
 
 type NatTable = Arc<Mutex<HashMap<SessionKey, SessionVal>>>;
@@ -153,15 +154,31 @@ impl TransparentProxyService {
                                 let src_port = tcp_hdr.source_port();
                                 let orig_dst_ip = ip_hdr.destination_addr();
                                 let orig_dst_port = tcp_hdr.destination_port();
+                                let is_fin_or_rst = tcp_hdr.fin() || tcp_hdr.rst();
+                                let session_key = SessionKey { src_ip, src_port };
 
                                 if let Ok(mut table) = nat_table.lock() {
-                                    table.insert(
-                                        SessionKey { src_ip, src_port },
-                                        SessionVal {
-                                            orig_dst_ip,
-                                            orig_dst_port,
-                                        },
-                                    );
+                                    if is_fin_or_rst {
+                                        table.remove(&session_key);
+                                    } else {
+                                        table.insert(
+                                            session_key,
+                                            SessionVal {
+                                                orig_dst_ip,
+                                                orig_dst_port,
+                                                last_seen: std::time::Instant::now(),
+                                            },
+                                        );
+                                    }
+
+                                    // Periodic sweep of dead connections
+                                    if table.len() > 100 {
+                                        let now = std::time::Instant::now();
+                                        table.retain(|_, v| {
+                                            now.duration_since(v.last_seen)
+                                                < std::time::Duration::from_secs(120)
+                                        });
+                                    }
                                 }
 
                                 rewrite_ipv4_tcp_dst(

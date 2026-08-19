@@ -110,9 +110,13 @@ pub(crate) fn try_mock_response(
                 has_content_type = true;
             }
             if let Ok(header_name) = header::HeaderName::from_bytes(k.as_bytes()) {
-                if let Ok(header_value) = header::HeaderValue::from_str(v) {
-                    headers.insert(header_name, header_value);
-                }
+                let header_value = if let Ok(hv) = header::HeaderValue::from_str(v) {
+                    hv
+                } else {
+                    let enc = urlencoding::encode(v);
+                    header::HeaderValue::from_str(&enc).unwrap_or_else(|_| HeaderValue::from_static(""))
+                };
+                headers.insert(header_name, header_value);
             }
         }
         if !has_content_type {
@@ -139,9 +143,13 @@ pub(crate) fn try_mock_response(
         if let Ok(hv) = HeaderValue::from_str(&rule.id) {
             headers.insert(header::HeaderName::from_static("x-mock-rule-id"), hv);
         }
-        if let Ok(hv) = HeaderValue::from_str(&rule.name) {
-            headers.insert(header::HeaderName::from_static("x-mock-rule-name"), hv);
-        }
+        let rule_name_hv = if let Ok(hv) = HeaderValue::from_str(&rule.name) {
+            hv
+        } else {
+            let enc = urlencoding::encode(&rule.name);
+            HeaderValue::from_str(&enc).unwrap_or_else(|_| HeaderValue::from_static(""))
+        };
+        headers.insert(header::HeaderName::from_static("x-mock-rule-name"), rule_name_hv);
     }
     let body = rule.response_body.unwrap_or_default();
 

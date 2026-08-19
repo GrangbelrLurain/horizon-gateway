@@ -10,12 +10,24 @@ use std::sync::{Arc, Mutex};
 pub const BODY_LOG_CAP_BYTES: usize = 2 * 1024 * 1024;
 pub const FTS_TEXT_CAP_BYTES: usize = 256 * 1024;
 
+struct SearchIndexTask {
+    date: String,
+    entry: ApiLogEntry,
+    indexed_params: Vec<String>,
+}
+
+enum IndexCommand {
+    Task(SearchIndexTask),
+    Flush(std::sync::mpsc::SyncSender<()>),
+}
+
 #[derive(Clone)]
 pub struct ApiLogService {
     log_dir: PathBuf,
     write_locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
     today_cache: Arc<Mutex<TodayCache>>,
     indexed_params: Arc<Mutex<HashSet<String>>>,
+    index_tx: std::sync::mpsc::Sender<IndexCommand>,
 }
 
 struct TodayCache {
@@ -38,6 +50,50 @@ impl ApiLogService {
         // disk returns newest-first; cache stores oldest-first for append
         entries.reverse();
 
+        let (index_tx, index_rx) = std::sync::mpsc::channel::<IndexCommand>();
+        let worker_log_dir = log_dir.clone();
+
+        std::thread::Builder::new()
+            .name("api-log-indexer".to_string())
+            .spawn(move || {
+                let mut batch: Vec<SearchIndexTask> = Vec::new();
+                loop {
+                    match index_rx.recv_timeout(std::time::Duration::from_millis(50)) {
+                        Ok(IndexCommand::Task(task)) => {
+                            batch.push(task);
+                            while batch.len() < 50 {
+                                match index_rx.try_recv() {
+                                    Ok(IndexCommand::Task(next)) => batch.push(next),
+                                    Ok(IndexCommand::Flush(ack)) => {
+                                        flush_index_batch(&worker_log_dir, &mut batch);
+                                        let _ = ack.send(());
+                                        break;
+                                    }
+                                    Err(_) => break,
+                                }
+                            }
+                            if batch.len() >= 50 {
+                                flush_index_batch(&worker_log_dir, &mut batch);
+                            }
+                        }
+                        Ok(IndexCommand::Flush(ack)) => {
+                            flush_index_batch(&worker_log_dir, &mut batch);
+                            let _ = ack.send(());
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                            if !batch.is_empty() {
+                                flush_index_batch(&worker_log_dir, &mut batch);
+                            }
+                        }
+                        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                            flush_index_batch(&worker_log_dir, &mut batch);
+                            break;
+                        }
+                    }
+                }
+            })
+            .expect("failed to spawn api-log-indexer thread");
+
         Self {
             log_dir,
             write_locks: Arc::new(Mutex::new(HashMap::new())),
@@ -46,6 +102,14 @@ impl ApiLogService {
                 entries,
             })),
             indexed_params: Arc::new(Mutex::new(indexed_params)),
+            index_tx,
+        }
+    }
+
+    pub fn flush_search_index(&self) {
+        let (tx, rx) = std::sync::mpsc::sync_channel(0);
+        if self.index_tx.send(IndexCommand::Flush(tx)).is_ok() {
+            let _ = rx.recv_timeout(std::time::Duration::from_secs(2));
         }
     }
 
@@ -139,7 +203,7 @@ impl ApiLogService {
             }
         }
 
-        // Search index (best-effort) — use full payload clone
+        // Search index via background batch worker — non-blocking
         let params_snapshot: Vec<String> = self
             .indexed_params
             .lock()
@@ -147,7 +211,11 @@ impl ApiLogService {
             .iter()
             .cloned()
             .collect();
-        let _ = index_log_for_search(&self.log_dir, &date_str, &index_entry, &params_snapshot);
+        let _ = self.index_tx.send(IndexCommand::Task(SearchIndexTask {
+            date: date_str,
+            entry: index_entry,
+            indexed_params: params_snapshot,
+        }));
     }
 
     pub fn list_dates(&self) -> Vec<String> {
@@ -343,6 +411,7 @@ impl ApiLogService {
         param_value: Option<&str>,
         limit: usize,
     ) -> Result<Vec<ApiLogSearchHit>, String> {
+        self.flush_search_index();
         let limit = limit.clamp(1, 200);
 
         if let Some(key) = param_key {
@@ -668,46 +737,79 @@ fn search_db_path(log_dir: &Path, date: &str) -> PathBuf {
     log_dir.join("search").join(format!("{date}.sqlite"))
 }
 
+static INITIALIZED_DBS: std::sync::LazyLock<Mutex<std::collections::HashSet<PathBuf>>> =
+    std::sync::LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+
 fn open_search_db(log_dir: &Path, date: &str) -> Result<Connection, String> {
-    let _ = fs::create_dir_all(log_dir.join("search"));
+    let search_dir = log_dir.join("search");
+    let _ = fs::create_dir_all(&search_dir);
     let path = search_db_path(log_dir, date);
-    let conn = Connection::open(path).map_err(|e| e.to_string())?;
-    conn.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS logs (
-            id TEXT PRIMARY KEY,
-            timestamp TEXT NOT NULL,
-            host TEXT NOT NULL,
-            method TEXT NOT NULL,
-            path TEXT NOT NULL,
-            url TEXT NOT NULL DEFAULT '',
-            status_code INTEGER,
-            has_bodies INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host);
-        CREATE INDEX IF NOT EXISTS idx_logs_method ON logs(method);
-        CREATE VIRTUAL TABLE IF NOT EXISTS logs_fts USING fts5(
-            id UNINDEXED,
-            req_text,
-            res_text,
-            tokenize = 'unicode61'
-        );
-        CREATE TABLE IF NOT EXISTS param_values (
-            id TEXT NOT NULL,
-            key TEXT NOT NULL,
-            value TEXT NOT NULL,
-            PRIMARY KEY (id, key)
-        );
-        CREATE INDEX IF NOT EXISTS idx_param_key_value ON param_values(key, value);
-        ",
-    )
-    .map_err(|e| e.to_string())?;
-    // Migrate older search DBs that lack url column
-    let _ = conn.execute(
-        "ALTER TABLE logs ADD COLUMN url TEXT NOT NULL DEFAULT ''",
-        [],
+    let conn = Connection::open(&path).map_err(|e| e.to_string())?;
+
+    // Optimize SQLite performance & concurrency with WAL mode and busy timeout
+    let _ = conn.execute_batch(
+        "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;",
     );
+
+    let mut init_guard = INITIALIZED_DBS.lock().map_err(|e| e.to_string())?;
+    if !init_guard.contains(&path) {
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS logs (
+                id TEXT PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                host TEXT NOT NULL,
+                method TEXT NOT NULL,
+                path TEXT NOT NULL,
+                url TEXT NOT NULL DEFAULT '',
+                status_code INTEGER,
+                has_bodies INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_logs_host ON logs(host);
+            CREATE INDEX IF NOT EXISTS idx_logs_method ON logs(method);
+            CREATE VIRTUAL TABLE IF NOT EXISTS logs_fts USING fts5(
+                id UNINDEXED,
+                req_text,
+                res_text,
+                tokenize = 'unicode61'
+            );
+            CREATE TABLE IF NOT EXISTS param_values (
+                id TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                PRIMARY KEY (id, key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_param_key_value ON param_values(key, value);
+            ",
+        )
+        .map_err(|e| e.to_string())?;
+
+        // Migrate older search DBs that lack url column
+        let _ = conn.execute(
+            "ALTER TABLE logs ADD COLUMN url TEXT NOT NULL DEFAULT ''",
+            [],
+        );
+
+        init_guard.insert(path);
+    }
     Ok(conn)
+}
+
+fn flush_index_batch(log_dir: &Path, batch: &mut Vec<SearchIndexTask>) {
+    if batch.is_empty() {
+        return;
+    }
+    let mut by_date: HashMap<String, (Vec<ApiLogEntry>, Vec<String>)> = HashMap::new();
+    for task in batch.drain(..) {
+        let entry = by_date
+            .entry(task.date)
+            .or_insert_with(|| (Vec::new(), task.indexed_params));
+        entry.0.push(task.entry);
+    }
+
+    for (date, (entries, keys)) in by_date {
+        let _ = index_logs_batch_for_search(log_dir, &date, &entries, &keys);
+    }
 }
 
 fn index_log_for_search(
@@ -716,55 +818,81 @@ fn index_log_for_search(
     entry: &ApiLogEntry,
     indexed_keys: &[String],
 ) -> Result<(), String> {
-    let conn = open_search_db(log_dir, date)?;
-    conn.execute(
-        "INSERT OR REPLACE INTO logs (id, timestamp, host, method, path, url, status_code, has_bodies)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        params![
-            entry.id,
-            entry.timestamp,
-            entry.host,
-            entry.method,
-            entry.path,
-            entry.url,
-            entry.status_code.map(i64::from),
-            i64::from(entry.has_bodies || entry.summary().has_bodies),
-        ],
-    )
-    .map_err(|e| e.to_string())?;
+    index_logs_batch_for_search(log_dir, date, std::slice::from_ref(entry), indexed_keys)
+}
 
-    // Replace FTS row
-    let _ = conn.execute("DELETE FROM logs_fts WHERE id = ?1", params![entry.id]);
-    let req_text = truncate_bytes(
-        entry.request_body.as_deref().unwrap_or(""),
-        FTS_TEXT_CAP_BYTES,
-    );
-    let res_text = truncate_bytes(
-        entry.response_body.as_deref().unwrap_or(""),
-        FTS_TEXT_CAP_BYTES,
-    );
-    if !req_text.is_empty() || !res_text.is_empty() {
-        conn.execute(
-            "INSERT INTO logs_fts (id, req_text, res_text) VALUES (?1, ?2, ?3)",
-            params![entry.id, req_text, res_text],
-        )
-        .map_err(|e| e.to_string())?;
+fn index_logs_batch_for_search(
+    log_dir: &Path,
+    date: &str,
+    entries: &[ApiLogEntry],
+    indexed_keys: &[String],
+) -> Result<(), String> {
+    if entries.is_empty() {
+        return Ok(());
     }
+    let mut conn = open_search_db(log_dir, date)?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    for key in indexed_keys {
-        let values = extract_json_param_values(entry.response_body.as_deref(), key)
-            .into_iter()
-            .chain(extract_json_param_values(
-                entry.request_body.as_deref(),
-                key,
-            ));
-        for value in values {
-            let _ = conn.execute(
-                "INSERT OR REPLACE INTO param_values (id, key, value) VALUES (?1, ?2, ?3)",
-                params![entry.id, key, value],
+    {
+        let mut stmt_logs = tx
+            .prepare_cached(
+                "INSERT OR REPLACE INTO logs (id, timestamp, host, method, path, url, status_code, has_bodies)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let mut stmt_del_fts = tx
+            .prepare_cached("DELETE FROM logs_fts WHERE id = ?1")
+            .map_err(|e| e.to_string())?;
+
+        let mut stmt_ins_fts = tx
+            .prepare_cached("INSERT INTO logs_fts (id, req_text, res_text) VALUES (?1, ?2, ?3)")
+            .map_err(|e| e.to_string())?;
+
+        let mut stmt_params = tx
+            .prepare_cached("INSERT OR REPLACE INTO param_values (id, key, value) VALUES (?1, ?2, ?3)")
+            .map_err(|e| e.to_string())?;
+
+        for entry in entries {
+            let _ = stmt_logs.execute(params![
+                entry.id,
+                entry.timestamp,
+                entry.host,
+                entry.method,
+                entry.path,
+                entry.url,
+                entry.status_code.map(i64::from),
+                i64::from(entry.has_bodies || entry.summary().has_bodies),
+            ]);
+
+            let _ = stmt_del_fts.execute(params![entry.id]);
+            let req_text = truncate_bytes(
+                entry.request_body.as_deref().unwrap_or(""),
+                FTS_TEXT_CAP_BYTES,
             );
+            let res_text = truncate_bytes(
+                entry.response_body.as_deref().unwrap_or(""),
+                FTS_TEXT_CAP_BYTES,
+            );
+            if !req_text.is_empty() || !res_text.is_empty() {
+                let _ = stmt_ins_fts.execute(params![entry.id, req_text, res_text]);
+            }
+
+            for key in indexed_keys {
+                let values = extract_json_param_values(entry.response_body.as_deref(), key)
+                    .into_iter()
+                    .chain(extract_json_param_values(
+                        entry.request_body.as_deref(),
+                        key,
+                    ));
+                for value in values {
+                    let _ = stmt_params.execute(params![entry.id, key, value]);
+                }
+            }
         }
     }
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 

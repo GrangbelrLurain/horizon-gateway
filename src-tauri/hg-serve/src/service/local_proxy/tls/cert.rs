@@ -6,31 +6,72 @@ use axum::response::{IntoResponse, Response};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::{ClientHello, ResolvesServerCert};
 use rustls::sign::CertifiedKey;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::service::ca_service::CaService;
 
 use super::super::state::ProxyState;
 
+const HOST_CERT_CACHE_CAPACITY: usize = 500;
+
+struct LruCertStore {
+    map: HashMap<String, (Arc<CertifiedKey>, String)>,
+    order: VecDeque<String>,
+}
+
+impl LruCertStore {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            order: VecDeque::new(),
+        }
+    }
+
+    fn get(&mut self, host: &str) -> Option<(Arc<CertifiedKey>, String)> {
+        let (ck, pem) = self.map.get(host)?;
+        // Move host to back of order (most recently used)
+        if let Some(pos) = self.order.iter().position(|h| h == host) {
+            self.order.remove(pos);
+            self.order.push_back(host.to_string());
+        }
+        Some((Arc::clone(ck), pem.clone()))
+    }
+
+    fn insert(&mut self, host: String, entry: (Arc<CertifiedKey>, String)) {
+        if self.map.contains_key(&host) {
+            if let Some(pos) = self.order.iter().position(|h| h == &host) {
+                self.order.remove(pos);
+            }
+        } else if self.map.len() >= HOST_CERT_CACHE_CAPACITY {
+            // Evict oldest item
+            if let Some(oldest) = self.order.pop_front() {
+                self.map.remove(&oldest);
+            }
+        }
+        self.order.push_back(host.clone());
+        self.map.insert(host, entry);
+    }
+}
+
 pub(crate) struct HostCertCache {
-    inner: Mutex<HashMap<String, (Arc<CertifiedKey>, String)>>,
+    inner: Mutex<LruCertStore>,
     ca_service: Arc<CaService>,
 }
 
 impl HostCertCache {
     pub(crate) fn new(ca_service: Arc<CaService>) -> Self {
         Self {
-            inner: Mutex::new(HashMap::new()),
+            inner: Mutex::new(LruCertStore::new()),
             ca_service,
         }
     }
 
     pub(crate) fn get_or_create(&self, host: &str) -> Option<(Arc<CertifiedKey>, String)> {
         {
-            let g = self.inner.lock().ok()?;
-            if let Some((ck, pem)) = g.get(host) {
-                return Some((Arc::clone(ck), pem.clone()));
+            let mut g = self.inner.lock().ok()?;
+            if let Some(res) = g.get(host) {
+                return Some(res);
             }
         }
 
@@ -45,10 +86,8 @@ impl HostCertCache {
 
         {
             let mut g = self.inner.lock().ok()?;
-            g.entry(host.to_string())
-                .or_insert_with(|| (Arc::clone(&ck), pem.clone()));
-            let (ck, pem) = g.get(host).unwrap();
-            Some((Arc::clone(ck), pem.clone()))
+            g.insert(host.to_string(), (Arc::clone(&ck), pem.clone()));
+            Some((ck, pem))
         }
     }
 }

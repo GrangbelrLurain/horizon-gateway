@@ -109,18 +109,32 @@ pub(crate) async fn handle_pass_through(
                 for (name, value) in &res_headers {
                     if name == header::SET_COOKIE {
                         if let Ok(cookie_str) = value.to_str() {
-                            let mut new_cookie = cookie_str.to_string();
-                            if new_cookie.contains("SameSite=") {
-                                new_cookie = new_cookie
-                                    .replace("SameSite=Lax", "SameSite=None")
-                                    .replace("SameSite=Strict", "SameSite=None");
-                            } else {
-                                new_cookie.push_str("; SameSite=None");
+                            let parts: Vec<&str> = cookie_str.split(';').map(str::trim).collect();
+                            let mut new_parts: Vec<String> = Vec::new();
+                            let mut has_samesite = false;
+                            let mut has_secure = false;
+
+                            for part in parts {
+                                let part_lower = part.to_lowercase();
+                                if part_lower.starts_with("samesite=") {
+                                    new_parts.push("SameSite=None".to_string());
+                                    has_samesite = true;
+                                } else if part_lower == "secure" {
+                                    new_parts.push("Secure".to_string());
+                                    has_secure = true;
+                                } else if !part.is_empty() {
+                                    new_parts.push((*part).to_string());
+                                }
                             }
-                            if !new_cookie.contains("Secure") {
-                                new_cookie.push_str("; Secure");
+
+                            if !has_samesite {
+                                new_parts.push("SameSite=None".to_string());
                             }
-                            cookie_updates.push(new_cookie);
+                            if !has_secure {
+                                new_parts.push("Secure".to_string());
+                            }
+
+                            cookie_updates.push(new_parts.join("; "));
                         }
                     }
                 }
