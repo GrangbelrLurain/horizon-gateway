@@ -518,6 +518,7 @@ fn print_error(msg: &str) {
 
 /// Names handled by [`dispatch_command`]. Keep in sync when adding CLI commands:
 /// `CLI_INFO` → `CLI_COMMANDS` → match arm → this list.
+#[cfg(test)]
 const DISPATCHED_COMMAND_NAMES: &[&str] = &[
     "get_domain_api_logging_links",
     "set_domain_api_logging",

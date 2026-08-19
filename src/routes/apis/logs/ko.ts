@@ -66,4 +66,10 @@ export const ko: TranslationSchema = {
   exportJumpToEntry: "항목으로 이동",
   exportEntryCount: (count: number) => `${count}건`,
   exportExportedAt: "보낸 시각",
+  retention: "보관 주기",
+  retention7Days: "7일 (1주)",
+  retention14Days: "14일 (기본값)",
+  retention30Days: "30일 (1개월)",
+  retention90Days: "90일 (3개월)",
+  retentionForever: "무제한 보관",
 };

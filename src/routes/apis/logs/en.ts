@@ -60,4 +60,10 @@ export const en = {
   exportJumpToEntry: "Jump to entry",
   exportEntryCount: (count: number) => `${count} entries`,
   exportExportedAt: "Exported at",
+  retention: "Retention",
+  retention7Days: "7 days (1w)",
+  retention14Days: "14 days (Default)",
+  retention30Days: "30 days (1m)",
+  retention90Days: "90 days (3m)",
+  retentionForever: "Keep forever",
 } as const;

@@ -1,8 +1,9 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { listen } from "@tauri-apps/api/event";
 import clsx from "clsx";
 import { useAtom, useAtomValue } from "jotai";
-import { Loader2, RefreshCw, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clock, Loader2, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { languageAtom, usePromiseModal } from "@/entities/app";
 import { fetchApiLogDetail } from "@/entities/domain-api-logging";
 import {
@@ -36,8 +37,14 @@ const METHODS = ["ALL", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as c
 export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId }: DomainApiLogsPanelProps) {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const { show: showModal } = usePromiseModal();
-  const { getDomainHost, getFeatureState, fetchAll: fetchHubData } = useDomainHubData();
+  const { show: showModal, alert: showAlert } = usePromiseModal();
+  const {
+    getDomainHost,
+    getFeatureState,
+    fetchAll: fetchHubData,
+    hubProxySettings,
+    setHubProxySettings,
+  } = useDomainHubData();
   const host = getDomainHost(domain);
   const featureState = getFeatureState(domain.id);
   const toggles = useDomainFeatureToggles({
@@ -52,6 +59,58 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   const [methodFilter, setMethodFilter] = useAtom(domainApiLogsMethodAtom);
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(() => new Set());
   const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const retentionDays = hubProxySettings?.log_retention_days ?? 14;
+
+  const handleRetentionChange = async (days: number) => {
+    if (days === retentionDays) {
+      return;
+    }
+    const isForever = days === 0;
+    const confirmed = await showModal({
+      title: lang === "ko" ? "API 로그 보관 주기 변경" : "Change API Log Retention Policy",
+      message:
+        lang === "ko"
+          ? `API 로그 보관 주기는 모든 도메인에 공통으로 적용되는 전역(Global) 설정입니다.\n\n${
+              isForever
+                ? "로그 자동 삭제를 끄고 영구 보관하시겠습니까?"
+                : `현재 시점 기준 ${days}일이 지난 모든 도메인의 과거 로그(본문 및 검색 인덱스)는 디스크에서 즉시 정리됩니다.\n\n보관 주기를 ${days}일로 변경하시겠습니까?`
+            }`
+          : `Log retention is a global setting applied across all domains.\n\n${
+              isForever
+                ? "Do you want to disable auto-cleanup and keep logs forever?"
+                : `Logs older than ${days} days across all domains will be permanently purged from disk.\n\nDo you want to change retention to ${days} days?`
+            }`,
+      confirmText: lang === "ko" ? "변경 적용" : "Apply",
+      cancelText: lang === "ko" ? "취소" : "Cancel",
+      type: "warning",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRetentionSaving(true);
+    try {
+      const res = await commands.updateProxySettings({ logRetentionDays: days }).then(unwrap);
+      if (res.success && res.data) {
+        setHubProxySettings(res.data);
+      }
+      await showAlert(
+        lang === "ko" ? "보관 주기 변경 완료" : "Retention Updated",
+        lang === "ko"
+          ? `API 로그 보관 주기가 ${isForever ? "무제한 (영구 보관)" : `${days}일`}로 설정되었습니다.`
+          : `API log retention updated to ${isForever ? "Forever" : `${days} days`}.`,
+        "success",
+      );
+      void fetchLogs();
+    } catch (e) {
+      console.error("updateProxySettings retention:", e);
+      await showAlert(lang === "ko" ? "설정 변경 실패" : "Update Failed", String(e), "danger");
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -212,6 +271,14 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
   const allFilteredSelected = filteredLogs.length > 0 && filteredLogs.every((log) => selectedLogIds.has(log.id));
   const someFilteredSelected = filteredLogs.some((log) => selectedLogIds.has(log.id));
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredLogs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40,
+    overscan: 10,
+  });
+
   return (
     <Panel id="api/logs" title={t.apiLogs} subtitle={host} onClose={onClose} width="lg">
       <div className="flex flex-col gap-2 mb-3 shrink-0">
@@ -251,22 +318,47 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
             </label>
           )}
         </div>
-        <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
-          {METHODS.map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => setMethodFilter(method)}
-              className={clsx(
-                "px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors whitespace-nowrap shrink-0",
-                methodFilter === method
-                  ? "bg-primary/20 text-primary"
-                  : "bg-base-200 text-base-content/50 hover:bg-base-300",
-              )}
+        <div className="flex items-center justify-between gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+          <div className="flex gap-1 shrink-0">
+            {METHODS.map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setMethodFilter(method)}
+                className={clsx(
+                  "px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors whitespace-nowrap shrink-0",
+                  methodFilter === method
+                    ? "bg-primary/20 text-primary"
+                    : "bg-base-200 text-base-content/50 hover:bg-base-300",
+                )}
+              >
+                {method}
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="flex items-center gap-1 px-1.5 py-0.5 bg-base-200/60 rounded-md text-[10px] font-bold text-base-content/60 shrink-0 border border-base-300/40 ml-auto"
+            title={
+              lang === "ko"
+                ? "API 로그 전역 보관 주기 (모든 도메인 공통)"
+                : "Global API log retention period (all domains)"
+            }
+          >
+            <Clock className="w-3 h-3 text-base-content/40 shrink-0" />
+            <select
+              value={retentionDays}
+              disabled={retentionSaving}
+              onChange={(e) => void handleRetentionChange(Number(e.target.value))}
+              className="bg-transparent border-none outline-none text-[10px] font-bold text-base-content cursor-pointer"
             >
-              {method}
-            </button>
-          ))}
+              <option value={7}>{t.apiLogsRetention7Days}</option>
+              <option value={14}>{t.apiLogsRetention14Days}</option>
+              <option value={30}>{t.apiLogsRetention30Days}</option>
+              <option value={90}>{t.apiLogsRetention90Days}</option>
+              <option value={0}>{t.apiLogsRetentionForever}</option>
+            </select>
+          </div>
         </div>
         {hasFilters && (
           <p className="text-[10px] text-base-content/40 px-0.5">
@@ -299,8 +391,8 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
       ) : filteredLogs.length === 0 ? (
         <p className="text-xs text-base-content/50">{t.apiLogsNoMatch}</p>
       ) : (
-        <div className="space-y-1 overflow-y-auto min-h-0 flex-1">
-          <div className="flex items-center gap-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-base-content/35">
+        <div className="flex flex-col min-h-0 flex-1">
+          <div className="flex items-center gap-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-base-content/35 shrink-0">
             <input
               type="checkbox"
               className="checkbox checkbox-xs checkbox-primary"
@@ -321,57 +413,91 @@ export function DomainApiLogsPanel({ domain, onClose, onSelectLog, selectedLogId
             />
             <span>{t.apiLogsBulkSelectAll}</span>
           </div>
-          {filteredLogs.map((log) => (
+
+          <div ref={parentRef} className="overflow-y-auto min-h-0 flex-1 relative pr-1">
             <div
-              key={log.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelectLog(log.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelectLog(log.id);
-                }
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
               }}
-              className={clsx(
-                "w-full flex items-center gap-2 px-2 py-2 rounded-lg border transition-colors cursor-pointer",
-                selectedLogId === log.id ? "bg-primary/10 border-primary/30" : "border-transparent hover:bg-base-200",
-              )}
             >
-              <input
-                type="checkbox"
-                className="checkbox checkbox-xs checkbox-primary shrink-0"
-                checked={selectedLogIds.has(log.id)}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => handleToggleSelect(log.id, e.target.checked)}
-                aria-label={`Select ${log.method} ${log.path}`}
-              />
-              <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">{log.method}</span>
-              <span className="text-[10px] font-mono truncate flex-1 min-w-0">{log.path}</span>
-              {Boolean(
-                log.is_mocked ||
-                  (log.response_headers &&
-                    Object.keys(log.response_headers).some(
-                      (k) => k.toLowerCase() === "x-mocked-by" || k.toLowerCase() === "x-mock-rule-id",
-                    )),
-              ) && (
-                <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
-                  MOCK
-                </span>
-              )}
-              <span
-                className={clsx(
-                  "text-[9px] font-bold shrink-0",
-                  (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
-                )}
-              >
-                {log.status_code ?? "-"}
-              </span>
-              <span className="text-[9px] text-base-content/30 shrink-0">
-                {new Date(log.timestamp).toLocaleTimeString()}
-              </span>
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const log = filteredLogs[virtualRow.index];
+                if (!log) {
+                  return null;
+                }
+                return (
+                  <div
+                    key={log.id}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualRow.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="pb-1"
+                  >
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onSelectLog(log.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectLog(log.id);
+                        }
+                      }}
+                      className={clsx(
+                        "w-full flex items-center gap-2 px-2 py-2 rounded-lg border transition-colors cursor-pointer",
+                        selectedLogId === log.id
+                          ? "bg-primary/10 border-primary/30"
+                          : "border-transparent hover:bg-base-200",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-xs checkbox-primary shrink-0"
+                        checked={selectedLogIds.has(log.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => handleToggleSelect(log.id, e.target.checked)}
+                        aria-label={`Select ${log.method} ${log.path}`}
+                      />
+                      <span className="text-[9px] font-black bg-base-300 px-1.5 py-0.5 rounded shrink-0">
+                        {log.method}
+                      </span>
+                      <span className="text-[10px] font-mono truncate flex-1 min-w-0">{log.path}</span>
+                      {Boolean(
+                        log.is_mocked ||
+                          (log.response_headers &&
+                            Object.keys(log.response_headers).some(
+                              (k) => k.toLowerCase() === "x-mocked-by" || k.toLowerCase() === "x-mock-rule-id",
+                            )),
+                      ) && (
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+                          MOCK
+                        </span>
+                      )}
+                      <span
+                        className={clsx(
+                          "text-[9px] font-bold shrink-0",
+                          (log.status_code ?? 0) >= 400 ? "text-error" : "text-success",
+                        )}
+                      >
+                        {log.status_code ?? "-"}
+                      </span>
+                      <span className="text-[9px] text-base-content/30 shrink-0">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
         </div>
       )}
     </Panel>

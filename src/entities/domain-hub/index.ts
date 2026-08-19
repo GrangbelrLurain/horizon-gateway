@@ -1,1 +1,1 @@
-export { useDomainHubData } from "./hooks/useDomainHubData";
+export { hubProxySettingsAtom, useDomainHubData } from "./hooks/useDomainHubData";

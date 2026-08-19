@@ -239,6 +239,7 @@ export function useDomainHubData() {
     getDomainHost,
     getProxyRoute,
     hubProxySettings,
+    setHubProxySettings,
     httpsDecryptHosts,
   };
 }

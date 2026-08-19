@@ -372,6 +372,30 @@ impl ApiLogService {
         Ok(())
     }
 
+    /// Purges log files (meta, idx, bodies, sqlite search) for dates older than `days` ago.
+    /// A value of 0 means keep forever (no-op). Returns number of purged dates.
+    pub fn purge_logs_older_than(&self, days: u32) -> Result<usize, String> {
+        if days == 0 {
+            return Ok(0);
+        }
+
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(days as i64);
+        let cutoff_str = cutoff.format("%Y-%m-%d").to_string();
+
+        let mut purged_count = 0;
+        let all_dates = self.list_dates();
+        for d in all_dates {
+            if d.as_str() < cutoff_str.as_str() {
+                let lock = self.date_lock(&d);
+                let _guard = lock.lock().unwrap();
+                if clear_date_files(&self.log_dir, &d).is_ok() {
+                    purged_count += 1;
+                }
+            }
+        }
+        Ok(purged_count)
+    }
+
     pub fn indexed_param_keys(&self) -> Vec<String> {
         let mut keys: Vec<_> = self
             .indexed_params
@@ -1357,5 +1381,28 @@ mod tests {
             .unwrap();
         assert_eq!(indexed.len(), 1);
         assert_eq!(indexed[0].summary.id, "2");
+    }
+
+    #[test]
+    fn test_purge_logs_older_than() {
+        let dir = tempdir().unwrap();
+        let service = ApiLogService::new(dir.path().to_path_buf());
+
+        // Create log entry for 2020-01-01 (older than 14 days)
+        let old_entry = sample_entry("old", "2020-01-01T10:00:00Z", "GET", "example.com", "/old");
+        service.save_log(&old_entry);
+
+        // Create log entry for today
+        let today = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let recent_entry = sample_entry("recent", &today, "GET", "example.com", "/recent");
+        service.save_log(&recent_entry);
+
+        assert_eq!(service.list_dates().len(), 2);
+
+        // Purge with days = 14: old log (2020) should be purged, recent log kept
+        let purged = service.purge_logs_older_than(14).unwrap();
+        assert_eq!(purged, 1);
+        assert_eq!(service.list_dates().len(), 1);
+        assert_eq!(service.list_dates()[0], today_date_string());
     }
 }

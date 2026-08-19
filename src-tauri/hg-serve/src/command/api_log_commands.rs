@@ -545,7 +545,7 @@ pub fn search_api_logs_svc(
     let param_value = payload.param_value.unwrap_or_default();
 
     let emit_hit = |hit: &crate::model::api_log::ApiLogSearchHit| {
-        if let Some(app) = app {
+        if let Some(_app) = app {
             crate::serve::events::publish_event("api-log-search-hit", hit.clone());
         }
     };
@@ -595,7 +595,7 @@ pub fn search_api_logs_svc(
         hits
     };
 
-    if let Some(app) = app {
+    if let Some(_app) = app {
         crate::serve::events::publish_event(
             "api-log-search-done",
             serde_json::json!({

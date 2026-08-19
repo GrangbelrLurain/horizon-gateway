@@ -124,6 +124,7 @@ impl ProxySettingsService {
         https_decrypt_hosts: Option<Vec<String>>,
         connect_timeout_secs: Option<u64>,
         upstream_timeout_secs: Option<u64>,
+        log_retention_days: Option<u32>,
     ) -> ProxySettings {
         let mut s = self.settings.lock().unwrap();
         if let Some(v) = cors_rewrite_enabled {
@@ -142,6 +143,9 @@ impl ProxySettingsService {
         }
         if let Some(v) = upstream_timeout_secs {
             s.upstream_timeout_secs = v.clamp(1, 600);
+        }
+        if let Some(v) = log_retention_days {
+            s.log_retention_days = v;
         }
         let out = s.clone();
         self.save(&out);

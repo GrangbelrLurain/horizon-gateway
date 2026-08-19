@@ -216,6 +216,12 @@ export const en = {
   apiLogsExportJumpToEntry: "Jump to entry",
   apiLogsExportEntryCount: (count: number) => `${count} entries`,
   apiLogsExportExportedAt: "Exported at",
+  apiLogsRetention: "Retention",
+  apiLogsRetention7Days: "7d",
+  apiLogsRetention14Days: "14d (Default)",
+  apiLogsRetention30Days: "30d",
+  apiLogsRetention90Days: "90d",
+  apiLogsRetentionForever: "Forever",
 
   errorGeneric: "Something went wrong",
   saveFailed: "Save failed",

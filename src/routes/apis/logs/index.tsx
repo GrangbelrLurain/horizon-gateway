@@ -8,6 +8,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   FlaskConical,
   GlobeIcon,
@@ -19,6 +20,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiLoggingCountAtom, domainCountAtom, languageAtom, proxyRunningAtom, usePromiseModal } from "@/entities/app";
 import { fetchApiLogDetail } from "@/entities/domain-api-logging";
+import { hubProxySettingsAtom } from "@/entities/domain-hub";
 import { ProxyServerWarning } from "@/entities/proxy";
 import {
   ApiLogExchangeDetail,
@@ -154,7 +156,7 @@ const LogRow = React.memo(function LogRowItem({
 function ApiLogs() {
   const lang = useAtomValue(languageAtom);
   const t = lang === "ko" ? ko : en;
-  const { show: showModal } = usePromiseModal();
+  const { show: showModal, alert: showAlert } = usePromiseModal();
   const [date, setDate] = useAtom(apiLogsDateAtom);
   const [, setAvailableDates] = useState<string[]>([]);
   const [logs, setLogs] = useState<ApiLogEntry[]>([]);
@@ -175,8 +177,62 @@ function ApiLogs() {
   const [bodySearch, setBodySearch] = useState("");
   const [bodySearchBusy, setBodySearchBusy] = useState(false);
   const [bodySearchActive, setBodySearchActive] = useState(false);
+  const [hubProxySettings, setHubProxySettings] = useAtom(hubProxySettingsAtom);
+  const [retentionSaving, setRetentionSaving] = useState(false);
   const [, setCreateMockModal] = useAtom(createMockModalAtom);
   const savedJsonSchemas = useAtomValue(savedJsonSchemasAtom);
+  const retentionDays = hubProxySettings?.log_retention_days ?? 14;
+
+  const handleRetentionChange = async (days: number) => {
+    if (days === retentionDays) {
+      return;
+    }
+    const isForever = days === 0;
+    const confirmed = await showModal({
+      title: lang === "ko" ? "API 로그 보관 주기 변경" : "Change API Log Retention Policy",
+      message:
+        lang === "ko"
+          ? `API 로그 보관 주기는 모든 도메인에 공통으로 적용되는 전역(Global) 설정입니다.\n\n${
+              isForever
+                ? "로그 자동 삭제를 끄고 영구 보관하시겠습니까?"
+                : `현재 시점 기준 ${days}일이 지난 모든 도메인의 과거 로그(본문 및 검색 인덱스)는 디스크에서 즉시 정리됩니다.\n\n보관 주기를 ${days}일로 변경하시겠습니까?`
+            }`
+          : `Log retention is a global setting applied across all domains.\n\n${
+              isForever
+                ? "Do you want to disable auto-cleanup and keep logs forever?"
+                : `Logs older than ${days} days across all domains will be permanently purged from disk.\n\nDo you want to change retention to ${days} days?`
+            }`,
+      confirmText: lang === "ko" ? "변경 적용" : "Apply",
+      cancelText: lang === "ko" ? "취소" : "Cancel",
+      type: "warning",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRetentionSaving(true);
+    try {
+      const res = await commands.updateProxySettings({ logRetentionDays: days }).then(unwrap);
+      if (res.success && res.data) {
+        setHubProxySettings(res.data);
+      }
+      await showAlert(
+        lang === "ko" ? "보관 주기 변경 완료" : "Retention Updated",
+        lang === "ko"
+          ? `API 로그 보관 주기가 ${isForever ? "무제한 (영구 보관)" : `${days}일`}로 설정되었습니다.`
+          : `API log retention updated to ${isForever ? "Forever" : `${days} days`}.`,
+        "success",
+      );
+      void fetchDates();
+      void fetchLogs(date, "refresh");
+    } catch (e) {
+      console.error("updateProxySettings retention:", e);
+      await showAlert(lang === "ko" ? "설정 변경 실패" : "Update Failed", String(e), "danger");
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!apiLogsHostSeed) {
@@ -637,6 +693,31 @@ function ApiLogs() {
 
         {isProxyRunning && (
           <div className="flex flex-wrap items-center gap-2">
+            {/* Retention Selector */}
+            <div
+              className="flex items-center gap-1.5 bg-base-100 px-2.5 rounded-xl border border-base-300 shadow-sm h-9 tablet:h-10 transition-colors"
+              title={
+                lang === "ko"
+                  ? "API 로그 전역 보관 주기 (모든 도메인 공통)"
+                  : "Global API log retention period (all domains)"
+              }
+            >
+              <Clock className="w-3.5 h-3.5 text-base-content/40 shrink-0" />
+              <span className="text-[10px] tablet:text-xs font-bold text-base-content/60 shrink-0">{t.retention}:</span>
+              <select
+                value={retentionDays}
+                disabled={retentionSaving}
+                onChange={(e) => void handleRetentionChange(Number(e.target.value))}
+                className="bg-transparent border-none outline-none text-[11px] tablet:text-xs font-bold text-base-content cursor-pointer pr-1"
+              >
+                <option value={7}>{t.retention7Days}</option>
+                <option value={14}>{t.retention14Days}</option>
+                <option value={30}>{t.retention30Days}</option>
+                <option value={90}>{t.retention90Days}</option>
+                <option value={0}>{t.retentionForever}</option>
+              </select>
+            </div>
+
             <Button
               variant={hasPendingUpdates ? "primary" : "secondary"}
               size="sm"

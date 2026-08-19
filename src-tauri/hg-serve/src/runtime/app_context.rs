@@ -161,6 +161,8 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     monitor_service.sync_with_domains(&domain_service.get_all());
     api_logging_service.refresh_map(&domain_service.get_all());
     local_route_service.sync_with_domains(&domain_service.get_all());
+    let retention_days = proxy_settings_service.get().log_retention_days;
+    let _ = api_log_service.purge_logs_older_than(retention_days);
     migrate_removed_global_toggles(
         &proxy_settings_service,
         &local_route_service,
@@ -287,7 +289,6 @@ fn merge_domains_from_legacy(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn bootstrap_app_context_smoke() {

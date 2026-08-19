@@ -222,6 +222,12 @@ export const ko: TranslationSchema = {
   apiLogsExportJumpToEntry: "항목으로 이동",
   apiLogsExportEntryCount: (count: number) => `${count}건`,
   apiLogsExportExportedAt: "보낸 시각",
+  apiLogsRetention: "보관 주기",
+  apiLogsRetention7Days: "7일",
+  apiLogsRetention14Days: "14일 (기본값)",
+  apiLogsRetention30Days: "30일",
+  apiLogsRetention90Days: "90일",
+  apiLogsRetentionForever: "무제한",
 
   errorGeneric: "문제가 발생했습니다",
   saveFailed: "저장에 실패했습니다",

@@ -57,6 +57,10 @@ pub fn default_tls_bypass_hosts() -> Vec<String> {
     ]
 }
 
+fn default_log_retention_days() -> u32 {
+    14
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct ProxySettings {
@@ -85,6 +89,9 @@ pub struct ProxySettings {
     pub connect_timeout_secs: u64,
     #[serde(default = "default_upstream_timeout_secs")]
     pub upstream_timeout_secs: u64,
+    /// Days to retain captured API logs on disk (e.g. 7, 14, 30, 90). 0 means keep forever.
+    #[serde(default = "default_log_retention_days")]
+    pub log_retention_days: u32,
     /// Legacy master switch. Read for one-shot migration, never written back.
     #[serde(default = "default_true", skip_serializing)]
     #[specta(skip)]
@@ -109,6 +116,7 @@ impl Default for ProxySettings {
             https_decrypt_hosts: Vec::new(),
             connect_timeout_secs: default_connect_timeout_secs(),
             upstream_timeout_secs: default_upstream_timeout_secs(),
+            log_retention_days: default_log_retention_days(),
             local_routing_enabled: true,
             tls_bypass_seeded: false,
             https_decrypt_seeded: false,
@@ -160,6 +168,7 @@ mod tests {
             https_decrypt_hosts: vec!["api.example.com".to_string()],
             connect_timeout_secs: 10,
             upstream_timeout_secs: 20,
+            log_retention_days: 14,
             local_routing_enabled: false,
             tls_bypass_seeded: true,
             https_decrypt_seeded: true,

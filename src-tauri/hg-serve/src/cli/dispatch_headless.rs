@@ -377,10 +377,16 @@ pub fn dispatch_headless(
             let parsed: command::local_route_commands::UpdateProxySettingsPayload =
                 serde_json::from_value(payload)
                     .map_err(|e| format!("인자 역직렬화 실패: {}", e))?;
+            let retention_opt = parsed.log_retention_days;
             let result = command::local_route_commands::update_proxy_settings_svc(
                 parsed,
                 &ctx.proxy_settings_service,
             )?;
+            if let Some(days) = retention_opt {
+                let _ = ctx.api_log_service.purge_logs_older_than(days);
+            }
+            crate::serve::events::publish_event("proxy-settings-changed", result.data.clone());
+            crate::serve::events::publish_event("hub-data-changed", serde_json::json!({ "reason": "settings" }));
             Ok(serde_json::to_value(result).unwrap())
         }
         "set_https_decrypt_host" => {

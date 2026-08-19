@@ -1,8 +1,11 @@
 import clsx from "clsx";
 import { Check, ChevronDown, ChevronRight, Copy, Info } from "lucide-react";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Button } from "../button/Button";
+
+const CHUNK_SIZE = 100;
+const STRING_PREVIEW_LIMIT = 2000;
 
 export interface JsonTreeViewProps {
   data: unknown;
@@ -125,7 +128,7 @@ export function JsonTreeView({
       )}
 
       <div className="font-mono text-xs leading-relaxed select-text min-w-0">
-        <TreeNode value={parsedData} isLast={true} depth={0} initialFoldDepth={initialFoldDepth} />
+        <MemoTreeNode value={parsedData} isLast={true} depth={0} initialFoldDepth={initialFoldDepth} />
       </div>
     </div>
   );
@@ -139,9 +142,48 @@ interface TreeNodeProps {
   initialFoldDepth: number;
 }
 
+function StringValueNode({
+  indentStr,
+  renderGutter,
+  renderKey,
+  value,
+  comma,
+}: {
+  indentStr: string;
+  renderGutter: (collapsible: boolean) => React.ReactNode;
+  renderKey: React.ReactNode;
+  value: string;
+  comma: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = value.length > STRING_PREVIEW_LIMIT;
+
+  const displayString = !isLong || expanded ? value : `${value.slice(0, STRING_PREVIEW_LIMIT)}...`;
+
+  return (
+    <div className="leading-relaxed whitespace-pre-wrap break-all flex items-center flex-wrap group/node">
+      <span className="select-none whitespace-pre">{indentStr}</span>
+      {renderGutter(false)}
+      {renderKey}
+      <span className="text-emerald-600 dark:text-emerald-400">"{displayString}"</span>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-[9px] font-sans px-1.5 py-0.5 ml-1.5 rounded bg-base-200 text-primary hover:underline cursor-pointer"
+        >
+          {expanded ? "간략히" : `+${(value.length - STRING_PREVIEW_LIMIT).toLocaleString()}자 전체보기`}
+        </button>
+      )}
+      <span className="text-base-content/40">{comma}</span>
+    </div>
+  );
+}
+
 function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: TreeNodeProps) {
   const [folded, setFolded] = useState(depth >= initialFoldDepth);
   const [copiedNode, setCopiedNode] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(CHUNK_SIZE);
 
   const comma = isLast ? "" : ",";
   const indentStr = "  ".repeat(depth);
@@ -217,13 +259,13 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
 
   if (typeof value === "string") {
     return (
-      <div className="leading-relaxed whitespace-pre-wrap break-all flex items-center flex-wrap group/node">
-        <span className="select-none whitespace-pre">{indentStr}</span>
-        {renderGutter(false)}
-        {renderKey}
-        <span className="text-emerald-600 dark:text-emerald-400">"{value}"</span>
-        <span className="text-base-content/40">{comma}</span>
-      </div>
+      <StringValueNode
+        indentStr={indentStr}
+        renderGutter={renderGutter}
+        renderKey={renderKey}
+        value={value}
+        comma={comma}
+      />
     );
   }
 
@@ -248,6 +290,9 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
       </div>
     );
   }
+
+  const renderedEntries = entries.slice(0, visibleCount);
+  const hasMore = entries.length > visibleCount;
 
   return (
     <div className="group/parent min-w-0">
@@ -286,16 +331,38 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
 
       {!folded && (
         <div className="min-w-0">
-          {entries.map(([key, itemValue], index) => (
-            <TreeNode
+          {renderedEntries.map(([key, itemValue], index) => (
+            <MemoTreeNode
               key={key}
               keyName={isArray ? undefined : key}
               value={itemValue}
-              isLast={index === entries.length - 1}
+              isLast={index === entries.length - 1 && !hasMore}
               depth={depth + 1}
               initialFoldDepth={initialFoldDepth}
             />
           ))}
+
+          {hasMore && (
+            <div className="leading-relaxed whitespace-pre-wrap flex items-center gap-2 my-1">
+              <span className="select-none whitespace-pre">{indentStr} </span>
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + CHUNK_SIZE)}
+                className="text-[10px] text-primary hover:underline font-sans px-2 py-0.5 rounded bg-base-200/80 cursor-pointer border border-base-300/50"
+              >
+                + {Math.min(CHUNK_SIZE, entries.length - visibleCount)}개 항목 더보기 (남은{" "}
+                {entries.length - visibleCount}개)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibleCount(entries.length)}
+                className="text-[10px] text-base-content/60 hover:text-base-content font-sans px-2 py-0.5 rounded bg-base-200/40 cursor-pointer"
+              >
+                전체 표시 ({entries.length}개)
+              </button>
+            </div>
+          )}
+
           <div className="leading-relaxed whitespace-pre-wrap flex items-center">
             <span className="select-none whitespace-pre">{indentStr}</span>
             {renderGutter(false)}
@@ -307,3 +374,5 @@ function TreeNode({ keyName, value, isLast = true, depth, initialFoldDepth }: Tr
     </div>
   );
 }
+
+const MemoTreeNode = memo(TreeNode);

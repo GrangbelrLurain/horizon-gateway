@@ -653,6 +653,8 @@ export type ProxySettings = {
 	https_decrypt_hosts?: string[],
 	connect_timeout_secs?: number,
 	upstream_timeout_secs?: number,
+	/**  Days to retain captured API logs on disk (e.g. 7, 14, 30, 90). 0 means keep forever. */
+	log_retention_days?: number,
 };
 
 export type ProxyStatusPayload = {
@@ -894,6 +896,7 @@ export type UpdateProxySettingsPayload = {
 	httpsDecryptHosts?: string[] | null,
 	connectTimeoutSecs?: number | null,
 	upstreamTimeoutSecs?: number | null,
+	logRetentionDays?: number | null,
 };
 
 export type SetProxyDnsServerPayload = {

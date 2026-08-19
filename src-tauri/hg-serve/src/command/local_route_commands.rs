@@ -737,12 +737,13 @@ pub struct UpdateProxySettingsPayload {
     pub https_decrypt_hosts: Option<Vec<String>>,
     pub connect_timeout_secs: Option<u64>,
     pub upstream_timeout_secs: Option<u64>,
+    pub log_retention_days: Option<u32>,
 }
 
 pub const UPDATE_PROXY_SETTINGS_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "update_proxy_settings",
-    description: "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃)을 부분 업데이트합니다.",
-    payload_example: r#"{"corsRewriteEnabled": true}"#,
+    description: "프록시 엔진 옵션(CORS, TLS 우회, 타임아웃, 로그 보관 기간)을 부분 업데이트합니다.",
+    payload_example: r#"{"corsRewriteEnabled": true, "logRetentionDays": 14}"#,
     category: "proxy",
     gui_only: false,
 };
@@ -757,6 +758,7 @@ pub fn update_proxy_settings_svc(
         payload.https_decrypt_hosts,
         payload.connect_timeout_secs,
         payload.upstream_timeout_secs,
+        payload.log_retention_days,
     );
     Ok(ApiResponse {
         message: "Proxy settings updated".to_string(),
