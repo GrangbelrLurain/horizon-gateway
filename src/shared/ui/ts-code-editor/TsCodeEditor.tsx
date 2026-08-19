@@ -10,19 +10,21 @@ export interface SuggestionItem {
   detail?: string;
 }
 
+export type MonacoEditorInstance = Parameters<NonNullable<React.ComponentProps<typeof Editor>["onMount"]>>[0];
+
 export interface TsCodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   customSuggestions?: SuggestionItem[];
   placeholder?: string;
   className?: string;
   rows?: number; // if rows === 1, it runs in single-line mode
   language?: "typescript" | "json" | "css" | "javascript" | "markdown";
-  onEvaluate?: (result: any, error: string | null) => void;
+  onEvaluate?: (result: unknown, error: string | null) => void;
   theme?: "horizon-gateway-light" | "horizon-gateway-dark" | string;
-  onMount?: (editor: any, monaco: Monaco) => void;
-  editorRef?: React.MutableRefObject<any>;
+  onMount?: (editor: MonacoEditorInstance, monaco: Monaco) => void;
+  editorRef?: React.MutableRefObject<MonacoEditorInstance | null>;
 }
 
 function getDocumentThemeColors(themeOverride?: string) {
@@ -59,10 +61,10 @@ function getDocumentThemeColors(themeOverride?: string) {
 }
 
 // Generate TS declarations (.d.ts) from runtime context object
-function generateTypeDefinitions(context: Record<string, any>): string {
+function generateTypeDefinitions(context: Record<string, unknown>): string {
   let dts = "";
 
-  function getTypeName(val: any, indent = "  "): string {
+  function getTypeName(val: unknown, indent = "  "): string {
     if (val === null) {
       return "null";
     }
@@ -73,11 +75,11 @@ function generateTypeDefinitions(context: Record<string, any>): string {
       if (val.length > 0) {
         return `Array<${getTypeName(val[0], indent)}>`;
       }
-      return "Array<any>";
+      return "Array<unknown>";
     }
     if (typeof val === "object") {
       let res = "{\n";
-      for (const [k, v] of Object.entries(val)) {
+      for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
         const safeKey = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : `"${k}"`;
         res += `${indent}${safeKey}: ${getTypeName(v, `${indent}  `)};\n`;
       }
@@ -99,7 +101,7 @@ function generateTypeDefinitions(context: Record<string, any>): string {
 }
 
 // Real-time TS Code Transpiler & Sandbox Evaluator
-export function evaluateTsCode(code: string, context: Record<string, any> = {}): any {
+export function evaluateTsCode(code: string, context: Record<string, unknown> = {}): unknown {
   if (!code.trim()) {
     return null;
   }
@@ -166,8 +168,8 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
   const [editorKey] = useState(() => Math.random().toString(36).substring(2, 9));
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const [_themeVersion, setThemeVersion] = useState(0);
-  const extraLibRef = useRef<any>(null);
-  const customSuggestRef = useRef<any>(null);
+  const extraLibRef = useRef<{ dispose: () => void } | null>(null);
+  const customSuggestRef = useRef<{ dispose: () => void } | null>(null);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -310,7 +312,14 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
     if (customSuggestions.length > 0) {
       customSuggestRef.current = monacoInstance.languages.registerCompletionItemProvider(language, {
         triggerCharacters: language === "markdown" ? ["[", "/", "#", "@", ":"] : undefined,
-        provideCompletionItems: (model: any, position: any) => {
+        provideCompletionItems: (
+          model: Parameters<
+            Parameters<Monaco["languages"]["registerCompletionItemProvider"]>[1]["provideCompletionItems"]
+          >[0],
+          position: Parameters<
+            Parameters<Monaco["languages"]["registerCompletionItemProvider"]>[1]["provideCompletionItems"]
+          >[1],
+        ) => {
           const expectedUri =
             language === "typescript"
               ? `file:///preview_${editorKey}.tsx`
@@ -451,7 +460,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
 
   const isSingleLine = rows === 1;
 
-  const handleEditorDidMount = (editor: any, monaco: Monaco) => {
+  const handleEditorDidMount = (editor: MonacoEditorInstance, monaco: Monaco) => {
     if (editorRef) {
       editorRef.current = editor;
     }
@@ -464,7 +473,7 @@ export const TsCodeEditor: React.FC<TsCodeEditorProps> = ({
         editor.layout();
       });
 
-      editor.onDidContentSizeChange((e: any) => {
+      editor.onDidContentSizeChange((e: { contentHeight: number }) => {
         const contentHeight = e.contentHeight;
         // Restrict auto-grow height between 30px (1 line) and 120px (approx 5 lines)
         const newHeight = Math.max(30, Math.min(contentHeight, 120));

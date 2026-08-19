@@ -11,7 +11,7 @@ const GUI_ONLY_COMMANDS: &[&str] = &[
     "plugin:updater|download_and_install",
 ];
 
-/// Returns true if this command must run in-process (needs Tauri AppHandle / WebView).
+/// Returns true if this command must run in-process (needs Tauri `AppHandle` / `WebView`).
 pub fn is_gui_only(command: &str) -> bool {
     GUI_ONLY_COMMANDS.contains(&command)
 }

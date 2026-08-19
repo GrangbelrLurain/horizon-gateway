@@ -63,8 +63,9 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
       } else {
         toastError("OAuth URL generation failed: URL was empty.");
       }
-    } catch (err: any) {
-      toastError(`handleLogin Exception: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toastError(`handleLogin Exception: ${message}`);
     }
   };
 
@@ -180,7 +181,7 @@ export function TopBar({ onOpenProfile, onOpenSettings, onOpenTeam, onOpenGlobal
                 <button
                   type="button"
                   onClick={() => {
-                    onOpenGlobalTool("chrome/theme" as any);
+                    onOpenGlobalTool("chrome/theme");
                     setSettingsMenuOpen(false);
                   }}
                   className="w-full px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"

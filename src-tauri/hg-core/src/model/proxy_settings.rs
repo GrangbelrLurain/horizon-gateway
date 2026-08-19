@@ -58,6 +58,7 @@ pub fn default_tls_bypass_hosts() -> Vec<String> {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, specta::Type)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ProxySettings {
     /// Optional DNS server for pass-through resolution (e.g. "8.8.8.8" or "1.1.1.1:53").
     /// When set, hosts not matching any local route are resolved via this server before forwarding.

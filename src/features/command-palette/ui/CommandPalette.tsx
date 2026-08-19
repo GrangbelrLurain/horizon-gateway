@@ -2,10 +2,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { languageAtom, proxyRunningAtom, themeAtom } from "@/entities/app";
+import { type AppTheme, languageAtom, proxyRunningAtom, themeAtom } from "@/entities/app";
 import { fetchDomains } from "@/entities/domain";
 import { getMockRules, getScenarios, setScenarioEnabled } from "@/entities/mocking";
-import { usePanelNavigation } from "@/features/panel-stack";
+import { type HubSurfaceId, type PanelId, usePanelNavigation } from "@/features/panel-stack";
 import type { Domain } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { toastError, toastInfo, toastSuccess } from "@/shared/ui/toast";
@@ -60,7 +60,7 @@ export function CommandPalette() {
       },
       onOpenDomainPanel: (id: number, panelId: string) => {
         nav.selectDomain(id);
-        nav.openPanel(panelId as any);
+        nav.openPanel(panelId as PanelId);
       },
       onEditMockRule: (ruleId: string) => {
         toastInfo(`Opening mock rule ${ruleId}`);
@@ -88,16 +88,16 @@ export function CommandPalette() {
         toastSuccess("Root CA Saved");
       },
       onOpenTeamSync: () => {
-        nav.openGlobalSurface("chrome/team" as any);
+        nav.openGlobalSurface("chrome/team");
       },
       onOpenThemeEditor: () => {
-        nav.openGlobalSurface("chrome/theme" as any);
+        nav.openGlobalSurface("chrome/theme");
       },
       onOpenGlobalSurface: (surfaceId: string) => {
-        nav.openGlobalSurface(surfaceId as any);
+        nav.openGlobalSurface(surfaceId as HubSurfaceId);
       },
       onOpenSettings: () => {
-        nav.openGlobalSurface("chrome/settings" as any);
+        nav.openGlobalSurface("chrome/settings");
       },
       onExportAllSettings: async () => {
         try {
@@ -114,15 +114,16 @@ export function CommandPalette() {
               toastSuccess("Settings Exported");
             }
           }
-        } catch (e: any) {
-          toastError(`Export failed: ${e.message || e}`);
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : String(e);
+          toastError(`Export failed: ${message}`);
         }
       },
       onImportAllSettings: async () => {
-        nav.openGlobalSurface("chrome/settings" as any);
+        nav.openGlobalSurface("chrome/settings");
       },
       onSwitchTheme: (newTheme: string) => {
-        setTheme(newTheme as any);
+        setTheme(newTheme as AppTheme);
       },
       onSwitchLanguage: (newLang: "ko" | "en") => {
         toastInfo(`Language set to ${newLang}`);

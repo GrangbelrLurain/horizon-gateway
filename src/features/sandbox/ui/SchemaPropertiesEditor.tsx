@@ -1,11 +1,17 @@
-/* biome-ignore-all lint/suspicious/noExplicitAny: Legacy dynamic schema parsing intentionally relies on flexible shapes. */
 import { useAtomValue } from "jotai";
 import { Copy, CornerDownRight, FileCode, Globe, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { languageAtom } from "@/entities/app";
 import { apiClientLastResponseAtom } from "@/entities/sandbox";
+import type { ApiLogEntry, Domain, DomainApiLoggingLink } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
-import { parseOpenApiSpec } from "@/shared/lib/openapi-parser";
+import {
+  type HttpMethod,
+  type OpenApiSpec,
+  type ParsedEndpoint,
+  parseOpenApiSpec,
+  type SchemaObject,
+} from "@/shared/lib/openapi-parser";
 import { toastError } from "@/shared/ui/toast";
 import { importPropertiesFromJson as importPropertiesFromJsonShared } from "../lib/importPropertiesFromJson";
 
@@ -43,68 +49,94 @@ const en = {
   componentSchema: "Component Schema",
   endpointBody: "Endpoint Body",
   selectSchema: "Select Schema",
-  noSchemas: "No component schemas found.",
   selectEndpoint: "Select Endpoint",
-  noEndpoints: "No endpoints found.",
+  schemaOrBodyType: "Schema / Body",
+  requestBody: "Request Body",
+  responseBody: "Response Body (200 OK)",
+  importNow: "Import Schema Structure",
+  jsonSnippet: "Paste Raw JSON / Sample Response",
+  jsonPlaceholder: 'Paste JSON payload here (e.g. { "id": 1, "name": "Horizon" })...',
+  inferSchema: "Infer Schema",
+  recentLogs: "Select from Recent API Logs",
+  searchLogsPlaceholder: "Filter API logs by path, method, status...",
+  apiLogSearchPlaceholder: "Filter API logs by path, method, status...",
+  req: "REQ",
+  res: "RES",
+  reqBtn: "REQ",
+  resBtn: "RES",
+  noLogsFound: "No matching API logs found for today.",
+  noApiLogs: "No matching API logs found.",
+  noSchemas: "No component schemas found in OpenAPI spec.",
   dataType: "Data Type",
   reqBody: "Request Body",
-  resBody: "Response Body (200)",
-  jsonInputLabel: "JSON String Input",
-  jsonPlaceholder: '{ "id": 1, "name": "Alice", "meta": { "active": true } }',
-  analyzeImport: "Analyze & Import",
-  apiLogSearchPlaceholder: "Search API logs (method, path, status)...",
-  noApiLogs: "No recent API logs found.",
-  reqBtn: "Req",
-  resBtn: "Res",
-  invalidJson: "Not a valid JSON object to extract schema from.",
+  resBody: "Response Body",
+  noEndpoints: "No endpoints found in OpenAPI spec.",
+  jsonInputLabel: "JSON Payload Input",
   jsonSyntaxError: "JSON Syntax Error",
-  noOpenapiLoaded: "OpenAPI spec is not loaded.",
-  noComponentSelected: "No component schema selected.",
-  noEndpointSelected: "No endpoint selected.",
-  failedSchemaContent: "Failed to fetch OpenAPI schema content.",
-  parseOpenapiFailed: "Failed to parse OpenAPI spec",
+  analyzeImport: "Analyze and Import",
+  noOpenapiLoaded: "Please select or load an OpenAPI spec first.",
+  noComponentSelected: "Please select a component schema to import.",
+  noEndpointSelected: "Please select an endpoint to import.",
+  invalidJson: "Invalid JSON format. Please check your input.",
+  failedSchemaContent: "Failed to load OpenAPI schema content for this domain.",
+  parseOpenapiFailed: "Failed to parse OpenAPI specification",
+  noMatchingDomains: "No domains with schemas linked in project settings.",
+  pasteValidOpenapiFirst: "Paste a valid OpenAPI JSON spec first.",
 };
 
-const ko = {
-  properties: "속성 정의 (Properties)",
+const ko: typeof en = {
+  properties: "속성 목록",
   addProperty: "속성 추가",
-  addRootProperty: "최상위 속성 추가",
+  addRootProperty: "루트 속성 추가",
   propertyName: "속성명",
   type: "타입",
   required: "필수",
-  description: "설명",
-  emptyProps: "정의된 속성이 없습니다. 속성 추가 버튼을 눌러 스키마를 구성하세요.",
+  description: "설명 / 포맷",
+  emptyProps: "정의된 속성이 없습니다. 속성 추가 버튼을 눌러 스키마를 구성해보세요.",
   apiResponse: "API 응답에서 가져오기",
-  importSchema: "스키마 가져오기",
+  importSchema: "스키마 가져오기 (가져오기 도구)",
   openapiSource: "OpenAPI 스펙 출처",
-  projectOpenapi: "프로젝트 OpenAPI",
-  pasteDirectly: "직접 붙여넣기",
+  projectOpenapi: "프로젝트 도메인 스펙",
+  pasteDirectly: "JSON 스펙 직접 붙여넣기",
   selectDomain: "도메인 선택...",
-  pastePlaceholder: "OpenAPI JSON 스펙을 여기에 붙여넣으세요...",
-  importTarget: "가져올 대상 구분",
-  componentSchema: "컴포넌트 스키마",
-  endpointBody: "엔드포인트 바디",
-  selectSchema: "대상 스키마 선택",
-  noSchemas: "컴포넌트 스키마 목록이 존재하지 않습니다.",
+  pastePlaceholder: "OpenAPI JSON 스펙 내용을 여기에 붙여넣으세요...",
+  importTarget: "가져올 대상 유형",
+  componentSchema: "컴포넌트 스키마 (Components)",
+  endpointBody: "엔드포인트 바디 (Endpoints)",
+  selectSchema: "스키마 선택",
   selectEndpoint: "엔드포인트 선택",
-  noEndpoints: "엔드포인트 목록이 존재하지 않습니다.",
-  dataType: "데이터 종류",
-  reqBody: "요청 바디 (Request)",
-  resBody: "응답 바디 (Response 200)",
-  jsonInputLabel: "JSON 문자열 입력",
-  jsonPlaceholder: '{ "id": 1, "name": "Alice", "meta": { "active": true } }',
-  analyzeImport: "구조 분석 및 가져오기",
-  apiLogSearchPlaceholder: "API 로그 검색 (메서드, 경로, 응답코드)...",
-  noApiLogs: "검색된 최근 API 로그가 없습니다.",
+  schemaOrBodyType: "스키마/바디 유형",
+  requestBody: "요청 바디 (Request Body)",
+  responseBody: "응답 바디 (200 OK Response)",
+  importNow: "스키마 구조 가져오기",
+  jsonSnippet: "원시 JSON / 샘플 응답 붙여넣기",
+  jsonPlaceholder: 'JSON 페이로드를 붙여넣으세요 (예: { "id": 1, "name": "Horizon" })...',
+  inferSchema: "스키마 추론하기",
+  recentLogs: "최근 API 로그에서 선택",
+  searchLogsPlaceholder: "경로, 메서드, 상태 코드로 로그 검색...",
+  apiLogSearchPlaceholder: "경로, 메서드, 상태 코드로 로그 검색...",
+  req: "요청",
+  res: "응답",
   reqBtn: "요청",
   resBtn: "응답",
-  invalidJson: "추출할 수 있는 올바른 JSON 객체가 아닙니다.",
-  jsonSyntaxError: "JSON 문법 에러",
-  noOpenapiLoaded: "가져올 OpenAPI 스펙이 로드되지 않았습니다.",
-  noComponentSelected: "선택된 컴포넌트 스키마가 없습니다.",
-  noEndpointSelected: "선택된 엔드포인트가 없습니다.",
-  failedSchemaContent: "OpenAPI 스키마 콘텐츠를 가져오는데 실패했습니다.",
+  noLogsFound: "오늘 기록된 일치하는 API 로그가 없습니다.",
+  noApiLogs: "기록된 일치하는 API 로그가 없습니다.",
+  noSchemas: "OpenAPI 스펙에 컴포넌트 스키마가 없습니다.",
+  dataType: "데이터 유형",
+  reqBody: "요청 바디",
+  resBody: "응답 바디",
+  noEndpoints: "OpenAPI 스펙에 엔드포인트가 없습니다.",
+  jsonInputLabel: "JSON 페이로드 입력",
+  jsonSyntaxError: "JSON 문법 오류",
+  analyzeImport: "분석 및 가져오기",
+  noOpenapiLoaded: "먼저 OpenAPI 스펙을 선택하거나 로드해주세요.",
+  noComponentSelected: "가져올 컴포넌트 스키마를 선택해주세요.",
+  noEndpointSelected: "가져올 엔드포인트를 선택해주세요.",
+  invalidJson: "올바른 JSON 형식이 아닙니다. 입력값을 확인해주세요.",
+  failedSchemaContent: "이 도메인의 OpenAPI 스키마 내용을 가져오는 데 실패했습니다.",
   parseOpenapiFailed: "OpenAPI 스펙 파싱 실패",
+  noMatchingDomains: "설정에 스키마가 연결된 도메인이 없습니다.",
+  pasteValidOpenapiFirst: "유효한 OpenAPI JSON 스펙을 먼저 붙여넣어 주세요.",
 };
 
 export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertiesEditorProps) {
@@ -118,10 +150,10 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
   const [rawJsonInput, setRawJsonInput] = useState("");
 
   // OpenAPI Import states
-  const [domains, setDomains] = useState<any[]>([]);
-  const [links, setLinks] = useState<any[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [links, setLinks] = useState<DomainApiLoggingLink[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState<number | "">("");
-  const [openApiSpecJson, setOpenApiSpecJson] = useState<any>(null);
+  const [openApiSpecJson, setOpenApiSpecJson] = useState<OpenApiSpec | null>(null);
   const [availableOpenApiSchemas, setAvailableOpenApiSchemas] = useState<string[]>([]);
   const [selectedOpenApiSchema, setSelectedOpenApiSchema] = useState<string>("");
   const [openApiActiveTab, setOpenApiActiveTab] = useState<"project" | "paste">("project");
@@ -129,12 +161,12 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
 
   // New States for Endpoint imports
   const [openApiImportType, setOpenApiImportType] = useState<"component" | "endpoint">("component");
-  const [openApiEndpoints, setOpenApiEndpoints] = useState<any[]>([]);
+  const [openApiEndpoints, setOpenApiEndpoints] = useState<ParsedEndpoint[]>([]);
   const [selectedEndpointKey, setSelectedEndpointKey] = useState<string>(""); // "method:path"
   const [openApiIoType, setOpenApiIoType] = useState<"request" | "response">("response");
 
   // API Log Autocomplete import states
-  const [apiLogs, setApiLogs] = useState<any[]>([]);
+  const [apiLogs, setApiLogs] = useState<ApiLogEntry[]>([]);
   const [apiLogSearchQuery, setApiLogSearchQuery] = useState("");
 
   // Load project domains for OpenAPI import
@@ -163,7 +195,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
   const schemaLinks = useMemo(() => links.filter((l) => l.schemaUrl), [links]);
 
   const domainMap = useMemo(() => {
-    const m = new Map<number, any>();
+    const m = new Map<number, Domain>();
     for (const d of domains) {
       m.set(d.id, d);
     }
@@ -171,7 +203,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
   }, [domains]);
 
   // Populate schema and endpoint dropdown lists
-  const populateOpenApiOptions = useCallback((spec: any) => {
+  const populateOpenApiOptions = useCallback((spec: OpenApiSpec) => {
     setOpenApiSpecJson(spec);
     if (spec.components?.schemas) {
       const schemaNames = Object.keys(spec.components.schemas).sort();
@@ -319,8 +351,13 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
   };
 
   // Helper to extract nested schema block from endpoints
-  const getEndpointSchema = (spec: any, path: string, method: string, type: "request" | "response"): any => {
-    const operation = spec.paths?.[path]?.[method];
+  const getEndpointSchema = (
+    spec: OpenApiSpec,
+    path: string,
+    method: string,
+    type: "request" | "response",
+  ): SchemaObject | null => {
+    const operation = spec.paths?.[path]?.[method.toLowerCase() as HttpMethod];
     if (!operation) {
       return null;
     }
@@ -335,7 +372,8 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
         const prefix = "#/components/requestBodies/";
         if (requestBody.$ref.startsWith(prefix)) {
           const name = requestBody.$ref.slice(prefix.length);
-          rb = spec.components?.requestBodies?.[name];
+          const bodies = spec.components?.requestBodies as Record<string, typeof requestBody> | undefined;
+          rb = bodies?.[name] ?? requestBody;
         }
       }
       const content = rb?.content;
@@ -343,7 +381,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
         content?.["application/json"] ||
         content?.["*/*"] ||
         content?.["application/x-www-form-urlencoded"] ||
-        Object.values(content || {})[0];
+        (content ? Object.values(content)[0] : undefined);
       return mediaType?.schema || null;
     } else {
       const responses = operation.responses || {};
@@ -353,18 +391,20 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
         const prefix = "#/components/responses/";
         if (resp.$ref.startsWith(prefix)) {
           const name = resp.$ref.slice(prefix.length);
-          resp = spec.components?.responses?.[name];
+          const componentResponses = spec.components?.responses as Record<string, typeof resp> | undefined;
+          resp = componentResponses?.[name] ?? resp;
         }
       }
       const content = resp?.content;
-      const mediaType = content?.["application/json"] || content?.["*/*"] || Object.values(content || {})[0];
+      const mediaType =
+        content?.["application/json"] || content?.["*/*"] || (content ? Object.values(content)[0] : undefined);
       return mediaType?.schema || null;
     }
   };
 
   // Recursive OpenAPI Schema to SchemaProperty list parser
   const importFromOpenApiSpec = (
-    spec: any,
+    spec: OpenApiSpec,
     target:
       | { type: "component"; name: string }
       | { type: "endpoint"; path: string; method: string; io: "request" | "response" },
@@ -373,7 +413,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
       return null;
     }
 
-    let rootSchema: any = null;
+    let rootSchema: SchemaObject | null = null;
     if (target.type === "component") {
       if (!spec.components || !spec.components.schemas) {
         toastError("올바른 OpenAPI 스키마 구조가 아닙니다 (components.schemas가 없음).");
@@ -394,7 +434,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     const defsToProcess: string[] = [];
     const genId = () => Math.random().toString(36).substring(2, 9);
 
-    const parseNode = (schema: any, name: string, parentId: string | undefined, isRequired: boolean) => {
+    const parseNode = (schema: SchemaObject, name: string, parentId: string | undefined, isRequired: boolean) => {
       const propId = genId();
 
       if (schema?.$ref) {
@@ -502,7 +542,10 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
       return;
     }
 
-    let target: any = null;
+    let target:
+      | { type: "component"; name: string }
+      | { type: "endpoint"; path: string; method: string; io: "request" | "response" }
+      | null = null;
     if (openApiImportType === "component") {
       if (!selectedOpenApiSchema) {
         toastError(t.noComponentSelected);
@@ -618,7 +661,7 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
     onChange(properties.filter((p) => !idsToRemove.includes(p.id)));
   };
 
-  const updateProperty = (id: string, field: keyof SchemaProperty, val: any) => {
+  const updateProperty = (id: string, field: keyof SchemaProperty, val: SchemaProperty[keyof SchemaProperty]) => {
     onChange(properties.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
   };
 
@@ -1121,13 +1164,16 @@ export function SchemaPropertiesEditor({ properties, onChange }: SchemaPropertie
 
 // Recursive Draft-07 JSON Schema recursive compiler
 export const generateJsonSchema = (title: string, description: string, properties: SchemaProperty[]): string => {
-  const buildSchemaForNode = (props: SchemaProperty[], nodeId: string | undefined): any => {
+  const buildSchemaForNode = (
+    props: SchemaProperty[],
+    nodeId: string | undefined,
+  ): { type: string; properties: Record<string, unknown>; required?: string[] } | null => {
     const children = props.filter((p) => p.parentId === nodeId);
     if (children.length === 0) {
       return null;
     }
 
-    const propertiesObj: Record<string, any> = {};
+    const propertiesObj: Record<string, unknown> = {};
     const requiredList: string[] = [];
 
     for (const child of children) {
@@ -1135,7 +1181,7 @@ export const generateJsonSchema = (title: string, description: string, propertie
         continue;
       }
 
-      let childSchema: any = {};
+      let childSchema: Record<string, unknown> = {};
 
       if (child.type === "ref") {
         childSchema = {
@@ -1184,7 +1230,7 @@ export const generateJsonSchema = (title: string, description: string, propertie
       }
     }
 
-    const res: any = {
+    const res: { type: string; properties: Record<string, unknown>; required?: string[] } = {
       type: "object",
       properties: propertiesObj,
     };
@@ -1198,21 +1244,23 @@ export const generateJsonSchema = (title: string, description: string, propertie
 
   const rootSchema = buildSchemaForNode(properties, undefined);
 
-  let definitionsObj: any;
-  let defsObj: any;
+  let definitionsObj: unknown;
+  let defsObj: unknown;
 
   if (rootSchema?.properties) {
     if (rootSchema.properties.definitions) {
-      definitionsObj = rootSchema.properties.definitions.properties;
+      const defs = rootSchema.properties.definitions as { properties?: Record<string, unknown> };
+      definitionsObj = defs.properties;
       delete rootSchema.properties.definitions;
     }
     if (rootSchema.properties.$defs) {
-      defsObj = rootSchema.properties.$defs.properties;
+      const defs = rootSchema.properties.$defs as { properties?: Record<string, unknown> };
+      defsObj = defs.properties;
       delete rootSchema.properties.$defs;
     }
   }
 
-  const schemaObj: Record<string, any> = {
+  const schemaObj: Record<string, unknown> = {
     $schema: "http://json-schema.org/draft-07/schema#",
     title: title.trim() || undefined,
     description: description.trim() || undefined,

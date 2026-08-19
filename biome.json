@@ -30,7 +30,8 @@
       },
       "suspicious": {
         "noArrayIndexKey": "off",
-        "noConfusingVoidType": "warn"
+        "noConfusingVoidType": "warn",
+        "noExplicitAny": "error"
       },
       "nursery": {
         "noShadow": "error"

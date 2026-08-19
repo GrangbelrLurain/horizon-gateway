@@ -15,7 +15,7 @@ import { TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
 export interface LivePreviewerProps {
-  initialData?: any;
+  initialData?: unknown;
   code?: string;
   schemaText?: string;
 }
@@ -108,7 +108,7 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       // Fallback: parse fields from active schema if JSON is invalid or empty
       try {
         const schemaObj = JSON.parse(activeSchemaText || "{}");
-        const fallback: Record<string, any> = {};
+        const fallback: Record<string, unknown> = {};
         if (schemaObj && typeof schemaObj.properties === "object") {
           Object.keys(schemaObj.properties).forEach((k) => {
             fallback[k] = "";
@@ -182,9 +182,10 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
             setValidationErrors(res.errors || "JSON Schema validation failed");
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setValidationErrors(err.message || "Schema validation error");
+          const message = err instanceof Error ? err.message : String(err);
+          setValidationErrors(message || "Schema validation error");
         }
       }
     };
@@ -211,8 +212,9 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       } else {
         try {
           parsedData = JSON.parse(editedMockData || "{}");
-        } catch (e: any) {
-          throw new Error(`JSON Mock Data 파싱 에러: ${e.message}`);
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : String(e);
+          throw new Error(`JSON Mock Data 파싱 에러: ${message}`);
         }
       }
 
@@ -370,8 +372,9 @@ export function LivePreviewer({ initialData, code: propCode, schemaText }: LiveP
       `;
 
       setIframeSrcDoc(srcDoc);
-    } catch (err: any) {
-      setCompileError(err.message || "Compilation failed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setCompileError(message || "Compilation failed");
       setIframeSrcDoc("");
     }
   }, [codeToCompile, propCode, editedMockData, initialData, theme]);

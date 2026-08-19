@@ -69,23 +69,21 @@ fn json_merge_keep_nulls(base: &mut serde_json::Value, patch: &serde_json::Value
 }
 
 /// Drop bundle entries that would fail tauri-build on this platform/profile.
-/// Sidecars are `externalBin` (`binaries/<name>-<triple>`); WinDivert is Windows-only.
+/// Sidecars are `externalBin` (`binaries/<name>-<triple>`); `WinDivert` is Windows-only.
 fn patch_bundle_resources() {
     let mut bundle = serde_json::Map::new();
-    let mut resources = serde_json::Map::new();
 
     if !is_release_profile() {
         bundle.insert("externalBin".into(), serde_json::Value::Null);
     }
     if cfg!(not(windows)) || !is_release_profile() {
+        let mut resources = serde_json::Map::new();
         for key in [
             "resources/windivert/WinDivert.dll",
             "resources/windivert/WinDivert64.sys",
         ] {
             resources.insert(key.to_string(), serde_json::Value::Null);
         }
-    }
-    if !resources.is_empty() {
         bundle.insert("resources".into(), serde_json::Value::Object(resources));
     }
     if bundle.is_empty() {
@@ -101,6 +99,9 @@ fn patch_bundle_resources() {
     json_merge_keep_nulls(&mut merged, &patch);
     env::set_var("TAURI_CONFIG", merged.to_string());
 }
+
+#[cfg(not(windows))]
+fn copy_windivert_sidecars() {}
 
 fn sidecar_resource_names(bin_name: &str) -> [String; 2] {
     [format!("{bin_name}.exe"), bin_name.to_string()]
@@ -139,8 +140,7 @@ fn is_release_profile() -> bool {
 fn profile_target_dir(manifest_dir: &Path) -> PathBuf {
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".into());
     let target_root = env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| manifest_dir.join("..").join("target"));
+        .map_or_else(|_| manifest_dir.join("..").join("target"), PathBuf::from);
     if let Ok(triple) = env::var("TARGET") {
         let triple_dir = target_root.join(&triple).join(&profile);
         if triple_dir.is_dir() {
@@ -254,7 +254,7 @@ fn sync_skill_md_resource() {
     }
 }
 
-/// Place WinDivert sidecar files next to the built exe so `cargo run` / local builds work.
+/// Place `WinDivert` sidecar files next to the built exe so `cargo run` / local builds work.
 /// Installers also bundle these via `tauri.conf.json` resources + NSIS post-install copy.
 #[cfg(windows)]
 fn copy_windivert_sidecars() {

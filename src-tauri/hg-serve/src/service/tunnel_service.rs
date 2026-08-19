@@ -273,7 +273,7 @@ async fn ping_handler() -> impl IntoResponse {
     }))
 }
 
-async fn connect_handler(State(state): State<AxumState>) -> impl IntoResponse {
+async fn connect_handler(State(_state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
     let proxy_port = 17345;
@@ -288,7 +288,7 @@ async fn connect_handler(State(state): State<AxumState>) -> impl IntoResponse {
 
 /// Setup guide page: served over HTTP on the Tailscale IP (100.x.x.x:13030/setup).
 /// If the mobile device can load this page, it proves VPN connectivity.
-async fn setup_handler(State(state): State<AxumState>) -> impl IntoResponse {
+async fn setup_handler(State(_state): State<AxumState>) -> impl IntoResponse {
     let tailscale_ip = get_tailscale_ip().unwrap_or_else(|| "127.0.0.1".to_string());
 
     let proxy_port = 17345;

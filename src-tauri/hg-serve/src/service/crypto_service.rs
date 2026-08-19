@@ -5,7 +5,6 @@ use base64::{
     engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE, Engine as _,
 };
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 

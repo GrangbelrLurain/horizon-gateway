@@ -17,8 +17,9 @@ interface DisabledPanelProps {
   onClose: () => void;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: type safety compatibility with translation schemas
-const PANEL_TITLES: Record<PanelId, (t: any) => string> = {
+type PanelTranslationDict = typeof ko;
+
+const PANEL_TITLES: Record<PanelId, (t: PanelTranslationDict) => string> = {
   overview: (t) => t.overview,
   monitor: (t) => t.monitorTitle,
   proxy: (t) => t.localDestination,

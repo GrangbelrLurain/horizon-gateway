@@ -9,7 +9,6 @@ use crate::service::domain_service::DomainService;
 use crate::service::local_route_service::LocalRouteService;
 use crate::service::mocking_service::MockingService;
 use crate::service::proxy_settings_service::ProxySettingsService;
-use std::sync::Arc;
 
 pub const SAVE_ROOT_CA_CLI_INFO: crate::cli::CliCommandInfo = crate::cli::CliCommandInfo {
     name: "save_root_ca",

@@ -50,7 +50,7 @@ fn tauri_env_debug() -> bool {
 }
 
 /// Ensure the serve backend is reachable, spawning and waiting if needed.
-/// Called once at GUI startup. On success, events_client will keep connectivity.
+/// Called once at GUI startup. On success, `events_client` will keep connectivity.
 ///
 /// Debug / `tauri dev`: always reset leftover `horizon-gateway-serve` so ports like
 /// 8888 are not held by a previous session. Release: reuse a reachable same-version serve.
@@ -122,11 +122,11 @@ fn wait_until_leftover_gone(timeout: Duration) -> bool {
 }
 
 fn spawn_and_wait() -> Result<(), String> {
-    spawn_and_wait_with(|| spawn::spawn_detached())
+    spawn_and_wait_with(spawn::spawn_detached)
 }
 
 fn spawn_and_wait_debug() -> Result<(), String> {
-    spawn_and_wait_with(|| spawn::spawn_detached_for_debug())
+    spawn_and_wait_with(spawn::spawn_detached_for_debug)
 }
 
 fn spawn_and_wait_with(spawn_fn: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
@@ -195,9 +195,8 @@ mod tests {
     #[test]
     fn leftover_is_gone_requires_proxy_port_free() {
         // 17345 ping is already down in unit tests; occupying 8888 must still count as leftover.
-        let _listener = match std::net::TcpListener::bind(PROXY_PORT_PROBE) {
-            Ok(l) => l,
-            Err(_) => return, // 8888 already taken on this machine; skip rather than flake
+        let Ok(_listener) = std::net::TcpListener::bind(PROXY_PORT_PROBE) else {
+            return; // 8888 already taken on this machine; skip rather than flake
         };
         assert!(!tcp_addr_is_free(PROXY_PORT_PROBE));
         assert!(!leftover_is_gone());

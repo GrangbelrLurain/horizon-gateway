@@ -10,7 +10,7 @@ import {
   isGuideFeatureAlias,
 } from "@/shared/lib/guideFeatureLinks";
 import type { GuideMarkdownEditorHandle } from "@/shared/ui/markdown-textarea/GuideMarkdownEditor";
-import { type SuggestionItem, TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
+import { type MonacoEditorInstance, type SuggestionItem, TsCodeEditor } from "@/shared/ui/ts-code-editor/TsCodeEditor";
 import { useDomainHubData } from "../../hooks/useDomainHubData";
 import type { policiesKo } from "./policies-ko";
 
@@ -53,7 +53,7 @@ export function GuideDescriptionField({
 }) {
   const theme = useAtomValue(themeAtom);
   const { domains: registeredDomains, getDomainHost } = useDomainHubData();
-  const monacoEditorRef = useRef<any>(null);
+  const monacoEditorRef = useRef<MonacoEditorInstance | null>(null);
 
   const insertAlias = (alias: GuideFeatureAlias, labelOverride?: string) => {
     const label = labelOverride?.trim() || featureLabel(alias, t);

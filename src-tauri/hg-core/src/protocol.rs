@@ -93,13 +93,13 @@ impl<P: Default> ServeRequest<P> {
 
 impl<P> ServeRequest<P> {
     pub fn unsupported_version_error(&self) -> Option<String> {
-        if self.protocol_version != PROTOCOL_VERSION {
+        if self.protocol_version == PROTOCOL_VERSION {
+            None
+        } else {
             Some(format!(
                 "unsupported serve protocol version {} (expected {PROTOCOL_VERSION})",
                 self.protocol_version
             ))
-        } else {
-            None
         }
     }
 }

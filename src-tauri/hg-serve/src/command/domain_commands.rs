@@ -5,7 +5,6 @@ use crate::service::domain_group_link_service::DomainGroupLinkService;
 use crate::service::domain_monitor_service::DomainMonitorService;
 use crate::service::domain_service::DomainService;
 use crate::service::local_route_service::LocalRouteService;
-use std::sync::Arc;
 
 #[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

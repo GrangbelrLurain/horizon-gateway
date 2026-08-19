@@ -26,6 +26,7 @@ import { languageAtom, usePromiseModal } from "@/entities/app";
 import {
   type ApiClientHistoryItem,
   ApiResponseViewer,
+  type ApiResponseViewerProps,
   apiClientCurrentRequestAtom,
   apiClientHistoryAtom,
   apiClientLastResponseAtom,
@@ -166,7 +167,7 @@ function ApiClientPage() {
   }, [method, url, draft.headers, draft.bodyText, setCurrentRequest]);
 
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<any | null>(null);
+  const [response, setResponse] = useState<ApiResponseViewerProps["response"]>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

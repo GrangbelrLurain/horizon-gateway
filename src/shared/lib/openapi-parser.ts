@@ -8,7 +8,11 @@ export interface OpenApiSpec {
   info: { title: string; version: string; description?: string };
   servers?: { url: string; description?: string }[];
   paths: Record<string, PathItem>;
-  components?: { schemas?: Record<string, SchemaObject> };
+  components?: {
+    schemas?: Record<string, SchemaObject>;
+    requestBodies?: Record<string, RequestBodyObject>;
+    responses?: Record<string, ResponseObject>;
+  };
 }
 
 export type PathItem = Partial<Record<HttpMethod, OperationObject>>;
@@ -39,6 +43,7 @@ export interface RequestBodyObject {
   required?: boolean;
   content?: Record<string, MediaTypeObject>;
   description?: string;
+  $ref?: string;
 }
 
 export interface MediaTypeObject {
@@ -48,6 +53,7 @@ export interface MediaTypeObject {
 export interface ResponseObject {
   description?: string;
   content?: Record<string, MediaTypeObject>;
+  $ref?: string;
 }
 
 export interface SchemaObject {

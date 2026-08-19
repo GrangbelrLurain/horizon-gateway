@@ -70,7 +70,7 @@ pub(crate) async fn try_handle_api(
     }
 
     if clean_path == "/.horizon-gateway/api/focus" {
-        if let Some(main) = state.webview_window("main") {
+        if let Some(_main) = state.webview_window("main") {
             // main window focus skipped in headless serve
         }
         return Ok((

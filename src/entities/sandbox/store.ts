@@ -97,7 +97,7 @@ export const cryptoToolCurrentConfigAtom = atom<CryptoConfig>({
   code: "",
 });
 
-export const apiClientLastResponseAtom = atom<any | null>(null);
+export const apiClientLastResponseAtom = atom<unknown>(null);
 
 export interface SavedJsonSchema {
   id: string;

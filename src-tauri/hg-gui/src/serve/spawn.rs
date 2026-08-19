@@ -123,9 +123,9 @@ fn spawn_unelevated_windows(exe: &Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     use std::process::{Command, Stdio};
 
-    const DETACHED_PROCESS: u32 = 0x00000008;
-    const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-    const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x01000000;
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
 
     let mut cmd = Command::new(exe);
     cmd.stdin(Stdio::null())
@@ -180,7 +180,7 @@ fn spawn_elevated_windows(exe: &Path) -> Result<(), String> {
             verb.as_ptr(),
             exe_wide.as_ptr(),
             std::ptr::null(),
-            work_dir.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+            work_dir.as_ref().map_or(std::ptr::null(), Vec::as_ptr),
             windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE,
         )
     };

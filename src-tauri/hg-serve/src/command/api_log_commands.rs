@@ -125,12 +125,6 @@ pub fn remove_domain_api_logging_svc(
 
 // ─── Schema download ────────────────────────────────────────────────────────
 
-/// Schema 파일 저장 경로: `{app_data_dir}/schemas/{domain_id}.json`
-fn schemas_dir_from_app(app: ()) -> PathBuf {
-    let base = crate::runtime::paths::resolve_app_data_dir();
-    schemas_dir(&crate::runtime::paths::resolve_app_data_dir().unwrap_or_default())
-}
-
 fn schemas_dir(base: &std::path::Path) -> PathBuf {
     base.join("schemas")
 }

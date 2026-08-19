@@ -239,7 +239,7 @@ export function useAppBootstrap() {
             }
           }
           setSupaProfile(currentProfile);
-        } else if (error && (error as any).code === "PGRST116") {
+        } else if (error && (error as { code?: string }).code === "PGRST116") {
           console.log("No profile row found. Creating a new profile for user:", session.user.id);
           const newProfile = {
             id: session.user.id,

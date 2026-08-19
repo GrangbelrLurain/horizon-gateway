@@ -5,7 +5,7 @@ use super::client::{call_command, invoke_args_to_payload};
 use super::forward;
 
 /// Wrap the specta invoke handler.
-/// - GUI-only commands -> specta handler (in-process, needs AppHandle)
+/// - GUI-only commands -> specta handler (in-process, needs `AppHandle`)
 /// - All other commands -> hg-serve TCP IPC (always, no in-process fallback)
 pub fn wrap_invoke_handler(
     specta_handler: impl Fn(Invoke<Wry>) -> bool + Send + Sync + 'static,

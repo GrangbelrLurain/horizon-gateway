@@ -1,5 +1,5 @@
 import { normalizeDomainUrl } from "@/entities/domain";
-import type { MockRule } from "@/shared/api";
+import type { MockRule, Scenario, SettingsExport_Deserialize } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
 import { pullResources, pushResources } from "./api";
@@ -421,10 +421,8 @@ export async function pushWorkspaceSync(
   let finalDomains = localDomains;
   let finalGroups = localData.groups as unknown as GroupItem[];
   let finalLinks = localData.domainGroupLinks as unknown as LinkItem[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let finalScenarios: any[] = localData.scenarios ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let finalMockRules: any[] = localData.mockRules ?? [];
+  let finalScenarios: Scenario[] = (localData.scenarios as Scenario[]) ?? [];
+  let finalMockRules: MockRule[] = (localData.mockRules as MockRule[]) ?? [];
 
   if (opts.mode !== "overwrite") {
     try {
@@ -436,8 +434,8 @@ export async function pushWorkspaceSync(
         const remoteDomains = (byKind.domains as DomainItem[]) ?? [];
         const remoteGroups = (byKind.groups as GroupItem[]) ?? [];
         const remoteLinks = (byKind.domain_group_links as LinkItem[]) ?? [];
-        const remoteScenarios = (byKind.scenarios as unknown[]) ?? [];
-        const remoteMockRules = (byKind.mock_rules as unknown[]) ?? [];
+        const remoteScenarios = (byKind.scenarios as Scenario[]) ?? [];
+        const remoteMockRules = (byKind.mock_rules as MockRule[]) ?? [];
 
         if (opts.mode === "append_only") {
           const remoteUrlSet = new Set(remoteDomains.map((d) => domainMatchKey(d.url, opts.matchKey)));
@@ -452,8 +450,8 @@ export async function pushWorkspaceSync(
           }
           finalGroups = Array.from(groupMap.values());
           finalLinks = [...remoteLinks, ...(localData.domainGroupLinks as unknown as LinkItem[])];
-          finalScenarios = [...remoteScenarios, ...(localData.scenarios ?? [])];
-          finalMockRules = [...remoteMockRules, ...(localData.mockRules ?? [])];
+          finalScenarios = [...remoteScenarios, ...((localData.scenarios as Scenario[]) ?? [])];
+          finalMockRules = [...remoteMockRules, ...((localData.mockRules as MockRule[]) ?? [])];
         } else if (opts.mode === "merge_url") {
           const remoteByKey = new Map(remoteDomains.map((d) => [domainMatchKey(d.url, opts.matchKey), d]));
           const mergedDomains: DomainItem[] = [...remoteDomains];
@@ -481,8 +479,8 @@ export async function pushWorkspaceSync(
           }
           finalGroups = Array.from(groupMap.values());
           finalLinks = [...remoteLinks, ...(localData.domainGroupLinks as unknown as LinkItem[])];
-          finalScenarios = [...remoteScenarios, ...(localData.scenarios ?? [])];
-          finalMockRules = [...remoteMockRules, ...(localData.mockRules ?? [])];
+          finalScenarios = [...remoteScenarios, ...((localData.scenarios as Scenario[]) ?? [])];
+          finalMockRules = [...remoteMockRules, ...((localData.mockRules as MockRule[]) ?? [])];
         } else if (opts.mode === "merge_id") {
           const remoteById = new Map(remoteDomains.map((d) => [d.id, d]));
           const mergedDomains: DomainItem[] = [...remoteDomains];
@@ -507,8 +505,8 @@ export async function pushWorkspaceSync(
           }
           finalGroups = Array.from(groupMap.values());
           finalLinks = [...remoteLinks, ...(localData.domainGroupLinks as unknown as LinkItem[])];
-          finalScenarios = [...remoteScenarios, ...(localData.scenarios ?? [])];
-          finalMockRules = [...remoteMockRules, ...(localData.mockRules ?? [])];
+          finalScenarios = [...remoteScenarios, ...((localData.scenarios as Scenario[]) ?? [])];
+          finalMockRules = [...remoteMockRules, ...((localData.mockRules as MockRule[]) ?? [])];
         }
       }
     } catch (e) {
@@ -571,27 +569,26 @@ export async function pushWorkspaceSync(
     tasks.push(pushResources(workspaceId, "domain_group_links", linksPayload, userId));
   }
   if (kindSet.has("scenarios")) {
-    let scenariosPayload = finalScenarios;
+    let scenariosPayload: Scenario[] = finalScenarios;
     if (opts.selectedItemKeys?.length && kindSet.size === 1 && kindSet.has("scenarios")) {
       const keySet = new Set(opts.selectedItemKeys);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const localSelected = ((localData.scenarios ?? []) as any[]).filter((s, i) => keySet.has(s.id ?? `local-${i}`));
-      let remoteScenarios: unknown[] = [];
+      const localSelected = ((localData.scenarios ?? []) as Scenario[]).filter((s, i) =>
+        keySet.has(s.id ?? `local-${i}`),
+      );
+      let remoteScenarios: Scenario[] = [];
       try {
         const rows = await pullResources(workspaceId);
-        remoteScenarios = (rows.find((r) => r.kind === "scenarios")?.payload as unknown[]) ?? [];
+        remoteScenarios = (rows.find((r) => r.kind === "scenarios")?.payload as Scenario[]) ?? [];
       } catch {
         remoteScenarios = [];
       }
-      const byKey = new Map(
+      const byKey = new Map<string, Scenario>(
         remoteScenarios.map((s, i) => {
-          const item = s as { id?: string };
-          return [item.id ?? `remote-${i}`, s];
+          return [s.id ?? `remote-${i}`, s];
         }),
       );
       for (const s of localSelected) {
-        const item = s as { id?: string };
-        byKey.set(item.id ?? JSON.stringify(s), s);
+        byKey.set(s.id ?? JSON.stringify(s), s);
       }
       scenariosPayload = Array.from(byKey.values());
     }
@@ -635,14 +632,13 @@ export async function pullWorkspaceSync(
   const remoteDomains = (byKind.domains as DomainItem[]) ?? [];
   const remoteGroups = (byKind.groups as GroupItem[]) ?? [];
   const remoteLinks = (byKind.domain_group_links as LinkItem[]) ?? [];
-  const remoteScenarios = (byKind.scenarios as unknown[]) ?? [];
+  const remoteScenarios = (byKind.scenarios as Scenario[]) ?? [];
   const remoteMockRules = (byKind.mock_rules as MockRule[]) ?? [];
 
   let nextDomains = localData.domains as unknown as DomainItem[];
   let nextGroups = localData.groups as unknown as GroupItem[];
   let nextLinks = localData.domainGroupLinks as unknown as LinkItem[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let nextScenarios: any[] = localData.scenarios ?? [];
+  let nextScenarios: Scenario[] = (localData.scenarios as Scenario[]) ?? [];
   let nextMockRules: MockRule[] = (localData.mockRules as MockRule[]) ?? [];
 
   if (opts.mode === "overwrite") {
@@ -784,8 +780,7 @@ export async function pullWorkspaceSync(
   };
 
   // Use overwrite so field updates on matched hosts actually land (merge import only inserts new hosts).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const importRes = await commands.importAllSettings(payload as any, "overwrite").then(unwrap);
+  const importRes = await commands.importAllSettings(payload as SettingsExport_Deserialize, "overwrite").then(unwrap);
   if (!importRes.success) {
     throw new Error(importRes.message || "Import failed");
   }

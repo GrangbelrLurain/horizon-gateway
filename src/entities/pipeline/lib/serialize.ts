@@ -5,8 +5,7 @@ export const emptyPipelineFlow = (): PipelineFlow => ({
   edges: [],
 });
 
-// biome-ignore lint/suspicious/noExplicitAny: pipeline node configs are heterogeneous JSON blobs
-export type PipelineNodeConfig = Record<string, any>;
+export type PipelineNodeConfig = Record<string, unknown>;
 
 export function parseNodeConfig(config: PipelineNode["config"]): PipelineNodeConfig {
   if (!config) {

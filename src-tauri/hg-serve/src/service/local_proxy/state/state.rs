@@ -83,7 +83,7 @@ impl ProxyState {
 
     pub(crate) fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) {
         crate::serve::publish_event(event, payload.clone());
-        if let Some(handle) = &self.app_handle {
+        if let Some(_handle) = &self.app_handle {
             crate::serve::events::publish_event(event, payload);
         }
     }

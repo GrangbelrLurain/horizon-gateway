@@ -40,6 +40,7 @@ import {
 import {
   apiClientCurrentRequestAtom,
   apiClientHistoryAtom,
+  type CryptoAction,
   CryptoNode,
   executePipelineApiNode,
   type NodeExecutionResult,
@@ -54,13 +55,22 @@ import { LivePreviewer } from "./LivePreviewer";
 import { SchemaEditorModal } from "./SchemaEditorModal";
 
 if (typeof window !== "undefined") {
-  (window as any).CryptoJS = CryptoJS;
+  (window as unknown as { CryptoJS: unknown }).CryptoJS = CryptoJS;
+}
+
+export interface FlowNodeData {
+  label?: string;
+  config?: Record<string, unknown>;
+  isRunning?: boolean;
+  isSuccess?: boolean;
+  isError?: boolean;
+  elapsedMs?: number | null;
 }
 
 // ── Custom Node Components ──────────────────────────────────────────────────
 
 // 1. API Node Component
-function ApiNodeComponent({ data }: { data: any }) {
+function ApiNodeComponent({ data }: { data: FlowNodeData }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -85,9 +95,17 @@ function ApiNodeComponent({ data }: { data: any }) {
       </div>
       <div className="space-y-1">
         <div className="text-[11px] font-bold font-mono">
-          <span className="text-success mr-1">{data.config?.method || "GET"}</span>
+          <span className="text-success mr-1">{(data.config?.method as string) || "GET"}</span>
           <span className="text-base-content/50 truncate max-w-[100px] inline-block align-bottom">
-            {data.config?.url ? new URL(data.config.url).pathname : "/endpoint"}
+            {data.config?.url
+              ? (() => {
+                  try {
+                    return new URL(String(data.config.url)).pathname;
+                  } catch {
+                    return String(data.config.url);
+                  }
+                })()
+              : "/endpoint"}
           </span>
         </div>
         {elapsedMs && <div className="text-[9px] text-base-content/40">{elapsedMs}ms</div>}
@@ -98,7 +116,7 @@ function ApiNodeComponent({ data }: { data: any }) {
 }
 
 // 2. Crypto Node Component
-function CryptoNodeComponent({ data }: { data: any }) {
+function CryptoNodeComponent({ data }: { data: FlowNodeData }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -121,7 +139,7 @@ function CryptoNodeComponent({ data }: { data: any }) {
         <span className="text-xs font-bold text-base-content/80">Crypto Tool</span>
       </div>
       <div className="text-[10px] font-mono font-bold text-primary/80 uppercase">
-        {data.config?.action || "base64Encode"}
+        {(data.config?.action as string) || "base64Encode"}
       </div>
       <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
     </div>
@@ -129,7 +147,7 @@ function CryptoNodeComponent({ data }: { data: any }) {
 }
 
 // 3. Schema Validation Node Component
-function SchemaNodeComponent({ data }: { data: any }) {
+function SchemaNodeComponent({ data }: { data: FlowNodeData }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -158,12 +176,12 @@ function SchemaNodeComponent({ data }: { data: any }) {
 }
 
 // 4. Preview Node Component
-function PreviewNodeComponent({ data }: { data: any }) {
+function PreviewNodeComponent({ data }: { data: FlowNodeData & { previewData?: unknown } }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
   const config = data.config || {};
-  const code = config.code || "";
+  const code = (config.code as string) || "";
   const previewData = data.previewData;
 
   return (
@@ -197,7 +215,7 @@ function PreviewNodeComponent({ data }: { data: any }) {
 }
 
 // 5. Mapper Node Component
-function MapperNodeComponent({ data }: { data: any }) {
+function MapperNodeComponent({ data }: { data: FlowNodeData }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -220,7 +238,7 @@ function MapperNodeComponent({ data }: { data: any }) {
         <span className="text-xs font-bold text-base-content/80">Data Mapper</span>
       </div>
       <div className="text-[10px] font-semibold text-base-content/60">
-        {data.config?.mappings?.length || 0} mappings defined
+        {(data.config?.mappings as unknown[])?.length || 0} mappings defined
       </div>
       <Handle type="source" position={Position.Bottom} className="w-2.5 h-2.5 bg-primary" />
     </div>
@@ -228,7 +246,7 @@ function MapperNodeComponent({ data }: { data: any }) {
 }
 
 // 6. Custom Script Node Component
-function ScriptNodeComponent({ data }: { data: any }) {
+function ScriptNodeComponent({ data }: { data: FlowNodeData }) {
   const isRunning = data.isRunning;
   const isSuccess = data.isSuccess;
   const isError = data.isError;
@@ -267,17 +285,17 @@ function ScriptNodeComponent({ data }: { data: any }) {
 
 // Node registrations object for React Flow
 const nodeTypes = {
-  api: ApiNodeComponent as any,
-  crypto: CryptoNodeComponent as any,
-  schema: SchemaNodeComponent as any,
-  preview: PreviewNodeComponent as any,
-  mapper: MapperNodeComponent as any,
-  script: ScriptNodeComponent as any,
+  api: ApiNodeComponent,
+  crypto: CryptoNodeComponent,
+  schema: SchemaNodeComponent,
+  preview: PreviewNodeComponent,
+  mapper: MapperNodeComponent,
+  script: ScriptNodeComponent,
 };
 
-const resolveInterpolatedValue = (val: any, results: NodeExecutionResult[]): any => {
+const resolveInterpolatedValue = (val: unknown, results: NodeExecutionResult[]): unknown => {
   // Construct evaluation context from previous nodes' outputs
-  const context: Record<string, any> = {};
+  const context: Record<string, unknown> = {};
   results.forEach((res) => {
     try {
       context[res.nodeId] = JSON.parse(res.output);
@@ -319,75 +337,19 @@ const resolveInterpolatedValue = (val: any, results: NodeExecutionResult[]): any
   } else if (Array.isArray(val)) {
     return val.map((item) => resolveInterpolatedValue(item, results));
   } else if (val !== null && typeof val === "object") {
-    const res: any = {};
-    for (const key of Object.keys(val)) {
-      res[key] = resolveInterpolatedValue(val[key], results);
+    const res: Record<string, unknown> = {};
+    for (const key of Object.keys(val as Record<string, unknown>)) {
+      res[key] = resolveInterpolatedValue((val as Record<string, unknown>)[key], results);
     }
     return res;
   }
   return val;
 };
 
-/*
-const getPrecedingNodePaths = (nodes: any[], report: any, selectedNodeId: string) => {
-  if (!report) return [];
-  const list: Array<{ nodeId: string; nodeLabel: string; paths: Array<{ path: string; valStr: string }> }> = [];
-
-  nodes.forEach((n) => {
-    if (n.id === selectedNodeId) return;
-    const runRes = report.results.find((r: any) => r.nodeId === n.id);
-    if (!runRes || !runRes.success) return;
-
-    try {
-      const outputObj = JSON.parse(runRes.output);
-      const paths: Array<{ path: string; valStr: string }> = [];
-
-      const traverse = (obj: any, prefix = "") => {
-        if (obj === null || obj === undefined) return;
-        if (typeof obj !== "object") return;
-
-        for (const key of Object.keys(obj)) {
-          const val = obj[key];
-          const path = prefix ? `${prefix}.${key}` : key;
-
-          let valStr = "";
-          if (val === null) valStr = "null";
-          else if (typeof val === "object") valStr = Array.isArray(val) ? "[Array]" : "{Object}";
-          else valStr = String(val);
-
-          paths.push({ path, valStr });
-
-          if (val !== null && typeof val === "object" && !Array.isArray(val)) {
-            traverse(val, path);
-          }
-        }
-      };
-
-      traverse(outputObj);
-      if (paths.length > 0) {
-        list.push({
-          nodeId: n.id,
-          nodeLabel: n.data.label,
-          paths,
-        });
-      }
-    } catch {
-      list.push({
-        nodeId: n.id,
-        nodeLabel: n.data.label,
-        paths: [{ path: n.type === "crypto" ? "result" : "output", valStr: runRes.output }],
-      });
-    }
-  });
-
-  return list;
-};
-*/
-
 // ── Main FlowBuilder Component ──────────────────────────────────────────────
 
 export interface FlowBuilderProps {
-  onExportPreviewData?: (data: any) => void;
+  onExportPreviewData?: (data: unknown) => void;
 }
 
 export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
@@ -476,14 +438,14 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   );
 
   const handleNodesChange = useCallback(
-    (changes: any) => {
+    (changes: Parameters<typeof onNodesChange>[0]) => {
       onNodesChange(changes);
     },
     [onNodesChange],
   );
 
   const handleEdgesChange = useCallback(
-    (changes: any) => {
+    (changes: Parameters<typeof onEdgesChange>[0]) => {
       onEdgesChange(changes);
     },
     [onEdgesChange],
@@ -505,7 +467,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 ? "Custom Script"
                 : "UI Preview Node";
 
-    let config: any = {};
+    let config: Record<string, unknown> = {};
     if (type === "api") {
       config = {
         method: "GET",
@@ -589,7 +551,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
   };
 
   // Config Mutators
-  const updateNodeConfig = (nodeId: string, updatedConfig: any) => {
+  const updateNodeConfig = (nodeId: string, updatedConfig: Record<string, unknown>) => {
     const updated = nodes.map((n) => {
       if (n.id === nodeId) {
         return {
@@ -622,7 +584,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
     const results: NodeExecutionResult[] = [];
 
     // Helper: Sort DAG topologically
-    const sortDag = (flowNodes: any[], flowEdges: any[]): string[] => {
+    const sortDag = (
+      flowNodes: Array<{ id: string }>,
+      flowEdges: Array<{ source: string; target: string }>,
+    ): string[] => {
       const inDegree: Record<string, number> = {};
       const adj: Record<string, string[]> = {};
 
@@ -695,10 +660,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
         setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, isRunning: true } } : n)));
 
         const nodeStart = Date.now();
-        let interpolatedConfig: any = null;
+        let interpolatedConfig: Record<string, unknown> | null = null;
 
         try {
-          interpolatedConfig = resolveInterpolatedValue(node.data.config, results);
+          interpolatedConfig = (resolveInterpolatedValue(node.data.config, results) as Record<string, unknown>) || {};
         } catch (e) {
           const err = e as Error;
           const elapsed = Date.now() - nodeStart;
@@ -723,7 +688,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
           break;
         }
 
-        let output: any = null;
+        let output: unknown = null;
         let nodeSuccess = false;
         let nodeError: string | null = null;
 
@@ -732,13 +697,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             output = await executePipelineApiNode(interpolatedConfig);
             nodeSuccess = true;
           } else if (node.type === "crypto") {
-            const action = interpolatedConfig.action;
-            const payload = interpolatedConfig.payload || "";
-            const key = interpolatedConfig.key || "";
-            const iv = interpolatedConfig.iv || "";
+            const action = (interpolatedConfig.action as string) || "base64Encode";
+            const payload = (interpolatedConfig.payload as string) || "";
+            const key = (interpolatedConfig.key as string) || "";
+            const iv = (interpolatedConfig.iv as string) || "";
 
             if (action === "custom") {
-              const code = interpolatedConfig.code || "";
+              const code = (interpolatedConfig.code as string) || "";
               let transpiled = "";
               try {
                 transpiled =
@@ -747,12 +712,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     plugins: ["transform-modules-commonjs"],
                     filename: "crypto_custom.ts",
                   }).code || "";
-              } catch (e: any) {
-                throw new Error(`컴파일 에러: ${e.message}`);
+              } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                throw new Error(`컴파일 에러: ${message}`);
               }
 
               const runFn = new Function("exports", transpiled);
-              const exportsObj: any = {};
+              const exportsObj: Record<string, unknown> = {};
               runFn(exportsObj);
 
               const defaultExport = exportsObj.default;
@@ -768,26 +734,30 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
               };
               nodeSuccess = true;
             } else {
-              const res = await processCrypto(action, payload, key || undefined, iv || undefined);
+              const res = await processCrypto(action as CryptoAction, payload, key || undefined, iv || undefined);
               output = { result: res };
               nodeSuccess = true;
             }
           } else if (node.type === "schema") {
-            const payload = interpolatedConfig.payload || "";
-            const schema = interpolatedConfig.schema || "";
+            const payload = (interpolatedConfig.payload as string) || "";
+            const schema = (interpolatedConfig.schema as string) || "";
             const res = await validateJsonSchema(payload, schema);
             output = { valid: res.valid, errors: res.errors };
             nodeSuccess = true;
           } else if (node.type === "preview") {
             const incomingEdge = edges.find((e) => e.target === node.id);
-            let parentData: any = null;
+            let parentData: unknown = null;
             if (incomingEdge) {
               const parentResult = results.find((r) => r.nodeId === incomingEdge.source);
               if (parentResult?.success) {
                 try {
                   parentData = JSON.parse(parentResult.output);
-                  if (parentData && parentData.result !== undefined) {
-                    parentData = parentData.result;
+                  if (
+                    parentData &&
+                    typeof parentData === "object" &&
+                    "result" in (parentData as Record<string, unknown>)
+                  ) {
+                    parentData = (parentData as Record<string, unknown>).result;
                   }
                 } catch {
                   parentData = parentResult.output;
@@ -797,7 +767,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             output = parentData;
             nodeSuccess = true;
           } else if (node.type === "mapper") {
-            const mappedObj: Record<string, any> = {};
+            const mappedObj: Record<string, unknown> = {};
             if (Array.isArray(interpolatedConfig.mappings)) {
               (interpolatedConfig.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach((m) => {
                 if (m.targetKey && m.targetKey.trim() !== "") {
@@ -808,7 +778,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
             output = mappedObj;
             nodeSuccess = true;
           } else if (node.type === "script") {
-            const code = interpolatedConfig.code || "";
+            const code = (interpolatedConfig.code as string) || "";
             let transpiled = "";
             try {
               transpiled =
@@ -817,12 +787,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   plugins: ["transform-modules-commonjs"],
                   filename: "script.ts",
                 }).code || "";
-            } catch (e: any) {
-              throw new Error(`컴파일 에러: ${e.message}`);
+            } catch (e: unknown) {
+              const message = e instanceof Error ? e.message : String(e);
+              throw new Error(`컴파일 에러: ${message}`);
             }
 
             // Create inputs object containing outputs of all previous nodes
-            const inputs: Record<string, any> = {};
+            const inputs: Record<string, unknown> = {};
             results.forEach((res) => {
               try {
                 inputs[res.nodeId] = JSON.parse(res.output);
@@ -833,7 +804,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
             // Execute the code
             const runFn = new Function("exports", "inputs", transpiled);
-            const exportsObj: any = {};
+            const exportsObj: Record<string, unknown> = {};
             runFn(exportsObj, inputs);
 
             const defaultExport = exportsObj.default;
@@ -969,7 +940,13 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
         updateNodeConfig(mapperNode.id, {
           ...mapperNode.data.config,
-          mappings: [...(mapperNode.data.config.mappings || []), ...newMappings],
+          mappings: [
+            ...(((mapperNode.data.config?.mappings as unknown[]) || []) as Array<{
+              targetKey: string;
+              sourceValue: string;
+            }>),
+            ...newMappings,
+          ],
         });
       }
     } catch (e) {
@@ -1174,7 +1151,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <label className="font-semibold text-base-content/75">Method</label>
                     <select
                       className="select select-bordered select-xs w-full text-xs font-bold"
-                      value={activeNode.data.config.method || "GET"}
+                      value={(activeNode.data.config?.method as string) || "GET"}
                       onChange={(e) =>
                         updateNodeConfig(activeNode.id, { ...activeNode.data.config, method: e.target.value })
                       }
@@ -1191,21 +1168,21 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <input
                       type="text"
                       className="input input-bordered input-xs font-mono w-full"
-                      value={activeNode.data.config.url || ""}
+                      value={(activeNode.data.config?.url as string) || ""}
                       onChange={(e) =>
                         updateNodeConfig(activeNode.id, { ...activeNode.data.config, url: e.target.value })
                       }
                     />
                   </div>
 
-                  {["POST", "PUT"].includes(activeNode.data.config.method) && (
+                  {["POST", "PUT"].includes(String(activeNode.data.config?.method)) && (
                     <div className="flex flex-col gap-1">
                       <label className="font-semibold text-base-content/75">Body</label>
                       <textarea
                         rows={4}
                         className="textarea textarea-bordered textarea-xs font-mono w-full"
                         placeholder='{"key": "{{some_node.result}}"}'
-                        value={activeNode.data.config.body || ""}
+                        value={(activeNode.data.config?.body as string) || ""}
                         onChange={(e) =>
                           updateNodeConfig(activeNode.id, { ...activeNode.data.config, body: e.target.value })
                         }
@@ -1238,7 +1215,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             action: found.action,
                             key: found.key,
                             iv: found.iv,
-                            payload: found.payload || activeNode.data.config.payload || "",
+                            payload: found.payload || activeNode.data.config?.payload || "",
                           });
                         }
                       }}
@@ -1253,17 +1230,17 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   </div>
                   <CryptoNode
                     isStandalone={false}
-                    action={activeNode.data.config.action}
+                    action={activeNode.data.config?.action as CryptoAction | undefined}
                     onChangeAction={(action) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, action })}
-                    payload={activeNode.data.config.payload}
+                    payload={activeNode.data.config?.payload as string | undefined}
                     onChangePayload={(payload) =>
                       updateNodeConfig(activeNode.id, { ...activeNode.data.config, payload })
                     }
-                    secretKey={activeNode.data.config.key}
+                    secretKey={activeNode.data.config?.key as string | undefined}
                     onChangeSecretKey={(key) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, key })}
-                    iv={activeNode.data.config.iv}
+                    iv={activeNode.data.config?.iv as string | undefined}
                     onChangeIv={(iv) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, iv })}
-                    customCode={activeNode.data.config.code}
+                    customCode={activeNode.data.config?.code as string | undefined}
                     onChangeCustomCode={(code) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code })}
                   />
                 </div>
@@ -1297,23 +1274,27 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         >
                           [+ 생성]
                         </button>
-                        {activeNode.data.config.schemaId && (
+                        {Boolean(activeNode.data.config?.schemaId) && (
                           <button
                             type="button"
                             className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
                             onClick={() =>
-                              openSchemaEditor(false, activeNode.data.config.schemaId, (savedId) => {
-                                const store = getDefaultStore();
-                                const latestSchemas = store.get(savedJsonSchemasAtom);
-                                const found = latestSchemas.find((s) => s.id === savedId);
-                                if (found) {
-                                  updateNodeConfig(activeNode.id, {
-                                    ...activeNode.data.config,
-                                    schemaId: savedId,
-                                    schema: found.schemaText,
-                                  });
-                                }
-                              })
+                              openSchemaEditor(
+                                false,
+                                activeNode.data.config?.schemaId as string | undefined,
+                                (savedId) => {
+                                  const store = getDefaultStore();
+                                  const latestSchemas = store.get(savedJsonSchemasAtom);
+                                  const found = latestSchemas.find((s) => s.id === savedId);
+                                  if (found) {
+                                    updateNodeConfig(activeNode.id, {
+                                      ...activeNode.data.config,
+                                      schemaId: savedId,
+                                      schema: found.schemaText,
+                                    });
+                                  }
+                                },
+                              )
                             }
                           >
                             [/ 편집]
@@ -1323,7 +1304,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     </div>
                     <select
                       className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
-                      value={activeNode.data.config.schemaId || ""}
+                      value={(activeNode.data.config?.schemaId as string) || ""}
                       onChange={(e) => {
                         const selectedId = e.target.value;
                         const found = savedJsonSchemas.find((s) => s.id === selectedId);
@@ -1354,7 +1335,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <textarea
                       rows={4}
                       className="textarea textarea-bordered textarea-xs font-mono w-full"
-                      value={activeNode.data.config.payload || ""}
+                      value={(activeNode.data.config?.payload as string) || ""}
                       onChange={(e) =>
                         updateNodeConfig(activeNode.id, { ...activeNode.data.config, payload: e.target.value })
                       }
@@ -1365,7 +1346,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <textarea
                       rows={6}
                       className="textarea textarea-bordered textarea-xs font-mono w-full"
-                      value={activeNode.data.config.schema || ""}
+                      value={(activeNode.data.config?.schema as string) || ""}
                       onChange={(e) =>
                         updateNodeConfig(activeNode.id, { ...activeNode.data.config, schema: e.target.value })
                       }
@@ -1395,7 +1376,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   let schemaProperties: string[] = [];
                   if (connectedSchemaNode) {
                     try {
-                      const parsedSchema = JSON.parse(connectedSchemaNode.data.config.schema || "{}");
+                      const parsedSchema = JSON.parse((connectedSchemaNode.data.config?.schema as string) || "{}");
                       if (parsedSchema && typeof parsedSchema.properties === "object") {
                         schemaProperties = Object.keys(parsedSchema.properties);
                       }
@@ -1428,7 +1409,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           <button
                             className="btn btn-xs btn-outline btn-primary flex items-center gap-1"
                             onClick={() => {
-                              const currentMappings = activeNode.data.config.mappings || [];
+                              const currentMappings = ((activeNode.data.config?.mappings as unknown[]) || []) as Array<{
+                                targetKey: string;
+                                sourceValue: string;
+                              }>;
                               updateNodeConfig(activeNode.id, {
                                 ...activeNode.data.config,
                                 mappings: [...currentMappings, { targetKey: "", sourceValue: "" }],
@@ -1442,7 +1426,10 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
                       <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[350px]">
                         {(
-                          (activeNode.data.config.mappings || []) as Array<{ targetKey: string; sourceValue: string }>
+                          ((activeNode.data.config?.mappings as unknown[]) || []) as Array<{
+                            targetKey: string;
+                            sourceValue: string;
+                          }>
                         ).map((m, idx) => (
                           <div
                             key={idx}
@@ -1456,7 +1443,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                 <TsCodeEditor
                                   value={m.targetKey}
                                   onChange={(val) => {
-                                    const newMappings = [...(activeNode.data.config.mappings || [])];
+                                    const newMappings = [
+                                      ...(((activeNode.data.config?.mappings as unknown[]) || []) as Array<{
+                                        targetKey: string;
+                                        sourceValue: string;
+                                      }>),
+                                    ];
                                     newMappings[idx] = { ...newMappings[idx], targetKey: val };
                                     updateNodeConfig(activeNode.id, {
                                       ...activeNode.data.config,
@@ -1477,7 +1469,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                 <TsCodeEditor
                                   value={m.sourceValue}
                                   onChange={(val) => {
-                                    const newMappings = [...(activeNode.data.config.mappings || [])];
+                                    const newMappings = [
+                                      ...(((activeNode.data.config?.mappings as unknown[]) || []) as Array<{
+                                        targetKey: string;
+                                        sourceValue: string;
+                                      }>),
+                                    ];
                                     newMappings[idx] = { ...newMappings[idx], sourceValue: val };
                                     updateNodeConfig(activeNode.id, {
                                       ...activeNode.data.config,
@@ -1495,9 +1492,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             <button
                               className="btn btn-ghost btn-xs text-error/70 p-0 w-6 h-6 hover:bg-error/15 shrink-0 self-end mb-1"
                               onClick={() => {
-                                const newMappings = (activeNode.data.config.mappings || []).filter(
-                                  (_: unknown, i: number) => i !== idx,
-                                );
+                                const rawMappings = (activeNode.data.config?.mappings as unknown[]) || [];
+                                const newMappings = rawMappings.filter((_: unknown, i: number) => i !== idx);
                                 updateNodeConfig(activeNode.id, { ...activeNode.data.config, mappings: newMappings });
                               }}
                             >
@@ -1505,7 +1501,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                             </button>
                           </div>
                         ))}
-                        {(activeNode.data.config.mappings || []).length === 0 && (
+                        {((activeNode.data.config?.mappings as unknown[]) || []).length === 0 && (
                           <div className="text-center py-6 text-base-content/40 italic">
                             정의된 매핑이 없습니다. 상단의 추가 버튼을 눌러 속성을 매핑해 보세요.
                           </div>
@@ -1520,18 +1516,16 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           </label>
                           {(() => {
                             const previewResult = resolveInterpolatedValue(
-                              { mappings: activeNode.data.config.mappings || [] },
+                              { mappings: activeNode.data.config?.mappings || [] },
                               report.results,
-                            );
+                            ) as { mappings?: Array<{ targetKey: string; sourceValue: string }> } | null;
                             const mappedObj: Record<string, unknown> = {};
-                            if (Array.isArray(previewResult.mappings)) {
-                              (previewResult.mappings as Array<{ targetKey: string; sourceValue: string }>).forEach(
-                                (m) => {
-                                  if (m.targetKey && m.targetKey.trim() !== "") {
-                                    mappedObj[m.targetKey.trim()] = m.sourceValue;
-                                  }
-                                },
-                              );
+                            if (previewResult && Array.isArray(previewResult.mappings)) {
+                              previewResult.mappings.forEach((m) => {
+                                if (m.targetKey && m.targetKey.trim() !== "") {
+                                  mappedObj[m.targetKey.trim()] = m.sourceValue;
+                                }
+                              });
                             }
                             return (
                               <textarea
@@ -1600,17 +1594,21 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           >
                             [+ 생성]
                           </button>
-                          {activeNode.data.config.schemaId && (
+                          {Boolean(activeNode.data.config?.schemaId) && (
                             <button
                               type="button"
                               className="text-[9px] hover:text-primary font-bold text-base-content/40 cursor-pointer"
                               onClick={() =>
-                                openSchemaEditor(false, activeNode.data.config.schemaId, (savedId) => {
-                                  updateNodeConfig(activeNode.id, {
-                                    ...activeNode.data.config,
-                                    schemaId: savedId,
-                                  });
-                                })
+                                openSchemaEditor(
+                                  false,
+                                  activeNode.data.config?.schemaId as string | undefined,
+                                  (savedId) => {
+                                    updateNodeConfig(activeNode.id, {
+                                      ...activeNode.data.config,
+                                      schemaId: savedId,
+                                    });
+                                  },
+                                )
                               }
                             >
                               [/ 편집]
@@ -1620,7 +1618,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                       </div>
                       <select
                         className="select select-bordered select-xs w-full text-xs font-bold focus:outline-none"
-                        value={activeNode.data.config.schemaId || ""}
+                        value={(activeNode.data.config?.schemaId as string) || ""}
                         onChange={(e) => {
                           updateNodeConfig(activeNode.id, {
                             ...activeNode.data.config,
@@ -1650,15 +1648,19 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                       }
 
                       const incomingEdge = edges.find((e) => e.target === activeNode.id);
-                      let previewData: any = null;
+                      let previewData: unknown = null;
 
                       if (incomingEdge && report) {
                         const parentResult = report.results.find((r) => r.nodeId === incomingEdge.source);
                         if (parentResult?.success) {
                           try {
                             previewData = JSON.parse(parentResult.output);
-                            if (previewData && previewData.result !== undefined) {
-                              previewData = previewData.result;
+                            if (
+                              previewData &&
+                              typeof previewData === "object" &&
+                              "result" in (previewData as Record<string, unknown>)
+                            ) {
+                              previewData = (previewData as Record<string, unknown>).result;
                             }
                           } catch {
                             previewData = parentResult.output;
@@ -1666,9 +1668,9 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         }
                       }
 
-                      let mockDataObj: Record<string, any> = {};
+                      let mockDataObj: Record<string, unknown> = {};
                       if (previewData && typeof previewData === "object" && !Array.isArray(previewData)) {
-                        mockDataObj = previewData;
+                        mockDataObj = previewData as Record<string, unknown>;
                       } else if (schemaText) {
                         try {
                           const schemaObj = JSON.parse(schemaText);
@@ -1689,7 +1691,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
                       return (
                         <TsCodeEditor
-                          value={activeNode.data.config.code || ""}
+                          value={(activeNode.data.config?.code as string) || ""}
                           onChange={(val) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code: val })}
                           language="typescript"
                           context={editorContext}
@@ -1710,15 +1712,19 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                     <div className="flex-1 bg-white relative">
                       {(() => {
                         const incomingEdge = edges.find((e) => e.target === activeNode.id);
-                        let previewData: any = null;
+                        let previewData: unknown = null;
 
                         if (incomingEdge && report) {
                           const parentResult = report.results.find((r) => r.nodeId === incomingEdge.source);
                           if (parentResult?.success) {
                             try {
                               previewData = JSON.parse(parentResult.output);
-                              if (previewData && previewData.result !== undefined) {
-                                previewData = previewData.result;
+                              if (
+                                previewData &&
+                                typeof previewData === "object" &&
+                                "result" in (previewData as Record<string, unknown>)
+                              ) {
+                                previewData = (previewData as Record<string, unknown>).result;
                               }
                             } catch {
                               previewData = parentResult.output;
@@ -1728,8 +1734,8 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
 
                         // Retrieve active JSON Schema raw text for validation warning
                         let schemaText = "";
-                        if (activeNode.data.config.schemaId) {
-                          const foundSchema = savedJsonSchemas.find((s) => s.id === activeNode.data.config.schemaId);
+                        if (activeNode.data.config?.schemaId) {
+                          const foundSchema = savedJsonSchemas.find((s) => s.id === activeNode.data.config?.schemaId);
                           if (foundSchema) {
                             schemaText = foundSchema.schemaText;
                           }
@@ -1738,7 +1744,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                         return (
                           <LivePreviewer
                             key={activeNode.id + (report ? "_ran" : "")}
-                            code={activeNode.data.config.code || ""}
+                            code={(activeNode.data.config?.code as string) || ""}
                             initialData={previewData}
                             schemaText={schemaText}
                           />
@@ -1763,7 +1769,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   </div>
                   <div className="flex-1 min-h-[300px] flex flex-col gap-1">
                     <TsCodeEditor
-                      value={activeNode.data.config.code || ""}
+                      value={(activeNode.data.config?.code as string) || ""}
                       onChange={(val) => updateNodeConfig(activeNode.id, { ...activeNode.data.config, code: val })}
                       language="javascript"
                       theme={theme}
@@ -1778,7 +1784,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                 <label className="font-semibold text-xs text-base-content/75">에러 대응 정책 (Error Policy)</label>
                 <select
                   className="select select-bordered select-xs w-full text-xs"
-                  value={activeNode.data.config.errorPolicy || "fastFail"}
+                  value={(activeNode.data.config?.errorPolicy as string) || "fastFail"}
                   onChange={(e) =>
                     updateNodeConfig(activeNode.id, { ...activeNode.data.config, errorPolicy: e.target.value })
                   }
@@ -1801,12 +1807,15 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                   <div className="space-y-2 max-h-[150px] overflow-y-auto">
                     {variableCandidates.map((c) => {
                       const runRes = report?.results.find((r) => r.nodeId === c.id);
-                      let parsedOutput: any = null;
+                      let parsedOutput: Record<string, unknown> | null = null;
                       if (runRes?.success) {
                         try {
-                          parsedOutput = JSON.parse(runRes.output);
+                          const parsed = JSON.parse(runRes.output);
+                          if (parsed && typeof parsed === "object") {
+                            parsedOutput = parsed as Record<string, unknown>;
+                          }
                         } catch {
-                          parsedOutput = runRes.output;
+                          parsedOutput = null;
                         }
                       }
 
@@ -1915,7 +1924,7 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                           </div>
                         ) : (
                           (() => {
-                            let outputObj: any = null;
+                            let outputObj: unknown = null;
                             try {
                               outputObj = JSON.parse(nodeRes.output);
                             } catch {
@@ -1936,9 +1945,12 @@ export function FlowBuilder({ onExportPreviewData }: FlowBuilderProps) {
                                       <button
                                         type="button"
                                         className="btn btn-[10px] btn-ghost btn-xs text-success flex items-center gap-0.5"
-                                        onClick={() =>
-                                          onExportPreviewData(outputObj.body || outputObj.result || outputObj)
-                                        }
+                                        onClick={() => {
+                                          const obj = outputObj as Record<string, unknown> | null;
+                                          const previewVal =
+                                            obj && typeof obj === "object" ? obj.body || obj.result || obj : outputObj;
+                                          onExportPreviewData(previewVal);
+                                        }}
                                       >
                                         프리뷰로 내보내기 <ArrowRight className="w-3 h-3" />
                                       </button>

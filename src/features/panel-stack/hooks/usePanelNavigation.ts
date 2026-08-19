@@ -114,8 +114,7 @@ export function usePanelNavigation() {
     (nextDomainId: number | null, nextPanels: PanelEntry[], nextGlobalSurface: HubSurfaceId | null) => {
       navigate({
         to: "/",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        search: searchFromState(nextDomainId, nextPanels, nextGlobalSurface) as any,
+        search: searchFromState(nextDomainId, nextPanels, nextGlobalSurface),
         replace: true,
       });
     },

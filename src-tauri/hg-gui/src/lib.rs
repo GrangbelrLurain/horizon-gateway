@@ -1,3 +1,6 @@
+use tauri::{Emitter, Manager};
+use tauri_plugin_deep_link::DeepLinkExt;
+
 pub use hg_core::model;
 
 mod logging;
@@ -63,7 +66,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             tracing::info!("Single Instance triggered with args: {:?}", argv);
-            use tauri::{Emitter, Manager};
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.unminimize();
@@ -100,7 +102,6 @@ pub fn run() {
             // Ensure hg-serve backend process is running
             match crate::serve::ensure_running() {
                 Ok(()) => {
-                    use tauri::Emitter;
                     let _ = app.emit("serve-ready", ());
                 }
                 Err(e) => {
@@ -109,8 +110,6 @@ pub fn run() {
             }
 
             // Deep Link Listener
-            use tauri::Emitter;
-            use tauri_plugin_deep_link::DeepLinkExt;
             let handle = app.handle().clone();
             #[cfg(target_os = "windows")]
             let _ = handle.deep_link().register("horizon-gateway");
@@ -143,7 +142,6 @@ pub fn run() {
                 ..
             } if label == "main" => {
                 api.prevent_close();
-                use tauri::Emitter;
                 let _ = app_handle.emit("main-window-close-requested", ());
             }
             _ => {}

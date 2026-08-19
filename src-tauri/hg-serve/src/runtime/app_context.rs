@@ -191,25 +191,6 @@ pub fn bootstrap_app_context() -> Result<AppContext, String> {
     })
 }
 
-fn is_empty_versioned_array(path: &Path) -> bool {
-    let Ok(content) = fs::read_to_string(path) else {
-        return true;
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) else {
-        return true;
-    };
-
-    match value {
-        serde_json::Value::Array(items) => items.is_empty(),
-        serde_json::Value::Object(map) => map
-            .get("data")
-            .and_then(|value| value.as_array())
-            .map(|items| items.is_empty())
-            .unwrap_or(true),
-        _ => true,
-    }
-}
-
 fn migrate_removed_global_toggles(
     proxy_settings: &ProxySettingsService,
     routes: &LocalRouteService,
@@ -238,20 +219,6 @@ fn migrate_removed_global_toggles(
         }
     }
     proxy_settings.seed_tls_defaults_if_needed(decrypt_hosts);
-}
-
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
-    fs::create_dir_all(&dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        }
-    }
-    Ok(())
 }
 
 fn merge_domains_from_legacy(

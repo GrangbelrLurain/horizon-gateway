@@ -124,7 +124,7 @@ impl Annotation {
             match first.strategy {
                 LocatorStrategy::Testid => {
                     if let Some(v) = &first.value {
-                        self.selector = format!("[data-testid=\"{}\"]", v);
+                        self.selector = format!("[data-testid=\"{v}\"]");
                     }
                 }
                 LocatorStrategy::Css => {

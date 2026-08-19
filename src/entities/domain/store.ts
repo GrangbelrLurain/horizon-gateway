@@ -1,3 +1,4 @@
+import type { SettingsExport_Deserialize } from "@/shared/api";
 import { commands, unwrap } from "@/shared/api";
 import { atomWithBroadcast } from "@/shared/lib/jotai/atomWithBroadcast";
 import { notifyHubDataChanged } from "@/shared/lib/tauri/hubEvents";
@@ -147,8 +148,7 @@ export async function executeDuplicateMerge(
     localRoutes: routes.filter((r) => r.domain_id == null || !secSet.has(r.domain_id as number)),
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await commands.importAllSettings(newSettings as any, "overwrite").then(unwrap);
+  await commands.importAllSettings(newSettings as SettingsExport_Deserialize, "overwrite").then(unwrap);
   await notifyHubDataChanged("domains");
   await notifyHubDataChanged("groups");
   await notifyHubDataChanged("routes");
